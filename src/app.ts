@@ -8,6 +8,7 @@ import { authRoutes } from "./modules/iam/auth.routes";
 import { authenticate } from "./middleware/authenticate";
 import { tenantScope } from "./middleware/tenantScope";
 import { userRoutes } from "./modules/users/user.routes";
+import { organizationRoutes } from "./modules/organizations/organization.routes";
 
 export function createApp() {
   const app = express();
@@ -20,6 +21,7 @@ export function createApp() {
   app.get("/health", (_req, res) => res.json({ success: true, data: { status: "ok" }, error: null, meta: null }));
   app.use("/v1/auth", authRoutes);
   app.use("/v1/users", authenticate, tenantScope, userRoutes);
+  app.use("/v1/organizations", authenticate, tenantScope, organizationRoutes);
 
   app.use(errorHandler);
   return app;
