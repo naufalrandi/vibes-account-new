@@ -46,6 +46,12 @@ describe("users", () => {
       .send({ orgId: tenantOrgId, fullName: "Jane Doe", username: "jdoe", email: "jane@acme.com" });
     expect(res.status).toBe(201);
     expect(res.body.data.status).toBe("PendingActivation");
+    // Credential-bearing fields must never leak in the response (the
+    // activationToken authorizes /v1/auth/activate).
+    expect(res.body.data).not.toHaveProperty("passwordHash");
+    expect(res.body.data).not.toHaveProperty("activationToken");
+    expect(res.body.data).not.toHaveProperty("resetToken");
+    expect(res.body.data).not.toHaveProperty("resetExpires");
   });
 
   it("rejects user creation for a non-existent org (FR-1)", async () => {
@@ -71,5 +77,11 @@ describe("users", () => {
     expect(res.status).toBe(200);
     expect(res.body.data.length).toBeGreaterThanOrEqual(1);
     expect(res.body.data.every((u: { status: string }) => u.status === "PendingActivation")).toBe(true);
+    expect(
+      res.body.data.every(
+        (u: Record<string, unknown>) =>
+          !("passwordHash" in u) && !("activationToken" in u) && !("resetToken" in u) && !("resetExpires" in u),
+      ),
+    ).toBe(true);
   });
 });

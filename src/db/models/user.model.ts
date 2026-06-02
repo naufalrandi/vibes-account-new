@@ -20,6 +20,21 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare resetExpires: Date | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
+
+  /**
+   * Exclude credential-bearing fields from any JSON serialization (API
+   * responses, logs). passwordHash and the activation/reset tokens authorize
+   * account access, so they must never leave the server. This applies to all
+   * paths that serialize a User via res.json() (create, list, setStatus).
+   */
+  toJSON(): Record<string, unknown> {
+    const values = { ...super.toJSON() } as Record<string, unknown>;
+    delete values.passwordHash;
+    delete values.activationToken;
+    delete values.resetToken;
+    delete values.resetExpires;
+    return values;
+  }
 }
 
 User.init(
