@@ -40,3 +40,25 @@ export function canActOnOrg(auth: AuthContext, targetOrgId: string, targetParent
   if (auth.orgType === "Distributor") return targetOrgId === auth.orgId || targetParentOrgId === auth.orgId;
   return targetOrgId === auth.orgId;
 }
+
+/**
+ * WHERE clause restricting Role visibility to the actor's scope. Roles are owned
+ * by an organization via Role.orgId; a global (orgId = null) role is only
+ * visible to the Service Owner. Distributors/Tenants see only roles owned by an
+ * organization within their own scope, resolved against `scopedOrgIds`.
+ */
+export function roleScopeWhere(auth: AuthContext, scopedOrgIds: string[]): WhereOptions {
+  if (auth.orgType === "ServiceOwner") return {};
+  return { orgId: { [Op.in]: scopedOrgIds } };
+}
+
+/**
+ * True when the actor may act on a role given the role's owning org id and that
+ * org's parent. Mirrors canActOnOrg; global roles (orgId = null) are
+ * Service-Owner-only.
+ */
+export function canActOnRole(auth: AuthContext, roleOrgId: string | null, roleOrgParentId: string | null): boolean {
+  if (auth.orgType === "ServiceOwner") return true;
+  if (roleOrgId === null) return false;
+  return canActOnOrg(auth, roleOrgId, roleOrgParentId);
+}

@@ -1,8 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
 import { type WhereOptions } from "sequelize";
-import { AuditLog, LoginHistory } from "../../db/models";
+import { AuditLog, LoginHistory, Organization, User } from "../../db/models";
 import { sendOk } from "../../lib/apiResponse";
-import { UnauthorizedError } from "../../lib/errors";
+import { NotFoundError, UnauthorizedError } from "../../lib/errors";
+import { userScopeWhere } from "../../lib/scope";
 
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
@@ -21,8 +22,16 @@ export async function list(req: Request, res: Response, next: NextFunction) {
 
 export async function loginHistory(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.auth) throw new UnauthorizedError();
-    const rows = await LoginHistory.findAll({ where: { userId: req.params.id }, order: [["at", "DESC"]], limit: 100 });
+    const auth = req.auth;
+    if (!auth) throw new UnauthorizedError();
+    const targetUserId = req.params.id as string;
+    // Login history is sensitive (source IPs + timestamps). Only expose it for a
+    // target user that falls within the actor's visible user set; otherwise 404
+    // so existence is not leaked across tenant boundaries.
+    const where: WhereOptions = { id: targetUserId, ...userScopeWhere(auth) };
+    const visible = await User.findOne({ where, include: [{ model: Organization, required: false }] });
+    if (!visible) throw new NotFoundError("User not found");
+    const rows = await LoginHistory.findAll({ where: { userId: targetUserId }, order: [["at", "DESC"]], limit: 100 });
     sendOk(res, rows);
   } catch (e) {
     next(e);
