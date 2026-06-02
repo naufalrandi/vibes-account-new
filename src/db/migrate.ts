@@ -3,7 +3,23 @@ import { Umzug, SequelizeStorage } from "umzug";
 import { sequelize } from "./sequelize";
 
 export const migrator = new Umzug({
-  migrations: { glob: ["migrations/*.ts", { cwd: __dirname }] },
+  migrations: {
+    glob: ["migrations/*.ts", { cwd: __dirname }],
+    // Umzug's default loader uses Node's native module resolution, which cannot
+    // transpile .ts files. Resolve each migration via dynamic import() so the
+    // active loader (tsx for the CLI, Vitest's transformer under test) handles
+    // the TypeScript instead. Keeps a single migration source for prod + tests.
+    resolve: ({ name, path, context }) => {
+      if (!path) {
+        throw new Error(`Migration ${name} is missing a file path`);
+      }
+      return {
+        name,
+        up: async () => (await import(path)).up({ context }),
+        down: async () => (await import(path)).down({ context }),
+      };
+    },
+  },
   context: sequelize.getQueryInterface(),
   storage: new SequelizeStorage({ sequelize }),
   logger: console,

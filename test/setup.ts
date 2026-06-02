@@ -23,8 +23,28 @@ beforeAll(async () => {
   }
   ({ sequelize } = await import("../src/db/sequelize"));
   models.initModels();
-  // Recreate the schema fresh for the whole test run.
-  await sequelize.sync({ force: true });
+  // Build the test schema by running the real Umzug migration instead of
+  // sequelize.sync(). sync() derives the schema from the model definitions,
+  // which omit `references` on FK columns — so it would produce a schema with
+  // NO foreign keys and tests would not exercise the referential-integrity /
+  // ON DELETE CASCADE constraints that production enforces. Running the actual
+  // migration guarantees the test schema mirrors production exactly.
+  const { migrator } = await import("../src/db/migrate");
+  // Drop everything (including the SequelizeMeta tracking table) so each run
+  // rebuilds a clean schema and the migrator replays from scratch.
+  await sequelize.getQueryInterface().dropAllTables();
+  await sequelize.query('DROP TABLE IF EXISTS "SequelizeMeta" CASCADE');
+  // Postgres ENUM types created by Sequelize survive dropAllTables(); drop them
+  // too, otherwise the migration fails with "type already exists" on re-runs.
+  await sequelize.query(
+    `DO $$ DECLARE r record; BEGIN
+       FOR r IN (SELECT t.typname FROM pg_type t
+                 JOIN pg_namespace n ON n.oid = t.typnamespace
+                 WHERE t.typtype = 'e' AND n.nspname = 'public')
+       LOOP EXECUTE 'DROP TYPE IF EXISTS "' || r.typname || '" CASCADE'; END LOOP;
+     END $$;`,
+  );
+  await migrator.up();
 });
 
 afterAll(async () => {
