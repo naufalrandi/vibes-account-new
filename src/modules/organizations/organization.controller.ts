@@ -26,7 +26,7 @@ export async function list(req: Request, res: Response, next: NextFunction) {
 export async function get(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    sendOk(res, await orgService.getOrganization(req.auth, req.params.id));
+    sendOk(res, await orgService.getOrganization(req.auth, req.params.id as string));
   } catch (e) {
     next(e);
   }
@@ -45,7 +45,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
 export async function activate(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    sendOk(res, await orgService.activateOrganization(req.auth, req.params.id, req.ip ?? null));
+    sendOk(res, await orgService.activateOrganization(req.auth, req.params.id as string, req.ip ?? null));
   } catch (e) {
     next(e);
   }
@@ -54,7 +54,7 @@ export async function activate(req: Request, res: Response, next: NextFunction) 
 export async function suspend(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    sendOk(res, await orgService.suspendOrganization(req.auth, req.params.id, req.ip ?? null));
+    sendOk(res, await orgService.suspendOrganization(req.auth, req.params.id as string, req.ip ?? null));
   } catch (e) {
     next(e);
   }

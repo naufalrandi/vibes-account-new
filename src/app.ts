@@ -9,6 +9,7 @@ import { authenticate } from "./middleware/authenticate";
 import { tenantScope } from "./middleware/tenantScope";
 import { userRoutes } from "./modules/users/user.routes";
 import { organizationRoutes } from "./modules/organizations/organization.routes";
+import { registrationRoutes } from "./modules/organizations/registration.routes";
 
 export function createApp() {
   const app = express();
@@ -22,6 +23,7 @@ export function createApp() {
   app.use("/v1/auth", authRoutes);
   app.use("/v1/users", authenticate, tenantScope, userRoutes);
   app.use("/v1/organizations", authenticate, tenantScope, organizationRoutes);
+  app.use("/v1/registration-requests", authenticate, tenantScope, registrationRoutes);
 
   app.use(errorHandler);
   return app;
