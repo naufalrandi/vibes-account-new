@@ -1,0 +1,75 @@
+import type { Request, Response, NextFunction } from "express";
+import { z } from "zod";
+import * as userService from "./user.service";
+import { sendOk } from "../../lib/apiResponse";
+import { UnauthorizedError } from "../../lib/errors";
+
+const createSchema = z.object({
+  orgId: z.string().uuid(),
+  fullName: z.string().min(1),
+  username: z.string().min(1),
+  email: z.string().email(),
+  role: z.string().optional(),
+  position: z.string().nullish(),
+  workUnit: z.string().nullish(),
+});
+
+const statusSchema = z.object({ status: z.enum(["Active", "Suspended", "Inactive"]) });
+
+export async function create(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const input = createSchema.parse(req.body);
+    const user = await userService.createUser(req.auth, input, req.ip ?? null);
+    sendOk(res, user, 201);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function list(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const users = await userService.listUsers(req.auth, {
+      orgType: req.query.orgType as string | undefined,
+      orgId: req.query.orgId as string | undefined,
+      status: req.query.status as string | undefined,
+      email: req.query.email as string | undefined,
+      username: req.query.username as string | undefined,
+    });
+    sendOk(res, users, 200, { page: 1, limit: users.length, total: users.length });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function setStatus(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const { status } = statusSchema.parse(req.body);
+    const user = await userService.setUserStatus(req.auth, req.params.id as string, status, req.ip ?? null);
+    sendOk(res, user);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function assignRole(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    await userService.assignRole(req.auth, req.params.id as string, req.body.roleId, req.ip ?? null);
+    sendOk(res, { assigned: true }, 201);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function removeRole(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    await userService.removeRole(req.auth, req.params.id as string, req.params.roleId as string, req.ip ?? null);
+    sendOk(res, { removed: true });
+  } catch (e) {
+    next(e);
+  }
+}
