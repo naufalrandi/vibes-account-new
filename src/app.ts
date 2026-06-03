@@ -13,6 +13,7 @@ import { registrationRoutes } from "./modules/organizations/registration.routes"
 import { auditRoutes } from "./modules/audit/audit.routes";
 import { roleRoutes } from "./modules/iam/role.routes";
 import { menuRoutes } from "./modules/menus/menu.routes";
+import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
 
 export function createApp() {
   const app = express();
@@ -30,6 +31,7 @@ export function createApp() {
   app.use("/v1/audit", authenticate, tenantScope, auditRoutes);
   app.use("/v1", authenticate, tenantScope, roleRoutes); // exposes /v1/roles and /v1/roles/:id/grants
   app.use("/v1/menu", authenticate, tenantScope, menuRoutes); // /v1/menu (current user's tree + access map)
+  app.use("/v1/dashboard", authenticate, tenantScope, dashboardRoutes);
 
   app.use(errorHandler);
   return app;
