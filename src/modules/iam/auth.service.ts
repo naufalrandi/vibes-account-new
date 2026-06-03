@@ -13,7 +13,14 @@ const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 export interface LoginResult {
   accessToken: string;
   refreshToken: string;
-  user: { id: string; username: string; email: string; orgId: string };
+  user: {
+    id: string;
+    username: string;
+    email: string;
+    orgId: string;
+    orgType: "ServiceOwner" | "Distributor" | "Tenant";
+    roles: string[];
+  };
 }
 
 export async function login(identifier: string, password: string, ip: string | null): Promise<LoginResult> {
@@ -70,7 +77,18 @@ export async function login(identifier: string, password: string, ip: string | n
     result: "Success",
   });
 
-  return { accessToken, refreshToken, user: { id: user.id, username: user.username, email: user.email, orgId: user.orgId } };
+  return {
+    accessToken,
+    refreshToken,
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      orgId: user.orgId,
+      orgType: org.type,
+      roles,
+    },
+  };
 }
 
 export async function refresh(token: string): Promise<{ accessToken: string }> {
