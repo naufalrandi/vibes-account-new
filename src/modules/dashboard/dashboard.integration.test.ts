@@ -112,4 +112,16 @@ describe("dashboard", () => {
       ]),
     );
   });
+
+  it("GET /v1/dashboard/recent returns arrays for Distributor user", async () => {
+    await seedDistributor();
+    const token = await login("distadmin", "ChangeMe123");
+    const res = await request(app)
+      .get("/v1/dashboard/recent")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data.orgs)).toBe(true);
+    expect(Array.isArray(res.body.data.users)).toBe(true);
+  });
 });

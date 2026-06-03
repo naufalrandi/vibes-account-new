@@ -109,9 +109,9 @@ export async function getDashboardRecent(auth: AuthContext): Promise<DashboardRe
       where: userWhere,
       include: [
         ...(auth.orgType === "Distributor"
-          ? [{ model: Organization, attributes: [] as string[] }]
+          ? [{ model: Organization, attributes: [] as string[], required: true }]
           : []),
-        { model: Role, through: { attributes: [] }, attributes: ["name"] },
+        { model: Role, through: { attributes: [] }, attributes: ["name"], required: false },
       ],
       order: [["createdAt", "DESC"]],
       limit: 5,
