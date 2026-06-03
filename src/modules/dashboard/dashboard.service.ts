@@ -1,6 +1,6 @@
 import { Organization, User, Role, Subscription } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
-import { organizationScopeWhere } from "../../lib/scope";
+import { organizationScopeWhere, userScopeWhere } from "../../lib/scope";
 
 export interface ServiceOwnerStats {
   role: "ServiceOwner";
@@ -96,7 +96,7 @@ export async function getDashboardStats(auth: AuthContext): Promise<DashboardSta
 
 export async function getDashboardRecent(auth: AuthContext): Promise<DashboardRecent> {
   const orgWhere = organizationScopeWhere(auth);
-  const userWhere = auth.orgType === "ServiceOwner" ? {} : { orgId: auth.orgId };
+  const userWhere = userScopeWhere(auth);
 
   const [rawOrgs, rawUsers] = await Promise.all([
     Organization.findAll({
@@ -107,7 +107,12 @@ export async function getDashboardRecent(auth: AuthContext): Promise<DashboardRe
     }),
     User.findAll({
       where: userWhere,
-      include: [{ model: Role, through: { attributes: [] }, attributes: ["name"] }],
+      include: [
+        ...(auth.orgType === "Distributor"
+          ? [{ model: Organization, attributes: [] as string[] }]
+          : []),
+        { model: Role, through: { attributes: [] }, attributes: ["name"] },
+      ],
       order: [["createdAt", "DESC"]],
       limit: 5,
       attributes: ["id", "fullName", "email", "status", "createdAt"],
