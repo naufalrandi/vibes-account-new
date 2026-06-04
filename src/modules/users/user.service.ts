@@ -6,6 +6,7 @@ import { userScopeWhere } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
 import { sendActivationInvite } from "../notifications/notification.service";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { isAllowedRoleForOrgType } from "../iam/role.catalog";
 
 export interface CreateUserInput {
   orgId: string;
@@ -32,6 +33,16 @@ export async function createUser(auth: AuthContext, input: CreateUserInput, ip: 
   // Precondition: organization must exist (PRD FR-1).
   const org = await Organization.findByPk(input.orgId);
   if (!org) throw new BadRequestError("Organization does not exist", "ORG_NOT_FOUND");
+
+  // A role supplied on invite must be assignable for this org's type (PRD role
+  // model). Validation is by canonical role name; the hidden "Super Admin" role
+  // is never assigned this way (it is gated by tierScope in assignRole).
+  if (input.role && !isAllowedRoleForOrgType(org.type, input.role)) {
+    throw new BadRequestError(
+      `Role "${input.role}" is not valid for organization type ${org.type}`,
+      "INVALID_ROLE_FOR_ORG_TYPE",
+    );
+  }
 
   // Scope: actor must be allowed to manage this org's users.
   if (auth.orgType === "Tenant" && org.id !== auth.orgId) throw new ForbiddenError();
@@ -161,6 +172,19 @@ export async function assignRole(auth: AuthContext, userId: string, roleId: stri
   const role = await Role.findByPk(roleId);
   if (!user || !role) throw new NotFoundError("User or role not found");
   if (auth.orgType === "Tenant" && user.tenantId !== auth.tenantId) throw new ForbiddenError();
+
+  // The role's tier must match the user's organization type. This naturally
+  // permits the ServiceOwner-only "Super Admin" (tierScope ServiceOwner) and
+  // rejects cross-tier assignments.
+  const org = await Organization.findByPk(user.orgId);
+  if (!org) throw new BadRequestError("Organization does not exist", "ORG_NOT_FOUND");
+  if (role.tierScope !== org.type) {
+    throw new BadRequestError(
+      `Role "${role.name}" is not valid for organization type ${org.type}`,
+      "INVALID_ROLE_FOR_ORG_TYPE",
+    );
+  }
+
   await UserRole.findOrCreate({ where: { userId, roleId } });
   await writeAudit({
     actorUserId: auth.userId,

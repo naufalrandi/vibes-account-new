@@ -12,6 +12,8 @@ import {
   Subscription,
 } from "../models";
 import { ACTIONS, MENU_SEED, type SeedMenu } from "../../modules/iam/actions.catalog";
+import { ROLES_BY_ORG_TYPE } from "../../modules/iam/role.catalog";
+import type { OrgType } from "../models/organization.model";
 import { hashPassword } from "../../lib/password";
 
 const DEFAULT_PASSWORD = "ChangeMe123";
@@ -75,18 +77,51 @@ async function grantAccess(roleId: string, menuNames: string[], actionKeys: stri
   }
 }
 
+/**
+ * Create (idempotently) an organization's canonical role set per role.catalog,
+ * scoped to that org and tier. Returns the roles keyed by name so callers can
+ * grant access and attach demo users.
+ */
+async function ensureRoleSet(orgId: string, orgType: OrgType): Promise<Map<string, Role>> {
+  const byName = new Map<string, Role>();
+  for (const name of ROLES_BY_ORG_TYPE[orgType]) {
+    const [role] = await Role.findOrCreate({
+      where: { name, orgId },
+      defaults: { name, tierScope: orgType, orgId, isSuperAdmin: false, status: true },
+    });
+    byName.set(name, role);
+  }
+  return byName;
+}
+
+/**
+ * Apply grants to an org's role set: every Administrator gets full access;
+ * specialist roles (Billing Manager / Technical Support / Team Member) get a
+ * minimal read grant for now. Finer per-role grants are a follow-up.
+ */
+async function grantRoleSet(roles: Map<string, Role>): Promise<void> {
+  for (const [name, role] of roles) {
+    if (name === "Administrator") {
+      await grantEverything(role.id);
+    } else {
+      await grantAccess(role.id, [], [ACTIONS.MENU_READ]);
+    }
+  }
+}
+
 async function ensureUser(
   username: string,
   fullName: string,
   email: string,
   orgId: string,
   role: Role,
+  tenantId: string | null = null,
 ): Promise<void> {
   const [user] = await User.findOrCreate({
     where: { username },
     defaults: {
       orgId,
-      tenantId: null,
+      tenantId,
       fullName,
       username,
       email,
@@ -119,35 +154,28 @@ export async function seed(): Promise<void> {
     },
   });
 
-  // 3. Roles: Super Admin (bypass), Administrator (all grants), User (read-only).
+  // 3. ServiceOwner roles. The hidden "Super Admin" (bypass) is ServiceOwner-only
+  //    and is NOT part of the assignable catalog; the catalog roles are added via
+  //    ensureRoleSet (Administrator, Billing Manager, Technical Support).
   const [superAdminRole] = await Role.findOrCreate({
     where: { name: "Super Admin", orgId: so.id },
     defaults: { name: "Super Admin", tierScope: "ServiceOwner", orgId: so.id, isSuperAdmin: true, status: true },
   });
-  const [adminRole] = await Role.findOrCreate({
-    where: { name: "Administrator", orgId: so.id },
-    defaults: { name: "Administrator", tierScope: "ServiceOwner", orgId: so.id, isSuperAdmin: false, status: true },
-  });
-  const [userRole] = await Role.findOrCreate({
-    where: { name: "User", orgId: so.id },
-    defaults: { name: "User", tierScope: "ServiceOwner", orgId: so.id, isSuperAdmin: false, status: true },
-  });
+  const soRoles = await ensureRoleSet(so.id, "ServiceOwner");
 
   // 4. Grants. Super Admin bypasses checks (and also gets explicit grants so the
-  //    grant matrix UI shows it fully enabled). Administrator = full CRUD.
+  //    grant matrix UI shows it fully enabled). Administrator = full CRUD;
+  //    specialist roles get minimal read for now.
   await grantEverything(superAdminRole.id);
-  await grantEverything(adminRole.id);
-  // User = read-only: can view the main sections + read, nothing that mutates.
-  await grantAccess(
-    userRole.id,
-    ["Dashboard", "Organizations", "Users", "Roles & Access", "Audit Log"],
-    [ACTIONS.ORG_READ, ACTIONS.USER_READ, ACTIONS.ROLE_READ, ACTIONS.MENU_READ, ACTIONS.AUDIT_READ],
-  );
+  await grantRoleSet(soRoles);
 
-  // 5. One demo user per role (all under the SO org → Service-Owner scope).
+  // 5. Demo users for the SO org: super admin, administrator, and one per
+  //    specialist role (Technical Support / Billing Manager) so every seeded
+  //    user references a role that exists.
   await ensureUser("soadmin", "Super Admin", "soadmin@axia.io", so.id, superAdminRole);
-  await ensureUser("admin", "Administrator", "admin@axia.io", so.id, adminRole);
-  await ensureUser("user", "Standard User", "user@axia.io", so.id, userRole);
+  await ensureUser("admin", "Administrator", "admin@axia.io", so.id, soRoles.get("Administrator")!);
+  await ensureUser("support", "Technical Support", "support@axia.io", so.id, soRoles.get("Technical Support")!);
+  await ensureUser("billing", "Billing Manager", "billing@axia.io", so.id, soRoles.get("Billing Manager")!);
 
   // 6. Platform subscription for the SO org.
   await Subscription.findOrCreate({
@@ -155,13 +183,45 @@ export async function seed(): Promise<void> {
     defaults: { orgId: so.id, plan: "platform", entitlements: { all: true }, status: "Active", startDate: new Date(), endDate: null },
   });
 
+  // 7. Demo Distributor org with its canonical role set + one user per role.
+  const [dist] = await Organization.findOrCreate({
+    where: { code: "NWP" },
+    defaults: {
+      name: "Northwind Partners", code: "NWP", type: "Distributor", status: "Active",
+      parentOrgId: so.id, tenantId: null, email: "ops@northwind.io", phone: null, website: null, country: "SG", address: null,
+    },
+  });
+  const distRoles = await ensureRoleSet(dist.id, "Distributor");
+  await grantRoleSet(distRoles);
+  await ensureUser("distadmin", "Distributor Admin", "admin@northwind.io", dist.id, distRoles.get("Administrator")!);
+  await ensureUser("distsupport", "Distributor Support", "support@northwind.io", dist.id, distRoles.get("Technical Support")!);
+  await ensureUser("distbilling", "Distributor Billing", "billing@northwind.io", dist.id, distRoles.get("Billing Manager")!);
+
+  // 8. Demo Tenant org with its canonical role set + one user per role.
+  const [tenant] = await Organization.findOrCreate({
+    where: { code: "ACME" },
+    defaults: {
+      name: "Acme Corp", code: "ACME", type: "Tenant", status: "Active",
+      parentOrgId: dist.id, tenantId: null, email: "it@acme.com", phone: null, website: null, country: "SG", address: null,
+    },
+  });
+  if (!tenant.tenantId) {
+    tenant.tenantId = tenant.id;
+    await tenant.save();
+  }
+  const tenantRoles = await ensureRoleSet(tenant.id, "Tenant");
+  await grantRoleSet(tenantRoles);
+  await ensureUser("tenantadmin", "Tenant Admin", "admin@acme.com", tenant.id, tenantRoles.get("Administrator")!, tenant.id);
+  await ensureUser("tenantbilling", "Tenant Billing", "billing@acme.com", tenant.id, tenantRoles.get("Billing Manager")!, tenant.id);
+  await ensureUser("tenantmember", "Tenant Member", "member@acme.com", tenant.id, tenantRoles.get("Team Member")!, tenant.id);
+
   // eslint-disable-next-line no-console
   console.log(
     [
       "Seed complete.",
-      "  Org: AXIA (ServiceOwner)",
-      "  Roles: Super Admin (bypass), Administrator (full CRUD grants), User (read-only)",
-      `  Users (password ${DEFAULT_PASSWORD}): soadmin / admin / user`,
+      "  Orgs: AXIA (ServiceOwner), Northwind Partners (Distributor), Acme Corp (Tenant)",
+      "  Roles per org: Super Admin (SO only, bypass) + Administrator (full CRUD) + specialists (read-only)",
+      `  Users (password ${DEFAULT_PASSWORD}): soadmin / admin / support / billing / distadmin / distsupport / distbilling / tenantadmin / tenantbilling / tenantmember`,
     ].join("\n"),
   );
 }

@@ -105,18 +105,71 @@ describe("users", () => {
 
   it("invites a user with a role and filters the list by that role", async () => {
     const { token, tenantOrgId } = await seedAdminAndLogin();
-    // Seed a role whose name we can invite into and filter by.
-    const memberRole = await Role.create({ name: "Member", tierScope: "Tenant", orgId: tenantOrgId, isSuperAdmin: false, status: true });
+    // Seed a role whose name we can invite into and filter by. "Team Member" is a
+    // canonical assignable role for Tenant orgs (see role.catalog).
+    const memberRole = await Role.create({ name: "Team Member", tierScope: "Tenant", orgId: tenantOrgId, isSuperAdmin: false, status: true });
 
     const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
-      .send({ orgId: tenantOrgId, fullName: "Carol", username: "carol", email: "carol@acme.com", role: "Member" });
+      .send({ orgId: tenantOrgId, fullName: "Carol", username: "carol", email: "carol@acme.com", role: "Team Member" });
     expect(created.status).toBe(201);
 
-    const filtered = await request(app).get("/v1/users?role=Member").set("authorization", `Bearer ${token}`);
+    const filtered = await request(app).get("/v1/users?role=Team%20Member").set("authorization", `Bearer ${token}`);
     expect(filtered.status).toBe(200);
     expect(filtered.body.data.length).toBe(1);
     expect(filtered.body.data[0].username).toBe("carol");
     expect(memberRole.id).toBeTruthy();
+  });
+
+  it("rejects user creation with a role not valid for the org type (Team Member into ServiceOwner)", async () => {
+    const { token } = await seedAdminAndLogin();
+    // The actor's own ServiceOwner org id, reused as a valid existing org.
+    const me = await request(app).get("/v1/users?username=soadmin").set("authorization", `Bearer ${token}`);
+    const soOrgId = me.body.data[0].orgId as string;
+
+    const res = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: soOrgId, fullName: "Bad", username: "badrole", email: "bad@axia.io", role: "Team Member" });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("INVALID_ROLE_FOR_ORG_TYPE");
+  });
+
+  it("creates a user with a role allowed for the org type and attaches it", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    await Role.create({ name: "Administrator", tierScope: "Tenant", orgId: tenantOrgId, isSuperAdmin: false, status: true });
+
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Tina", username: "tina", email: "tina@acme.com", role: "Administrator" });
+    expect(created.status).toBe(201);
+
+    const filtered = await request(app).get("/v1/users?role=Administrator").set("authorization", `Bearer ${token}`);
+    expect(filtered.status).toBe(200);
+    expect(filtered.body.data.map((u: { username: string }) => u.username)).toContain("tina");
+  });
+
+  it("rejects assigning a role whose tierScope does not match the user's org type", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Uma", username: "uma", email: "uma@acme.com" });
+    const userId = created.body.data.id as string;
+    // A ServiceOwner-scoped role cannot be assigned to a Tenant org user.
+    const wrongRole = await Role.create({ name: "Technical Support", tierScope: "ServiceOwner", orgId: tenantOrgId, isSuperAdmin: false, status: true });
+
+    const res = await request(app).post(`/v1/users/${userId}/roles`).set("authorization", `Bearer ${token}`)
+      .send({ roleId: wrongRole.id });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("INVALID_ROLE_FOR_ORG_TYPE");
+  });
+
+  it("assigns a role whose tierScope matches the user's org type", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Vera", username: "vera", email: "vera@acme.com" });
+    const userId = created.body.data.id as string;
+    const goodRole = await Role.create({ name: "Administrator", tierScope: "Tenant", orgId: tenantOrgId, isSuperAdmin: false, status: true });
+
+    const res = await request(app).post(`/v1/users/${userId}/roles`).set("authorization", `Bearer ${token}`)
+      .send({ roleId: goodRole.id });
+    expect(res.status).toBe(201);
+    expect(res.body.data.assigned).toBe(true);
   });
 
   it("removes a user", async () => {
