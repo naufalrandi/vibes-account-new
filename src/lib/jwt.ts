@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { randomUUID } from "node:crypto";
 import { env } from "../config/env";
 
 export interface AccessClaims {
@@ -18,7 +19,10 @@ export function verifyAccessToken(token: string): AccessClaims {
 }
 
 export function signRefreshToken(userId: string): string {
-  return jwt.sign({ sub: userId }, env.JWT_REFRESH_SECRET, {
+  // A random jti guarantees every issued refresh token is unique, so two tokens
+  // minted in the same second never collide on their stored hash (important for
+  // rotation + reuse detection).
+  return jwt.sign({ sub: userId, jti: randomUUID() }, env.JWT_REFRESH_SECRET, {
     expiresIn: `${env.REFRESH_TOKEN_TTL_DAYS}d`,
   });
 }

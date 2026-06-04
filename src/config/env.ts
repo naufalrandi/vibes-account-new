@@ -11,6 +11,8 @@ const schema = z.object({
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().default(30),
   PASSWORD_MIN_LENGTH: z.coerce.number().default(8),
   APP_BASE_URL: z.string().default("http://localhost:3000"),
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().default(100),
+  AUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60_000),
 });
 
 export type Env = z.infer<typeof schema>;

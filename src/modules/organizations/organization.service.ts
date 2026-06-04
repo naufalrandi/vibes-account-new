@@ -43,6 +43,11 @@ export async function createOrganization(auth: AuthContext, input: CreateOrgInpu
     website: null,
     country: input.country ?? null,
     address: null,
+    legalName: null,
+    industry: null,
+    contactName: null,
+    contactEmail: null,
+    contactPhone: null,
   });
   if (input.type === "Tenant") {
     org.tenantId = org.id;
@@ -94,3 +99,87 @@ export const activateOrganization = (auth: AuthContext, id: string, ip: string |
   transition(auth, id, "Active", "org.activated", ip);
 export const suspendOrganization = (auth: AuthContext, id: string, ip: string | null) =>
   transition(auth, id, "Suspended", "org.suspended", ip);
+
+/**
+ * The editable profile of an organization, as surfaced on the Org Settings page.
+ * `code` is included for display but is never writable — see updateOrgSettings.
+ */
+export interface OrgSettings {
+  id: string;
+  name: string;
+  code: string;
+  legalName: string | null;
+  industry: string | null;
+  address: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+}
+
+/** Fields a user may change via the Org Settings update. `code` is intentionally absent. */
+export interface UpdateOrgSettingsInput {
+  name?: string;
+  legalName?: string | null;
+  industry?: string | null;
+  address?: string | null;
+  contactName?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+}
+
+function toOrgSettings(org: Organization): OrgSettings {
+  return {
+    id: org.id,
+    name: org.name,
+    code: org.code,
+    legalName: org.legalName,
+    industry: org.industry,
+    address: org.address,
+    contactName: org.contactName,
+    contactEmail: org.contactEmail,
+    contactPhone: org.contactPhone,
+  };
+}
+
+/** Read the settings of the caller's own organization, scoped by the auth context. */
+export async function getOrgSettings(auth: AuthContext): Promise<OrgSettings> {
+  const org = await Organization.findByPk(auth.orgId);
+  if (!org) throw new NotFoundError("Organization does not exist", "ORG_NOT_FOUND");
+  return toOrgSettings(org);
+}
+
+/**
+ * Partially update the caller's own organization. The target org is always the
+ * one from the auth context (`auth.orgId`) — never a client-supplied id — so the
+ * organization scope cannot be overridden from the request. `code` is read-only
+ * and is never read from input. Only present keys are written (partial update).
+ */
+export async function updateOrgSettings(
+  auth: AuthContext,
+  input: UpdateOrgSettingsInput,
+  ip: string | null,
+): Promise<OrgSettings> {
+  const org = await Organization.findByPk(auth.orgId);
+  if (!org) throw new NotFoundError("Organization does not exist", "ORG_NOT_FOUND");
+
+  if (input.name !== undefined) org.name = input.name;
+  if (input.legalName !== undefined) org.legalName = input.legalName;
+  if (input.industry !== undefined) org.industry = input.industry;
+  if (input.address !== undefined) org.address = input.address;
+  if (input.contactName !== undefined) org.contactName = input.contactName;
+  if (input.contactEmail !== undefined) org.contactEmail = input.contactEmail;
+  if (input.contactPhone !== undefined) org.contactPhone = input.contactPhone;
+
+  await org.save();
+  await writeAudit({
+    actorUserId: auth.userId,
+    organizationId: org.id,
+    tenantId: org.tenantId,
+    action: "org.settings.updated",
+    entityType: "Organization",
+    entityId: org.id,
+    sourceIp: ip,
+    result: "Success",
+  });
+  return toOrgSettings(org);
+}

@@ -11,6 +11,12 @@ import { RegistrationRequest } from "./registrationRequest.model";
 import { AuditLog } from "./auditLog.model";
 import { LoginHistory } from "./loginHistory.model";
 import { RefreshToken } from "./refreshToken.model";
+import { FrameworkType } from "./frameworkType.model";
+import { FrameworkFamily } from "./frameworkFamily.model";
+import { Framework } from "./framework.model";
+import { OrganizationFramework } from "./organizationFramework.model";
+import { Profile } from "./profile.model";
+import { Account } from "./account.model";
 
 let initialized = false;
 
@@ -43,6 +49,30 @@ export function initModels(): void {
   Organization.hasOne(Subscription, { foreignKey: "orgId" });
   Subscription.belongsTo(Organization, { foreignKey: "orgId" });
 
+  // A framework type owns many framework families; a type with families cannot
+  // be deleted (enforced in the service and by an ON DELETE RESTRICT FK).
+  FrameworkType.hasMany(FrameworkFamily, { foreignKey: "frameworkTypeId" });
+  FrameworkFamily.belongsTo(FrameworkType, { foreignKey: "frameworkTypeId" });
+
+  // A framework family owns many frameworks; a family with frameworks cannot be
+  // deleted (enforced in the service and by an ON DELETE RESTRICT FK).
+  FrameworkFamily.hasMany(Framework, { foreignKey: "familyId" });
+  Framework.belongsTo(FrameworkFamily, { foreignKey: "familyId" });
+
+  // An organization may subscribe to many catalog frameworks; each subscription
+  // row is unique per (org, framework). Deleting either side cascades the link.
+  Organization.hasMany(OrganizationFramework, { foreignKey: "orgId" });
+  OrganizationFramework.belongsTo(Organization, { foreignKey: "orgId" });
+  Framework.hasMany(OrganizationFramework, { foreignKey: "frameworkId" });
+  OrganizationFramework.belongsTo(Framework, { foreignKey: "frameworkId" });
+
+  // Organization-scoped User Management entities. Each row belongs to one
+  // organization; deleting the org cascades its profiles/accounts away (FK).
+  Organization.hasMany(Profile, { foreignKey: "orgId" });
+  Profile.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasMany(Account, { foreignKey: "orgId" });
+  Account.belongsTo(Organization, { foreignKey: "orgId" });
+
   initialized = true;
 }
 
@@ -60,4 +90,10 @@ export {
   AuditLog,
   LoginHistory,
   RefreshToken,
+  FrameworkType,
+  FrameworkFamily,
+  Framework,
+  OrganizationFramework,
+  Profile,
+  Account,
 };

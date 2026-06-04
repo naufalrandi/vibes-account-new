@@ -21,7 +21,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
 export async function refresh(req: Request, res: Response, next: NextFunction) {
   try {
     const { refreshToken } = refreshSchema.parse(req.body);
-    sendOk(res, await authService.refresh(refreshToken));
+    sendOk(res, await authService.refresh(refreshToken, req.ip ?? null));
   } catch (e) {
     next(e);
   }
@@ -30,7 +30,7 @@ export async function refresh(req: Request, res: Response, next: NextFunction) {
 export async function logout(req: Request, res: Response, next: NextFunction) {
   try {
     const { refreshToken } = refreshSchema.parse(req.body);
-    await authService.logout(refreshToken);
+    await authService.logout(refreshToken, req.ip ?? null);
     sendOk(res, { loggedOut: true });
   } catch (e) {
     next(e);

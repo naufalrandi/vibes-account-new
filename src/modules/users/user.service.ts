@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Op, type WhereOptions } from "sequelize";
+import { Op, type Includeable, type WhereOptions } from "sequelize";
 import { User, Organization, Role, UserRole } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { userScopeWhere } from "../../lib/scope";
@@ -20,9 +20,12 @@ export interface CreateUserInput {
 export interface UserFilters {
   orgType?: string;
   orgId?: string;
+  role?: string;
   status?: string;
   email?: string;
   username?: string;
+  /** Free-text term matched against email OR username. */
+  search?: string;
 }
 
 export async function createUser(auth: AuthContext, input: CreateUserInput, ip: string | null): Promise<User> {
@@ -54,6 +57,14 @@ export async function createUser(auth: AuthContext, input: CreateUserInput, ip: 
     resetExpires: null,
   });
 
+  // Optional role assignment on invite. Best-effort: a role name that does not
+  // resolve to an existing role leaves the user role-less rather than failing
+  // the whole invite (the role catalog is managed separately).
+  if (input.role) {
+    const role = await Role.findOne({ where: { name: input.role } });
+    if (role) await UserRole.findOrCreate({ where: { userId: user.id, roleId: role.id } });
+  }
+
   sendActivationInvite(user.email, activationToken);
   await writeAudit({
     actorUserId: auth.userId,
@@ -65,7 +76,8 @@ export async function createUser(auth: AuthContext, input: CreateUserInput, ip: 
     sourceIp: ip,
     result: "Success",
   });
-  return user;
+  // Reload with roles so the response carries the assigned role.
+  return (await User.findByPk(user.id, { include: [Role] })) ?? user;
 }
 
 export async function listUsers(auth: AuthContext, filters: UserFilters): Promise<User[]> {
@@ -74,13 +86,26 @@ export async function listUsers(auth: AuthContext, filters: UserFilters): Promis
   if (filters.status) Object.assign(where, { status: filters.status });
   if (filters.email) Object.assign(where, { email: { [Op.iLike]: `%${filters.email}%` } });
   if (filters.username) Object.assign(where, { username: { [Op.iLike]: `%${filters.username}%` } });
+  // Free-text search matches email OR username. Wrapped in Op.and so it composes
+  // with any Op.or the scope clause already contributes (Distributor scope).
+  if (filters.search) {
+    const term = `%${filters.search}%`;
+    Object.assign(where, {
+      [Op.and]: [{ [Op.or]: [{ email: { [Op.iLike]: term } }, { username: { [Op.iLike]: term } }] }],
+    });
+  }
 
   const orgWhere = filters.orgType ? { type: filters.orgType } : undefined;
-  return User.findAll({
-    where,
-    include: [{ model: Organization, where: orgWhere, required: !!orgWhere }],
-    order: [["createdAt", "DESC"]],
-  });
+  const include: Includeable[] = [{ model: Organization, where: orgWhere, required: !!orgWhere }];
+  // Always include roles so the response carries the role name; when a role
+  // filter is set, the join becomes required and narrows the result set.
+  include.push(
+    filters.role
+      ? { model: Role, where: { name: filters.role }, required: true, through: { attributes: [] } }
+      : { model: Role, required: false, through: { attributes: [] } },
+  );
+
+  return User.findAll({ where, include, order: [["createdAt", "DESC"]] });
 }
 
 export async function setUserStatus(
@@ -105,6 +130,30 @@ export async function setUserStatus(
     result: "Success",
   });
   return user;
+}
+
+export async function removeUser(auth: AuthContext, userId: string, ip: string | null): Promise<void> {
+  const user = await User.findByPk(userId);
+  if (!user) throw new NotFoundError("User not found");
+  if (auth.orgType === "Tenant" && user.tenantId !== auth.tenantId) throw new ForbiddenError();
+  if (auth.orgType === "Distributor") {
+    const org = await Organization.findByPk(user.orgId);
+    if (!org || (org.parentOrgId !== auth.orgId && org.id !== auth.orgId)) throw new ForbiddenError();
+  }
+  const { orgId, tenantId } = user;
+  // Drop role memberships first to satisfy the join-table FK, then the user.
+  await UserRole.destroy({ where: { userId } });
+  await user.destroy();
+  await writeAudit({
+    actorUserId: auth.userId,
+    organizationId: orgId,
+    tenantId,
+    action: "user.removed",
+    entityType: "User",
+    entityId: userId,
+    sourceIp: ip,
+    result: "Success",
+  });
 }
 
 export async function assignRole(auth: AuthContext, userId: string, roleId: string, ip: string | null): Promise<void> {

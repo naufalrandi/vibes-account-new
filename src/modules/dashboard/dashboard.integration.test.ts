@@ -124,4 +124,32 @@ describe("dashboard", () => {
     expect(Array.isArray(res.body.data.orgs)).toBe(true);
     expect(Array.isArray(res.body.data.users)).toBe(true);
   });
+
+  it("GET /v1/dashboard/stats reports zero admins when no admin roles are assigned (empty data)", async () => {
+    await seedServiceOwner();
+    const token = await login("soadmin", "ChangeMe123");
+    const res = await request(app)
+      .get("/v1/dashboard/stats")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    // Exactly one org / one user seeded, and that user has no super-admin role.
+    expect(res.body.data.totalOrgs).toBe(1);
+    expect(res.body.data.activeOrgs).toBe(1);
+    expect(res.body.data.totalUsers).toBe(1);
+    expect(res.body.data.activeUsers).toBe(1);
+    expect(res.body.data.adminUsers).toBe(0);
+  });
+
+  it("GET /v1/dashboard/stats reports zero active subscriptions for an org with no subscriptions (empty data)", async () => {
+    await seedDistributor();
+    const token = await login("distadmin", "ChangeMe123");
+    const res = await request(app)
+      .get("/v1/dashboard/stats")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.role).toBe("Administrator");
+    expect(res.body.data.activeSubscriptions).toBe(0);
+    expect(res.body.data.totalUsers).toBe(1);
+    expect(res.body.data.activeUsers).toBe(1);
+  });
 });

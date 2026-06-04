@@ -33,9 +33,11 @@ export async function list(req: Request, res: Response, next: NextFunction) {
     const users = await userService.listUsers(req.auth, {
       orgType: req.query.orgType as string | undefined,
       orgId: req.query.orgId as string | undefined,
+      role: req.query.role as string | undefined,
       status: req.query.status as string | undefined,
       email: req.query.email as string | undefined,
       username: req.query.username as string | undefined,
+      search: req.query.search as string | undefined,
     });
     sendOk(res, users, 200, { page: 1, limit: users.length, total: users.length });
   } catch (e) {
@@ -49,6 +51,16 @@ export async function setStatus(req: Request, res: Response, next: NextFunction)
     const { status } = statusSchema.parse(req.body);
     const user = await userService.setUserStatus(req.auth, req.params.id as string, status, req.ip ?? null);
     sendOk(res, user);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function remove(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    await userService.removeUser(req.auth, req.params.id as string, req.ip ?? null);
+    sendOk(res, { removed: true });
   } catch (e) {
     next(e);
   }

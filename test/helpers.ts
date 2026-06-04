@@ -7,7 +7,7 @@
 export async function resetDb(): Promise<void> {
   const { sequelize } = await import("../src/db/sequelize");
   await sequelize.query(
-    'TRUNCATE TABLE "refresh_tokens","login_history","audit_logs","registration_requests","subscriptions","role_action_grants","role_menu_grants","user_roles","actions","menus","users","roles","organizations" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "accounts","profiles","organization_frameworks","frameworks","framework_families","framework_types","refresh_tokens","login_history","audit_logs","registration_requests","subscriptions","role_action_grants","role_menu_grants","user_roles","actions","menus","users","roles","organizations" RESTART IDENTITY CASCADE',
   );
 }
 

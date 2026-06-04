@@ -84,4 +84,60 @@ describe("users", () => {
       ),
     ).toBe(true);
   });
+
+  it("searches users by email or username (single term)", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Alice", username: "alice", email: "alice@acme.com" });
+    await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Bob", username: "bob", email: "bob@acme.com" });
+
+    // Match on username substring.
+    const byName = await request(app).get("/v1/users?search=alic").set("authorization", `Bearer ${token}`);
+    expect(byName.status).toBe(200);
+    expect(byName.body.data.map((u: { username: string }) => u.username)).toContain("alice");
+    expect(byName.body.data.map((u: { username: string }) => u.username)).not.toContain("bob");
+
+    // Match on email substring.
+    const byEmail = await request(app).get("/v1/users?search=bob@").set("authorization", `Bearer ${token}`);
+    expect(byEmail.body.data.map((u: { username: string }) => u.username)).toContain("bob");
+  });
+
+  it("invites a user with a role and filters the list by that role", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    // Seed a role whose name we can invite into and filter by.
+    const memberRole = await Role.create({ name: "Member", tierScope: "Tenant", orgId: tenantOrgId, isSuperAdmin: false, status: true });
+
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Carol", username: "carol", email: "carol@acme.com", role: "Member" });
+    expect(created.status).toBe(201);
+
+    const filtered = await request(app).get("/v1/users?role=Member").set("authorization", `Bearer ${token}`);
+    expect(filtered.status).toBe(200);
+    expect(filtered.body.data.length).toBe(1);
+    expect(filtered.body.data[0].username).toBe("carol");
+    expect(memberRole.id).toBeTruthy();
+  });
+
+  it("removes a user", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Dave", username: "dave", email: "dave@acme.com" });
+    const id = created.body.data.id;
+
+    const del = await request(app).delete(`/v1/users/${id}`).set("authorization", `Bearer ${token}`);
+    expect(del.status).toBe(200);
+    expect(del.body.data.removed).toBe(true);
+
+    const after = await request(app).get("/v1/users?search=dave").set("authorization", `Bearer ${token}`);
+    expect(after.body.data.map((u: { username: string }) => u.username)).not.toContain("dave");
+  });
+
+  it("returns 404 when removing a non-existent user", async () => {
+    const { token } = await seedAdminAndLogin();
+    const del = await request(app)
+      .delete("/v1/users/00000000-0000-0000-0000-000000000000")
+      .set("authorization", `Bearer ${token}`);
+    expect(del.status).toBe(404);
+  });
 });
