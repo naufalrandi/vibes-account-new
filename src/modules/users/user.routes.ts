@@ -6,6 +6,7 @@ import { ACTIONS } from "../iam/actions.catalog";
 export const userRoutes = Router();
 userRoutes.get("/", requireAction(ACTIONS.USER_READ), c.list);
 userRoutes.post("/", requireAction(ACTIONS.USER_CREATE), c.create);
+userRoutes.post("/:id/resend-activation", requireAction(ACTIONS.USER_CREATE), c.resendActivation);
 userRoutes.patch("/:id/status", requireAction(ACTIONS.USER_SUSPEND), c.setStatus);
 userRoutes.delete("/:id", requireAction(ACTIONS.USER_DELETE), c.remove);
 userRoutes.post("/:id/roles", requireAction(ACTIONS.ROLE_ASSIGN), c.assignRole);

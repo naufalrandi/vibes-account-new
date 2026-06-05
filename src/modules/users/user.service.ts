@@ -91,6 +91,39 @@ export async function createUser(auth: AuthContext, input: CreateUserInput, ip: 
   return (await User.findByPk(user.id, { include: [Role] })) ?? user;
 }
 
+export async function resendActivation(auth: AuthContext, userId: string, ip: string | null): Promise<void> {
+  const user = await User.findByPk(userId);
+  if (!user) throw new NotFoundError("User not found");
+  // Same management scope as the other per-user operations.
+  if (auth.orgType === "Tenant" && user.tenantId !== auth.tenantId) throw new ForbiddenError();
+  if (auth.orgType === "Distributor") {
+    const org = await Organization.findByPk(user.orgId);
+    if (!org || (org.parentOrgId !== auth.orgId && org.id !== auth.orgId)) throw new ForbiddenError();
+  }
+  // Resending only makes sense while the account is awaiting activation; an
+  // Active/Suspended/Inactive account has no pending invite to reissue.
+  if (user.status !== "PendingActivation") {
+    throw new BadRequestError("User is not pending activation", "NOT_PENDING_ACTIVATION");
+  }
+
+  // Rotate the token so the previously-mailed link is invalidated.
+  const activationToken = randomUUID();
+  user.activationToken = activationToken;
+  await user.save();
+
+  sendActivationInvite(user.email, activationToken);
+  await writeAudit({
+    actorUserId: auth.userId,
+    organizationId: user.orgId,
+    tenantId: user.tenantId,
+    action: "user.activation_resent",
+    entityType: "User",
+    entityId: user.id,
+    sourceIp: ip,
+    result: "Success",
+  });
+}
+
 export async function listUsers(auth: AuthContext, filters: UserFilters): Promise<User[]> {
   const where: WhereOptions = { ...userScopeWhere(auth) };
   if (filters.orgId) Object.assign(where, { orgId: filters.orgId });

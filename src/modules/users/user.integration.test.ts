@@ -193,4 +193,68 @@ describe("users", () => {
       .set("authorization", `Bearer ${token}`);
     expect(del.status).toBe(404);
   });
+
+  it("resends the activation email for a pending user and rotates the activation token", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Erin", username: "erin", email: "erin@acme.com" });
+    const id = created.body.data.id as string;
+    const oldToken = (await User.findByPk(id))?.activationToken ?? null;
+
+    const res = await request(app).post(`/v1/users/${id}/resend-activation`).set("authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.resent).toBe(true);
+    // The token is rotated so the previous activation link is invalidated.
+    const newToken = (await User.findByPk(id))?.activationToken ?? null;
+    expect(newToken).toBeTruthy();
+    expect(newToken).not.toBe(oldToken);
+    // The token must never leak in the response envelope.
+    expect(res.body.data).not.toHaveProperty("activationToken");
+  });
+
+  it("invalidates the old link and activates the account with the resent token (closes the loop)", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Finn", username: "finn", email: "finn@acme.com" });
+    const id = created.body.data.id as string;
+    const oldToken = (await User.findByPk(id))?.activationToken as string;
+
+    await request(app).post(`/v1/users/${id}/resend-activation`).set("authorization", `Bearer ${token}`);
+    const resentToken = (await User.findByPk(id))?.activationToken as string;
+
+    // The previously-mailed link must no longer work after a resend.
+    const staleActivate = await request(app).post("/v1/auth/activate").send({ token: oldToken, password: "ChangeMe123" });
+    expect(staleActivate.status).toBe(400);
+    expect(staleActivate.body.error.code).toBe("INVALID_TOKEN");
+
+    // The freshly-mailed link activates the account and the user can sign in.
+    const activated = await request(app).post("/v1/auth/activate").send({ token: resentToken, password: "ChangeMe123" });
+    expect(activated.status).toBe(200);
+    expect(activated.body.data.activated).toBe(true);
+
+    const login = await request(app).post("/v1/auth/login").send({ identifier: "finn", password: "ChangeMe123" });
+    expect(login.status).toBe(200);
+    expect(login.body.data.accessToken).toBeTruthy();
+  });
+
+  it("rejects resending activation for a user that is not pending", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Gail", username: "gail", email: "gail@acme.com" });
+    const id = created.body.data.id as string;
+    const activationToken = (await User.findByPk(id))?.activationToken as string;
+    await request(app).post("/v1/auth/activate").send({ token: activationToken, password: "ChangeMe123" });
+
+    const res = await request(app).post(`/v1/users/${id}/resend-activation`).set("authorization", `Bearer ${token}`);
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("NOT_PENDING_ACTIVATION");
+  });
+
+  it("returns 404 when resending activation for a non-existent user", async () => {
+    const { token } = await seedAdminAndLogin();
+    const res = await request(app)
+      .post("/v1/users/00000000-0000-0000-0000-000000000000/resend-activation")
+      .set("authorization", `Bearer ${token}`);
+    expect(res.status).toBe(404);
+  });
 });

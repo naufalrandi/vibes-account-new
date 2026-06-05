@@ -27,6 +27,16 @@ export async function create(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+export async function resendActivation(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    await userService.resendActivation(req.auth, req.params.id as string, req.ip ?? null);
+    sendOk(res, { resent: true });
+  } catch (e) {
+    next(e);
+  }
+}
+
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
