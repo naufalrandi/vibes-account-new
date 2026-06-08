@@ -7,7 +7,9 @@
 export async function resetDb(): Promise<void> {
   const { sequelize } = await import("../src/db/sequelize");
   await sequelize.query(
-    'TRUNCATE TABLE "accounts","profiles","organization_frameworks","frameworks","framework_families","framework_types","refresh_tokens","login_history","audit_logs","registration_requests","subscriptions","role_action_grants","role_menu_grants","user_roles","actions","menus","users","roles","organizations" RESTART IDENTITY CASCADE',
+    // framework_groups is intentionally NOT truncated — the two fixed groups
+    // (Standards / Regulations) are seeded by migration 0010 and persist for all tests.
+    'TRUNCATE TABLE "business_records","implementation_records","notifications","tickets","assessment_response_criteria","assessment_responses","assessment_questions","assessment_criteria","kb_articles","framework_element_requirement_maps","framework_elements","framework_requirements","framework_assignments","invoices","plans","partner_agreements","agreement_templates","site_requests","sites","accounts","profiles","org_signatories","frameworks","refresh_tokens","login_history","audit_logs","registration_requests","subscriptions","role_action_grants","role_menu_grants","user_roles","actions","menus","users","roles","organizations" RESTART IDENTITY CASCADE',
   );
 }
 

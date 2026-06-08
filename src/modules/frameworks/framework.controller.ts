@@ -4,38 +4,29 @@ import * as service from "./framework.service";
 import { sendOk } from "../../lib/apiResponse";
 import { UnauthorizedError } from "../../lib/errors";
 
-const statusSchema = z.enum(["Draft", "Published", "Archived"]);
-// Accept an ISO date ("YYYY-MM-DD") or null; the column is DATEONLY.
-const publishedDateSchema = z.string().min(1).nullish();
+const statusSchema = z.enum(["Draft", "Active", "Archived"]);
 
 const createSchema = z.object({
-  code: z.string().min(1),
+  groupId: z.string().uuid(),
   name: z.string().min(1),
-  familyId: z.string().uuid(),
-  version: z.string().nullish(),
+  description: z.string().nullish(),
+  jurisdictions: z.array(z.string()).optional(),
   status: statusSchema.optional(),
-  publishedDate: publishedDateSchema,
-  shortDescription: z.string().nullish(),
-  fullDescription: z.string().nullish(),
 });
 
 const updateSchema = z.object({
-  code: z.string().min(1).optional(),
+  groupId: z.string().uuid().optional(),
   name: z.string().min(1).optional(),
-  familyId: z.string().uuid().optional(),
-  version: z.string().nullish(),
+  description: z.string().nullish(),
+  jurisdictions: z.array(z.string()).optional(),
   status: statusSchema.optional(),
-  publishedDate: publishedDateSchema,
-  shortDescription: z.string().nullish(),
-  fullDescription: z.string().nullish(),
 });
 
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    // Optional ?familyId=<uuid> narrows the list to one parent family.
-    const familyId = typeof req.query.familyId === "string" ? req.query.familyId : undefined;
-    const rows = await service.listFrameworks(req.auth, { familyId });
+    const groupId = typeof req.query.groupId === "string" ? req.query.groupId : undefined;
+    const rows = await service.listFrameworks(req.auth, { groupId });
     sendOk(res, rows, 200, { page: 1, limit: rows.length, total: rows.length });
   } catch (e) {
     next(e);

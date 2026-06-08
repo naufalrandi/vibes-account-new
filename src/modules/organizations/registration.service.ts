@@ -17,6 +17,50 @@ export interface ProposedTenant {
   adminEmail: string;
 }
 
+export interface RegistrationView {
+  id: string;
+  distributorOrgId: string;
+  distributorName: string;
+  proposedTenant: ProposedTenant;
+  status: RegistrationRequest["status"];
+  decisionReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * List registration requests for the Tenant Requests / Provisioning views. The
+ * Service Owner sees every request; a Distributor sees only its own. The
+ * proposed-tenant JSON is flattened so the UI can render org + contact columns.
+ */
+export async function listRegistrations(
+  auth: AuthContext,
+  filters: { status?: RegistrationRequest["status"] } = {},
+): Promise<RegistrationView[]> {
+  if (auth.orgType === "Tenant") throw new ForbiddenError("Tenants cannot view registration requests");
+  const where: Record<string, unknown> = {};
+  if (auth.orgType === "Distributor") where.distributorOrgId = auth.orgId;
+  if (filters.status) where.status = filters.status;
+  const rows = await RegistrationRequest.findAll({
+    where: Object.keys(where).length ? where : undefined,
+    include: [Organization],
+    order: [["createdAt", "DESC"]],
+  });
+  return rows.map((req) => {
+    const distributor = req.get("Organization") as Organization | undefined;
+    return {
+      id: req.id,
+      distributorOrgId: req.distributorOrgId,
+      distributorName: distributor?.name ?? "",
+      proposedTenant: req.proposedTenant as unknown as ProposedTenant,
+      status: req.status,
+      decisionReason: req.decisionReason,
+      createdAt: req.createdAt.toISOString(),
+      updatedAt: req.updatedAt.toISOString(),
+    };
+  });
+}
+
 export async function submitRegistration(auth: AuthContext, proposed: ProposedTenant, ip: string | null): Promise<RegistrationRequest> {
   if (auth.orgType !== "Distributor") throw new ForbiddenError("Only distributors may submit tenant registrations");
   const req = await RegistrationRequest.create({

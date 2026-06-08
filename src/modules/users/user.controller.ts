@@ -4,12 +4,33 @@ import * as userService from "./user.service";
 import { sendOk } from "../../lib/apiResponse";
 import { UnauthorizedError } from "../../lib/errors";
 
+const permissionModeSchema = z.enum(["Full Access", "Custom Access"]);
+
 const createSchema = z.object({
   orgId: z.string().uuid(),
   fullName: z.string().min(1),
   username: z.string().min(1),
   email: z.string().email(),
+  // `roleGroup` is the AXIA alias for the canonical role name; either is accepted.
   role: z.string().optional(),
+  roleGroup: z.string().optional(),
+  password: z.string().min(1).optional(),
+  permissionMode: permissionModeSchema.nullish(),
+  permissions: z.array(z.string()).nullish(),
+  position: z.string().nullish(),
+  workUnit: z.string().nullish(),
+});
+
+const updateSchema = z.object({
+  fullName: z.string().min(1).optional(),
+  username: z.string().min(1).optional(),
+  email: z.string().email().optional(),
+  password: z.string().min(1).optional(),
+  role: z.string().optional(),
+  roleGroup: z.string().optional(),
+  permissionMode: permissionModeSchema.nullish(),
+  permissions: z.array(z.string()).nullish(),
+  status: z.enum(["PendingActivation", "Active", "Suspended", "Inactive"]).optional(),
   position: z.string().nullish(),
   workUnit: z.string().nullish(),
 });
@@ -19,9 +40,35 @@ const statusSchema = z.object({ status: z.enum(["Active", "Suspended", "Inactive
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    const input = createSchema.parse(req.body);
-    const user = await userService.createUser(req.auth, input, req.ip ?? null);
+    const { roleGroup, ...rest } = createSchema.parse(req.body);
+    const user = await userService.createUser(req.auth, { ...rest, role: roleGroup ?? rest.role }, req.ip ?? null);
     sendOk(res, user, 201);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function update(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const { roleGroup, ...rest } = updateSchema.parse(req.body);
+    const user = await userService.updateUser(
+      req.auth,
+      req.params.id as string,
+      { ...rest, role: roleGroup ?? rest.role },
+      req.ip ?? null,
+    );
+    sendOk(res, user);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function softDelete(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const user = await userService.softDeleteUser(req.auth, req.params.id as string, req.ip ?? null);
+    sendOk(res, user);
   } catch (e) {
     next(e);
   }

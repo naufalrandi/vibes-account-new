@@ -1,85 +1,99 @@
-import { Framework, FrameworkFamily, FrameworkType } from "../../db/models";
+import { Framework, FrameworkGroup, Requirement } from "../../db/models";
 import type { FrameworkStatus } from "../../db/models/framework.model";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
-import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 export interface CreateFrameworkInput {
-  code: string;
+  groupId: string;
   name: string;
-  familyId: string;
-  version?: string | null;
+  description?: string | null;
+  jurisdictions?: string[];
   status?: FrameworkStatus;
-  publishedDate?: string | null;
-  shortDescription?: string | null;
-  fullDescription?: string | null;
 }
 
 export type UpdateFrameworkInput = Partial<CreateFrameworkInput>;
 
 export interface ListFrameworkFilters {
-  familyId?: string;
+  groupId?: string;
 }
 
-// Eager-load the parent family and, through it, the family's type so the list
-// response carries the nested { FrameworkFamily: { FrameworkType } } shape the
-// catalog table renders (Family + Type columns).
-const FAMILY_INCLUDE = { model: FrameworkFamily, include: [FrameworkType] };
+export interface FrameworkView {
+  id: string;
+  groupId: string | null;
+  groupName: string;
+  name: string;
+  description: string | null;
+  jurisdictions: string[];
+  status: FrameworkStatus;
+  requirementCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
-/** Frameworks are platform-global config — only the Service Owner may touch them. */
+const FRAMEWORK_INCLUDE = [{ model: FrameworkGroup }, { model: Requirement, attributes: ["id"] }];
+
+/** Frameworks are platform-global master data — only the Service Owner may manage them. */
 function assertServiceOwner(auth: AuthContext): void {
   if (auth.orgType !== "ServiceOwner") {
     throw new ForbiddenError("Only the Service Owner can manage frameworks");
   }
 }
 
-/** Resolve the parent family or fail — keeps the FK reference meaningful at the API layer. */
-async function requireFamily(familyId: string): Promise<FrameworkFamily> {
-  const family = await FrameworkFamily.findByPk(familyId);
-  if (!family) throw new BadRequestError("Framework family does not exist", "FRAMEWORK_FAMILY_NOT_FOUND");
-  return family;
+async function requireGroup(groupId: string): Promise<FrameworkGroup> {
+  const group = await FrameworkGroup.findByPk(groupId);
+  if (!group) throw new BadRequestError("Framework group does not exist", "FRAMEWORK_GROUP_NOT_FOUND");
+  return group;
 }
 
-export async function listFrameworks(
-  auth: AuthContext,
-  filters: ListFrameworkFilters = {},
-): Promise<Framework[]> {
-  assertServiceOwner(auth);
-  const where = filters.familyId ? { familyId: filters.familyId } : undefined;
-  return Framework.findAll({
-    where,
-    include: [FAMILY_INCLUDE],
-    order: [["name", "ASC"]],
-  });
+function toView(framework: Framework): FrameworkView {
+  const group = framework.get("FrameworkGroup") as FrameworkGroup | undefined;
+  const requirements = (framework.get("Requirements") as Requirement[] | undefined) ?? [];
+  return {
+    id: framework.id,
+    groupId: framework.groupId,
+    groupName: group?.name ?? "",
+    name: framework.name,
+    description: framework.description,
+    jurisdictions: framework.jurisdictions ?? [],
+    status: framework.status,
+    requirementCount: requirements.length,
+    createdAt: framework.createdAt.toISOString(),
+    updatedAt: framework.updatedAt.toISOString(),
+  };
 }
 
-export async function getFramework(auth: AuthContext, id: string): Promise<Framework> {
-  assertServiceOwner(auth);
-  const framework = await Framework.findByPk(id, { include: [FAMILY_INCLUDE] });
+async function loadView(id: string): Promise<FrameworkView> {
+  const framework = await Framework.findByPk(id, { include: FRAMEWORK_INCLUDE });
   if (!framework) throw new NotFoundError("Framework does not exist", "FRAMEWORK_NOT_FOUND");
-  return framework;
+  return toView(framework);
+}
+
+export async function listFrameworks(auth: AuthContext, filters: ListFrameworkFilters = {}): Promise<FrameworkView[]> {
+  assertServiceOwner(auth);
+  const where = filters.groupId ? { groupId: filters.groupId } : undefined;
+  const rows = await Framework.findAll({ where, include: FRAMEWORK_INCLUDE, order: [["name", "ASC"]] });
+  return rows.map(toView);
+}
+
+export async function getFramework(auth: AuthContext, id: string): Promise<FrameworkView> {
+  assertServiceOwner(auth);
+  return loadView(id);
 }
 
 export async function createFramework(
   auth: AuthContext,
   input: CreateFrameworkInput,
   ip: string | null,
-): Promise<Framework> {
+): Promise<FrameworkView> {
   assertServiceOwner(auth);
-  await requireFamily(input.familyId);
-
-  const dup = await Framework.findOne({ where: { code: input.code } });
-  if (dup) throw new ConflictError("Framework code already exists", "DUPLICATE_CODE");
-
+  await requireGroup(input.groupId);
   const framework = await Framework.create({
-    code: input.code,
+    groupId: input.groupId,
     name: input.name,
-    familyId: input.familyId,
-    version: input.version ?? null,
-    status: input.status ?? "Draft",
-    publishedDate: input.publishedDate ?? null,
-    shortDescription: input.shortDescription ?? null,
-    fullDescription: input.fullDescription ?? null,
+    description: input.description ?? null,
+    jurisdictions: input.jurisdictions ?? [],
+    status: input.status ?? "Active",
   });
   await writeAudit({
     actorUserId: auth.userId,
@@ -91,8 +105,7 @@ export async function createFramework(
     sourceIp: ip,
     result: "Success",
   });
-  // Reload with the parent family + type so the response matches the list shape.
-  return (await Framework.findByPk(framework.id, { include: [FAMILY_INCLUDE] })) ?? framework;
+  return loadView(framework.id);
 }
 
 export async function updateFramework(
@@ -100,26 +113,19 @@ export async function updateFramework(
   id: string,
   input: UpdateFrameworkInput,
   ip: string | null,
-): Promise<Framework> {
+): Promise<FrameworkView> {
   assertServiceOwner(auth);
   const framework = await Framework.findByPk(id);
   if (!framework) throw new NotFoundError("Framework does not exist", "FRAMEWORK_NOT_FOUND");
 
-  if (input.code !== undefined && input.code !== framework.code) {
-    const dup = await Framework.findOne({ where: { code: input.code } });
-    if (dup) throw new ConflictError("Framework code already exists", "DUPLICATE_CODE");
-    framework.code = input.code;
-  }
-  if (input.familyId !== undefined && input.familyId !== framework.familyId) {
-    await requireFamily(input.familyId);
-    framework.familyId = input.familyId;
+  if (input.groupId !== undefined && input.groupId !== framework.groupId) {
+    await requireGroup(input.groupId);
+    framework.groupId = input.groupId;
   }
   if (input.name !== undefined) framework.name = input.name;
-  if (input.version !== undefined) framework.version = input.version ?? null;
+  if (input.description !== undefined) framework.description = input.description ?? null;
+  if (input.jurisdictions !== undefined) framework.jurisdictions = input.jurisdictions;
   if (input.status !== undefined) framework.status = input.status;
-  if (input.publishedDate !== undefined) framework.publishedDate = input.publishedDate ?? null;
-  if (input.shortDescription !== undefined) framework.shortDescription = input.shortDescription ?? null;
-  if (input.fullDescription !== undefined) framework.fullDescription = input.fullDescription ?? null;
   await framework.save();
 
   await writeAudit({
@@ -132,14 +138,13 @@ export async function updateFramework(
     sourceIp: ip,
     result: "Success",
   });
-  return (await Framework.findByPk(framework.id, { include: [FAMILY_INCLUDE] })) ?? framework;
+  return loadView(framework.id);
 }
 
 export async function deleteFramework(auth: AuthContext, id: string, ip: string | null): Promise<void> {
   assertServiceOwner(auth);
   const framework = await Framework.findByPk(id);
   if (!framework) throw new NotFoundError("Framework does not exist", "FRAMEWORK_NOT_FOUND");
-
   await framework.destroy();
   await writeAudit({
     actorUserId: auth.userId,

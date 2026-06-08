@@ -15,6 +15,20 @@ const proposedSchema = z.object({
 });
 const rejectSchema = z.object({ reason: z.string().min(1) });
 
+export async function list(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const status =
+      typeof req.query.status === "string"
+        ? (req.query.status as "PendingApproval" | "Approved" | "Rejected")
+        : undefined;
+    const rows = await svc.listRegistrations(req.auth, { status });
+    sendOk(res, rows, 200, { page: 1, limit: rows.length, total: rows.length });
+  } catch (e) {
+    next(e);
+  }
+}
+
 export async function submit(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();

@@ -1,8 +1,14 @@
 import "dotenv/config";
-import { beforeAll, afterAll } from "vitest";
+import { beforeAll, beforeEach, afterAll } from "vitest";
+import { resetRateLimits } from "../src/middleware/rateLimit";
 
 // Force test env before any DB module (env/sequelize/models) is evaluated.
 process.env.NODE_ENV = "test";
+
+// The auth rate limiter is module-level and, with fileParallelism:false, shared
+// across the whole suite within one process. Reset it before every test so
+// login/activate-heavy integration tests can't trip the limit on each other.
+beforeEach(() => resetRateLimits());
 
 // Lazily loaded so this harness file imports cleanly even before the models
 // module exists (it lands in a later milestone). The connection is only opened
