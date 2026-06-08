@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Op, type WhereOptions } from "sequelize";
 import { sequelize } from "../../db/sequelize";
 import { FrameworkAssignment, Organization, Site, Subscription, User } from "../../db/models";
 import type { OrgStatus } from "../../db/models/organization.model";
@@ -107,10 +108,15 @@ async function toView(org: Organization): Promise<TenantView> {
 }
 
 /** Tenant orgs visible to the caller, newest first. SO sees all; a distributor sees its own tenants. */
-export async function listTenants(auth: AuthContext): Promise<TenantView[]> {
+export async function listTenants(auth: AuthContext, filters: { search?: string } = {}): Promise<TenantView[]> {
   if (auth.orgType === "Tenant") throw new ForbiddenError("Tenants cannot list other tenants");
   const scope = organizationScopeWhere(auth);
-  const orgs = await Organization.findAll({ where: { ...scope, type: "Tenant" }, order: [["createdAt", "DESC"]] });
+  const and: WhereOptions[] = [scope as WhereOptions, { type: "Tenant" }];
+  if (filters.search) {
+    const term = `%${filters.search}%`;
+    and.push({ [Op.or]: [{ name: { [Op.iLike]: term } }, { code: { [Op.iLike]: term } }] });
+  }
+  const orgs = await Organization.findAll({ where: { [Op.and]: and }, order: [["createdAt", "DESC"]] });
   return Promise.all(orgs.map(toView));
 }
 

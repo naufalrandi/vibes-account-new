@@ -3,6 +3,7 @@ import { z } from "zod";
 import * as tenantService from "./tenant.service";
 import * as provisioning from "./provisioning.service";
 import { sendOk } from "../../lib/apiResponse";
+import { paginate } from "../../lib/pagination";
 import { UnauthorizedError } from "../../lib/errors";
 
 const siteTypeSchema = z.enum([
@@ -46,8 +47,10 @@ const provisionSchema = z.object({
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    const rows = await tenantService.listTenants(req.auth);
-    sendOk(res, rows, 200, { page: 1, limit: rows.length, total: rows.length });
+    const search = typeof req.query.search === "string" ? req.query.search : undefined;
+    const rows = await tenantService.listTenants(req.auth, { search });
+    const { items, meta } = paginate(rows, req.query);
+    sendOk(res, items, 200, meta);
   } catch (e) {
     next(e);
   }

@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import * as userService from "./user.service";
 import { sendOk } from "../../lib/apiResponse";
+import { paginate } from "../../lib/pagination";
 import { UnauthorizedError } from "../../lib/errors";
 
 const permissionModeSchema = z.enum(["Full Access", "Custom Access"]);
@@ -100,7 +101,8 @@ export async function list(req: Request, res: Response, next: NextFunction) {
       username: req.query.username as string | undefined,
       search: req.query.search as string | undefined,
     });
-    sendOk(res, users, 200, { page: 1, limit: users.length, total: users.length });
+    const { items, meta } = paginate(users, req.query);
+    sendOk(res, items, 200, meta);
   } catch (e) {
     next(e);
   }

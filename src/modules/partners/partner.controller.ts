@@ -3,6 +3,7 @@ import { z } from "zod";
 import * as service from "./partner.service";
 import * as agreement from "./partnerAgreement.service";
 import { sendOk } from "../../lib/apiResponse";
+import { paginate } from "../../lib/pagination";
 import { UnauthorizedError } from "../../lib/errors";
 
 const generateSchema = z.object({
@@ -85,7 +86,8 @@ export async function list(req: Request, res: Response, next: NextFunction) {
       search: typeof req.query.search === "string" ? req.query.search : undefined,
     };
     const rows = await service.listPartners(req.auth, filters);
-    sendOk(res, rows, 200, { page: 1, limit: rows.length, total: rows.length });
+    const { items, meta } = paginate(rows, req.query);
+    sendOk(res, items, 200, meta);
   } catch (e) {
     next(e);
   }
