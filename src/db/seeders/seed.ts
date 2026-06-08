@@ -30,6 +30,9 @@ import {
   Notification,
   ImplementationRecord,
   BusinessRecord,
+  AgreementTemplate,
+  RegistrationRequest,
+  SiteRequest,
 } from "../models";
 import type { FrameworkAssignmentStatus } from "../models/frameworkAssignment.model";
 import { ACTIONS, MENU_SEED, type SeedMenu } from "../../modules/iam/actions.catalog";
@@ -38,9 +41,15 @@ import { ROLES_BY_ORG_TYPE } from "../../modules/iam/role.catalog";
 import type { OrgType, OrgStatus, PartnerStatus, PartnerTier, PartnerAuditEntry } from "../models/organization.model";
 import type { SiteType } from "../models/site.model";
 import type { PermissionMode, UserStatus } from "../models/user.model";
+import type { AgreementBlock } from "../models/agreementTemplate.model";
+import type { SiteRequestType, SiteRequestStatus, SiteRequestProposed } from "../models/siteRequest.model";
 import { hashPassword } from "../../lib/password";
 
-const DEFAULT_PASSWORD = "ChangeMe123";
+// Demo password for every seeded account, matching the AXIA mockup's Demo
+// sign-in ("Demo password for all accounts: vibes2026"). Login does not enforce
+// the activation/reset password policy, so this is accepted for the pre-seeded
+// Active demo users.
+const DEFAULT_PASSWORD = "vibes2026";
 const ALL_MODULE_KEYS = MODULES.map((m) => m.key);
 
 /** Extra Team Management metadata applied to a seeded user (idempotently). */
@@ -151,6 +160,7 @@ async function ensureUser(
   tenantId: string | null = null,
   extras: UserExtras = {},
 ): Promise<void> {
+  const passwordHash = await hashPassword(DEFAULT_PASSWORD);
   const [user] = await User.findOrCreate({
     where: { username },
     defaults: {
@@ -159,7 +169,7 @@ async function ensureUser(
       fullName,
       username,
       email,
-      passwordHash: await hashPassword(DEFAULT_PASSWORD),
+      passwordHash,
       status: extras.status ?? "Active",
       position: role.name,
       workUnit: null,
@@ -173,7 +183,9 @@ async function ensureUser(
     },
   });
   // Apply Team Management metadata idempotently so re-seeding an existing DB
-  // backfills the system flag and permission grid state.
+  // backfills the system flag, permission grid state, and the demo password
+  // (so existing rows adopt the canonical demo credential on every reseed).
+  user.passwordHash = passwordHash;
   user.system = extras.system ?? false;
   user.permissionMode = extras.permissionMode ?? null;
   user.permissions = extras.permissions ?? [];
@@ -372,8 +384,6 @@ export async function seed(): Promise<void> {
     }
     partnersByCode.set(p.code, org);
   }
-  // Primary partner referenced by downstream demo data (tickets / notifications).
-  const dist = partnersByCode.get("PRT-1001")!;
 
   // 9. Billing plan catalog. Per-tenant invoices are seeded with their tenant in block 10.
   const PLANS: { code: string; name: string; description: string; billingFrequency: "Monthly" | "Annual"; status: "Active" }[] = [
@@ -686,20 +696,29 @@ export async function seed(): Promise<void> {
     summary: string; keywords: string[]; views: number; helpful: number; notHelpful: number; content: string;
   }
   const KB_SPECS: KbSpec[] = [
-    { title: "How to Create a Tenant", category: "platform", status: "Published", featured: true, summary: "Provision a new customer organization and its primary site.", keywords: ["tenant", "onboarding", "provisioning"], views: 842, helpful: 96, notHelpful: 6, content: "# Creating a Tenant\nTenants are created by the Service Provider from **Tenant Management**.\n\n1. Open Tenant Management and click New Tenant.\n2. Choose the Acquisition Source (Direct or Partner).\n3. Enter the organization details and the Primary Site.\n4. Create the initial Tenant Administrator.\n5. Send the activation email.\n\n> Every tenant must have exactly one Primary Site." },
-    { title: "How to Create a Site", category: "platform", status: "Published", summary: "Add implementation scopes (sites) to a tenant.", keywords: ["site", "primary site", "factory"], views: 531, helpful: 60, notHelpful: 4, content: "# Creating a Site\nSites are managed inside a tenant's **Sites** tab.\n\n1. Open the tenant and go to the Sites tab.\n2. Click Add Site and choose a Site Type.\n3. Set whether it is the Primary Site.\n4. Save.\n\n> Frameworks are assigned to sites, not directly to the tenant." },
-    { title: "How to Assign Frameworks", category: "framework", status: "Published", featured: true, summary: "Understand how frameworks map to sites and requirements.", keywords: ["framework", "assignment", "iso"], views: 766, helpful: 80, notHelpful: 9, content: "# Assigning Frameworks\nFrameworks belong to **sites**. A framework contains requirements; framework elements map many-to-many to those requirements.\n\n- Head Office → ISO 9001\n- Factory → ISO 45001\n- Data Center → ISO/IEC 27001" },
-    { title: "How Subscription Billing Works", category: "billing", status: "Published", featured: true, summary: "How AXIA bills tenants and issues invoices.", keywords: ["billing", "subscription", "invoice"], views: 611, helpful: 70, notHelpful: 8, content: "# Subscription Billing\nAll revenue is collected by **AXIA**. Tenants always pay AXIA directly — partners never invoice tenants.\n\n> Receipts are issued only after a payment is verified." },
-    { title: "How Partner Revenue Share Works", category: "partner", status: "Published", featured: true, summary: "How partners earn revenue share on tenant invoices.", keywords: ["partner", "revenue share", "payout"], views: 524, helpful: 58, notHelpful: 7, content: "# Partner Revenue Share\nOnly **partner-acquired** tenants generate revenue share. AXIA pays the partner a percentage of each tenant invoice based on the Partner Agreement.\n\n> Direct-acquired tenants do not generate partner revenue share." },
-    { title: "Cannot Activate Account", category: "troubleshooting", status: "Published", summary: "Steps to resolve activation link issues.", keywords: ["activation", "link expired", "password"], views: 903, helpful: 88, notHelpful: 21, content: "# Cannot Activate Account\nActivation links expire for security.\n\n1. Check the email address the link was sent to.\n2. Use the Resend Activation option.\n3. Open the new link within the validity window." },
+    { title: "How to Create a Tenant", category: "platform", status: "Published", featured: true, summary: "Provision a new customer organization and its primary site.", keywords: ["tenant", "create tenant", "onboarding", "provisioning"], views: 842, helpful: 96, notHelpful: 6, content: "# Creating a Tenant\nTenants are created by the Service Provider from **Tenant Management**.\n\n1. Open Tenant Management and click New Tenant.\n2. Choose the Acquisition Source (Direct or Partner).\n3. Enter the organization details and the Primary Site.\n4. Create the initial Tenant Administrator.\n5. Send the activation email.\n\n> Every tenant must have exactly one Primary Site, created during onboarding." },
+    { title: "How to Create a Site", category: "platform", status: "Published", summary: "Add implementation scopes (sites) to a tenant.", keywords: ["site", "primary site", "head office", "factory"], views: 531, helpful: 60, notHelpful: 4, content: "# Creating a Site\nSites are managed inside a tenant's **Sites** tab.\n\n1. Open the tenant and go to the Sites tab.\n2. Click Add Site and choose a Site Type.\n3. Set whether it is the Primary Site.\n4. Save.\n\n> Frameworks are assigned to sites, not directly to the tenant." },
+    { title: "How to Add Team Members", category: "platform", status: "Published", summary: "Invite internal Service Provider users and assign role groups.", keywords: ["team", "users", "roles", "invite", "activation"], views: 418, helpful: 44, notHelpful: 3, content: "# Adding Team Members\nUse **Team Management** to add internal users.\n\n1. Click Add User and choose a Role Group.\n2. For Administrators, set Full or Custom access.\n3. Submit — an activation email is sent automatically.\n\nRole groups: Administrator, Billing Manager, Technical Support." },
+    { title: "How to Assign Frameworks", category: "framework", status: "Published", featured: true, summary: "Understand how frameworks map to sites and requirements.", keywords: ["framework", "assignment", "requirements", "iso"], views: 766, helpful: 80, notHelpful: 9, content: "# Assigning Frameworks\nFrameworks belong to **sites**. A framework contains requirements; framework elements map many-to-many to those requirements.\n\n- Head Office → ISO 9001\n- Factory → ISO 45001\n- Data Center → ISO/IEC 27001\n\n> Framework assignment to sites is rolling out progressively." },
+    { title: "Understanding Framework Elements", category: "framework", status: "Published", summary: "Framework elements are the primary cross-reference object.", keywords: ["framework element", "cross-reference", "mapping", "requirement"], views: 389, helpful: 41, notHelpful: 5, content: "# Framework Elements\nA framework element (e.g. Internal Audit) can satisfy requirements across multiple frameworks.\n\n> One element → many requirements, and one requirement → many elements." },
+    { title: "How Subscription Billing Works", category: "billing", status: "Published", featured: true, summary: "How AXIA bills tenants and issues invoices.", keywords: ["billing", "subscription", "invoice", "currency"], views: 611, helpful: 70, notHelpful: 8, content: "# Subscription Billing\nAll revenue is collected by **AXIA**. Tenants always pay AXIA directly — partners never invoice tenants.\n\n| Frequency | Notes |\n| --- | --- |\n| Monthly | Billed each period |\n| Annual | May include a discount |\n\n> Receipts are issued only after a payment is verified." },
+    { title: "How to View Invoices", category: "billing", status: "Published", summary: "Find invoices, payments, and receipts for a tenant.", keywords: ["invoice", "payment", "receipt", "view"], views: 298, helpful: 30, notHelpful: 2, content: "# Viewing Invoices\nOpen a tenant and go to the **Billing** tab to see the subscription, invoices, payments, and receipts. Service Providers can also see all invoices under Billing Management → Invoices." },
+    { title: "How Receipts Work", category: "billing", status: "Published", summary: "When and how receipts are generated.", keywords: ["receipt", "payment verification"], views: 176, helpful: 18, notHelpful: 1, content: "# Receipts\nA receipt is issued automatically once a payment is **verified**. Receipts reference the invoice and payment, and remain available for history." },
+    { title: "How Partner Revenue Share Works", category: "partner", status: "Published", featured: true, summary: "How partners earn revenue share on tenant invoices.", keywords: ["partner", "revenue share", "payout", "commission"], views: 524, helpful: 58, notHelpful: 7, content: "# Partner Revenue Share\nOnly **partner-acquired** tenants generate revenue share. AXIA pays the partner a percentage of each tenant invoice based on the Partner Agreement.\n\n> Direct-acquired tenants do not generate partner revenue share." },
+    { title: "How Partner Tiers Work", category: "partner", status: "Published", summary: "Bronze, Silver, and Gold tiers and their share ranges.", keywords: ["partner tier", "bronze", "silver", "gold"], views: 347, helpful: 38, notHelpful: 4, content: "# Partner Tiers\n| Tier | Base | Maximum |\n| --- | --- | --- |\n| Bronze | 15% | 20% |\n| Silver | 20% | 30% |\n| Gold | 30% | 35% |\n\nCurrent share may vary within the approved tier range." },
+    { title: "Cannot Activate Account", category: "troubleshooting", status: "Published", summary: "Steps to resolve activation link issues.", keywords: ["activation", "cannot activate", "link expired", "password"], views: 903, helpful: 88, notHelpful: 21, content: "# Cannot Activate Account\nActivation links expire for security.\n\n1. Check the email address the link was sent to.\n2. Use the Resend Activation option.\n3. Open the new link within the validity window.\n\n> If it still fails, create a ticket from Ticket Management." },
+    { title: "Cannot Upload Files", category: "troubleshooting", status: "Published", summary: "Fixes for failed file uploads.", keywords: ["upload", "file", "attachment", "error"], views: 472, helpful: 40, notHelpful: 12, content: "# Cannot Upload Files\nSupported formats: PDF, DOCX, XLSX, PNG, JPG.\n\n- Confirm the file type is supported.\n- Large files may take longer — wait for the upload to finish.\n- Retry after refreshing if the upload stalls." },
+    { title: "Cannot Access Framework", category: "troubleshooting", status: "Published", summary: "Why a framework may not be visible.", keywords: ["framework access", "permission", "visibility"], views: 213, helpful: 19, notHelpful: 6, content: "# Cannot Access Framework\nFrameworks are assigned per site. Confirm the framework is assigned to the relevant site and that your account has access to that site." },
     { title: "Can One Tenant Have Multiple Sites?", category: "faq", status: "Published", summary: "Yes — tenants can have many sites.", keywords: ["tenant", "sites", "multiple"], views: 355, helpful: 48, notHelpful: 1, content: "# Multiple Sites\nYes. A tenant can have many sites (Head Office, Factory, Warehouse, …) but exactly **one Primary Site**." },
+    { title: "Can One Site Have Multiple Frameworks?", category: "faq", status: "Published", summary: "Yes — sites can carry several frameworks.", keywords: ["site", "frameworks", "multiple"], views: 281, helpful: 34, notHelpful: 2, content: "# Multiple Frameworks per Site\nYes. A single site can implement several frameworks (e.g. a Factory running ISO 9001 and ISO 45001)." },
+    { title: "How Do I Reset My Password?", category: "faq", status: "Published", summary: "Reset your password from the Security tab.", keywords: ["password", "reset", "security"], views: 688, helpful: 74, notHelpful: 5, content: "# Resetting Your Password\nOpen the account menu → **Security** → Change Password. New passwords must be at least 8 characters with an uppercase letter, a lowercase letter, and a number." },
     { title: "Version 1.0.0 Release Notes", category: "release", status: "Published", summary: "Initial AXIA platform release.", keywords: ["release", "changelog", "1.0.0"], views: 402, helpful: 36, notHelpful: 2, content: "# Version 1.0.0\nThe first AXIA release.\n\n- Organization, Team, Partner, Tenant, and Framework management\n- Partnership Agreements with a block editor\n- Billing Management with revenue share\n- Ticket Management with SLA tracking\n- Knowledge Base" },
     { title: "Tenant Onboarding Checklist (Draft)", category: "platform", status: "Draft", summary: "Internal draft checklist for tenant onboarding.", keywords: ["onboarding", "checklist", "internal"], views: 0, helpful: 0, notHelpful: 0, content: "# Onboarding Checklist (Draft)\n- Create tenant\n- Create primary site\n- Create administrator\n- Confirm activation\n\n> Draft — pending review before publishing." },
   ];
   for (let i = 0; i < KB_SPECS.length; i++) {
     const s = KB_SPECS[i];
     const code = `KB-2026-${String(i + 1).padStart(4, "0")}`;
-    await KbArticle.findOrCreate({
+    const [article] = await KbArticle.findOrCreate({
       where: { code },
       defaults: {
         code, title: s.title, category: s.category, status: s.status, author: "AXIA Support",
@@ -708,10 +727,19 @@ export async function seed(): Promise<void> {
         publishedAt: s.status === "Published" ? new Date() : null,
       },
     });
+    // Idempotent backfill so a re-seed aligns each code to the exact mockup article.
+    article.title = s.title; article.category = s.category; article.status = s.status;
+    article.summary = s.summary; article.content = s.content; article.keywords = s.keywords;
+    article.featured = s.featured ?? false;
+    if (s.status === "Published" && !article.publishedAt) article.publishedAt = new Date();
+    await article.save();
   }
 
-  // 12. Support tickets across personas (idempotent via code).
-  const tIso = (d: number) => new Date(2026, 5, d, 12, 0, 0).toISOString();
+  // 12. Support tickets across personas — the exact AXIA mockup roster (8). Hour-
+  //     precise timestamps so the ticket SLA (first-response / resolution) derives.
+  const tHr = (d: number, h: number) => new Date(2026, 5, d, h, 0, 0).toISOString();
+  const abcMfg = tenantsByCode.get("TEN-1005")!;            // ABC Manufacturing
+  const abcConsulting = partnersByCode.get("PRT-1005")!;    // ABC Consulting (partner)
   interface TicketSpec {
     subject: string; description: string; category: string; priority: string; status: string;
     scope: "sp" | "partner" | "tenant"; orgId: string; orgName: string; managedBy: string | null;
@@ -720,16 +748,19 @@ export async function seed(): Promise<void> {
     activity: { event: string; ts: string }[];
   }
   const TICKET_SPECS: TicketSpec[] = [
-    { subject: "Cannot Activate Tenant Account", description: "Our tenant admin cannot complete activation — the link appears expired.", category: "Technical Support", priority: "High", status: "In Progress", scope: "tenant", orgId: tenant.id, orgName: tenant.name, managedBy: dist.name, by: { name: "Tenant Admin", email: "admin@acme.com" }, assignedTo: "Raka Pratama", messages: [{ author: { name: "Tenant Admin", kind: "user" }, text: "The activation link says expired.", ts: tIso(2) }, { author: { name: "Raka Pratama", kind: "support" }, text: "We've resent the activation — please retry.", ts: tIso(3) }], activity: [{ event: "Ticket created", ts: tIso(2) }, { event: "Assigned to Raka Pratama", ts: tIso(3) }, { event: "Status changed to In Progress", ts: tIso(3) }] },
-    { subject: "Invoice Status Incorrect", description: "An invoice shows unpaid but we completed the transfer.", category: "Billing", priority: "Medium", status: "Waiting for Customer", scope: "tenant", orgId: tenant.id, orgName: tenant.name, managedBy: dist.name, by: { name: "Tenant Billing", email: "billing@acme.com" }, assignedTo: "Dewi Lestari", messages: [{ author: { name: "Tenant Billing", kind: "user" }, text: "Our invoice still shows unpaid after payment.", ts: tIso(5) }, { author: { name: "Dewi Lestari", kind: "support" }, text: "Could you share the transfer reference?", ts: tIso(6) }], activity: [{ event: "Ticket created", ts: tIso(5) }, { event: "Status changed to Waiting for Customer", ts: tIso(6) }] },
-    { subject: "Need Assistance with Partner Onboarding", description: "We would like guidance on onboarding our first batch of tenants.", category: "Commercial", priority: "Medium", status: "Open", scope: "partner", orgId: dist.id, orgName: dist.name, managedBy: null, by: { name: "Distributor Admin", email: "admin@northwind.io" }, assignedTo: null, messages: [{ author: { name: "Distributor Admin", kind: "user" }, text: "Can someone walk us through onboarding tenants?", ts: tIso(7) }], activity: [{ event: "Ticket created", ts: tIso(7) }] },
-    { subject: "Document Upload Error", description: "Uploading a PDF over 5MB fails silently.", category: "Bug Report", priority: "High", status: "Resolved", scope: "tenant", orgId: tenant.id, orgName: tenant.name, managedBy: dist.name, by: { name: "Tenant Member", email: "member@acme.com" }, assignedTo: "Raka Pratama", messages: [{ author: { name: "Tenant Member", kind: "user" }, text: "Large PDF uploads fail with no message.", ts: tIso(1) }, { author: { name: "Raka Pratama", kind: "support" }, text: "Fixed in the latest release — please retry.", ts: tIso(2) }], activity: [{ event: "Ticket created", ts: tIso(1) }, { event: "Ticket resolved", ts: tIso(2) }] },
-    { subject: "Feature Request: Bulk Site Import", description: "Could we import sites via CSV for large tenants?", category: "Feature Request", priority: "Low", status: "Open", scope: "partner", orgId: dist.id, orgName: dist.name, managedBy: null, by: { name: "Distributor Admin", email: "admin@northwind.io" }, assignedTo: null, messages: [{ author: { name: "Distributor Admin", kind: "user" }, text: "A CSV bulk site import would save us time.", ts: tIso(8) }], activity: [{ event: "Ticket created", ts: tIso(8) }] },
+    { subject: "Cannot Activate Tenant Administrator", description: "The activation link for our administrator account returns an error when clicked. Please advise.", category: "Technical Support", priority: "High", status: "In Progress", scope: "tenant", orgId: abcMfg.id, orgName: abcMfg.name, managedBy: "ABC Consulting", by: { name: "Maria Santos", email: "maria@abcmfg.co" }, assignedTo: "Raka Pratama", messages: [{ author: { name: "Maria Santos", kind: "user" }, text: "Hi, our admin can't activate — the link errors out. Screenshot attached.", ts: tHr(2, 9) }, { author: { name: "Raka Pratama", kind: "support" }, text: "Thanks Maria, we're looking into it. Could you confirm the email address the link was sent to?", ts: tHr(2, 14) }, { author: { name: "Maria Santos", kind: "user" }, text: "It was sent to maria@abcmfg.co.", ts: tHr(2, 16) }], activity: [{ event: "Ticket created", ts: tHr(2, 9) }, { event: "Assigned to Raka Pratama", ts: tHr(2, 12) }, { event: "Status changed to In Progress", ts: tHr(2, 12) }] },
+    { subject: "Invoice Status Incorrect", description: "INV-2026-0019 shows as unpaid but we have completed the bank transfer.", category: "Billing", priority: "Medium", status: "Waiting for Customer", scope: "tenant", orgId: abcMfg.id, orgName: abcMfg.name, managedBy: "ABC Consulting", by: { name: "Maria Santos", email: "maria@abcmfg.co" }, assignedTo: "Dewi Lestari", messages: [{ author: { name: "Maria Santos", kind: "user" }, text: "Our May invoice still shows unpaid after payment.", ts: tHr(5, 10) }, { author: { name: "Dewi Lestari", kind: "support" }, text: "Could you share the transfer reference number so we can match it?", ts: tHr(5, 18) }], activity: [{ event: "Ticket created", ts: tHr(5, 10) }, { event: "Assigned to Dewi Lestari", ts: tHr(5, 18) }, { event: "Status changed to Waiting for Customer", ts: tHr(5, 18) }] },
+    { subject: "Need Assistance with Partner Onboarding", description: "We would like guidance on onboarding our first batch of tenants.", category: "Commercial", priority: "Medium", status: "Open", scope: "partner", orgId: abcConsulting.id, orgName: abcConsulting.name, managedBy: null, by: { name: "Andi Wijaya", email: "andi@nusantara.cloud" }, assignedTo: null, messages: [{ author: { name: "Andi Wijaya", kind: "user" }, text: "Hello, can someone walk us through onboarding tenants under our partnership?", ts: tHr(7, 13) }], activity: [{ event: "Ticket created", ts: tHr(7, 13) }] },
+    { subject: "Document Upload Error", description: "Uploading a PDF over 5MB fails silently.", category: "Bug Report", priority: "High", status: "Resolved", scope: "tenant", orgId: abcMfg.id, orgName: abcMfg.name, managedBy: "ABC Consulting", by: { name: "Maria Santos", email: "maria@abcmfg.co" }, assignedTo: "Raka Pratama", messages: [{ author: { name: "Maria Santos", kind: "user" }, text: "Large PDF uploads fail with no message.", ts: tHr(1, 8) }, { author: { name: "Raka Pratama", kind: "support" }, text: "Fixed in the latest release — please retry and confirm.", ts: tHr(1, 20) }, { author: { name: "Maria Santos", kind: "user" }, text: "Working now, thank you!", ts: tHr(2, 9) }], activity: [{ event: "Ticket created", ts: tHr(1, 8) }, { event: "Status changed to In Progress", ts: tHr(1, 20) }, { event: "Ticket resolved", ts: tHr(2, 9) }] },
+    { subject: "Feature Request: Bulk Site Import", description: "Could we import sites via CSV for large tenants?", category: "Feature Request", priority: "Low", status: "Open", scope: "partner", orgId: abcConsulting.id, orgName: abcConsulting.name, managedBy: null, by: { name: "Andi Wijaya", email: "andi@nusantara.cloud" }, assignedTo: null, messages: [{ author: { name: "Andi Wijaya", kind: "user" }, text: "A CSV bulk site import would save us a lot of time.", ts: tHr(8, 11) }], activity: [{ event: "Ticket created", ts: tHr(8, 11) }] },
+    { subject: "Need Help Assigning Framework", description: "How do we map ISO 9001 to a specific site?", category: "General Inquiry", priority: "Medium", status: "Closed", scope: "tenant", orgId: abcMfg.id, orgName: abcMfg.name, managedBy: "ABC Consulting", by: { name: "Maria Santos", email: "maria@abcmfg.co" }, assignedTo: "Giandy Gumilang", messages: [{ author: { name: "Maria Santos", kind: "user" }, text: "Where do I assign a framework to our factory site?", ts: tHr(1, 9) }, { author: { name: "Giandy Gumilang", kind: "support" }, text: "Frameworks are assigned per site — this is coming soon to your workspace.", ts: tHr(1, 13) }], activity: [{ event: "Ticket created", ts: tHr(1, 9) }, { event: "Ticket resolved", ts: tHr(1, 18) }, { event: "Ticket closed", ts: tHr(2, 12) }] },
+    { subject: "Critical: Tenant Cannot Sign In", description: "All users at PT Maju Bersama are locked out after the maintenance window.", category: "Technical Support", priority: "Critical", status: "In Progress", scope: "tenant", orgId: tenant.id, orgName: tenant.name, managedBy: "Nusantara Cloud", by: { name: "Rina Wijaya", email: "rina@majubersama.co.id" }, assignedTo: "Raka Pratama", messages: [{ author: { name: "Rina Wijaya", kind: "user" }, text: "Nobody can sign in since this morning. This is urgent.", ts: tHr(9, 8) }, { author: { name: "Raka Pratama", kind: "support" }, text: "Escalated and investigating now — we'll update within the hour.", ts: tHr(9, 14) }], activity: [{ event: "Ticket created", ts: tHr(9, 8) }, { event: "Assigned to Raka Pratama", ts: tHr(9, 9) }, { event: "Status changed to In Progress", ts: tHr(9, 14) }] },
+    { subject: "Billing Inquiry — Revenue Share", description: "Requesting a breakdown of our Q2 revenue share statements.", category: "Billing", priority: "Medium", status: "Resolved", scope: "partner", orgId: abcConsulting.id, orgName: abcConsulting.name, managedBy: null, by: { name: "Andi Wijaya", email: "andi@nusantara.cloud" }, assignedTo: "Dewi Lestari", messages: [{ author: { name: "Andi Wijaya", kind: "user" }, text: "Can we get a breakdown of our revenue share for Q2?", ts: tHr(4, 10) }, { author: { name: "Dewi Lestari", kind: "support" }, text: "Statement summary attached — let us know if you need more detail.", ts: tHr(4, 15) }], activity: [{ event: "Ticket created", ts: tHr(4, 10) }, { event: "Ticket resolved", ts: tHr(6, 15) }] },
   ];
   for (let i = 0; i < TICKET_SPECS.length; i++) {
     const s = TICKET_SPECS[i];
     const code = `TKT-2026-${String(i + 1).padStart(4, "0")}`;
-    await Ticket.findOrCreate({
+    const [tk] = await Ticket.findOrCreate({
       where: { code },
       defaults: {
         code, subject: s.subject, description: s.description, category: s.category, priority: s.priority as never,
@@ -737,15 +768,23 @@ export async function seed(): Promise<void> {
         createdBy: s.by, assignedTo: s.assignedTo, messages: s.messages, activity: s.activity, attachments: [],
       },
     });
+    // Idempotent backfill so a re-seed aligns each code to the exact mockup ticket.
+    tk.subject = s.subject; tk.description = s.description; tk.category = s.category;
+    tk.priority = s.priority as never; tk.status = s.status as never; tk.scope = s.scope;
+    tk.orgId = s.orgId; tk.orgName = s.orgName; tk.managedBy = s.managedBy;
+    tk.createdBy = s.by; tk.assignedTo = s.assignedTo; tk.messages = s.messages; tk.activity = s.activity;
+    await tk.save();
   }
 
   // 13. In-app notifications (bell). SO-scoped (orgId null) + per-org examples.
+  //     Cleared first so the bell matches the mockup exactly after a re-seed.
+  await Notification.destroy({ where: {}, truncate: true });
   const nIso = (d: number) => new Date(2026, 5, d, 12, 0, 0).toISOString();
   const NOTIF_SPECS: { orgId: string | null; text: string; read: boolean; at: string }[] = [
-    { orgId: null, text: "Critical ticket TKT-2026-0001 needs attention", read: false, at: nIso(9) },
-    { orgId: dist.id, text: "New ticket: Need Assistance with Partner Onboarding", read: false, at: nIso(7) },
-    { orgId: tenant.id, text: "Reply on TKT-2026-0002 — Invoice Status", read: true, at: nIso(6) },
-    { orgId: tenant.id, text: "Ticket TKT-2026-0004 was resolved", read: true, at: nIso(4) },
+    { orgId: null, text: "Critical ticket TKT-2026-0007 needs attention", read: false, at: nIso(9) },
+    { orgId: abcConsulting.id, text: "New ticket: Need Assistance with Partner Onboarding", read: false, at: nIso(7) },
+    { orgId: abcConsulting.id, text: "Reply on TKT-2026-0008 — Billing Inquiry", read: true, at: nIso(6) },
+    { orgId: abcMfg.id, text: "Ticket TKT-2026-0004 was resolved", read: true, at: nIso(4) },
   ];
   for (const n of NOTIF_SPECS) {
     const [, created] = await Notification.findOrCreate({
@@ -804,12 +843,100 @@ export async function seed(): Promise<void> {
     });
   }
 
+  // 16. Partnership Agreement templates (the 4 mockup templates). All four share
+  //     the same default block document, mirroring the mockup's seedAgreementTemplates.
+  let agBlkN = 0;
+  const ab = (type: AgreementBlock["type"], text: string): AgreementBlock => ({ id: `blk-seed-${++agBlkN}`, type, text });
+  const agreementBlocks = (): AgreementBlock[] => [
+    ab("heading", "PARTNERSHIP AGREEMENT"),
+    ab("paragraph", "This Partnership Agreement (\"Agreement\") is made on {{agreement_date}} between {{service_provider_name}} (\"Service Provider\") and {{partner_name}} (\"Partner\", {{partner_code}})."),
+    ab("heading", "1. Parties"),
+    ab("paragraph", "Service Provider: {{service_provider_name}}, of {{service_provider_address}}."),
+    ab("paragraph", "Partner: {{partner_name}}, of {{partner_address}}, {{partner_country}}."),
+    ab("heading", "2. Appointment as Partner"),
+    ab("paragraph", "The Service Provider appoints the Partner as a non-exclusive partner for the Term, effective {{effective_date}}."),
+    ab("heading", "3. Partner Rights and Responsibilities"),
+    ab("clause", "The Partner shall market and sell subscriptions to the Platform in good faith."),
+    ab("clause", "The Partner shall provide first-line support to its Tenants."),
+    ab("heading", "4. Commercial Terms"),
+    ab("paragraph", "All commercial terms are denominated in {{currency}} unless otherwise stated."),
+    ab("heading", "5. Revenue Share"),
+    ab("paragraph", "The Partner shall be entitled to a revenue share of {{revenue_share_percentage}}% on net subscription revenue, with a partner discount of {{partner_discount_percentage}}%."),
+    ab("heading", "6. Payment Terms"),
+    ab("paragraph", "Payments are due within {{payment_due_days}} days of invoice."),
+    ab("heading", "7. Term and Termination"),
+    ab("paragraph", "This Agreement runs for {{agreement_duration_months}} months from the effective date and expires on {{expiration_date}}, unless terminated earlier on {{termination_notice_days}} days written notice."),
+    ab("heading", "8. Governing Law"),
+    ab("paragraph", "This Agreement is governed by {{governing_law}}, with jurisdiction in {{jurisdiction}}."),
+    ab("heading", "9. Signatures"),
+    ab("signature", "Signed for and on behalf of the parties."),
+  ];
+  interface AgtSpec { code: string; name: string; description: string; version: string; status: "Draft" | "Active" | "Archived"; }
+  const AGT_SPECS: AgtSpec[] = [
+    { code: "AGT-1001", name: "Standard Reseller Agreement", description: "Default agreement for standard reseller partners.", version: "v2.1", status: "Active" },
+    { code: "AGT-1002", name: "Distributor Agreement", description: "Agreement for regional distributors with volume commitments.", version: "v1.4", status: "Active" },
+    { code: "AGT-1003", name: "Principal Partner Agreement", description: "Agreement for principal partners — in preparation.", version: "v1.0", status: "Draft" },
+    { code: "AGT-1004", name: "Reseller Agreement (Legacy)", description: "Superseded 2025 reseller terms, retained for history.", version: "v1.0", status: "Archived" },
+  ];
+  for (const a of AGT_SPECS) {
+    await AgreementTemplate.findOrCreate({
+      where: { code: a.code },
+      defaults: { code: a.code, name: a.name, description: a.description, version: a.version, status: a.status, blocks: agreementBlocks() },
+    });
+  }
+
+  // 17. Tenant Requests (registration requests). The mockup's tenant requests are
+  //     partner-originated; the project's RegistrationRequest requires a distributor,
+  //     so the four ABC-Consulting-originated requests are seeded (proposedTenant
+  //     carries the mockup org + contact fields). Idempotent via the proposed code.
+  interface TreqSpec { code: string; orgName: string; industry: string; country: string; contactPerson: string; contactEmail: string; contactPhone: string; status: "PendingApproval" | "Approved" | "Rejected"; decisionReason: string | null; }
+  const TREQ_SPECS: TreqSpec[] = [
+    { code: "TRQ-1001", orgName: "Nusantara Foods", industry: "Food & Beverage", country: "ID", contactPerson: "Agus Salim", contactEmail: "agus@nusantarafoods.co.id", contactPhone: "+62 21 5551 1000", status: "PendingApproval", decisionReason: null },
+    { code: "TRQ-1002", orgName: "Bali Resort Group", industry: "Hospitality", country: "ID", contactPerson: "Wayan Sukarta", contactEmail: "wayan@baliresort.com", contactPhone: "+62 361 5552 000", status: "PendingApproval", decisionReason: null },
+    { code: "TRQ-1003", orgName: "ABC Manufacturing", industry: "Manufacturing", country: "ID", contactPerson: "Maria Santos", contactEmail: "maria@abcmfg.co", contactPhone: "+62 21 5550 5000", status: "Approved", decisionReason: "Provisioned as TEN-1005" },
+    { code: "TRQ-1005", orgName: "Trans Logistik Cepat", industry: "Logistics", country: "ID", contactPerson: "Eko Prasetyo", contactEmail: "eko@translogistik.co.id", contactPhone: "+62 31 5554 300", status: "Rejected", decisionReason: "Duplicate of existing tenant" },
+  ];
+  const existingRegs = await RegistrationRequest.findAll({ where: { distributorOrgId: abcConsulting.id } });
+  for (const r of TREQ_SPECS) {
+    const proposed = {
+      code: r.code, name: r.orgName, email: r.contactEmail, country: r.country,
+      industry: r.industry, contactPhone: r.contactPhone,
+      adminFullName: r.contactPerson, adminUsername: r.contactEmail.split("@")[0], adminEmail: r.contactEmail,
+    };
+    const existing = existingRegs.find((x) => (x.proposedTenant as { code?: string }).code === r.code);
+    if (existing) {
+      existing.proposedTenant = proposed; existing.status = r.status; existing.decisionReason = r.decisionReason;
+      await existing.save();
+    } else {
+      await RegistrationRequest.create({ distributorOrgId: abcConsulting.id, proposedTenant: proposed, status: r.status, decisionReason: r.decisionReason });
+    }
+  }
+
+  // 18. Site Requests — the mockup's controlled site additions/changes/closures.
+  //     Change/Closure target a tenant's primary site (project seeds one site/tenant).
+  const abcPrimary = await Site.findOne({ where: { orgId: abcMfg.id, isPrimary: true } });
+  interface SreqSpec { code: string; orgId: string; type: SiteRequestType; siteId: string | null; requestedBy: string; proposed: SiteRequestProposed; reason: string; status: SiteRequestStatus; }
+  const SREQ_SPECS: SreqSpec[] = [
+    { code: "SRQ-1001", orgId: abcMfg.id, type: "Site Addition", siteId: null, requestedBy: "Tenant", proposed: { name: "Bandung Distribution Center", siteType: "Warehouse", country: "ID", address: "Jl. Soekarno Hatta 210, Bandung" }, reason: "New regional distribution hub to serve West Java.", status: "Submitted" },
+    { code: "SRQ-1002", orgId: abcMfg.id, type: "Site Change", siteId: abcPrimary?.id ?? null, requestedBy: "Tenant", proposed: { name: "Factory A", address: "Kawasan Industri MM2100 Blok C-5, Bekasi" }, reason: "Corrected building/block in registered address after relocation within the estate.", status: "Under Review" },
+    { code: "SRQ-1003", orgId: abcMfg.id, type: "Site Closure", siteId: abcPrimary?.id ?? null, requestedBy: "Partner", proposed: {}, reason: "Warehouse lease ending; consolidating into the new Bandung DC.", status: "Draft" },
+    { code: "SRQ-1004", orgId: tenant.id, type: "Site Addition", siteId: null, requestedBy: "Partner", proposed: { name: "Bandung Sales Office", siteType: "Branch Office", country: "ID", address: "Jl. Asia Afrika 50, Bandung" }, reason: "Expansion of sales coverage.", status: "Approved" },
+  ];
+  for (const s of SREQ_SPECS) {
+    await SiteRequest.findOrCreate({
+      where: { code: s.code },
+      defaults: { code: s.code, orgId: s.orgId, type: s.type, siteId: s.siteId, requestedBy: s.requestedBy, proposed: s.proposed, reason: s.reason, status: s.status, provisioned: false, provisionedSiteId: null },
+    });
+  }
+
   // eslint-disable-next-line no-console
   console.log(
     [
       "Seed complete.",
       "  Orgs: AXIA (ServiceOwner) · 5 partners (Nusantara Cloud, SecureEdge, Andes Compliance, Rhein Governance, ABC Consulting) · 5 tenants (PT Maju Bersama, Sentosa Logistics, Andalan Pharma, Global Tekstil, ABC Manufacturing)",
       "  Roles per org: Super Admin (SO only, bypass) + Administrator (full CRUD) + specialists (read-only)",
+      "  Library data: 6 frameworks · 7 elements · 18 KB articles · 8 tickets · 4 agreement templates · 4 tenant requests · 4 site requests",
+      `  Demo sign-in (password ${DEFAULT_PASSWORD}): Service Provider → superadmin (admin@axia.io) · Partner → andi.admin (andi@nusantara.cloud) · Tenant → maria.admin (maria@abcmfg.co)`,
       `  SP team (password ${DEFAULT_PASSWORD}): superadmin / billing.lead / support.lead / sara.admin / budi.support / maya.billing`,
     ].join("\n"),
   );

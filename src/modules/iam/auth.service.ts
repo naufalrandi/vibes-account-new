@@ -21,6 +21,14 @@ export interface LoginResult {
     orgType: "ServiceOwner" | "Distributor" | "Tenant";
     orgName: string;
     roles: string[];
+    // Personal profile fields surfaced for the "My Profile" / "Account Settings"
+    // screens (AXIA mockup parity). Nullable when not set.
+    fullName: string;
+    position: string | null;
+    phone: string | null;
+    photo: string | null;
+    lastLogin: string | null;
+    createdAt: string | null;
   };
 }
 
@@ -89,6 +97,12 @@ export async function login(identifier: string, password: string, ip: string | n
       orgType: org.type,
       orgName: org.name,
       roles,
+      fullName: user.fullName,
+      position: user.position ?? null,
+      phone: user.phone ?? null,
+      photo: user.photo ?? null,
+      lastLogin: user.lastLogin ? user.lastLogin.toISOString() : null,
+      createdAt: user.createdAt ? user.createdAt.toISOString() : null,
     },
   };
 }

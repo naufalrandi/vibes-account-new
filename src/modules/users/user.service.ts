@@ -27,6 +27,8 @@ export interface CreateUserInput {
   email: string;
   role?: string;
   position?: string | null;
+  phone?: string | null;
+  photo?: string | null;
   workUnit?: string | null;
   // AXIA Team additions (Phase 2). `password` sets an initial credential (the
   // account still starts PendingActivation with an activation invite);
@@ -47,6 +49,8 @@ export interface UpdateUserInput {
   permissions?: string[] | null;
   status?: "PendingActivation" | "Active" | "Suspended" | "Inactive";
   position?: string | null;
+  phone?: string | null;
+  photo?: string | null;
   workUnit?: string | null;
 }
 
@@ -95,6 +99,8 @@ export async function createUser(auth: AuthContext, input: CreateUserInput, ip: 
     passwordHash: input.password ? await hashPassword(input.password) : null,
     status: "PendingActivation",
     position: input.position ?? null,
+    phone: input.phone ?? null,
+    photo: input.photo ?? null,
     workUnit: input.workUnit ?? null,
     lastLogin: null,
     activationToken,
@@ -265,6 +271,8 @@ export async function updateUser(
     user.passwordHash = await hashPassword(input.password);
   }
   if (input.position !== undefined) user.position = input.position;
+  if (input.phone !== undefined) user.phone = input.phone;
+  if (input.photo !== undefined) user.photo = input.photo;
   if (input.workUnit !== undefined) user.workUnit = input.workUnit;
 
   if (input.status !== undefined) {

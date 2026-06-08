@@ -16,6 +16,8 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare passwordHash: string | null;
   declare status: UserStatus;
   declare position: string | null;
+  declare phone: string | null;
+  declare photo: string | null;
   declare workUnit: string | null;
   declare lastLogin: Date | null;
   declare activationToken: string | null;
@@ -62,6 +64,8 @@ User.init(
       defaultValue: "PendingActivation",
     },
     position: { type: DataTypes.STRING, allowNull: true },
+    phone: { type: DataTypes.STRING, allowNull: true },
+    photo: { type: DataTypes.TEXT, allowNull: true },
     workUnit: { type: DataTypes.STRING, allowNull: true, field: "work_unit" },
     lastLogin: { type: DataTypes.DATE, allowNull: true, field: "last_login" },
     activationToken: { type: DataTypes.STRING, allowNull: true, field: "activation_token" },

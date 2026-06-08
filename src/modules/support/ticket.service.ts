@@ -20,6 +20,15 @@ export interface ListTicketFilters {
   search?: string;
 }
 
+/** SLA status mirrors the AXIA mockup: derived from message/activity timestamps. */
+export type TicketSlaStatus = "Pending" | "Met" | "Breached";
+export interface TicketSla {
+  target: number;                 // target first-response hours for the priority
+  firstResponse: number | null;   // actual first-response hours (null until support replies)
+  resolution: number | null;      // hours from creation to resolved/closed (null if open)
+  status: TicketSlaStatus;
+}
+
 export interface TicketView {
   id: string;
   code: string;
@@ -37,8 +46,37 @@ export interface TicketView {
   messages: TicketMessage[];
   activity: TicketActivity[];
   attachments: { name: string; size: number; date: string }[];
+  sla: TicketSla;
   createdAt: string;
   updatedAt: string;
+}
+
+/** First-response SLA targets (hours) per priority — platform defaults. */
+const SLA_TARGETS: Record<TicketPriority, number> = { Low: 72, Medium: 24, High: 8, Critical: 4 };
+
+function hoursBetween(a: string, b: string): number {
+  return Math.max(0, Math.round((new Date(b).getTime() - new Date(a).getTime()) / 3_600_000));
+}
+
+/** Creation baseline = the "Ticket created" activity timestamp (carries the real
+ *  event time); falls back to the row's createdAt. */
+function createdBaseline(t: Ticket): string {
+  const ev = t.activity.find((a) => /created/i.test(a.event));
+  return ev ? ev.ts : t.createdAt.toISOString();
+}
+
+function slaInfo(t: Ticket): TicketSla {
+  const target = SLA_TARGETS[t.priority as TicketPriority] ?? 24;
+  const base = createdBaseline(t);
+  const firstSupport = t.messages.find((m) => m.author.kind === "support");
+  let resolvedTs: string | null = null;
+  for (const a of t.activity) {
+    if (/resolv|closed/i.test(a.event) && (!resolvedTs || new Date(a.ts) < new Date(resolvedTs))) resolvedTs = a.ts;
+  }
+  const firstResponse = firstSupport ? hoursBetween(base, firstSupport.ts) : null;
+  const resolution = resolvedTs ? hoursBetween(base, resolvedTs) : null;
+  const status: TicketSlaStatus = firstResponse == null ? "Pending" : firstResponse <= target ? "Met" : "Breached";
+  return { target, firstResponse, resolution, status };
 }
 
 function isServiceOwner(auth: AuthContext): boolean {
@@ -67,6 +105,7 @@ function toView(t: Ticket): TicketView {
     messages: t.messages,
     activity: t.activity,
     attachments: t.attachments,
+    sla: slaInfo(t),
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
   };

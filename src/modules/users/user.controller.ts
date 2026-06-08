@@ -18,6 +18,8 @@ const createSchema = z.object({
   permissionMode: permissionModeSchema.nullish(),
   permissions: z.array(z.string()).nullish(),
   position: z.string().nullish(),
+  phone: z.string().nullish(),
+  photo: z.string().nullish(),
   workUnit: z.string().nullish(),
 });
 
@@ -32,6 +34,8 @@ const updateSchema = z.object({
   permissions: z.array(z.string()).nullish(),
   status: z.enum(["PendingActivation", "Active", "Suspended", "Inactive"]).optional(),
   position: z.string().nullish(),
+  phone: z.string().nullish(),
+  photo: z.string().nullish(),
   workUnit: z.string().nullish(),
 });
 
