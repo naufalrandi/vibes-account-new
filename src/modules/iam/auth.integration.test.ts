@@ -39,6 +39,7 @@ describe("auth", () => {
     expect(res.body.data.accessToken).toBeTruthy();
     expect(res.body.data.refreshToken).toBeTruthy();
     expect(res.body.data.user.orgType).toBe("ServiceOwner");
+    expect(res.body.data.user.orgName).toBeTruthy();
     expect(Array.isArray(res.body.data.user.roles)).toBe(true);
   });
 
