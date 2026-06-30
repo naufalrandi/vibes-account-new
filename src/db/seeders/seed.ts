@@ -16,6 +16,7 @@ import {
   Site,
   Plan,
   Invoice,
+  Ticket,
 } from "../models";
 import { ACTIONS, MENU_SEED, type SeedMenu } from "../../modules/iam/actions.catalog";
 import type { AgreementBlock, AgreementTemplateStatus } from "../models/agreementTemplate.model";
@@ -152,7 +153,7 @@ export async function seed(): Promise<void> {
     [
       "Dashboard", "Organizations", "Users", "Roles & Access", "Audit Log",
       "Organization Settings", "Partners", "Partnership Agreements", "Billing",
-      "Tenants", "Sites", "Site Requests",
+      "Tenants", "Sites", "Site Requests", "Tickets",
     ],
     [
       ACTIONS.ORG_READ,
@@ -168,6 +169,9 @@ export async function seed(): Promise<void> {
       ACTIONS.SITE_READ,
       ACTIONS.SITE_REQUEST_READ,
       ACTIONS.FRAMEWORK_ASSIGNMENT_READ,
+      ACTIONS.TICKET_READ,
+      ACTIONS.TICKET_CREATE,
+      ACTIONS.TICKET_REPLY,
     ],
   );
 
@@ -338,6 +342,32 @@ export async function seed(): Promise<void> {
     m.RevenueShareStatement.findOne({ where: { partnerOrgId: distributor.id } }),
   );
   if (!existingStmt) await generateStatementForPartner(distributor.id, "January 2026");
+
+  // 11. Phase 6 — a demo support ticket raised by the tenant and answered by the
+  //     SP support desk (so the SLA panel shows a real first-response/Met state).
+  const created = "2026-03-01T09:00:00.000Z";
+  const answered = "2026-03-01T12:30:00.000Z"; // 3.5h later → within the High 8h SLA → Met
+  await Ticket.findOrCreate({
+    where: { code: "TKT-2026-0001" },
+    defaults: {
+      code: "TKT-2026-0001",
+      subject: "Cannot activate a new site",
+      description: "Our site activation link appears to have expired before we could use it.",
+      category: "Technical Support", priority: "High", status: "In Progress",
+      scope: "tenant", orgId: tenant.id, managedBy: "Nusantara Partners",
+      createdBy: { name: "Tenant Admin", email: "admin@garuda.id" }, assignedTo: "Support Desk",
+      messages: [
+        { author: { name: "Tenant Admin", kind: "user" }, text: "The activation link says expired.", ts: created },
+        { author: { name: "Support Desk", kind: "support" }, text: "We've reissued the activation — please retry.", ts: answered },
+      ],
+      activity: [
+        { event: "Ticket created", ts: created },
+        { event: "Assigned to Support Desk", ts: answered },
+        { event: "Status changed to In Progress", ts: answered },
+      ],
+      attachments: [],
+    },
+  });
 
   // eslint-disable-next-line no-console
   console.log(

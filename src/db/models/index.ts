@@ -26,6 +26,7 @@ import { Site } from "./site.model";
 import { SiteRequest } from "./siteRequest.model";
 import { FrameworkAssignment } from "./frameworkAssignment.model";
 import { Plan, Invoice, Payment, Receipt, RevenueShareStatement, Payout } from "./billing.models";
+import { Ticket } from "./ticket.model";
 
 let initialized = false;
 
@@ -122,6 +123,9 @@ export function initModels(): void {
   RevenueShareStatement.hasMany(Payout, { foreignKey: "statementId" });
   Payout.belongsTo(RevenueShareStatement, { foreignKey: "statementId" });
 
+  Organization.hasMany(Ticket, { foreignKey: "orgId" });
+  Ticket.belongsTo(Organization, { foreignKey: "orgId" });
+
   initialized = true;
 }
 
@@ -159,4 +163,5 @@ export {
   Receipt,
   RevenueShareStatement,
   Payout,
+  Ticket,
 };

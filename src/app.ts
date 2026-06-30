@@ -32,6 +32,7 @@ import { siteRoutes } from "./modules/sites/site.routes";
 import { siteRequestRoutes } from "./modules/site-requests/siteRequest.routes";
 import { frameworkAssignmentRoutes } from "./modules/framework-assignments/frameworkAssignment.routes";
 import { billingRoutes } from "./modules/billing/billing.routes";
+import { ticketRoutes } from "./modules/tickets/ticket.routes";
 
 export function createApp() {
   const app = express();
@@ -71,6 +72,7 @@ export function createApp() {
   app.use("/v1/site-requests", authenticate, tenantScope, siteRequestRoutes);
   app.use("/v1/framework-assignments", authenticate, tenantScope, frameworkAssignmentRoutes);
   app.use("/v1/billing", authenticate, tenantScope, billingRoutes);
+  app.use("/v1/tickets", authenticate, tenantScope, ticketRoutes);
 
   app.use(errorHandler);
   return app;
