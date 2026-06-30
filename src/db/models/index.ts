@@ -17,6 +17,15 @@ import { Framework } from "./framework.model";
 import { OrganizationFramework } from "./organizationFramework.model";
 import { Profile } from "./profile.model";
 import { Account } from "./account.model";
+import { OrgSignatory } from "./orgSignatory.model";
+import { PartnerProfile } from "./partnerProfile.model";
+import { AgreementTemplate } from "./agreementTemplate.model";
+import { PartnerAgreement } from "./partnerAgreement.model";
+import { TenantProfile } from "./tenantProfile.model";
+import { Site } from "./site.model";
+import { SiteRequest } from "./siteRequest.model";
+import { FrameworkAssignment } from "./frameworkAssignment.model";
+import { Plan, Invoice, Payment, Receipt, RevenueShareStatement, Payout } from "./billing.models";
 
 let initialized = false;
 
@@ -73,6 +82,46 @@ export function initModels(): void {
   Organization.hasMany(Account, { foreignKey: "orgId" });
   Account.belongsTo(Organization, { foreignKey: "orgId" });
 
+  Organization.hasMany(OrgSignatory, { foreignKey: "orgId" });
+  OrgSignatory.belongsTo(Organization, { foreignKey: "orgId" });
+
+  // A Distributor org has one commercial partner profile + one current agreement
+  // (1:1 each via org_id). Deleting the org cascades both away (FK).
+  Organization.hasOne(PartnerProfile, { foreignKey: "orgId" });
+  PartnerProfile.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasOne(PartnerAgreement, { foreignKey: "orgId" });
+  PartnerAgreement.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasMany(AgreementTemplate, { foreignKey: "orgId" });
+  AgreementTemplate.belongsTo(Organization, { foreignKey: "orgId" });
+  AgreementTemplate.hasMany(PartnerAgreement, { foreignKey: "templateId" });
+  PartnerAgreement.belongsTo(AgreementTemplate, { foreignKey: "templateId" });
+
+  // A Tenant org has one profile + many sites/site-requests/framework-assignments.
+  Organization.hasOne(TenantProfile, { foreignKey: "orgId" });
+  TenantProfile.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasMany(Site, { foreignKey: "orgId" });
+  Site.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasMany(SiteRequest, { foreignKey: "orgId" });
+  SiteRequest.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasMany(FrameworkAssignment, { foreignKey: "orgId" });
+  FrameworkAssignment.belongsTo(Organization, { foreignKey: "orgId" });
+  Site.hasMany(FrameworkAssignment, { foreignKey: "siteId" });
+  FrameworkAssignment.belongsTo(Site, { foreignKey: "siteId" });
+  Framework.hasMany(FrameworkAssignment, { foreignKey: "frameworkId" });
+  FrameworkAssignment.belongsTo(Framework, { foreignKey: "frameworkId" });
+
+  // Billing: an org has many invoices; invoices own payments + receipts.
+  Organization.hasMany(Invoice, { foreignKey: "orgId" });
+  Invoice.belongsTo(Organization, { foreignKey: "orgId" });
+  Invoice.hasMany(Payment, { foreignKey: "invoiceId" });
+  Payment.belongsTo(Invoice, { foreignKey: "invoiceId" });
+  Invoice.hasMany(Receipt, { foreignKey: "invoiceId" });
+  Receipt.belongsTo(Invoice, { foreignKey: "invoiceId" });
+  Payment.hasOne(Receipt, { foreignKey: "paymentId" });
+  Receipt.belongsTo(Payment, { foreignKey: "paymentId" });
+  RevenueShareStatement.hasMany(Payout, { foreignKey: "statementId" });
+  Payout.belongsTo(RevenueShareStatement, { foreignKey: "statementId" });
+
   initialized = true;
 }
 
@@ -96,4 +145,18 @@ export {
   OrganizationFramework,
   Profile,
   Account,
+  OrgSignatory,
+  PartnerProfile,
+  AgreementTemplate,
+  PartnerAgreement,
+  TenantProfile,
+  Site,
+  SiteRequest,
+  FrameworkAssignment,
+  Plan,
+  Invoice,
+  Payment,
+  Receipt,
+  RevenueShareStatement,
+  Payout,
 };

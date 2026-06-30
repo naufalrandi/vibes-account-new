@@ -66,6 +66,15 @@ export async function remove(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+export async function resendActivation(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    sendOk(res, await userService.resendActivation(req.auth, req.params.id as string, req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
+
 export async function assignRole(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();

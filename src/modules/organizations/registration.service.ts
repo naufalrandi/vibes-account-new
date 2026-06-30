@@ -17,6 +17,45 @@ export interface ProposedTenant {
   adminEmail: string;
 }
 
+export interface RegistrationView {
+  id: string;
+  distributorOrgId: string;
+  distributorName: string;
+  proposedTenant: Record<string, unknown>;
+  status: "PendingApproval" | "Approved" | "Rejected";
+  decisionReason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * List registration requests visible to the actor (ServiceOwner sees all;
+ * a Distributor sees only its own), enriched with the distributor org name.
+ */
+export async function listRegistrations(
+  auth: AuthContext,
+  status?: "PendingApproval" | "Approved" | "Rejected",
+): Promise<RegistrationView[]> {
+  const where: Record<string, unknown> = {};
+  if (auth.orgType === "Distributor") where.distributorOrgId = auth.orgId;
+  if (auth.orgType === "Tenant") return [];
+  if (status) where.status = status;
+  const rows = await RegistrationRequest.findAll({ where, order: [["createdAt", "DESC"]] });
+  const orgIds = [...new Set(rows.map((r) => r.distributorOrgId))];
+  const orgs = await Organization.findAll({ where: { id: orgIds } });
+  const nameById = new Map(orgs.map((o) => [o.id, o.name]));
+  return rows.map((r) => ({
+    id: r.id,
+    distributorOrgId: r.distributorOrgId,
+    distributorName: nameById.get(r.distributorOrgId) ?? "—",
+    proposedTenant: r.proposedTenant,
+    status: r.status,
+    decisionReason: r.decisionReason,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  }));
+}
+
 export async function submitRegistration(auth: AuthContext, proposed: ProposedTenant, ip: string | null): Promise<RegistrationRequest> {
   if (auth.orgType !== "Distributor") throw new ForbiddenError("Only distributors may submit tenant registrations");
   const req = await RegistrationRequest.create({

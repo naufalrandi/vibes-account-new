@@ -24,6 +24,14 @@ import { frameworkCatalogRoutes } from "./modules/frameworks/frameworkCatalog.ro
 import { myFrameworkRoutes } from "./modules/frameworks/myFramework.routes";
 import { profileRoutes } from "./modules/profiles/profile.routes";
 import { accountRoutes } from "./modules/accounts/account.routes";
+import { signatoryRoutes } from "./modules/signatories/signatory.routes";
+import { partnerRoutes } from "./modules/partners/partner.routes";
+import { agreementRoutes } from "./modules/agreements/agreement.routes";
+import { tenantRoutes } from "./modules/tenants/tenant.routes";
+import { siteRoutes } from "./modules/sites/site.routes";
+import { siteRequestRoutes } from "./modules/site-requests/siteRequest.routes";
+import { frameworkAssignmentRoutes } from "./modules/framework-assignments/frameworkAssignment.routes";
+import { billingRoutes } from "./modules/billing/billing.routes";
 
 export function createApp() {
   const app = express();
@@ -55,6 +63,14 @@ export function createApp() {
   app.use("/v1/my-frameworks", authenticate, tenantScope, myFrameworkRoutes);
   app.use("/v1/profiles", authenticate, tenantScope, profileRoutes);
   app.use("/v1/accounts", authenticate, tenantScope, accountRoutes);
+  app.use("/v1/signatories", authenticate, tenantScope, signatoryRoutes);
+  app.use("/v1/partners", authenticate, tenantScope, partnerRoutes);
+  app.use("/v1/partnership-agreements", authenticate, tenantScope, agreementRoutes);
+  app.use("/v1/tenants", authenticate, tenantScope, tenantRoutes);
+  app.use("/v1/sites", authenticate, tenantScope, siteRoutes);
+  app.use("/v1/site-requests", authenticate, tenantScope, siteRequestRoutes);
+  app.use("/v1/framework-assignments", authenticate, tenantScope, frameworkAssignmentRoutes);
+  app.use("/v1/billing", authenticate, tenantScope, billingRoutes);
 
   app.use(errorHandler);
   return app;

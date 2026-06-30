@@ -69,6 +69,29 @@ describe("users", () => {
     expect(res.status).toBe(401);
   });
 
+  it("resends an activation invite for a pending user", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Jane Doe", username: "jdoe", email: "jane@acme.com" });
+    const res = await request(app)
+      .post(`/v1/users/${created.body.data.id}/resend-activation`)
+      .set("authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.resent).toBe(true);
+  });
+
+  it("rejects resending activation for an already-active user (409)", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Jane Doe", username: "jdoe", email: "jane@acme.com" });
+    await request(app).patch(`/v1/users/${created.body.data.id}/status`)
+      .set("authorization", `Bearer ${token}`).send({ status: "Active" });
+    const res = await request(app)
+      .post(`/v1/users/${created.body.data.id}/resend-activation`)
+      .set("authorization", `Bearer ${token}`);
+    expect(res.status).toBe(409);
+  });
+
   it("lists users filtered by status", async () => {
     const { token, tenantOrgId } = await seedAdminAndLogin();
     await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)

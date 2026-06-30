@@ -14,6 +14,18 @@ const proposedSchema = z.object({
   adminEmail: z.string().email(),
 });
 const rejectSchema = z.object({ reason: z.string().min(1) });
+const listQuerySchema = z.object({ status: z.enum(["PendingApproval", "Approved", "Rejected"]).optional() });
+
+export async function list(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const { status } = listQuerySchema.parse(req.query);
+    const rows = await svc.listRegistrations(req.auth, status);
+    sendOk(res, rows, 200, { page: 1, limit: rows.length, total: rows.length });
+  } catch (e) {
+    next(e);
+  }
+}
 
 export async function submit(req: Request, res: Response, next: NextFunction) {
   try {

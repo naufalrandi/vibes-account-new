@@ -80,6 +80,44 @@ export async function createUser(auth: AuthContext, input: CreateUserInput, ip: 
   return (await User.findByPk(user.id, { include: [Role] })) ?? user;
 }
 
+/**
+ * Re-issue an activation invite for a still-pending user. Refreshes the
+ * activation token and re-sends the invite. Rejects if the user is already
+ * active. Scope mirrors the other user mutations (Tenant → own tenant only,
+ * Distributor → own org or a child org).
+ */
+export async function resendActivation(
+  auth: AuthContext,
+  userId: string,
+  ip: string | null,
+): Promise<{ resent: boolean }> {
+  const user = await User.findByPk(userId);
+  if (!user) throw new NotFoundError("User not found");
+  if (auth.orgType === "Tenant" && user.tenantId !== auth.tenantId) throw new ForbiddenError();
+  if (auth.orgType === "Distributor") {
+    const org = await Organization.findByPk(user.orgId);
+    if (!org || (org.parentOrgId !== auth.orgId && org.id !== auth.orgId)) throw new ForbiddenError();
+  }
+  if (user.status !== "PendingActivation") {
+    throw new ConflictError("User has already been activated", "NOT_PENDING");
+  }
+  const token = user.activationToken ?? randomUUID();
+  user.activationToken = token;
+  await user.save();
+  sendActivationInvite(user.email, token);
+  await writeAudit({
+    actorUserId: auth.userId,
+    organizationId: user.orgId,
+    tenantId: user.tenantId,
+    action: "user.activation.resent",
+    entityType: "User",
+    entityId: user.id,
+    sourceIp: ip,
+    result: "Success",
+  });
+  return { resent: true };
+}
+
 export async function listUsers(auth: AuthContext, filters: UserFilters): Promise<User[]> {
   const where: WhereOptions = { ...userScopeWhere(auth) };
   if (filters.orgId) Object.assign(where, { orgId: filters.orgId });

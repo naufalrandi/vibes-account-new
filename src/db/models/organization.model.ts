@@ -4,6 +4,22 @@ import { sequelize } from "../sequelize";
 export type OrgType = "ServiceOwner" | "Distributor" | "Tenant";
 export type OrgStatus = "Draft" | "PendingApproval" | "Active" | "Suspended" | "Inactive";
 
+/** Branding config (Org Profile → Branding tab). Stored as a JSONB blob. */
+export interface OrgBranding {
+  logo: string;
+  favicon: string;
+  primary: string;
+  secondary: string;
+}
+
+/** System defaults (Org Profile → System Defaults tab). Stored as a JSONB blob. */
+export interface OrgSystemDefaults {
+  currency: string;
+  timezone: string;
+  country: string;
+  language: string;
+}
+
 export class Organization extends Model<InferAttributes<Organization>, InferCreationAttributes<Organization>> {
   declare id: CreationOptional<string>;
   declare name: string;
@@ -22,6 +38,9 @@ export class Organization extends Model<InferAttributes<Organization>, InferCrea
   declare contactName: string | null;
   declare contactEmail: string | null;
   declare contactPhone: string | null;
+  declare taxId: string | null;
+  declare branding: OrgBranding | null;
+  declare systemDefaults: OrgSystemDefaults | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -49,6 +68,9 @@ Organization.init(
     contactName: { type: DataTypes.STRING, allowNull: true, field: "contact_name" },
     contactEmail: { type: DataTypes.STRING, allowNull: true, field: "contact_email" },
     contactPhone: { type: DataTypes.STRING, allowNull: true, field: "contact_phone" },
+    taxId: { type: DataTypes.STRING, allowNull: true, field: "tax_id" },
+    branding: { type: DataTypes.JSONB, allowNull: true },
+    systemDefaults: { type: DataTypes.JSONB, allowNull: true, field: "system_defaults" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

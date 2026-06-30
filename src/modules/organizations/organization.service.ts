@@ -1,5 +1,6 @@
 import { type WhereOptions } from "sequelize";
 import { Organization } from "../../db/models";
+import type { OrgBranding, OrgSystemDefaults } from "../../db/models/organization.model";
 import type { AuthContext } from "../../lib/scope";
 import { organizationScopeWhere, canActOnOrg } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
@@ -114,6 +115,14 @@ export interface OrgSettings {
   contactName: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
+  // Phase 2 — Org Profile General (identity/contact), Branding, System Defaults.
+  taxId: string | null;
+  website: string | null;
+  email: string | null;
+  phone: string | null;
+  country: string | null;
+  branding: OrgBranding | null;
+  defaults: OrgSystemDefaults | null;
 }
 
 /** Fields a user may change via the Org Settings update. `code` is intentionally absent. */
@@ -125,6 +134,13 @@ export interface UpdateOrgSettingsInput {
   contactName?: string | null;
   contactEmail?: string | null;
   contactPhone?: string | null;
+  taxId?: string | null;
+  website?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  country?: string | null;
+  branding?: OrgBranding | null;
+  defaults?: OrgSystemDefaults | null;
 }
 
 function toOrgSettings(org: Organization): OrgSettings {
@@ -138,6 +154,13 @@ function toOrgSettings(org: Organization): OrgSettings {
     contactName: org.contactName,
     contactEmail: org.contactEmail,
     contactPhone: org.contactPhone,
+    taxId: org.taxId,
+    website: org.website,
+    email: org.email,
+    phone: org.phone,
+    country: org.country,
+    branding: org.branding,
+    defaults: org.systemDefaults,
   };
 }
 
@@ -169,6 +192,13 @@ export async function updateOrgSettings(
   if (input.contactName !== undefined) org.contactName = input.contactName;
   if (input.contactEmail !== undefined) org.contactEmail = input.contactEmail;
   if (input.contactPhone !== undefined) org.contactPhone = input.contactPhone;
+  if (input.taxId !== undefined) org.taxId = input.taxId;
+  if (input.website !== undefined) org.website = input.website;
+  if (input.email !== undefined) org.email = input.email;
+  if (input.phone !== undefined) org.phone = input.phone;
+  if (input.country !== undefined) org.country = input.country;
+  if (input.branding !== undefined) org.branding = input.branding;
+  if (input.defaults !== undefined) org.systemDefaults = input.defaults;
 
   await org.save();
   await writeAudit({

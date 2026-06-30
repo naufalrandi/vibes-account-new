@@ -19,6 +19,7 @@ export interface LoginResult {
     email: string;
     orgId: string;
     orgType: "ServiceOwner" | "Distributor" | "Tenant";
+    orgName: string;
     roles: string[];
   };
 }
@@ -86,6 +87,7 @@ export async function login(identifier: string, password: string, ip: string | n
       email: user.email,
       orgId: user.orgId,
       orgType: org.type,
+      orgName: org.name,
       roles,
     },
   };
