@@ -11,30 +11,38 @@ import { RegistrationRequest } from "./registrationRequest.model";
 import { AuditLog } from "./auditLog.model";
 import { LoginHistory } from "./loginHistory.model";
 import { RefreshToken } from "./refreshToken.model";
+import { FrameworkType } from "./frameworkType.model";
+import { FrameworkFamily } from "./frameworkFamily.model";
 import { Framework } from "./framework.model";
+import { OrganizationFramework } from "./organizationFramework.model";
 import { Profile } from "./profile.model";
-import { OrgSignatory } from "./orgSignatory.model";
 import { Account } from "./account.model";
+import { OrgSignatory } from "./orgSignatory.model";
+import { PartnerProfile } from "./partnerProfile.model";
+import { AgreementTemplate } from "./agreementTemplate.model";
+import { PartnerAgreement } from "./partnerAgreement.model";
+import { TenantProfile } from "./tenantProfile.model";
 import { Site } from "./site.model";
 import { SiteRequest } from "./siteRequest.model";
 import { FrameworkAssignment } from "./frameworkAssignment.model";
-import { KbArticle } from "./kbArticle.model";
+import { Plan, Invoice, Payment, Receipt, RevenueShareStatement, Payout } from "./billing.models";
 import { Ticket } from "./ticket.model";
-import { Notification } from "./notification.model";
+import {
+  FrameworkGroup, FrameworkElement, FrameworkRequirement, RequirementCriterion,
+  ElementRequirementXref, ConformanceQuestion, ConformanceResponse,
+} from "./frameworkMeta.models";
+import { Assessment, AssessmentAnswer, Gap } from "./assessment.models";
 import { ImplementationRecord } from "./implementationRecord.model";
+import { TestingService } from "./testingService.model";
+import { KbArticle } from "./kbArticle.model";
+import { Notification } from "./notification.model";
+import { IaProgram, IaPlan, IaSession, IaFinding, IaReport, IaSettings } from "./internalAudit.models";
+import { CompetenceEducation, CompetenceSkill, CompetenceTraining, CompetenceRole, CompetenceAssignment, CompetenceAssessment, CompetenceGap, CompetenceExamInstrument, CompetencePracticalInstrument, CompetenceExamAttempt, CompetencePracticalAttempt } from "./competence.models";
+import { ApprovalScheme, ApprovalModuleMap, ApprovalPoolMember, ApprovalRecord, ApprovalSettings } from "./approval.models";
+import { ScopeDataset, MsScope } from "./scope.models";
+import { IpParty, IpRequirement } from "./interestedParty.models";
+import { DemoTenant } from "./demoTenant.model";
 import { BusinessRecord } from "./businessRecord.model";
-import { AgreementTemplate } from "./agreementTemplate.model";
-import { PartnerAgreement } from "./partnerAgreement.model";
-import { Plan } from "./plan.model";
-import { Invoice } from "./invoice.model";
-import { FrameworkGroup } from "./frameworkGroup.model";
-import { Requirement } from "./requirement.model";
-import { Element } from "./element.model";
-import { ElementRequirementMap } from "./elementRequirementMap.model";
-import { Criterion } from "./criterion.model";
-import { Question } from "./question.model";
-import { Response as AssessmentResponse } from "./response.model";
-import { ResponseCriterion } from "./responseCriterion.model";
 
 let initialized = false;
 
@@ -67,10 +75,22 @@ export function initModels(): void {
   Organization.hasOne(Subscription, { foreignKey: "orgId" });
   Subscription.belongsTo(Organization, { foreignKey: "orgId" });
 
-  // A registration request is raised by a distributor org (its proposed tenant
-  // is provisioned on approval). Linked for distributor-name display in lists.
-  Organization.hasMany(RegistrationRequest, { foreignKey: "distributorOrgId" });
-  RegistrationRequest.belongsTo(Organization, { foreignKey: "distributorOrgId" });
+  // A framework type owns many framework families; a type with families cannot
+  // be deleted (enforced in the service and by an ON DELETE RESTRICT FK).
+  FrameworkType.hasMany(FrameworkFamily, { foreignKey: "frameworkTypeId" });
+  FrameworkFamily.belongsTo(FrameworkType, { foreignKey: "frameworkTypeId" });
+
+  // A framework family owns many frameworks; a family with frameworks cannot be
+  // deleted (enforced in the service and by an ON DELETE RESTRICT FK).
+  FrameworkFamily.hasMany(Framework, { foreignKey: "familyId" });
+  Framework.belongsTo(FrameworkFamily, { foreignKey: "familyId" });
+
+  // An organization may subscribe to many catalog frameworks; each subscription
+  // row is unique per (org, framework). Deleting either side cascades the link.
+  Organization.hasMany(OrganizationFramework, { foreignKey: "orgId" });
+  OrganizationFramework.belongsTo(Organization, { foreignKey: "orgId" });
+  Framework.hasMany(OrganizationFramework, { foreignKey: "frameworkId" });
+  OrganizationFramework.belongsTo(Framework, { foreignKey: "frameworkId" });
 
   // Organization-scoped User Management entities. Each row belongs to one
   // organization; deleting the org cascades its profiles/accounts away (FK).
@@ -79,35 +99,27 @@ export function initModels(): void {
   Organization.hasMany(Account, { foreignKey: "orgId" });
   Account.belongsTo(Organization, { foreignKey: "orgId" });
 
-  // An organization owns its authorized signatories; deleting the org cascades them.
   Organization.hasMany(OrgSignatory, { foreignKey: "orgId" });
   OrgSignatory.belongsTo(Organization, { foreignKey: "orgId" });
 
-  // A partner (Distributor org) owns its generated agreement instances, each bound
-  // to a template. Deleting the org cascades its agreements; the template is kept.
-  Organization.hasMany(PartnerAgreement, { foreignKey: "orgId" });
+  // A Distributor org has one commercial partner profile + one current agreement
+  // (1:1 each via org_id). Deleting the org cascades both away (FK).
+  Organization.hasOne(PartnerProfile, { foreignKey: "orgId" });
+  PartnerProfile.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasOne(PartnerAgreement, { foreignKey: "orgId" });
   PartnerAgreement.belongsTo(Organization, { foreignKey: "orgId" });
-  AgreementTemplate.hasMany(PartnerAgreement, { foreignKey: "agreementTemplateId" });
-  PartnerAgreement.belongsTo(AgreementTemplate, { foreignKey: "agreementTemplateId" });
+  Organization.hasMany(AgreementTemplate, { foreignKey: "orgId" });
+  AgreementTemplate.belongsTo(Organization, { foreignKey: "orgId" });
+  AgreementTemplate.hasMany(PartnerAgreement, { foreignKey: "templateId" });
+  PartnerAgreement.belongsTo(AgreementTemplate, { foreignKey: "templateId" });
 
-  // Billing: a tenant org has many invoices; a plan backs many subscriptions.
-  Organization.hasMany(Invoice, { foreignKey: "orgId" });
-  Invoice.belongsTo(Organization, { foreignKey: "orgId" });
-  Plan.hasMany(Subscription, { foreignKey: "planId" });
-  Subscription.belongsTo(Plan, { foreignKey: "planId" });
-
-  // A tenant organization owns many sites; deleting the org cascades its sites
-  // (FK). Site requests also belong to the tenant org and reference a site.
+  // A Tenant org has one profile + many sites/site-requests/framework-assignments.
+  Organization.hasOne(TenantProfile, { foreignKey: "orgId" });
+  TenantProfile.belongsTo(Organization, { foreignKey: "orgId" });
   Organization.hasMany(Site, { foreignKey: "orgId" });
   Site.belongsTo(Organization, { foreignKey: "orgId" });
   Organization.hasMany(SiteRequest, { foreignKey: "orgId" });
   SiteRequest.belongsTo(Organization, { foreignKey: "orgId" });
-  Site.hasMany(SiteRequest, { foreignKey: "siteId" });
-  SiteRequest.belongsTo(Site, { foreignKey: "siteId" });
-
-  // A tenant org rolls out frameworks at its sites via framework assignments.
-  // Deleting the org or site cascades its assignments; the framework master is
-  // kept (RESTRICT). Each (site, framework) pair is unique (enforced in the DB).
   Organization.hasMany(FrameworkAssignment, { foreignKey: "orgId" });
   FrameworkAssignment.belongsTo(Organization, { foreignKey: "orgId" });
   Site.hasMany(FrameworkAssignment, { foreignKey: "siteId" });
@@ -115,55 +127,133 @@ export function initModels(): void {
   Framework.hasMany(FrameworkAssignment, { foreignKey: "frameworkId" });
   FrameworkAssignment.belongsTo(Framework, { foreignKey: "frameworkId" });
 
-  // A support ticket belongs to the org that raised it; deleting the org cascades
-  // its tickets (FK). KbArticle is platform-global master data — no association.
+  // Billing: an org has many invoices; invoices own payments + receipts.
+  Organization.hasMany(Invoice, { foreignKey: "orgId" });
+  Invoice.belongsTo(Organization, { foreignKey: "orgId" });
+  Invoice.hasMany(Payment, { foreignKey: "invoiceId" });
+  Payment.belongsTo(Invoice, { foreignKey: "invoiceId" });
+  Invoice.hasMany(Receipt, { foreignKey: "invoiceId" });
+  Receipt.belongsTo(Invoice, { foreignKey: "invoiceId" });
+  Payment.hasOne(Receipt, { foreignKey: "paymentId" });
+  Receipt.belongsTo(Payment, { foreignKey: "paymentId" });
+  RevenueShareStatement.hasMany(Payout, { foreignKey: "statementId" });
+  Payout.belongsTo(RevenueShareStatement, { foreignKey: "statementId" });
+
   Organization.hasMany(Ticket, { foreignKey: "orgId" });
   Ticket.belongsTo(Organization, { foreignKey: "orgId" });
 
-  // In-app notifications target an org (nullable for platform-wide); deleting the
-  // org cascades its notifications.
-  Organization.hasMany(Notification, { foreignKey: "orgId" });
-  Notification.belongsTo(Organization, { foreignKey: "orgId" });
-
-  // A tenant owns its Implementation register records; deleting the org cascades them.
-  Organization.hasMany(ImplementationRecord, { foreignKey: "orgId" });
-  ImplementationRecord.belongsTo(Organization, { foreignKey: "orgId" });
-
-  // Business Unit records belong to the Service Owner org (the operating company).
-  Organization.hasMany(BusinessRecord, { foreignKey: "orgId" });
-  BusinessRecord.belongsTo(Organization, { foreignKey: "orgId" });
-
-  // === AXIA Framework & Assessment domain (Phase 1) ===
-  // A framework belongs to a FrameworkGroup (Standards / Regulations).
+  // Phase 7 meta-model.
   FrameworkGroup.hasMany(Framework, { foreignKey: "groupId" });
   Framework.belongsTo(FrameworkGroup, { foreignKey: "groupId" });
+  Framework.hasMany(FrameworkRequirement, { foreignKey: "frameworkId" });
+  FrameworkRequirement.belongsTo(Framework, { foreignKey: "frameworkId" });
+  FrameworkRequirement.hasMany(RequirementCriterion, { foreignKey: "requirementId" });
+  RequirementCriterion.belongsTo(FrameworkRequirement, { foreignKey: "requirementId" });
+  // Element ↔ Requirement many-to-many through the xref join.
+  FrameworkElement.belongsToMany(FrameworkRequirement, { through: ElementRequirementXref, foreignKey: "elementId", otherKey: "requirementId" });
+  FrameworkRequirement.belongsToMany(FrameworkElement, { through: ElementRequirementXref, foreignKey: "requirementId", otherKey: "elementId" });
+  FrameworkElement.hasMany(ElementRequirementXref, { foreignKey: "elementId" });
+  ElementRequirementXref.belongsTo(FrameworkElement, { foreignKey: "elementId" });
+  ElementRequirementXref.belongsTo(FrameworkRequirement, { foreignKey: "requirementId" });
+  // Conformance Q&R + the rcmap criterion link.
+  FrameworkElement.hasMany(ConformanceQuestion, { foreignKey: "elementId" });
+  ConformanceQuestion.belongsTo(FrameworkElement, { foreignKey: "elementId" });
+  ConformanceQuestion.hasMany(ConformanceResponse, { foreignKey: "questionId" });
+  ConformanceResponse.belongsTo(ConformanceQuestion, { foreignKey: "questionId" });
+  RequirementCriterion.hasMany(ConformanceResponse, { foreignKey: "criterionId" });
+  ConformanceResponse.belongsTo(RequirementCriterion, { foreignKey: "criterionId" });
 
-  // A framework owns its requirements (clauses/articles); deleting a framework
-  // cascades them.
-  Framework.hasMany(Requirement, { foreignKey: "frameworkId" });
-  Requirement.belongsTo(Framework, { foreignKey: "frameworkId" });
+  // Phase 8 — tenant assessment run engine + gap analysis.
+  Organization.hasMany(Assessment, { foreignKey: "orgId" });
+  Assessment.belongsTo(Organization, { foreignKey: "orgId" });
+  Site.hasMany(Assessment, { foreignKey: "siteId" });
+  Assessment.belongsTo(Site, { foreignKey: "siteId" });
+  Framework.hasMany(Assessment, { foreignKey: "frameworkId" });
+  Assessment.belongsTo(Framework, { foreignKey: "frameworkId" });
+  Assessment.hasMany(AssessmentAnswer, { foreignKey: "assessmentId" });
+  AssessmentAnswer.belongsTo(Assessment, { foreignKey: "assessmentId" });
+  ConformanceQuestion.hasMany(AssessmentAnswer, { foreignKey: "questionId" });
+  AssessmentAnswer.belongsTo(ConformanceQuestion, { foreignKey: "questionId" });
+  ConformanceResponse.hasMany(AssessmentAnswer, { foreignKey: "responseId" });
+  AssessmentAnswer.belongsTo(ConformanceResponse, { foreignKey: "responseId" });
+  Assessment.hasMany(Gap, { foreignKey: "assessmentId" });
+  Gap.belongsTo(Assessment, { foreignKey: "assessmentId" });
 
-  // Element ↔ Requirement many-to-many through the join.
-  Requirement.hasMany(ElementRequirementMap, { foreignKey: "requirementId" });
-  ElementRequirementMap.belongsTo(Requirement, { foreignKey: "requirementId" });
-  Element.hasMany(ElementRequirementMap, { foreignKey: "elementId" });
-  ElementRequirementMap.belongsTo(Element, { foreignKey: "elementId" });
-  Requirement.belongsToMany(Element, { through: ElementRequirementMap, foreignKey: "requirementId", otherKey: "elementId" });
-  Element.belongsToMany(Requirement, { through: ElementRequirementMap, foreignKey: "elementId", otherKey: "requirementId" });
+  // Phase 9 — ISO clause registers (one shared table, org-scoped, FWE trace).
+  Organization.hasMany(ImplementationRecord, { foreignKey: "orgId" });
+  ImplementationRecord.belongsTo(Organization, { foreignKey: "orgId" });
+  FrameworkElement.hasMany(ImplementationRecord, { foreignKey: "elementId" });
+  ImplementationRecord.belongsTo(FrameworkElement, { foreignKey: "elementId" });
 
-  // A requirement defines maturity/compliance criteria (0–9 scores).
-  Requirement.hasMany(Criterion, { foreignKey: "requirementId" });
-  Criterion.belongsTo(Requirement, { foreignKey: "requirementId" });
+  // Phase 10 — LIMS testing services (tenant lab master data).
+  Organization.hasMany(TestingService, { foreignKey: "orgId" });
+  TestingService.belongsTo(Organization, { foreignKey: "orgId" });
 
-  // Assessment: element → questions → responses → (one) criterion.
-  Element.hasMany(Question, { foreignKey: "elementId" });
-  Question.belongsTo(Element, { foreignKey: "elementId" });
-  Question.hasMany(AssessmentResponse, { foreignKey: "questionId" });
-  AssessmentResponse.belongsTo(Question, { foreignKey: "questionId" });
-  AssessmentResponse.hasOne(ResponseCriterion, { foreignKey: "responseId" });
-  ResponseCriterion.belongsTo(AssessmentResponse, { foreignKey: "responseId" });
-  Criterion.hasMany(ResponseCriterion, { foreignKey: "criterionId" });
-  ResponseCriterion.belongsTo(Criterion, { foreignKey: "criterionId" });
+  // Phase 11 — knowledge base + notifications.
+  Organization.hasMany(KbArticle, { foreignKey: "orgId" });
+  KbArticle.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasMany(Notification, { foreignKey: "orgId" });
+  Notification.belongsTo(Organization, { foreignKey: "orgId" });
+  User.hasMany(Notification, { foreignKey: "userId" });
+  Notification.belongsTo(User, { foreignKey: "userId" });
+
+  // Internal Audit (ISO 9.2) — Program → Plan → Session → Finding + Report.
+  Organization.hasMany(IaProgram, { foreignKey: "orgId" });
+  IaProgram.belongsTo(Organization, { foreignKey: "orgId" });
+  IaProgram.hasMany(IaPlan, { foreignKey: "programId" });
+  IaPlan.belongsTo(IaProgram, { foreignKey: "programId" });
+  IaProgram.hasMany(IaSession, { foreignKey: "programId" });
+  IaPlan.hasMany(IaSession, { foreignKey: "planId" });
+  IaSession.belongsTo(IaPlan, { foreignKey: "planId" });
+  IaSession.belongsTo(IaProgram, { foreignKey: "programId" });
+  IaProgram.hasMany(IaFinding, { foreignKey: "programId" });
+  IaFinding.belongsTo(IaProgram, { foreignKey: "programId" });
+  IaSession.hasMany(IaFinding, { foreignKey: "sessionId" });
+  IaFinding.belongsTo(IaSession, { foreignKey: "sessionId" });
+  IaProgram.hasMany(IaReport, { foreignKey: "programId" });
+  IaReport.belongsTo(IaProgram, { foreignKey: "programId" });
+  Organization.hasMany(IaSettings, { foreignKey: "orgId" });
+  IaSettings.belongsTo(Organization, { foreignKey: "orgId" });
+
+  // Competence libraries — training may be tenant-owned (nullable org = SP-global).
+  Organization.hasMany(CompetenceTraining, { foreignKey: "orgId" });
+  CompetenceTraining.belongsTo(Organization, { foreignKey: "orgId" });
+
+  // Competence roles → assignments → assessments → gaps.
+  CompetenceRole.hasMany(CompetenceAssignment, { foreignKey: "roleId" });
+  CompetenceAssignment.belongsTo(CompetenceRole, { foreignKey: "roleId" });
+  CompetenceAssignment.hasMany(CompetenceAssessment, { foreignKey: "assignmentId" });
+  CompetenceAssessment.belongsTo(CompetenceAssignment, { foreignKey: "assignmentId" });
+  CompetenceRole.belongsTo(CompetenceEducation, { foreignKey: "eduMinLevelId" });
+  CompetenceAssignment.hasMany(CompetenceGap, { foreignKey: "assignmentId" });
+  CompetenceGap.belongsTo(CompetenceAssignment, { foreignKey: "assignmentId" });
+  CompetenceAssessment.hasMany(CompetenceGap, { foreignKey: "assessmentId" });
+
+  // Competence instruments (exam ladder + L4 practical) and their attempts.
+  CompetenceSkill.hasMany(CompetenceExamInstrument, { foreignKey: "skillId" });
+  CompetenceExamInstrument.belongsTo(CompetenceSkill, { foreignKey: "skillId" });
+  CompetenceSkill.hasMany(CompetencePracticalInstrument, { foreignKey: "skillId" });
+  CompetencePracticalInstrument.belongsTo(CompetenceSkill, { foreignKey: "skillId" });
+  CompetenceExamInstrument.hasMany(CompetenceExamAttempt, { foreignKey: "instrumentId" });
+  CompetenceExamAttempt.belongsTo(CompetenceExamInstrument, { foreignKey: "instrumentId" });
+  CompetencePracticalInstrument.hasMany(CompetencePracticalAttempt, { foreignKey: "instrumentId" });
+  CompetencePracticalAttempt.belongsTo(CompetencePracticalInstrument, { foreignKey: "instrumentId" });
+
+  // Approval engine.
+  Organization.hasMany(ApprovalScheme, { foreignKey: "orgId" });
+  ApprovalScheme.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasMany(ApprovalPoolMember, { foreignKey: "orgId" });
+  ApprovalPoolMember.belongsTo(Organization, { foreignKey: "orgId" });
+  User.hasOne(ApprovalPoolMember, { foreignKey: "userId" });
+  ApprovalPoolMember.belongsTo(User, { foreignKey: "userId" });
+  Organization.hasMany(ApprovalRecord, { foreignKey: "orgId" });
+  ApprovalRecord.belongsTo(Organization, { foreignKey: "orgId" });
+
+  // Interested parties → requirements.
+  Organization.hasMany(IpParty, { foreignKey: "orgId" });
+  IpParty.belongsTo(Organization, { foreignKey: "orgId" });
+  IpParty.hasMany(IpRequirement, { foreignKey: "partyId" });
+  IpRequirement.belongsTo(IpParty, { foreignKey: "partyId" });
 
   initialized = true;
 }
@@ -182,28 +272,67 @@ export {
   AuditLog,
   LoginHistory,
   RefreshToken,
+  FrameworkType,
+  FrameworkFamily,
   Framework,
+  OrganizationFramework,
   Profile,
-  OrgSignatory,
   Account,
+  OrgSignatory,
+  PartnerProfile,
+  AgreementTemplate,
+  PartnerAgreement,
+  TenantProfile,
   Site,
   SiteRequest,
   FrameworkAssignment,
-  KbArticle,
-  Ticket,
-  Notification,
-  ImplementationRecord,
-  BusinessRecord,
-  AgreementTemplate,
-  PartnerAgreement,
   Plan,
   Invoice,
+  Payment,
+  Receipt,
+  RevenueShareStatement,
+  Payout,
+  Ticket,
   FrameworkGroup,
-  Requirement,
-  Element,
-  ElementRequirementMap,
-  Criterion,
-  Question,
-  AssessmentResponse,
-  ResponseCriterion,
+  FrameworkElement,
+  FrameworkRequirement,
+  RequirementCriterion,
+  ElementRequirementXref,
+  ConformanceQuestion,
+  ConformanceResponse,
+  Assessment,
+  AssessmentAnswer,
+  Gap,
+  ImplementationRecord,
+  TestingService,
+  KbArticle,
+  Notification,
+  IaProgram,
+  IaPlan,
+  IaSession,
+  IaFinding,
+  IaReport,
+  IaSettings,
+  CompetenceEducation,
+  CompetenceSkill,
+  CompetenceTraining,
+  CompetenceRole,
+  CompetenceAssignment,
+  CompetenceAssessment,
+  CompetenceGap,
+  CompetenceExamInstrument,
+  CompetencePracticalInstrument,
+  CompetenceExamAttempt,
+  CompetencePracticalAttempt,
+  ApprovalScheme,
+  ApprovalModuleMap,
+  ApprovalPoolMember,
+  ApprovalRecord,
+  ApprovalSettings,
+  ScopeDataset,
+  MsScope,
+  IpParty,
+  IpRequirement,
+  DemoTenant,
+  BusinessRecord,
 };

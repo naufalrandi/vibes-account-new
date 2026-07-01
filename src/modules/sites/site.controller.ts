@@ -4,22 +4,16 @@ import * as service from "./site.service";
 import { sendOk } from "../../lib/apiResponse";
 import { UnauthorizedError } from "../../lib/errors";
 
-const typeSchema = z.enum([
-  "Head Office",
-  "Branch Office",
-  "Factory",
-  "Warehouse",
-  "Data Center",
-  "Subsidiary",
-  "Business Unit",
-  "Other",
+const siteTypeSchema = z.enum([
+  "Head Office", "Branch Office", "Factory", "Warehouse",
+  "Data Center", "Subsidiary", "Business Unit", "Other",
 ]);
 const statusSchema = z.enum(["Active", "Inactive"]);
 
 const createSchema = z.object({
   orgId: z.string().uuid(),
   name: z.string().min(1),
-  type: typeSchema.optional(),
+  type: siteTypeSchema.optional(),
   country: z.string().nullish(),
   address: z.string().nullish(),
   status: statusSchema.optional(),
@@ -36,7 +30,7 @@ export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
     const orgId = typeof req.query.orgId === "string" ? req.query.orgId : undefined;
-    const rows = await service.listSites(req.auth, { orgId });
+    const rows = await service.listSites(req.auth, orgId);
     sendOk(res, rows, 200, { page: 1, limit: rows.length, total: rows.length });
   } catch (e) {
     next(e);

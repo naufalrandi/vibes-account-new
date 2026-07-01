@@ -4,6 +4,10 @@ import * as orgService from "./organization.service";
 import { sendOk } from "../../lib/apiResponse";
 import { UnauthorizedError } from "../../lib/errors";
 
+// Partial-update schema for the Org Settings page. Unknown keys (notably `code`)
+// are stripped by Zod, so the read-only organization code can never be changed
+// through this endpoint. `name`, when provided, must be a non-empty string;
+// `contactEmail`, when provided, must be a valid email.
 const brandingSchema = z.object({
   logo: z.string(),
   favicon: z.string(),
@@ -18,11 +22,6 @@ const defaultsSchema = z.object({
   language: z.string(),
 });
 
-// Partial-update schema for the Org Settings page. Unknown keys (notably `code`)
-// are stripped by Zod, so the read-only organization code can never be changed
-// through this endpoint. `name`, when provided, must be a non-empty string;
-// `contactEmail`/`email`, when provided, must be a valid email. `branding` and
-// `defaults` are replaced wholesale (the AXIA tabs save the full object).
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
   legalName: z.string().nullish(),

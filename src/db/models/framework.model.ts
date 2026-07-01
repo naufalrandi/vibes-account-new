@@ -1,22 +1,32 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
 
-export type FrameworkStatus = "Draft" | "Active" | "Archived";
+export type FrameworkStatus = "Draft" | "Published" | "Active" | "Archived";
 
 /**
- * A framework (AXIA model) belongs to a FrameworkGroup — "Standards" or
- * "Regulations". Regulations carry one or more jurisdictions (ISO 3166 codes or
- * supranational presets like EU/EEA/GLOBAL); standards leave it empty. Platform-
- * global master data managed only by the Service Owner. Requirements belong to a
- * framework.
+ * A framework is a master-catalog entry that belongs to a framework family
+ * (which in turn belongs to a framework type). Frameworks are platform-global
+ * configuration managed only by the Service Owner.
  */
-export class Framework extends Model<InferAttributes<Framework>, InferCreationAttributes<Framework>> {
+export class Framework extends Model<
+  InferAttributes<Framework>,
+  InferCreationAttributes<Framework>
+> {
   declare id: CreationOptional<string>;
-  declare groupId: string | null;
+  // Catalog frameworks belong to a family; group-based meta-model frameworks
+  // (Phase 7) carry a groupId instead, so both are nullable.
+  declare familyId: string | null;
+  declare code: string | null;
   declare name: string;
-  declare description: string | null;
-  declare jurisdictions: CreationOptional<string[]>;
+  declare version: string | null;
   declare status: CreationOptional<FrameworkStatus>;
+  // DATEONLY surfaces as a "YYYY-MM-DD" string, not a Date.
+  declare publishedDate: string | null;
+  declare shortDescription: string | null;
+  declare fullDescription: string | null;
+  // Phase 7 meta-model fields.
+  declare groupId: string | null;
+  declare jurisdictions: CreationOptional<string[]>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -24,11 +34,16 @@ export class Framework extends Model<InferAttributes<Framework>, InferCreationAt
 Framework.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-    groupId: { type: DataTypes.UUID, allowNull: true, field: "group_id" },
+    familyId: { type: DataTypes.UUID, allowNull: true, field: "family_id" },
+    code: { type: DataTypes.STRING, allowNull: true, unique: true },
     name: { type: DataTypes.STRING, allowNull: false },
-    description: { type: DataTypes.TEXT, allowNull: true },
+    version: { type: DataTypes.STRING, allowNull: true },
+    status: { type: DataTypes.ENUM("Draft", "Published", "Active", "Archived"), allowNull: false, defaultValue: "Draft" },
+    publishedDate: { type: DataTypes.DATEONLY, allowNull: true, field: "published_date" },
+    shortDescription: { type: DataTypes.TEXT, allowNull: true, field: "short_description" },
+    fullDescription: { type: DataTypes.TEXT, allowNull: true, field: "full_description" },
+    groupId: { type: DataTypes.UUID, allowNull: true, field: "group_id" },
     jurisdictions: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
-    status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Active" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

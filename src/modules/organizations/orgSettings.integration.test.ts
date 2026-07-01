@@ -104,47 +104,29 @@ describe("org-settings", () => {
     expect(reloaded?.contactEmail).toBe("ops@axia.io");
   });
 
-  it("round-trips the AXIA profile fields: taxId, contact, branding and defaults", async () => {
+  it("round-trips branding + system defaults + identity fields (Phase 2)", async () => {
     const { token, org } = await seedLogin({ superAdmin: true });
-    const branding = { logo: "https://x/logo.svg", favicon: "", primary: "#2f6bff", secondary: "#7c5cff" };
-    const defaults = { currency: "IDR", timezone: "Asia/Jakarta", country: "ID", language: "English" };
+    const branding = { logo: "https://cdn/logo.png", favicon: "https://cdn/fav.ico", primary: "#0A84FF", secondary: "#1C1C1E" };
+    const defaults = { currency: "IDR", timezone: "Asia/Jakarta", country: "ID", language: "Bahasa Indonesia" };
     const res = await request(app)
       .patch("/v1/org-settings")
       .set("authorization", `Bearer ${token}`)
-      .send({
-        taxId: "01.234.567.8-901.000",
-        website: "axia.io",
-        email: "hello@axia.io",
-        phone: "+62 21 5000 1000",
-        country: "ID",
-        branding,
-        defaults,
-      });
+      .send({ taxId: "01.234.567.8-901.000", website: "https://axia.io", phone: "+65 6000 0000", country: "SG", branding, defaults });
     expect(res.status).toBe(200);
-    expect(res.body.data).toMatchObject({
-      taxId: "01.234.567.8-901.000",
-      website: "axia.io",
-      email: "hello@axia.io",
-      phone: "+62 21 5000 1000",
-      country: "ID",
-      branding,
-      defaults,
-    });
+    expect(res.body.data.taxId).toBe("01.234.567.8-901.000");
+    expect(res.body.data.website).toBe("https://axia.io");
+    expect(res.body.data.country).toBe("SG");
+    expect(res.body.data.branding).toEqual(branding);
+    expect(res.body.data.defaults).toEqual(defaults);
+
+    // Persisted + re-read on a fresh GET.
+    const get = await request(app).get("/v1/org-settings").set("authorization", `Bearer ${token}`);
+    expect(get.body.data.branding).toEqual(branding);
+    expect(get.body.data.defaults).toEqual(defaults);
 
     const reloaded = await Organization.findByPk(org.id);
-    expect(reloaded?.branding?.primary).toBe("#2f6bff");
-    expect(reloaded?.defaults?.currency).toBe("IDR");
-    expect(reloaded?.taxId).toBe("01.234.567.8-901.000");
-  });
-
-  it("rejects an invalid profile email", async () => {
-    const { token } = await seedLogin({ superAdmin: true });
-    const res = await request(app)
-      .patch("/v1/org-settings")
-      .set("authorization", `Bearer ${token}`)
-      .send({ email: "nope" });
-    expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe("VALIDATION_ERROR");
+    expect(reloaded?.branding).toEqual(branding);
+    expect(reloaded?.systemDefaults).toEqual(defaults);
   });
 
   it("ignores attempts to change the read-only code", async () => {

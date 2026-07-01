@@ -6,7 +6,7 @@ import { UnauthorizedError } from "../../lib/errors";
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    const rows = await service.listNotifications(req.auth);
+    const rows = await service.listForActor(req.auth);
     sendOk(res, rows, 200, { page: 1, limit: rows.length, total: rows.length });
   } catch (e) {
     next(e);
@@ -16,7 +16,8 @@ export async function list(req: Request, res: Response, next: NextFunction) {
 export async function markRead(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    sendOk(res, await service.markAllRead(req.auth));
+    const updated = await service.markAllRead(req.auth);
+    sendOk(res, { updated });
   } catch (e) {
     next(e);
   }

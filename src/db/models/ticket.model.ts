@@ -1,21 +1,15 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
 
-export type TicketCategory = "Technical Support" | "Billing" | "Commercial" | "Feature Request" | "Bug Report" | "General Inquiry";
+export type TicketCategory =
+  | "Technical Support" | "Billing" | "Commercial"
+  | "Feature Request" | "Bug Report" | "General Inquiry";
 export type TicketPriority = "Low" | "Medium" | "High" | "Critical";
 export type TicketStatus = "Open" | "In Progress" | "Waiting for Customer" | "Resolved" | "Closed";
 export type TicketScope = "sp" | "partner" | "tenant";
 
-export const TICKET_CATEGORIES: TicketCategory[] = ["Technical Support", "Billing", "Commercial", "Feature Request", "Bug Report", "General Inquiry"];
-export const TICKET_PRIORITIES: TicketPriority[] = ["Low", "Medium", "High", "Critical"];
-export const TICKET_STATUSES: TicketStatus[] = ["Open", "In Progress", "Waiting for Customer", "Resolved", "Closed"];
-
-export interface TicketAuthor {
-  name: string;
-  kind: "user" | "support";
-}
 export interface TicketMessage {
-  author: TicketAuthor;
+  author: { name: string; kind: "user" | "support" };
   text: string;
   ts: string;
 }
@@ -28,30 +22,28 @@ export interface TicketAttachment {
   size: number;
   date: string;
 }
-export interface TicketCreator {
+export interface TicketCreatedBy {
   name: string;
   email: string;
 }
 
 /**
- * A support ticket raised by a persona (Service Provider / Partner / Tenant).
- * `orgId` is the owning org (drives scoping); `orgName`/`managedBy` are
- * denormalized display strings. The conversation thread and activity timeline are
- * JSONB arrays. Status/priority/category are STRING (mutable AXIA labels).
+ * A support ticket. The threaded `messages`, the `activity` timeline, and
+ * `attachments` metadata are JSONB arrays on the row. SLA metrics are derived on
+ * read from these timestamps (see ticket.service.computeSla) — not stored.
  */
 export class Ticket extends Model<InferAttributes<Ticket>, InferCreationAttributes<Ticket>> {
   declare id: CreationOptional<string>;
   declare code: string;
   declare subject: string;
-  declare description: CreationOptional<string>;
-  declare category: string;
+  declare description: string;
+  declare category: CreationOptional<TicketCategory>;
   declare priority: CreationOptional<TicketPriority>;
   declare status: CreationOptional<TicketStatus>;
-  declare scope: CreationOptional<TicketScope>;
+  declare scope: TicketScope;
   declare orgId: string;
-  declare orgName: CreationOptional<string>;
   declare managedBy: string | null;
-  declare createdBy: CreationOptional<TicketCreator>;
+  declare createdBy: TicketCreatedBy;
   declare assignedTo: string | null;
   declare messages: CreationOptional<TicketMessage[]>;
   declare activity: CreationOptional<TicketActivity[]>;
@@ -65,15 +57,20 @@ Ticket.init(
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     code: { type: DataTypes.STRING, allowNull: false, unique: true },
     subject: { type: DataTypes.STRING, allowNull: false },
-    description: { type: DataTypes.TEXT, allowNull: false, defaultValue: "" },
-    category: { type: DataTypes.STRING, allowNull: false },
-    priority: { type: DataTypes.STRING, allowNull: false, defaultValue: "Medium" },
-    status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Open" },
-    scope: { type: DataTypes.STRING, allowNull: false, defaultValue: "tenant" },
+    description: { type: DataTypes.TEXT, allowNull: false },
+    category: {
+      type: DataTypes.ENUM("Technical Support", "Billing", "Commercial", "Feature Request", "Bug Report", "General Inquiry"),
+      allowNull: false, defaultValue: "Technical Support",
+    },
+    priority: { type: DataTypes.ENUM("Low", "Medium", "High", "Critical"), allowNull: false, defaultValue: "Medium" },
+    status: {
+      type: DataTypes.ENUM("Open", "In Progress", "Waiting for Customer", "Resolved", "Closed"),
+      allowNull: false, defaultValue: "Open",
+    },
+    scope: { type: DataTypes.ENUM("sp", "partner", "tenant"), allowNull: false },
     orgId: { type: DataTypes.UUID, allowNull: false, field: "org_id" },
-    orgName: { type: DataTypes.STRING, allowNull: false, defaultValue: "", field: "org_name" },
     managedBy: { type: DataTypes.STRING, allowNull: true, field: "managed_by" },
-    createdBy: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "created_by" },
+    createdBy: { type: DataTypes.JSONB, allowNull: false, field: "created_by" },
     assignedTo: { type: DataTypes.STRING, allowNull: true, field: "assigned_to" },
     messages: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     activity: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },

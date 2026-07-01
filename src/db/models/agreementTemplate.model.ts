@@ -4,7 +4,6 @@ import { sequelize } from "../sequelize";
 export type AgreementTemplateStatus = "Draft" | "Active" | "Archived";
 export type AgreementBlockType = "heading" | "paragraph" | "clause" | "bullet" | "divider" | "signature";
 
-/** An ordered content block in an agreement template body. */
 export interface AgreementBlock {
   id: string;
   type: AgreementBlockType;
@@ -12,19 +11,20 @@ export interface AgreementBlock {
 }
 
 /**
- * A partnership agreement template: a reusable, versioned document made of
- * ordered blocks with {{variable}} placeholders, used to generate partner-bound
- * agreements. Platform-global master data managed only by the Service Owner.
+ * A reusable partnership-agreement template (decision R8): structured `blocks`
+ * with `{{variable}}` tokens, never rendered HTML. ServiceOwner master data,
+ * scoped to the owning org.
  */
 export class AgreementTemplate extends Model<
   InferAttributes<AgreementTemplate>,
   InferCreationAttributes<AgreementTemplate>
 > {
   declare id: CreationOptional<string>;
+  declare orgId: string;
   declare code: string;
   declare name: string;
   declare description: string | null;
-  declare version: string;
+  declare version: CreationOptional<string>;
   declare status: CreationOptional<AgreementTemplateStatus>;
   declare blocks: CreationOptional<AgreementBlock[]>;
   declare createdAt: CreationOptional<Date>;
@@ -34,6 +34,7 @@ export class AgreementTemplate extends Model<
 AgreementTemplate.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    orgId: { type: DataTypes.UUID, allowNull: false, field: "org_id" },
     code: { type: DataTypes.STRING, allowNull: false, unique: true },
     name: { type: DataTypes.STRING, allowNull: false },
     description: { type: DataTypes.TEXT, allowNull: true },

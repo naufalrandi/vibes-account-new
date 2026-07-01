@@ -1,12 +1,22 @@
-import { Framework, FrameworkGroup, Requirement } from "../../db/models";
+import {
+  Framework, FrameworkFamily, FrameworkType, FrameworkGroup, FrameworkRequirement,
+} from "../../db/models";
 import type { FrameworkStatus } from "../../db/models/framework.model";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
-import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 export interface CreateFrameworkInput {
-  groupId: string;
   name: string;
+  // Catalog shape (Type→Family→Framework).
+  code?: string;
+  familyId?: string;
+  version?: string | null;
+  publishedDate?: string | null;
+  shortDescription?: string | null;
+  fullDescription?: string | null;
+  // Meta-model shape (group-based Framework Library, Phase 7).
+  groupId?: string;
   description?: string | null;
   jurisdictions?: string[];
   status?: FrameworkStatus;
@@ -15,145 +25,138 @@ export interface CreateFrameworkInput {
 export type UpdateFrameworkInput = Partial<CreateFrameworkInput>;
 
 export interface ListFrameworkFilters {
+  familyId?: string;
   groupId?: string;
 }
 
-export interface FrameworkView {
-  id: string;
-  groupId: string | null;
-  groupName: string;
-  name: string;
-  description: string | null;
-  jurisdictions: string[];
-  status: FrameworkStatus;
-  requirementCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
+// Eager-load the parent family + type (catalog nesting) and the group (meta-model).
+const INCLUDES = [{ model: FrameworkFamily, include: [FrameworkType] }, { model: FrameworkGroup }];
 
-const FRAMEWORK_INCLUDE = [{ model: FrameworkGroup }, { model: Requirement, attributes: ["id"] }];
-
-/** Frameworks are platform-global master data — only the Service Owner may manage them. */
 function assertServiceOwner(auth: AuthContext): void {
   if (auth.orgType !== "ServiceOwner") {
     throw new ForbiddenError("Only the Service Owner can manage frameworks");
   }
 }
 
-async function requireGroup(groupId: string): Promise<FrameworkGroup> {
-  const group = await FrameworkGroup.findByPk(groupId);
-  if (!group) throw new BadRequestError("Framework group does not exist", "FRAMEWORK_GROUP_NOT_FOUND");
-  return group;
+async function requireFamily(familyId: string): Promise<FrameworkFamily> {
+  const family = await FrameworkFamily.findByPk(familyId);
+  if (!family) throw new BadRequestError("Framework family does not exist", "FRAMEWORK_FAMILY_NOT_FOUND");
+  return family;
 }
 
-function toView(framework: Framework): FrameworkView {
-  const group = framework.get("FrameworkGroup") as FrameworkGroup | undefined;
-  const requirements = (framework.get("Requirements") as Requirement[] | undefined) ?? [];
+/**
+ * Project a framework to a response that carries BOTH the catalog fields (code,
+ * FrameworkFamily nesting — relied on by the catalog tree/tests) AND the
+ * meta-model fields the frontend Framework Library reads (groupId, groupName,
+ * jurisdictions, description, requirementCount).
+ */
+async function toView(f: Framework): Promise<Record<string, unknown>> {
+  const group = f.get("FrameworkGroup") as FrameworkGroup | undefined;
+  const requirementCount = await FrameworkRequirement.count({ where: { frameworkId: f.id } });
   return {
-    id: framework.id,
-    groupId: framework.groupId,
+    ...f.toJSON(),
+    groupId: f.groupId,
     groupName: group?.name ?? "",
-    name: framework.name,
-    description: framework.description,
-    jurisdictions: framework.jurisdictions ?? [],
-    status: framework.status,
-    requirementCount: requirements.length,
-    createdAt: framework.createdAt.toISOString(),
-    updatedAt: framework.updatedAt.toISOString(),
+    description: f.shortDescription,
+    jurisdictions: f.jurisdictions ?? [],
+    requirementCount,
   };
 }
 
-async function loadView(id: string): Promise<FrameworkView> {
-  const framework = await Framework.findByPk(id, { include: FRAMEWORK_INCLUDE });
-  if (!framework) throw new NotFoundError("Framework does not exist", "FRAMEWORK_NOT_FOUND");
-  return toView(framework);
-}
-
-export async function listFrameworks(auth: AuthContext, filters: ListFrameworkFilters = {}): Promise<FrameworkView[]> {
+export async function listFrameworks(auth: AuthContext, filters: ListFrameworkFilters = {}): Promise<Record<string, unknown>[]> {
   assertServiceOwner(auth);
-  const where = filters.groupId ? { groupId: filters.groupId } : undefined;
-  const rows = await Framework.findAll({ where, include: FRAMEWORK_INCLUDE, order: [["name", "ASC"]] });
-  return rows.map(toView);
-}
-
-export async function getFramework(auth: AuthContext, id: string): Promise<FrameworkView> {
-  assertServiceOwner(auth);
-  return loadView(id);
-}
-
-export async function createFramework(
-  auth: AuthContext,
-  input: CreateFrameworkInput,
-  ip: string | null,
-): Promise<FrameworkView> {
-  assertServiceOwner(auth);
-  await requireGroup(input.groupId);
-  const framework = await Framework.create({
-    groupId: input.groupId,
-    name: input.name,
-    description: input.description ?? null,
-    jurisdictions: input.jurisdictions ?? [],
-    status: input.status ?? "Active",
+  const where: Record<string, unknown> = {};
+  if (filters.familyId) where.familyId = filters.familyId;
+  if (filters.groupId) where.groupId = filters.groupId;
+  const rows = await Framework.findAll({
+    where: Object.keys(where).length ? where : undefined,
+    include: INCLUDES,
+    order: [["name", "ASC"]],
   });
-  await writeAudit({
-    actorUserId: auth.userId,
-    organizationId: auth.orgId,
-    tenantId: auth.tenantId,
-    action: "framework.created",
-    entityType: "Framework",
-    entityId: framework.id,
-    sourceIp: ip,
-    result: "Success",
-  });
-  return loadView(framework.id);
+  return Promise.all(rows.map(toView));
 }
 
-export async function updateFramework(
-  auth: AuthContext,
-  id: string,
-  input: UpdateFrameworkInput,
-  ip: string | null,
-): Promise<FrameworkView> {
+export async function getFramework(auth: AuthContext, id: string): Promise<Record<string, unknown>> {
   assertServiceOwner(auth);
-  const framework = await Framework.findByPk(id);
-  if (!framework) throw new NotFoundError("Framework does not exist", "FRAMEWORK_NOT_FOUND");
+  const f = await Framework.findByPk(id, { include: INCLUDES });
+  if (!f) throw new NotFoundError("Framework does not exist", "FRAMEWORK_NOT_FOUND");
+  return toView(f);
+}
 
-  if (input.groupId !== undefined && input.groupId !== framework.groupId) {
-    await requireGroup(input.groupId);
-    framework.groupId = input.groupId;
+export async function listGroups(auth: AuthContext): Promise<{ id: string; name: string }[]> {
+  assertServiceOwner(auth);
+  const groups = await FrameworkGroup.findAll({ order: [["sortOrder", "ASC"], ["name", "ASC"]] });
+  return groups.map((g) => ({ id: g.id, name: g.name }));
+}
+
+export async function createFramework(auth: AuthContext, input: CreateFrameworkInput, ip: string | null): Promise<Record<string, unknown>> {
+  assertServiceOwner(auth);
+
+  let created: Framework;
+  if (input.familyId) {
+    // Catalog create (requires code + family).
+    await requireFamily(input.familyId);
+    if (!input.code) throw new BadRequestError("Catalog frameworks require a code", "CODE_REQUIRED");
+    if (await Framework.findOne({ where: { code: input.code } })) {
+      throw new ConflictError("Framework code already exists", "DUPLICATE_CODE");
+    }
+    created = await Framework.create({
+      familyId: input.familyId, code: input.code, name: input.name,
+      version: input.version ?? null, status: input.status ?? "Draft",
+      publishedDate: input.publishedDate ?? null,
+      shortDescription: input.shortDescription ?? null, fullDescription: input.fullDescription ?? null,
+      groupId: null, jurisdictions: [],
+    });
+  } else {
+    // Meta-model create (group-based Framework Library).
+    if (input.groupId && !(await FrameworkGroup.findByPk(input.groupId))) {
+      throw new BadRequestError("Framework group does not exist", "GROUP_NOT_FOUND");
+    }
+    created = await Framework.create({
+      familyId: null, code: null, name: input.name,
+      version: null, status: input.status ?? "Active",
+      publishedDate: null, shortDescription: input.description ?? null, fullDescription: null,
+      groupId: input.groupId ?? null, jurisdictions: input.jurisdictions ?? [],
+    });
   }
-  if (input.name !== undefined) framework.name = input.name;
-  if (input.description !== undefined) framework.description = input.description ?? null;
-  if (input.jurisdictions !== undefined) framework.jurisdictions = input.jurisdictions;
-  if (input.status !== undefined) framework.status = input.status;
-  await framework.save();
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "framework.created", entityType: "Framework", entityId: created.id, sourceIp: ip, result: "Success" });
+  return getFramework(auth, created.id);
+}
 
-  await writeAudit({
-    actorUserId: auth.userId,
-    organizationId: auth.orgId,
-    tenantId: auth.tenantId,
-    action: "framework.updated",
-    entityType: "Framework",
-    entityId: framework.id,
-    sourceIp: ip,
-    result: "Success",
-  });
-  return loadView(framework.id);
+export async function updateFramework(auth: AuthContext, id: string, input: UpdateFrameworkInput, ip: string | null): Promise<Record<string, unknown>> {
+  assertServiceOwner(auth);
+  const f = await Framework.findByPk(id);
+  if (!f) throw new NotFoundError("Framework does not exist", "FRAMEWORK_NOT_FOUND");
+
+  if (input.code !== undefined && input.code !== f.code) {
+    if (input.code && (await Framework.findOne({ where: { code: input.code } }))) {
+      throw new ConflictError("Framework code already exists", "DUPLICATE_CODE");
+    }
+    f.code = input.code ?? null;
+  }
+  if (input.familyId !== undefined) { await requireFamily(input.familyId); f.familyId = input.familyId; }
+  if (input.groupId !== undefined) {
+    if (input.groupId && !(await FrameworkGroup.findByPk(input.groupId))) throw new BadRequestError("Framework group does not exist", "GROUP_NOT_FOUND");
+    f.groupId = input.groupId;
+  }
+  if (input.name !== undefined) f.name = input.name;
+  if (input.version !== undefined) f.version = input.version ?? null;
+  if (input.status !== undefined) f.status = input.status;
+  if (input.publishedDate !== undefined) f.publishedDate = input.publishedDate ?? null;
+  if (input.description !== undefined) f.shortDescription = input.description ?? null;
+  if (input.shortDescription !== undefined) f.shortDescription = input.shortDescription ?? null;
+  if (input.fullDescription !== undefined) f.fullDescription = input.fullDescription ?? null;
+  if (input.jurisdictions !== undefined) f.jurisdictions = input.jurisdictions;
+  await f.save();
+
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "framework.updated", entityType: "Framework", entityId: f.id, sourceIp: ip, result: "Success" });
+  return getFramework(auth, f.id);
 }
 
 export async function deleteFramework(auth: AuthContext, id: string, ip: string | null): Promise<void> {
   assertServiceOwner(auth);
-  const framework = await Framework.findByPk(id);
-  if (!framework) throw new NotFoundError("Framework does not exist", "FRAMEWORK_NOT_FOUND");
-  await framework.destroy();
-  await writeAudit({
-    actorUserId: auth.userId,
-    organizationId: auth.orgId,
-    tenantId: auth.tenantId,
-    action: "framework.deleted",
-    entityType: "Framework",
-    entityId: id,
-    sourceIp: ip,
-    result: "Success",
-  });
+  const f = await Framework.findByPk(id);
+  if (!f) throw new NotFoundError("Framework does not exist", "FRAMEWORK_NOT_FOUND");
+  await f.destroy();
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "framework.deleted", entityType: "Framework", entityId: id, sourceIp: ip, result: "Success" });
 }

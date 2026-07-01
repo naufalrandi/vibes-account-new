@@ -1,45 +1,10 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
 
-/** The 8 Tenant Implementation registers, keyed by `module`. */
-export type ImplementationModule =
-  | "documents"
-  | "compliance"
-  | "risks"
-  | "competence"
-  | "objectives"
-  | "audits"
-  | "reviews"
-  | "incidents";
-
-export const IMPLEMENTATION_MODULES: ImplementationModule[] = [
-  "documents",
-  "compliance",
-  "risks",
-  "competence",
-  "objectives",
-  "audits",
-  "reviews",
-  "incidents",
-];
-
-/** Code prefix per module (business key, sequenced per tenant). */
-export const MODULE_PREFIX: Record<ImplementationModule, string> = {
-  documents: "DOC",
-  compliance: "COM",
-  risks: "RSK",
-  competence: "CMP",
-  objectives: "OBJ",
-  audits: "AUD",
-  reviews: "MRV",
-  incidents: "INC",
-};
-
 /**
- * A single record in one of the tenant Implementation registers. `orgId` is the
- * tenant; `module` selects the register; `data` holds the module-specific fields
- * (e.g. likelihood/impact for risks). Status is STRING (mutable labels from the
- * module config). Code is a per-tenant `PREFIX-####` business key.
+ * A single row in any ISO clause register (`tn-m-*`). The `module` column is the
+ * discriminator; module-specific fields live in the `data` JSONB blob. `elementId`
+ * traces the entry to a Framework Element; `frameworks` records relevance.
  */
 export class ImplementationRecord extends Model<
   InferAttributes<ImplementationRecord>,
@@ -47,12 +12,14 @@ export class ImplementationRecord extends Model<
 > {
   declare id: CreationOptional<string>;
   declare orgId: string;
-  declare module: ImplementationModule;
+  declare module: string;
   declare code: string;
   declare title: string;
-  declare status: CreationOptional<string>;
+  declare status: string;
   declare owner: string | null;
   declare data: CreationOptional<Record<string, unknown>>;
+  declare elementId: string | null;
+  declare frameworks: CreationOptional<string[]>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -64,9 +31,11 @@ ImplementationRecord.init(
     module: { type: DataTypes.STRING, allowNull: false },
     code: { type: DataTypes.STRING, allowNull: false },
     title: { type: DataTypes.STRING, allowNull: false },
-    status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Open" },
+    status: { type: DataTypes.STRING, allowNull: false },
     owner: { type: DataTypes.STRING, allowNull: true },
     data: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
+    elementId: { type: DataTypes.UUID, allowNull: true, field: "element_id" },
+    frameworks: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

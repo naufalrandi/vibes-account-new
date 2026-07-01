@@ -7,8 +7,8 @@ describe("loadEnv", () => {
       NODE_ENV: "test",
       PORT: "4000",
       DATABASE_URL: "postgres://u:p@localhost:5432/db",
-      JWT_ACCESS_SECRET: "a-secret-value",
-      JWT_REFRESH_SECRET: "another-secret",
+      JWT_ACCESS_SECRET: "a-32char-min-access-secret-value-xx",
+      JWT_REFRESH_SECRET: "a-32char-min-refresh-secret-value-yy",
     });
     expect(env.PORT).toBe(4000);
     expect(env.ACCESS_TOKEN_TTL).toBe(900);

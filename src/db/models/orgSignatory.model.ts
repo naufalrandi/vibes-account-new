@@ -4,11 +4,9 @@ import { sequelize } from "../sequelize";
 export type SignatoryStatus = "Active" | "Inactive";
 
 /**
- * An authorized signatory owned by an organization, used to populate the
- * Service Provider signatory variables in generated agreements/documents. Every
- * row is scoped to its `orgId` (taken from the authenticated context, never
- * client input). Only `Active` signatories are offered during agreement
- * generation.
+ * An authorized representative of an organization (agreement signing). Org-scoped
+ * via `orgId`, which is always taken from the authenticated context — never from
+ * client input — so a caller can only ever read or mutate its own signatories.
  */
 export class OrgSignatory extends Model<
   InferAttributes<OrgSignatory>,
@@ -32,7 +30,7 @@ OrgSignatory.init(
     fullName: { type: DataTypes.STRING, allowNull: false, field: "full_name" },
     title: { type: DataTypes.STRING, allowNull: false },
     email: { type: DataTypes.STRING, allowNull: false },
-    signatureImage: { type: DataTypes.STRING, allowNull: true, field: "signature_image" },
+    signatureImage: { type: DataTypes.TEXT, allowNull: true, field: "signature_image" },
     status: { type: DataTypes.ENUM("Active", "Inactive"), allowNull: false, defaultValue: "Active" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,

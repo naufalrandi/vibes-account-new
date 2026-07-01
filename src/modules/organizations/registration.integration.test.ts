@@ -59,4 +59,24 @@ describe("registration workflow", () => {
     const res = await request(app).post(`/v1/registration-requests/${submit.body.data.id}/approve`).set("authorization", `Bearer ${dist.token}`);
     expect(res.status).toBe(403);
   });
+
+  it("lists registration requests for the SO, enriched with the distributor name", async () => {
+    const dist = await makeAdmin("Distributor", "NWP", "distadmin", ["registration.submit"]);
+    const so = await makeAdmin("ServiceOwner", "AXIA", "soadmin", ["registration.decide"]);
+    await request(app).post("/v1/registration-requests").set("authorization", `Bearer ${dist.token}`)
+      .send({ name: "Acme", code: "ACME", adminFullName: "A", adminUsername: "acmeadmin", adminEmail: "admin@acme.com" });
+
+    const list = await request(app).get("/v1/registration-requests").set("authorization", `Bearer ${so.token}`);
+    expect(list.status).toBe(200);
+    expect(list.body.data).toHaveLength(1);
+    expect(list.body.data[0]).toMatchObject({
+      distributorOrgId: dist.org.id,
+      distributorName: "NWP",
+      status: "PendingApproval",
+    });
+    expect(list.body.data[0].proposedTenant.name).toBe("Acme");
+
+    const approved = await request(app).get("/v1/registration-requests?status=Approved").set("authorization", `Bearer ${so.token}`);
+    expect(approved.body.data).toHaveLength(0);
+  });
 });

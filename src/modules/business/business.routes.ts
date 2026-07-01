@@ -1,12 +1,10 @@
 import { Router } from "express";
 import * as c from "./business.controller";
+import { requireAction } from "../../middleware/requireAction";
+import { ACTIONS } from "../iam/actions.catalog";
 
-// Business Unit registers (Enterprise / Datana / Motoran), keyed by :area/:module.
-// Service-Owner-only is enforced in the service (assertServiceOwner), so these
-// routes only require authentication (applied at mount).
 export const businessRoutes = Router();
-businessRoutes.get("/:area/:module", c.list);
-businessRoutes.get("/:area/:module/:id", c.get);
-businessRoutes.post("/:area/:module", c.create);
-businessRoutes.put("/:area/:module/:id", c.update);
-businessRoutes.delete("/:area/:module/:id", c.remove);
+businessRoutes.get("/:area/:module", requireAction(ACTIONS.BUSINESS_READ), c.list);
+businessRoutes.post("/:area/:module", requireAction(ACTIONS.BUSINESS_MANAGE), c.create);
+businessRoutes.put("/:area/:module/:id", requireAction(ACTIONS.BUSINESS_MANAGE), c.update);
+businessRoutes.delete("/:area/:module/:id", requireAction(ACTIONS.BUSINESS_MANAGE), c.remove);

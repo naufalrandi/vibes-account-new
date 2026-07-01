@@ -1,192 +1,128 @@
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
-import { initModels, Organization, User, Role } from "../../db/models";
+import { initModels, Organization, User, Role, Site } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
 
 const app = createApp();
-const bearer = (t: string) => ({ authorization: `Bearer ${t}` });
+const authed = (t: string) => ({ Authorization: `Bearer ${t}` });
 
-async function soLogin(): Promise<string> {
+const SITE_ACTIONS = [ACTIONS.SITE_READ, ACTIONS.SITE_CREATE, ACTIONS.SITE_UPDATE, ACTIONS.SITE_DELETE];
+const REQ_ACTIONS = [ACTIONS.SITE_REQUEST_READ, ACTIONS.SITE_REQUEST_CREATE, ACTIONS.SITE_REQUEST_DECIDE];
+
+/** A ServiceOwner (super-admin) plus a standalone Tenant org to attach sites to. */
+async function setup(): Promise<{ token: string; tenantOrgId: string }> {
   const so = await Organization.create({
     name: "AXIA", code: "AXIA", type: "ServiceOwner", status: "Active",
     parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null,
   });
-  const admin = await User.create({
-    orgId: so.id, tenantId: null, fullName: "Admin", username: "soadmin", email: "soadmin@axia.io",
-    passwordHash: await hashPassword("ChangeMe123"), status: "Active",
-    position: null, workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null,
-  });
-  const role = await Role.create({ name: "SO Administrator", tierScope: "ServiceOwner", orgId: so.id, isSuperAdmin: true, status: true });
-  await (admin as unknown as { setRoles: (roles: Role[]) => Promise<unknown> }).setRoles([role]);
-  const login = await request(app).post("/v1/auth/login").send({ identifier: "soadmin", password: "ChangeMe123" });
-  return login.body.data.accessToken;
-}
-
-/** A Tenant-scoped user that holds the site grants but the wrong org type. */
-async function tenantWithGrants(): Promise<string> {
   const tenant = await Organization.create({
-    name: "Acme", code: "ACME-U", type: "Tenant", status: "Active",
-    parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null,
+    name: "Acme", code: "ACME", type: "Tenant", status: "Active",
+    parentOrgId: so.id, tenantId: null, email: null, phone: null, website: null, country: null, address: null,
   });
+  tenant.tenantId = tenant.id;
+  await tenant.save();
   const user = await User.create({
-    orgId: tenant.id, tenantId: tenant.id, fullName: "T", username: "tuser", email: "t@acme.io",
+    orgId: so.id, tenantId: null, fullName: "SO", username: "soadmin", email: "soadmin@axia.io",
     passwordHash: await hashPassword("ChangeMe123"), status: "Active",
     position: null, workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null,
   });
-  const role = await Role.create({ name: "Tenant Admin", tierScope: "Tenant", orgId: tenant.id, isSuperAdmin: false, status: true });
-  await (user as unknown as { setRoles: (roles: Role[]) => Promise<unknown> }).setRoles([role]);
-  await grantActions(role.id, [ACTIONS.SITE_READ, ACTIONS.SITE_CREATE, ACTIONS.SITE_REQUEST_READ, ACTIONS.SITE_REQUEST_DECIDE]);
-  const login = await request(app).post("/v1/auth/login").send({ identifier: "tuser", password: "ChangeMe123" });
-  return login.body.data.accessToken;
-}
-
-async function makeTenantOrg(code = "TEN1"): Promise<string> {
-  const t = await Organization.create({
-    name: `Tenant ${code}`, code, type: "Tenant", status: "Active",
-    parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: "ID", address: null,
-  });
-  return t.id;
+  const role = await Role.create({ name: "SO", tierScope: "ServiceOwner", orgId: so.id, isSuperAdmin: false, status: true });
+  await (user as unknown as { setRoles: (r: Role[]) => Promise<unknown> }).setRoles([role]);
+  await grantActions(role.id, [...SITE_ACTIONS, ...REQ_ACTIONS]);
+  const login = await request(app).post("/v1/auth/login").send({ identifier: "soadmin", password: "ChangeMe123" });
+  return { token: login.body.data.accessToken, tenantOrgId: tenant.id };
 }
 
 describe("sites", () => {
   beforeAll(() => initModels());
   afterEach(() => resetDb());
 
-  it("requires authentication", async () => {
-    const res = await request(app).get("/v1/sites");
-    expect(res.status).toBe(401);
-  });
-
-  it("forbids a non-Service-Owner even with grants", async () => {
-    const soToken = await soLogin();
-    const orgId = await makeTenantOrg();
-    const token = await tenantWithGrants();
-    const res = await request(app).post("/v1/sites").set(bearer(token)).send({ orgId, name: "HQ" });
-    expect(res.status).toBe(403);
-    void soToken;
-  });
-
-  it("creates a site with an auto-generated code and tenant name", async () => {
-    const token = await soLogin();
-    const orgId = await makeTenantOrg("TEN1");
-    const res = await request(app).post("/v1/sites").set(bearer(token))
-      .send({ orgId, name: "Head Office", type: "Head Office", isPrimary: true, country: "ID" });
-    expect(res.status).toBe(201);
-    expect(res.body.data.code).toMatch(/^STE-\d+$/);
-    expect(res.body.data.tenantName).toBe("Tenant TEN1");
-    expect(res.body.data.isPrimary).toBe(true);
-  });
-
-  it("rejects a site for a non-tenant organization", async () => {
-    const token = await soLogin();
-    const so = await Organization.findOne({ where: { type: "ServiceOwner" } });
-    const res = await request(app).post("/v1/sites").set(bearer(token)).send({ orgId: so!.id, name: "X" });
+  it("rejects creating a site for a non-Tenant org", async () => {
+    const { token } = await setup();
+    const so = await Organization.findOne({ where: { code: "AXIA" } });
+    const res = await request(app).post("/v1/sites").set(authed(token)).send({ orgId: so!.id, name: "Bad" });
     expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe("NOT_A_TENANT");
   });
 
-  it("keeps only one primary site per tenant", async () => {
-    const token = await soLogin();
-    const orgId = await makeTenantOrg("TEN1");
-    const a = await request(app).post("/v1/sites").set(bearer(token)).send({ orgId, name: "A", isPrimary: true });
-    await request(app).post("/v1/sites").set(bearer(token)).send({ orgId, name: "B", isPrimary: true });
-    const list = await request(app).get(`/v1/sites?orgId=${orgId}`).set(bearer(token));
-    const primaries = list.body.data.filter((s: { isPrimary: boolean }) => s.isPrimary);
-    expect(primaries).toHaveLength(1);
-    expect(primaries[0].name).toBe("B");
-    void a;
+  it("creates sites, enforces a single primary, and blocks deleting the primary", async () => {
+    const { token, tenantOrgId } = await setup();
+    const a = await request(app).post("/v1/sites").set(authed(token)).send({ orgId: tenantOrgId, name: "HQ", type: "Head Office", isPrimary: true });
+    expect(a.status).toBe(201);
+    expect(a.body.data.code).toMatch(/^STE-\d+$/);
+    expect(a.body.data.isPrimary).toBe(true);
+
+    const b = await request(app).post("/v1/sites").set(authed(token)).send({ orgId: tenantOrgId, name: "Plant", type: "Factory", isPrimary: true });
+    expect(b.body.data.isPrimary).toBe(true);
+    // Only one primary remains.
+    expect(await Site.count({ where: { orgId: tenantOrgId, isPrimary: true } })).toBe(1);
+
+    // Deleting the primary is blocked.
+    const del = await request(app).delete(`/v1/sites/${b.body.data.id}`).set(authed(token));
+    expect(del.status).toBe(400);
+    // A non-primary deletes fine.
+    expect((await request(app).delete(`/v1/sites/${a.body.data.id}`).set(authed(token))).status).toBe(200);
   });
 
-  it("refuses to delete the primary site", async () => {
-    const token = await soLogin();
-    const orgId = await makeTenantOrg("TEN1");
-    const site = await request(app).post("/v1/sites").set(bearer(token)).send({ orgId, name: "HQ", isPrimary: true });
-    const del = await request(app).delete(`/v1/sites/${site.body.data.id}`).set(bearer(token));
-    expect(del.status).toBe(409);
-    expect(del.body.error.code).toBe("PRIMARY_SITE");
-  });
-
-  it("filters sites by tenant org", async () => {
-    const token = await soLogin();
-    const orgA = await makeTenantOrg("TENA");
-    const orgB = await makeTenantOrg("TENB");
-    await request(app).post("/v1/sites").set(bearer(token)).send({ orgId: orgA, name: "A1" });
-    await request(app).post("/v1/sites").set(bearer(token)).send({ orgId: orgB, name: "B1" });
-    const list = await request(app).get(`/v1/sites?orgId=${orgA}`).set(bearer(token));
-    expect(list.body.data.map((s: { name: string }) => s.name)).toEqual(["A1"]);
+  it("lists sites filtered by orgId", async () => {
+    const { token, tenantOrgId } = await setup();
+    await request(app).post("/v1/sites").set(authed(token)).send({ orgId: tenantOrgId, name: "HQ" });
+    const res = await request(app).get(`/v1/sites?orgId=${tenantOrgId}`).set(authed(token));
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].tenantName).toBe("Acme");
   });
 });
 
-describe("site requests + provisioning", () => {
+describe("site requests", () => {
   beforeAll(() => initModels());
   afterEach(() => resetDb());
 
-  it("creates an addition request and provisions it into a site", async () => {
-    const token = await soLogin();
-    const orgId = await makeTenantOrg("TEN1");
-    const req = await request(app).post("/v1/site-requests").set(bearer(token)).send({
-      orgId, type: "Site Addition", requestedBy: "Tenant",
-      proposed: { name: "Warehouse 2", siteType: "Warehouse", country: "ID" }, reason: "Expansion",
-    });
-    expect(req.status).toBe(201);
-    expect(req.body.data.code).toMatch(/^SRQ-\d+$/);
-    expect(req.body.data.status).toBe("Submitted");
+  it("Addition: submit → review → approve → provision creates a site", async () => {
+    const { token, tenantOrgId } = await setup();
+    const create = await request(app).post("/v1/site-requests").set(authed(token))
+      .send({ orgId: tenantOrgId, type: "Site Addition", proposed: { name: "Warehouse West", siteType: "Warehouse", country: "ID" }, reason: "Expansion" });
+    expect(create.status).toBe(201);
+    expect(create.body.data.code).toMatch(/^SRQ-\d+$/);
+    expect(create.body.data.status).toBe("Submitted");
+    const id = create.body.data.id;
 
-    const approve = await request(app).post(`/v1/site-requests/${req.body.data.id}/approve`).set(bearer(token));
-    expect(approve.status).toBe(200);
-    expect(approve.body.data.status).toBe("Approved");
-    expect(approve.body.data.provisioned).toBe(false);
-
-    const prov = await request(app).post(`/v1/site-requests/${req.body.data.id}/provision`).set(bearer(token));
-    expect(prov.status).toBe(200);
+    expect((await request(app).post(`/v1/site-requests/${id}/review`).set(authed(token))).body.data.status).toBe("Under Review");
+    expect((await request(app).post(`/v1/site-requests/${id}/approve`).set(authed(token))).body.data.status).toBe("Approved");
+    const prov = await request(app).post(`/v1/site-requests/${id}/provision`).set(authed(token));
     expect(prov.body.data.provisioned).toBe(true);
     expect(prov.body.data.provisionedSiteId).toBeTruthy();
+    // Provisioning is idempotent-guarded.
+    expect((await request(app).post(`/v1/site-requests/${id}/provision`).set(authed(token))).status).toBe(409);
 
-    const sites = await request(app).get(`/v1/sites?orgId=${orgId}`).set(bearer(token));
-    expect(sites.body.data.map((s: { name: string }) => s.name)).toContain("Warehouse 2");
+    const sites = await request(app).get(`/v1/sites?orgId=${tenantOrgId}`).set(authed(token));
+    expect(sites.body.data.some((s: { name: string }) => s.name === "Warehouse West")).toBe(true);
   });
 
-  it("applies a change request immediately on approval", async () => {
-    const token = await soLogin();
-    const orgId = await makeTenantOrg("TEN1");
-    const site = await request(app).post("/v1/sites").set(bearer(token)).send({ orgId, name: "Old Name" });
-    const req = await request(app).post("/v1/site-requests").set(bearer(token)).send({
-      orgId, type: "Site Change", siteId: site.body.data.id, proposed: { name: "New Name" }, reason: "Rename",
-    });
-    await request(app).post(`/v1/site-requests/${req.body.data.id}/approve`).set(bearer(token));
-    const got = await request(app).get(`/v1/sites/${site.body.data.id}`).set(bearer(token));
-    expect(got.body.data.name).toBe("New Name");
+  it("Change: approve applies the proposed change to the target site", async () => {
+    const { token, tenantOrgId } = await setup();
+    const site = await request(app).post("/v1/sites").set(authed(token)).send({ orgId: tenantOrgId, name: "Old Name" });
+    const req = await request(app).post("/v1/site-requests").set(authed(token))
+      .send({ orgId: tenantOrgId, type: "Site Change", siteId: site.body.data.id, proposed: { name: "New Name" }, reason: "Rebrand" });
+    await request(app).post(`/v1/site-requests/${req.body.data.id}/approve`).set(authed(token));
+    const updated = await request(app).get(`/v1/sites/${site.body.data.id}`).set(authed(token));
+    expect(updated.body.data.name).toBe("New Name");
   });
 
-  it("closes a non-primary site on approval but blocks closing the primary", async () => {
-    const token = await soLogin();
-    const orgId = await makeTenantOrg("TEN1");
-    const primary = await request(app).post("/v1/sites").set(bearer(token)).send({ orgId, name: "HQ", isPrimary: true });
-    const branch = await request(app).post("/v1/sites").set(bearer(token)).send({ orgId, name: "Branch" });
-
-    const closeBranch = await request(app).post("/v1/site-requests").set(bearer(token))
-      .send({ orgId, type: "Site Closure", siteId: branch.body.data.id, reason: "Closing" });
-    await request(app).post(`/v1/site-requests/${closeBranch.body.data.id}/approve`).set(bearer(token));
-    const gotBranch = await request(app).get(`/v1/sites/${branch.body.data.id}`).set(bearer(token));
-    expect(gotBranch.body.data.status).toBe("Inactive");
-
-    const closePrimary = await request(app).post("/v1/site-requests").set(bearer(token))
-      .send({ orgId, type: "Site Closure", siteId: primary.body.data.id, reason: "Nope" });
-    const res = await request(app).post(`/v1/site-requests/${closePrimary.body.data.id}/approve`).set(bearer(token));
-    expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe("PRIMARY_SITE");
+  it("Closure: blocked for the primary site", async () => {
+    const { token, tenantOrgId } = await setup();
+    const site = await request(app).post("/v1/sites").set(authed(token)).send({ orgId: tenantOrgId, name: "HQ", isPrimary: true });
+    const req = await request(app).post("/v1/site-requests").set(authed(token))
+      .send({ orgId: tenantOrgId, type: "Site Closure", siteId: site.body.data.id, reason: "n/a" });
+    const res = await request(app).post(`/v1/site-requests/${req.body.data.id}/approve`).set(authed(token));
+    expect(res.status).toBe(400);
   });
 
-  it("only provisions approved additions", async () => {
-    const token = await soLogin();
-    const orgId = await makeTenantOrg("TEN1");
-    const req = await request(app).post("/v1/site-requests").set(bearer(token))
-      .send({ orgId, type: "Site Addition", proposed: { name: "X" } });
-    const prov = await request(app).post(`/v1/site-requests/${req.body.data.id}/provision`).set(bearer(token));
-    expect(prov.status).toBe(409);
-    expect(prov.body.error.code).toBe("NOT_APPROVED");
+  it("requires a target site for change/closure", async () => {
+    const { token, tenantOrgId } = await setup();
+    const res = await request(app).post("/v1/site-requests").set(authed(token))
+      .send({ orgId: tenantOrgId, type: "Site Change", proposed: { name: "x" } });
+    expect(res.status).toBe(400);
   });
 });

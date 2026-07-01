@@ -1,9 +1,28 @@
-import { Op } from "sequelize";
+import { Op, type WhereOptions } from "sequelize";
 import { Organization, Site } from "../../db/models";
-import type { SiteStatus, SiteType } from "../../db/models/site.model";
+import type { SiteType, SiteStatus } from "../../db/models/site.model";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
-import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
+
+export interface SiteView {
+  id: string;
+  orgId: string;
+  tenantName: string;
+  code: string;
+  name: string;
+  type: SiteType;
+  country: string | null;
+  address: string | null;
+  status: SiteStatus;
+  isPrimary: boolean;
+  description: string | null;
+  contactPerson: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface CreateSiteInput {
   orgId: string;
@@ -21,110 +40,75 @@ export interface CreateSiteInput {
 
 export type UpdateSiteInput = Partial<Omit<CreateSiteInput, "orgId">>;
 
-export interface ListSiteFilters {
-  orgId?: string;
+function toView(site: Site, tenantName: string): SiteView {
+  return {
+    id: site.id, orgId: site.orgId, tenantName,
+    code: site.code, name: site.name, type: site.type,
+    country: site.country, address: site.address, status: site.status, isPrimary: site.isPrimary,
+    description: site.description, contactPerson: site.contactPerson,
+    contactEmail: site.contactEmail, contactPhone: site.contactPhone,
+    createdAt: site.createdAt, updatedAt: site.updatedAt,
+  };
 }
 
-export interface SiteView {
-  id: string;
-  orgId: string;
-  tenantName: string;
-  code: string;
-  name: string;
-  type: SiteType;
-  country: string | null;
-  address: string | null;
-  status: SiteStatus;
-  isPrimary: boolean;
-  description: string | null;
-  contactPerson: string | null;
-  contactEmail: string | null;
-  contactPhone: string | null;
-  createdAt: string;
-  updatedAt: string;
+/** The set of Tenant org ids the actor may see sites for (SO → all). */
+export async function visibleTenantOrgIds(auth: AuthContext): Promise<string[] | null> {
+  if (auth.orgType === "ServiceOwner") return null; // null = unrestricted
+  if (auth.orgType === "Tenant") return [auth.orgId];
+  // Distributor: its own child Tenant orgs.
+  const children = await Organization.findAll({ where: { parentOrgId: auth.orgId, type: "Tenant" }, attributes: ["id"] });
+  return children.map((o) => o.id);
 }
 
-/** Sites are controlled commercial objects — only the Service Owner may manage them. */
-function assertServiceOwner(auth: AuthContext): void {
-  if (auth.orgType !== "ServiceOwner") {
-    throw new ForbiddenError("Only the Service Owner can manage sites");
-  }
+async function assertCanSeeOrg(auth: AuthContext, orgId: string): Promise<void> {
+  const ids = await visibleTenantOrgIds(auth);
+  if (ids !== null && !ids.includes(orgId)) throw new ForbiddenError();
 }
 
-/** Resolve the owning tenant organization or fail. */
-async function requireTenantOrg(orgId: string): Promise<Organization> {
-  const org = await Organization.findByPk(orgId);
-  if (!org) throw new BadRequestError("Organization does not exist", "ORG_NOT_FOUND");
-  if (org.type !== "Tenant") throw new BadRequestError("Sites can only belong to a Tenant organization", "NOT_A_TENANT");
-  return org;
-}
-
-/** Next site code in the STE-#### sequence (starts at 1001). */
-export async function nextSiteCode(): Promise<string> {
-  const sites = await Site.findAll({ attributes: ["code"] });
+async function nextSiteCode(): Promise<string> {
+  const rows = await Site.findAll({ attributes: ["code"] });
   let max = 1000;
-  for (const s of sites) {
-    const n = parseInt((s.code || "").replace(/\D/g, ""), 10);
-    if (!Number.isNaN(n) && n > max) max = n;
+  for (const r of rows) {
+    const n = Number.parseInt(r.code.replace(/^STE-/, ""), 10);
+    if (Number.isFinite(n) && n > max) max = n;
   }
   return `STE-${max + 1}`;
 }
 
-export function toView(site: Site): SiteView {
-  const org = site.get("Organization") as Organization | undefined;
-  return {
-    id: site.id,
-    orgId: site.orgId,
-    tenantName: org?.name ?? "",
-    code: site.code,
-    name: site.name,
-    type: site.type,
-    country: site.country,
-    address: site.address,
-    status: site.status,
-    isPrimary: site.isPrimary,
-    description: site.description,
-    contactPerson: site.contactPerson,
-    contactEmail: site.contactEmail,
-    contactPhone: site.contactPhone,
-    createdAt: site.createdAt.toISOString(),
-    updatedAt: site.updatedAt.toISOString(),
-  };
+export async function listSites(auth: AuthContext, orgId?: string): Promise<SiteView[]> {
+  const where: WhereOptions = {};
+  const ids = await visibleTenantOrgIds(auth);
+  if (orgId) {
+    await assertCanSeeOrg(auth, orgId);
+    Object.assign(where, { orgId });
+  } else if (ids !== null) {
+    Object.assign(where, { orgId: { [Op.in]: ids } });
+  }
+  const sites = await Site.findAll({ where, include: [{ model: Organization, attributes: ["name"] }], order: [["createdAt", "DESC"]] });
+  return sites.map((s) => toView(s, (s.get("Organization") as Organization | undefined)?.name ?? "—"));
 }
 
-async function loadView(id: string): Promise<SiteView> {
-  const site = await Site.findByPk(id, { include: [Organization] });
+async function requireSite(auth: AuthContext, id: string): Promise<{ site: Site; org: Organization }> {
+  const site = await Site.findByPk(id, { include: [{ model: Organization }] });
   if (!site) throw new NotFoundError("Site does not exist", "SITE_NOT_FOUND");
-  return toView(site);
-}
-
-export async function listSites(auth: AuthContext, filters: ListSiteFilters = {}): Promise<SiteView[]> {
-  assertServiceOwner(auth);
-  const where = filters.orgId ? { orgId: filters.orgId } : undefined;
-  const rows = await Site.findAll({ where, include: [Organization], order: [["code", "ASC"]] });
-  return rows.map(toView);
+  await assertCanSeeOrg(auth, site.orgId);
+  return { site, org: site.get("Organization") as Organization };
 }
 
 export async function getSite(auth: AuthContext, id: string): Promise<SiteView> {
-  assertServiceOwner(auth);
-  return loadView(id);
-}
-
-/** Demote any existing primary site for an org so only one stays primary. */
-async function clearPrimary(orgId: string, exceptId?: string): Promise<void> {
-  await Site.update(
-    { isPrimary: false },
-    { where: { orgId, isPrimary: true, ...(exceptId ? { id: { [Op.ne]: exceptId } } : {}) } },
-  );
+  const { site, org } = await requireSite(auth, id);
+  return toView(site, org.name);
 }
 
 export async function createSite(auth: AuthContext, input: CreateSiteInput, ip: string | null): Promise<SiteView> {
-  assertServiceOwner(auth);
-  await requireTenantOrg(input.orgId);
-  if (input.isPrimary) await clearPrimary(input.orgId);
-
+  const org = await Organization.findByPk(input.orgId);
+  if (!org || org.type !== "Tenant") throw new BadRequestError("Sites can only belong to a Tenant organization", "NOT_A_TENANT");
+  await assertCanSeeOrg(auth, org.id);
+  if (input.isPrimary) {
+    await Site.update({ isPrimary: false }, { where: { orgId: org.id } });
+  }
   const site = await Site.create({
-    orgId: input.orgId,
+    orgId: org.id,
     code: await nextSiteCode(),
     name: input.name,
     type: input.type ?? "Branch Office",
@@ -138,33 +122,15 @@ export async function createSite(auth: AuthContext, input: CreateSiteInput, ip: 
     contactPhone: input.contactPhone ?? null,
   });
   await writeAudit({
-    actorUserId: auth.userId,
-    organizationId: input.orgId,
-    tenantId: auth.tenantId,
-    action: "site.created",
-    entityType: "Site",
-    entityId: site.id,
-    sourceIp: ip,
-    result: "Success",
+    actorUserId: auth.userId, organizationId: org.id, tenantId: org.tenantId,
+    action: "site.created", entityType: "Site", entityId: site.id, sourceIp: ip, result: "Success",
   });
-  return loadView(site.id);
+  return toView(site, org.name);
 }
 
-export async function updateSite(
-  auth: AuthContext,
-  id: string,
-  input: UpdateSiteInput,
-  ip: string | null,
-): Promise<SiteView> {
-  assertServiceOwner(auth);
-  const site = await Site.findByPk(id);
-  if (!site) throw new NotFoundError("Site does not exist", "SITE_NOT_FOUND");
-
-  if (input.isPrimary === true && !site.isPrimary) await clearPrimary(site.orgId, site.id);
-  if (input.isPrimary === false && site.isPrimary) {
-    throw new ConflictError("A tenant must keep one primary site — promote another site instead", "PRIMARY_REQUIRED");
-  }
-
+export async function updateSite(auth: AuthContext, id: string, input: UpdateSiteInput, ip: string | null): Promise<SiteView> {
+  const { site, org } = await requireSite(auth, id);
+  if (input.isPrimary) await Site.update({ isPrimary: false }, { where: { orgId: site.orgId } });
   if (input.name !== undefined) site.name = input.name;
   if (input.type !== undefined) site.type = input.type;
   if (input.country !== undefined) site.country = input.country ?? null;
@@ -176,35 +142,20 @@ export async function updateSite(
   if (input.contactEmail !== undefined) site.contactEmail = input.contactEmail ?? null;
   if (input.contactPhone !== undefined) site.contactPhone = input.contactPhone ?? null;
   await site.save();
-
   await writeAudit({
-    actorUserId: auth.userId,
-    organizationId: site.orgId,
-    tenantId: auth.tenantId,
-    action: "site.updated",
-    entityType: "Site",
-    entityId: site.id,
-    sourceIp: ip,
-    result: "Success",
+    actorUserId: auth.userId, organizationId: site.orgId, tenantId: org.tenantId,
+    action: "site.updated", entityType: "Site", entityId: site.id, sourceIp: ip, result: "Success",
   });
-  return loadView(site.id);
+  return toView(site, org.name);
 }
 
 export async function deleteSite(auth: AuthContext, id: string, ip: string | null): Promise<void> {
-  assertServiceOwner(auth);
-  const site = await Site.findByPk(id);
-  if (!site) throw new NotFoundError("Site does not exist", "SITE_NOT_FOUND");
-  if (site.isPrimary) throw new ConflictError("The primary site cannot be deleted", "PRIMARY_SITE");
-
+  const { site } = await requireSite(auth, id);
+  if (site.isPrimary) throw new BadRequestError("The primary site cannot be deleted", "PRIMARY_SITE");
+  const orgId = site.orgId;
   await site.destroy();
   await writeAudit({
-    actorUserId: auth.userId,
-    organizationId: site.orgId,
-    tenantId: auth.tenantId,
-    action: "site.deleted",
-    entityType: "Site",
-    entityId: id,
-    sourceIp: ip,
-    result: "Success",
+    actorUserId: auth.userId, organizationId: orgId,
+    action: "site.deleted", entityType: "Site", entityId: id, sourceIp: ip, result: "Success",
   });
 }

@@ -7,9 +7,7 @@
 export async function resetDb(): Promise<void> {
   const { sequelize } = await import("../src/db/sequelize");
   await sequelize.query(
-    // framework_groups is intentionally NOT truncated — the two fixed groups
-    // (Standards / Regulations) are seeded by migration 0010 and persist for all tests.
-    'TRUNCATE TABLE "business_records","implementation_records","notifications","tickets","assessment_response_criteria","assessment_responses","assessment_questions","assessment_criteria","kb_articles","framework_element_requirement_maps","framework_elements","framework_requirements","framework_assignments","invoices","plans","partner_agreements","agreement_templates","site_requests","sites","accounts","profiles","org_signatories","frameworks","refresh_tokens","login_history","audit_logs","registration_requests","subscriptions","role_action_grants","role_menu_grants","user_roles","actions","menus","users","roles","organizations" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "demo_tenants","ip_requirements","ip_parties","ms_scopes","scope_datasets","approval_records","approval_pool_members","approval_module_map","approval_schemes","approval_settings","competence_practical_attempts","competence_exam_attempts","competence_practical_instruments","competence_exam_instruments","competence_gaps","competence_assessments","competence_assignments","competence_roles","ia_settings","ia_reports","ia_findings","ia_sessions","ia_plans","ia_programs","competence_training","competence_skills","competence_education","notifications","kb_articles","testing_services","implementation_records","gaps","assessment_answers","assessments","framework_groups","framework_elements","framework_requirements","requirement_criteria","element_requirement_xref","conformance_questions","conformance_responses","plans","accounts","profiles","organization_frameworks","frameworks","framework_families","framework_types","refresh_tokens","login_history","audit_logs","registration_requests","subscriptions","role_action_grants","role_menu_grants","user_roles","actions","menus","users","roles","organizations" RESTART IDENTITY CASCADE',
   );
 }
 

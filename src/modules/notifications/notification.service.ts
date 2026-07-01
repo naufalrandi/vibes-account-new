@@ -1,22 +1,33 @@
-import { Op, type WhereOptions } from "sequelize";
+import { Op } from "sequelize";
 import { env } from "../../config/env";
 import { Notification } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 
-/** Stub transport: logs the link. Replace with a real SMTP/provider later. */
+// Stub transport. NEVER log the token/link — those are bearer credentials that
+// would leak into log aggregators. Only the non-production build prints the full
+// link (for local testing); production logs nothing sensitive. Replace with a
+// real SMTP/provider before shipping.
+const isDev = env.NODE_ENV === "development";
+
 export function sendActivationInvite(email: string, activationToken: string): void {
-  const link = `${env.APP_BASE_URL}/activate?token=${activationToken}`;
-  // eslint-disable-next-line no-console
-  console.log(`[notification] activation invite -> ${email}: ${link}`);
+  if (isDev) {
+    // eslint-disable-next-line no-console
+    console.log(`[notification] activation invite -> ${email}: ${env.APP_BASE_URL}/activate?token=${activationToken}`);
+  } else {
+    // eslint-disable-next-line no-console
+    console.log(`[notification] activation invite sent to ${email}`);
+  }
 }
 
 export function sendPasswordReset(email: string, resetToken: string): void {
-  const link = `${env.APP_BASE_URL}/reset-password?token=${resetToken}`;
-  // eslint-disable-next-line no-console
-  console.log(`[notification] password reset -> ${email}: ${link}`);
+  if (isDev) {
+    // eslint-disable-next-line no-console
+    console.log(`[notification] password reset -> ${email}: ${env.APP_BASE_URL}/reset-password?token=${resetToken}`);
+  } else {
+    // eslint-disable-next-line no-console
+    console.log(`[notification] password reset sent to ${email}`);
+  }
 }
-
-// === In-app bell notifications ===============================================
 
 export interface NotificationView {
   id: string;
@@ -26,32 +37,32 @@ export interface NotificationView {
   createdAt: string;
 }
 
-function toView(n: Notification): NotificationView {
+function view(n: Notification): NotificationView {
   return { id: n.id, text: n.text, link: n.link, read: n.read, createdAt: n.createdAt.toISOString() };
 }
 
-/**
- * Notifications visible to the caller: SO sees all; others see their own org's +
- * platform-wide (orgId IS NULL). Op.in cannot match NULL, so the null arm uses an
- * explicit `{ orgId: null }` which Sequelize renders as `org_id IS NULL`.
- */
-function visibilityWhere(auth: AuthContext): WhereOptions {
-  if (auth.orgType === "ServiceOwner") return {};
-  return { [Op.or]: [{ orgId: auth.orgId }, { orgId: null }] } as WhereOptions;
+/** Notifications targeted at this user, or org-wide (user_id NULL) for their org. */
+function actorWhere(auth: AuthContext) {
+  return { [Op.or]: [{ userId: auth.userId }, { orgId: auth.orgId, userId: null }] };
 }
 
-export async function listNotifications(auth: AuthContext): Promise<NotificationView[]> {
-  const rows = await Notification.findAll({ where: visibilityWhere(auth), order: [["createdAt", "DESC"]], limit: 50 });
-  return rows.map(toView);
+export async function listForActor(auth: AuthContext): Promise<NotificationView[]> {
+  const rows = await Notification.findAll({ where: actorWhere(auth), order: [["createdAt", "DESC"]], limit: 100 });
+  return rows.map(view);
 }
 
-/** Mark every notification visible to the caller as read (bell-open behavior). */
-export async function markAllRead(auth: AuthContext): Promise<{ updated: number }> {
-  const [updated] = await Notification.update({ read: true }, { where: { ...visibilityWhere(auth), read: false } });
-  return { updated };
+export async function markAllRead(auth: AuthContext): Promise<number> {
+  const [updated] = await Notification.update({ read: true }, { where: { ...actorWhere(auth), read: false } });
+  return updated;
 }
 
-/** Append a notification for an org (or platform-wide when orgId is null). Used by other modules. */
-export async function pushNotification(orgId: string | null, text: string, link: string | null = null): Promise<void> {
-  await Notification.create({ orgId, text, link, read: false });
+/** Create a bell notification (org-wide when `userId` is omitted). */
+export async function createNotification(input: { orgId?: string | null; userId?: string | null; type?: string; text: string; link?: string | null }): Promise<void> {
+  await Notification.create({
+    orgId: input.orgId ?? null,
+    userId: input.userId ?? null,
+    type: input.type ?? "info",
+    text: input.text,
+    link: input.link ?? null,
+  });
 }

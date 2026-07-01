@@ -21,44 +21,39 @@ export interface RegistrationView {
   id: string;
   distributorOrgId: string;
   distributorName: string;
-  proposedTenant: ProposedTenant;
-  status: RegistrationRequest["status"];
+  proposedTenant: Record<string, unknown>;
+  status: "PendingApproval" | "Approved" | "Rejected";
   decisionReason: string | null;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 /**
- * List registration requests for the Tenant Requests / Provisioning views. The
- * Service Owner sees every request; a Distributor sees only its own. The
- * proposed-tenant JSON is flattened so the UI can render org + contact columns.
+ * List registration requests visible to the actor (ServiceOwner sees all;
+ * a Distributor sees only its own), enriched with the distributor org name.
  */
 export async function listRegistrations(
   auth: AuthContext,
-  filters: { status?: RegistrationRequest["status"] } = {},
+  status?: "PendingApproval" | "Approved" | "Rejected",
 ): Promise<RegistrationView[]> {
-  if (auth.orgType === "Tenant") throw new ForbiddenError("Tenants cannot view registration requests");
   const where: Record<string, unknown> = {};
   if (auth.orgType === "Distributor") where.distributorOrgId = auth.orgId;
-  if (filters.status) where.status = filters.status;
-  const rows = await RegistrationRequest.findAll({
-    where: Object.keys(where).length ? where : undefined,
-    include: [Organization],
-    order: [["createdAt", "DESC"]],
-  });
-  return rows.map((req) => {
-    const distributor = req.get("Organization") as Organization | undefined;
-    return {
-      id: req.id,
-      distributorOrgId: req.distributorOrgId,
-      distributorName: distributor?.name ?? "",
-      proposedTenant: req.proposedTenant as unknown as ProposedTenant,
-      status: req.status,
-      decisionReason: req.decisionReason,
-      createdAt: req.createdAt.toISOString(),
-      updatedAt: req.updatedAt.toISOString(),
-    };
-  });
+  if (auth.orgType === "Tenant") return [];
+  if (status) where.status = status;
+  const rows = await RegistrationRequest.findAll({ where, order: [["createdAt", "DESC"]] });
+  const orgIds = [...new Set(rows.map((r) => r.distributorOrgId))];
+  const orgs = await Organization.findAll({ where: { id: orgIds } });
+  const nameById = new Map(orgs.map((o) => [o.id, o.name]));
+  return rows.map((r) => ({
+    id: r.id,
+    distributorOrgId: r.distributorOrgId,
+    distributorName: nameById.get(r.distributorOrgId) ?? "—",
+    proposedTenant: r.proposedTenant,
+    status: r.status,
+    decisionReason: r.decisionReason,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  }));
 }
 
 export async function submitRegistration(auth: AuthContext, proposed: ProposedTenant, ip: string | null): Promise<RegistrationRequest> {

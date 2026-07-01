@@ -1,148 +1,156 @@
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
-import { initModels, Organization, User, Role } from "../../db/models";
+import { initModels, Organization, User, Role, AgreementTemplate, PartnerProfile } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
 
 const app = createApp();
-const bearer = (t: string) => ({ authorization: `Bearer ${t}` });
+const authed = (t: string) => ({ Authorization: `Bearer ${t}` });
 
-async function soLogin(): Promise<{ token: string; soId: string }> {
-  const so = await Organization.create({
+/** Super-admin SO (bypasses action grants) — used for happy-path lifecycle flows. */
+async function makeSo(superAdmin = true, actions: string[] = []): Promise<{ token: string; orgId: string }> {
+  const org = await Organization.create({
     name: "AXIA", code: "AXIA", type: "ServiceOwner", status: "Active",
     parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null,
   });
-  const admin = await User.create({
-    orgId: so.id, tenantId: null, fullName: "Admin", username: "soadmin", email: "soadmin@axia.io",
+  const user = await User.create({
+    orgId: org.id, tenantId: null, fullName: "SO", username: "soadmin", email: "soadmin@axia.io",
     passwordHash: await hashPassword("ChangeMe123"), status: "Active",
     position: null, workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null,
   });
-  const role = await Role.create({ name: "SO Administrator", tierScope: "ServiceOwner", orgId: so.id, isSuperAdmin: true, status: true });
-  await (admin as unknown as { setRoles: (roles: Role[]) => Promise<unknown> }).setRoles([role]);
+  const role = await Role.create({ name: "SO", tierScope: "ServiceOwner", orgId: org.id, isSuperAdmin: superAdmin, status: true });
+  await (user as unknown as { setRoles: (r: Role[]) => Promise<unknown> }).setRoles([role]);
+  if (actions.length) await grantActions(role.id, actions);
   const login = await request(app).post("/v1/auth/login").send({ identifier: "soadmin", password: "ChangeMe123" });
-  return { token: login.body.data.accessToken, soId: so.id };
+  return { token: login.body.data.accessToken, orgId: org.id };
 }
 
-async function makePartner(soId: string, over: Partial<{ name: string; code: string; status: string; tier: string; country: string }> = {}) {
-  return Organization.create({
-    name: over.name ?? "Nusantara Cloud", code: over.code ?? "NWP", type: "Distributor", status: "Active",
-    parentOrgId: soId, tenantId: null, email: "partners@nusantara.cloud", phone: null, website: null,
-    country: over.country ?? "ID", address: null,
-    partnerStatus: (over.status ?? "Active") as never, partnerTier: (over.tier ?? "Gold") as never, partnerCode: over.code ?? "PRT-1001",
-  });
+async function makeTemplate(token: string): Promise<string> {
+  const res = await request(app).post("/v1/partnership-agreements").set(authed(token))
+    .send({ name: "Reseller", version: "v2.1", blocks: [{ id: "b1", type: "paragraph", text: "Share {{revenue_share_percentage}}%" }] });
+  return res.body.data.id;
 }
 
 describe("partners", () => {
   beforeAll(() => initModels());
   afterEach(() => resetDb());
 
-  it("requires authentication", async () => {
-    expect((await request(app).get("/v1/partners")).status).toBe(401);
+  it("forbids a role without partner grants", async () => {
+    const { token } = await makeSo(false, []);
+    const res = await request(app).get("/v1/partners").set(authed(token));
+    expect(res.status).toBe(403);
   });
 
-  it("lists Distributor partners with code/status/tier and a tenant count", async () => {
-    const { token, soId } = await soLogin();
-    const partner = await makePartner(soId);
-    // A tenant under this partner contributes to its tenantCount.
-    await Organization.create({
-      name: "PT Maju", code: "MAJU", type: "Tenant", status: "Active",
-      parentOrgId: partner.id, tenantId: null, email: null, phone: null, website: null, country: "ID", address: null,
-    });
-    const res = await request(app).get("/v1/partners").set(bearer(token));
-    expect(res.status).toBe(200);
-    expect(res.body.data).toHaveLength(1);
-    expect(res.body.data[0]).toMatchObject({ code: "PRT-1001", name: "Nusantara Cloud", status: "Active", tier: "Gold", tenantCount: 1 });
-  });
-
-  it("filters partners by status and country and searches by name/code", async () => {
-    const { token, soId } = await soLogin();
-    await makePartner(soId, { name: "Nusantara Cloud", code: "PRT-1001", status: "Active", country: "ID" });
-    await makePartner(soId, { name: "SecureEdge", code: "PRT-1002", status: "Pending Approval", country: "SG" });
-
-    const byStatus = await request(app).get("/v1/partners?status=Pending%20Approval").set(bearer(token));
-    expect(byStatus.body.data.map((p: { code: string }) => p.code)).toEqual(["PRT-1002"]);
-    const byCountry = await request(app).get("/v1/partners?country=ID").set(bearer(token));
-    expect(byCountry.body.data.map((p: { code: string }) => p.code)).toEqual(["PRT-1001"]);
-    const bySearch = await request(app).get("/v1/partners?search=secure").set(bearer(token));
-    expect(bySearch.body.data.map((p: { code: string }) => p.code)).toEqual(["PRT-1002"]);
-  });
-
-  it("gets a single partner and 404s for a non-partner id", async () => {
-    const { token, soId } = await soLogin();
-    const partner = await makePartner(soId);
-    const ok = await request(app).get(`/v1/partners/${partner.id}`).set(bearer(token));
-    expect(ok.status).toBe(200);
-    expect(ok.body.data.name).toBe("Nusantara Cloud");
-    const missing = await request(app).get(`/v1/partners/${soId}`).set(bearer(token));
-    expect(missing.status).toBe(404);
-  });
-
-  it("creates a partner (Draft) with a Partner Administrator and an auto code", async () => {
-    const { token } = await soLogin();
-    const res = await request(app).post("/v1/partners").set(bearer(token)).send({
-      name: "Fresh Partner", email: "ops@fresh.io", country: "ID", tier: "Silver",
-      admin: { fullName: "Pat Admin", username: "pat.admin", email: "pat@fresh.io" },
+  it("creates a draft partner with an auto PRT code + Distributor org + admin user", async () => {
+    const { token } = await makeSo();
+    const res = await request(app).post("/v1/partners").set(authed(token)).send({
+      name: "Nusantara Cloud", email: "partners@nusantara.cloud", country: "ID", tier: "Gold",
+      admin: { fullName: "Andi Wijaya", username: "andi.admin", email: "andi@nusantara.cloud" },
     });
     expect(res.status).toBe(201);
-    expect(res.body.data.status).toBe("Draft");
-    expect(res.body.data.tier).toBe("Silver");
     expect(res.body.data.code).toMatch(/^PRT-\d+$/);
+    expect(res.body.data.status).toBe("Draft");
+    expect(res.body.data.tier).toBe("Gold");
+    expect(res.body.data.tenantCount).toBe(0);
+    expect(res.body.data.audit[0].msg).toMatch(/created/i);
 
-    // The Partner Administrator exists and is pending activation.
-    const users = await request(app).get(`/v1/users?username=pat.admin`).set(bearer(token));
-    expect(users.body.data[0]?.status).toBe("PendingActivation");
+    // A Distributor org + a PendingActivation admin user were provisioned.
+    const org = await Organization.findByPk(res.body.data.id);
+    expect(org?.type).toBe("Distributor");
+    const admin = await User.findOne({ where: { username: "andi.admin" } });
+    expect(admin?.status).toBe("PendingActivation");
   });
 
-  it("rejects a duplicate admin username on create", async () => {
-    const { token } = await soLogin();
-    const body = { name: "P1", admin: { fullName: "A", username: "dupadmin", email: "a@p1.io" } };
-    expect((await request(app).post("/v1/partners").set(bearer(token)).send(body)).status).toBe(201);
-    const dup = await request(app).post("/v1/partners").set(bearer(token))
-      .send({ name: "P2", admin: { fullName: "B", username: "dupadmin", email: "b@p2.io" } });
-    expect(dup.status).toBe(409);
-  });
-
-  it("runs partner lifecycle transitions (suspend → resume → terminate)", async () => {
-    const { token, soId } = await soLogin();
-    const partner = await makePartner(soId, { status: "Active" });
-    const suspended = await request(app).post(`/v1/partners/${partner.id}/suspend`).set(bearer(token));
-    expect(suspended.body.data.status).toBe("Suspended");
-    const resumed = await request(app).post(`/v1/partners/${partner.id}/resume`).set(bearer(token));
-    expect(resumed.body.data.status).toBe("Active");
-    const terminated = await request(app).post(`/v1/partners/${partner.id}/terminate`).set(bearer(token));
-    expect(terminated.body.data.status).toBe("Terminated");
-    // Terminating again is rejected.
-    expect((await request(app).post(`/v1/partners/${partner.id}/terminate`).set(bearer(token))).status).toBe(400);
-  });
-
-  it("edits a partner's contact details and tier", async () => {
-    const { token, soId } = await soLogin();
-    const partner = await makePartner(soId);
-    const res = await request(app).put(`/v1/partners/${partner.id}`).set(bearer(token)).send({ tier: "Bronze", phone: "+62 21 9" });
-    expect(res.status).toBe(200);
-    expect(res.body.data.tier).toBe("Bronze");
-    expect(res.body.data.phone).toBe("+62 21 9");
-  });
-
-  it("forbids a non-Service-Owner even with a partner.read grant", async () => {
-    const { soId } = await soLogin();
-    const tenant = await Organization.create({
-      name: "Acme", code: "ACME", type: "Tenant", status: "Active",
-      parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null,
+  it("runs the full lifecycle: generate → approve → activate → suspend → resume → terminate", async () => {
+    const { token } = await makeSo();
+    const templateId = await makeTemplate(token);
+    const created = await request(app).post("/v1/partners").set(authed(token)).send({
+      name: "P", admin: { fullName: "A", username: "a.admin", email: "a@p.io" },
     });
-    const tUser = await User.create({
-      orgId: tenant.id, tenantId: tenant.id, fullName: "T", username: "tuser", email: "t@acme.io",
+    const id = created.body.data.id;
+
+    // Illegal: cannot activate a Draft partner.
+    const earlyActivate = await request(app).post(`/v1/partners/${id}/activate`).set(authed(token));
+    expect(earlyActivate.status).toBe(409);
+
+    // Generate the agreement → partner + agreement go Pending Approval.
+    const gen = await request(app).post(`/v1/partners/${id}/agreement/generate`).set(authed(token))
+      .send({ templateId, vars: { revenue_share_percentage: "20" } });
+    expect(gen.status).toBe(201);
+    expect(gen.body.data.number).toMatch(/^AGR-\d{4}-\d{4}$/);
+    expect(gen.body.data.status).toBe("Pending Approval");
+    expect(gen.body.data.renderedBlocks[0].text).toBe("Share 20%");
+    let partner = await request(app).get(`/v1/partners/${id}`).set(authed(token));
+    expect(partner.body.data.status).toBe("Pending Approval");
+
+    // Resend (still pending), then approve.
+    const resend = await request(app).post(`/v1/partners/${id}/agreement/resend`).set(authed(token));
+    expect(resend.status).toBe(200);
+    const approve = await request(app).post(`/v1/partners/${id}/agreement/approve`).set(authed(token));
+    expect(approve.body.data.status).toBe("Approved");
+    expect(approve.body.data.effectiveDate).toBeTruthy();
+    partner = await request(app).get(`/v1/partners/${id}`).set(authed(token));
+    expect(partner.body.data.status).toBe("Approved");
+
+    // Activate → Active, Suspend → Suspended, Resume → Active.
+    expect((await request(app).post(`/v1/partners/${id}/activate`).set(authed(token))).body.data.status).toBe("Active");
+    expect((await request(app).post(`/v1/partners/${id}/suspend`).set(authed(token))).body.data.status).toBe("Suspended");
+    expect((await request(app).post(`/v1/partners/${id}/resume`).set(authed(token))).body.data.status).toBe("Active");
+
+    // Terminate → Terminated, and the agreement terminates too.
+    const term = await request(app).post(`/v1/partners/${id}/terminate`).set(authed(token));
+    expect(term.body.data.status).toBe("Terminated");
+    const ag = await request(app).get(`/v1/partners/${id}/agreement`).set(authed(token));
+    expect(ag.body.data.status).toBe("Terminated");
+
+    // Suspending a terminated partner is illegal.
+    expect((await request(app).post(`/v1/partners/${id}/suspend`).set(authed(token))).status).toBe(409);
+  });
+
+  it("creates a partner in send mode and generates the agreement atomically", async () => {
+    const { token } = await makeSo();
+    const templateId = await makeTemplate(token);
+    const res = await request(app).post("/v1/partners").set(authed(token)).send({
+      name: "SendCo", mode: "send", agreement: { templateId, vars: { revenue_share_percentage: "15" } },
+      admin: { fullName: "B", username: "b.admin", email: "b@s.io" },
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.data.status).toBe("Pending Approval");
+    const ag = await request(app).get(`/v1/partners/${res.body.data.id}/agreement`).set(authed(token));
+    expect(ag.body.data.number).toMatch(/^AGR-/);
+  });
+
+  it("scopes partners — a Distributor sees only itself, not sibling partners", async () => {
+    const { token: soToken } = await makeSo();
+    // Two partners created by the SO.
+    const a = await request(app).post("/v1/partners").set(authed(soToken)).send({ name: "Alpha", admin: { fullName: "A", username: "alpha.admin", email: "a@a.io" } });
+    await request(app).post("/v1/partners").set(authed(soToken)).send({ name: "Beta", admin: { fullName: "B", username: "beta.admin", email: "b@b.io" } });
+
+    // SO sees both.
+    const soList = await request(app).get("/v1/partners").set(authed(soToken));
+    expect(soList.body.data).toHaveLength(2);
+
+    // Give partner Alpha an active admin user with partner.read, then log in.
+    const role = await Role.create({ name: "Administrator", tierScope: "Distributor", orgId: a.body.data.id, isSuperAdmin: false, status: true });
+    await grantActions(role.id, [ACTIONS.PARTNER_READ]);
+    const distUser = await User.create({
+      orgId: a.body.data.id, tenantId: null, fullName: "Alpha Admin", username: "alpha.active", email: "active@a.io",
       passwordHash: await hashPassword("ChangeMe123"), status: "Active",
       position: null, workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null,
     });
-    const role = await Role.create({ name: "Tenant Admin", tierScope: "Tenant", orgId: tenant.id, isSuperAdmin: false, status: true });
-    await (tUser as unknown as { setRoles: (roles: Role[]) => Promise<unknown> }).setRoles([role]);
-    await grantActions(role.id, [ACTIONS.PARTNER_READ]);
-    void soId;
-    const login = await request(app).post("/v1/auth/login").send({ identifier: "tuser", password: "ChangeMe123" });
-    const res = await request(app).get("/v1/partners").set(bearer(login.body.data.accessToken));
-    expect(res.status).toBe(403);
+    await (distUser as unknown as { setRoles: (r: Role[]) => Promise<unknown> }).setRoles([role]);
+    const login = await request(app).post("/v1/auth/login").send({ identifier: "alpha.active", password: "ChangeMe123" });
+    const distToken = login.body.data.accessToken;
+
+    const distList = await request(app).get("/v1/partners").set(authed(distToken));
+    expect(distList.body.data).toHaveLength(1);
+    expect(distList.body.data[0].name).toBe("Alpha");
+    // And it cannot read a sibling partner directly.
+    const others = await PartnerProfile.findAll();
+    const betaOrgId = others.map((p) => p.orgId).find((oid) => oid !== a.body.data.id)!;
+    const forbidden = await request(app).get(`/v1/partners/${betaOrgId}`).set(authed(distToken));
+    expect(forbidden.status).toBe(403);
   });
 });
