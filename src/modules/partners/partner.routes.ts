@@ -9,6 +9,11 @@ partnerRoutes.post("/", requireAction(ACTIONS.PARTNER_CREATE), c.create);
 partnerRoutes.get("/:id", requireAction(ACTIONS.PARTNER_READ), c.get);
 partnerRoutes.put("/:id", requireAction(ACTIONS.PARTNER_UPDATE), c.update);
 
+// Partner-detail sub-resources (read-only SP views: team, tenants, billing).
+partnerRoutes.get("/:id/team", requireAction(ACTIONS.PARTNER_READ), c.team);
+partnerRoutes.get("/:id/tenants", requireAction(ACTIONS.PARTNER_READ), c.tenants);
+partnerRoutes.get("/:id/billing", requireAction(ACTIONS.PARTNER_READ), c.billing);
+
 // Lifecycle transitions (gated by PARTNER_UPDATE; each validates the current
 // status server-side and rejects illegal transitions with 409).
 partnerRoutes.post("/:id/activate", requireAction(ACTIONS.PARTNER_UPDATE), c.activate);

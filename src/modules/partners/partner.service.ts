@@ -7,6 +7,9 @@ import {
   PartnerProfile,
   PartnerAgreement,
   AgreementTemplate,
+  RevenueShareStatement,
+  Payout,
+  Subscription,
 } from "../../db/models";
 import type { PartnerStatus, PartnerTier, PartnerAuditEntry } from "../../db/models/partnerProfile.model";
 import type { AuthContext } from "../../lib/scope";
@@ -29,9 +32,19 @@ export interface PartnerView {
   status: PartnerStatus;
   tier: PartnerTier | null;
   tenantCount: number;
+  admin: { fullName: string; username: string; email: string | null; status: string } | null;
   audit: PartnerAuditEntry[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface PartnerTeamMember { userId: string; fullName: string; email: string; roleGroup: string; status: string }
+export interface PartnerTenantRow { id: string; name: string; code: string | null; status: string; subscription: string; renewal: string }
+export interface PartnerBillingView {
+  tier: PartnerTier | null;
+  summary: { acquiredTenants: number; totalEarned: number; paidOut: number; pending: number };
+  statements: { id: string; period: string; totalRev: number; pct: number; partnerShare: number; axiaShare: number; status: string }[];
+  payouts: { id: string; statement: string; period: string; amount: number; date: string; status: string }[];
 }
 
 export interface CreatePartnerInput {
@@ -49,7 +62,7 @@ export interface CreatePartnerInput {
 
 export type UpdatePartnerInput = Partial<Omit<CreatePartnerInput, "admin" | "mode" | "agreement">>;
 
-function toView(org: Organization, profile: PartnerProfile, tenantCount: number): PartnerView {
+function toView(org: Organization, profile: PartnerProfile, tenantCount: number, admin: PartnerView["admin"] = null): PartnerView {
   return {
     id: org.id,
     code: profile.code,
@@ -62,10 +75,17 @@ function toView(org: Organization, profile: PartnerProfile, tenantCount: number)
     status: profile.status,
     tier: profile.tier,
     tenantCount,
+    admin,
     audit: profile.audit,
     createdAt: org.createdAt,
     updatedAt: profile.updatedAt,
   };
+}
+
+async function adminOf(profile: PartnerProfile): Promise<PartnerView["admin"]> {
+  if (!profile.adminUserId) return null;
+  const u = await User.findByPk(profile.adminUserId);
+  return u ? { fullName: u.fullName, username: u.username, email: u.email, status: u.status } : null;
 }
 
 function nowEntry(msg: string): PartnerAuditEntry {
@@ -123,7 +143,39 @@ export async function listPartners(
 
 export async function getPartner(auth: AuthContext, orgId: string): Promise<PartnerView> {
   const { org, profile } = await resolvePartner(auth, orgId);
-  return toView(org, profile, await tenantCountFor(org.id));
+  return toView(org, profile, await tenantCountFor(org.id), await adminOf(profile));
+}
+
+/** Partner team members (the partner org's users; read-only SP view). */
+export async function getPartnerTeam(auth: AuthContext, orgId: string): Promise<PartnerTeamMember[]> {
+  const { profile } = await resolvePartner(auth, orgId);
+  const users = await User.findAll({ where: { orgId }, order: [["createdAt", "ASC"]] });
+  return users.map((u) => ({ userId: u.id, fullName: u.fullName, email: u.email, roleGroup: u.id === profile.adminUserId ? "Administrator" : "Member", status: u.status }));
+}
+
+/** Tenants acquired by this partner (child Tenant orgs). */
+export async function getPartnerTenants(auth: AuthContext, orgId: string): Promise<PartnerTenantRow[]> {
+  await resolvePartner(auth, orgId);
+  const tenants = await Organization.findAll({ where: { type: "Tenant", parentOrgId: orgId }, order: [["name", "ASC"]] });
+  const subs = new Map((await Subscription.findAll({ where: { orgId: { [Op.in]: tenants.length ? tenants.map((t) => t.id) : ["__none__"] } } })).map((s) => [s.orgId, s]));
+  return tenants.map((t) => {
+    const s = subs.get(t.id);
+    return { id: t.id, name: t.name, code: t.code, status: t.status, subscription: s?.plan ?? "—", renewal: s?.endDate ? new Date(s.endDate).toISOString().slice(0, 10) : "—" };
+  });
+}
+
+/** Partner billing: revenue-share statements, payouts, and the payout summary. */
+export async function getPartnerBilling(auth: AuthContext, orgId: string): Promise<PartnerBillingView> {
+  const { profile } = await resolvePartner(auth, orgId);
+  const stmts = await RevenueShareStatement.findAll({ where: { partnerOrgId: orgId }, order: [["createdAt", "DESC"]] });
+  const pays = await Payout.findAll({ where: { partnerOrgId: orgId }, include: [{ model: RevenueShareStatement, attributes: ["code"] }], order: [["createdAt", "DESC"]] });
+  const n = (v: number | string) => Number(v);
+  const statements = stmts.map((s) => ({ id: s.code, period: s.period, totalRev: n(s.totalRev), pct: s.pct, partnerShare: n(s.partnerShare), axiaShare: n(s.axiaShare), status: s.status }));
+  const paidOut = statements.filter((s) => s.status === "Paid").reduce((a, s) => a + s.partnerShare, 0);
+  const pending = statements.filter((s) => s.status === "Pending" || s.status === "Approved").reduce((a, s) => a + s.partnerShare, 0);
+  const totalEarned = statements.reduce((a, s) => a + s.partnerShare, 0);
+  const payouts = pays.map((p) => ({ id: p.code, statement: (p as unknown as { RevenueShareStatement?: { code: string } }).RevenueShareStatement?.code ?? "—", period: p.period, amount: n(p.amount), date: p.date ?? "—", status: p.status }));
+  return { tier: profile.tier, summary: { acquiredTenants: await tenantCountFor(orgId), totalEarned, paidOut, pending }, statements, payouts };
 }
 
 export async function createPartner(
@@ -213,7 +265,7 @@ export async function createPartner(
       tx,
     );
     sendActivationInvite(admin.email, activationToken);
-    return toView(org, profile, 0);
+    return toView(org, profile, 0, { fullName: admin.fullName, username: admin.username, email: admin.email, status: admin.status });
   });
   return view;
 }
@@ -245,7 +297,7 @@ export async function updatePartner(
     sourceIp: ip,
     result: "Success",
   });
-  return toView(org, profile, await tenantCountFor(org.id));
+  return toView(org, profile, await tenantCountFor(org.id), await adminOf(profile));
 }
 
 // --- Lifecycle transitions -----------------------------------------------
@@ -294,7 +346,7 @@ async function transition(
     sourceIp: ip,
     result: "Success",
   });
-  return toView(org, profile, await tenantCountFor(org.id));
+  return toView(org, profile, await tenantCountFor(org.id), await adminOf(profile));
 }
 
 export const activatePartner = (auth: AuthContext, orgId: string, ip: string | null) =>

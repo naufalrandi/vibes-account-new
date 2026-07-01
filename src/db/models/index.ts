@@ -36,6 +36,13 @@ import { ImplementationRecord } from "./implementationRecord.model";
 import { TestingService } from "./testingService.model";
 import { KbArticle } from "./kbArticle.model";
 import { Notification } from "./notification.model";
+import { IaProgram, IaPlan, IaSession, IaFinding, IaReport, IaSettings } from "./internalAudit.models";
+import { CompetenceEducation, CompetenceSkill, CompetenceTraining, CompetenceRole, CompetenceAssignment, CompetenceAssessment, CompetenceGap, CompetenceExamInstrument, CompetencePracticalInstrument, CompetenceExamAttempt, CompetencePracticalAttempt } from "./competence.models";
+import { ApprovalScheme, ApprovalModuleMap, ApprovalPoolMember, ApprovalRecord, ApprovalSettings } from "./approval.models";
+import { ScopeDataset, MsScope } from "./scope.models";
+import { IpParty, IpRequirement } from "./interestedParty.models";
+import { DemoTenant } from "./demoTenant.model";
+import { BusinessRecord } from "./businessRecord.model";
 
 let initialized = false;
 
@@ -190,6 +197,64 @@ export function initModels(): void {
   User.hasMany(Notification, { foreignKey: "userId" });
   Notification.belongsTo(User, { foreignKey: "userId" });
 
+  // Internal Audit (ISO 9.2) — Program → Plan → Session → Finding + Report.
+  Organization.hasMany(IaProgram, { foreignKey: "orgId" });
+  IaProgram.belongsTo(Organization, { foreignKey: "orgId" });
+  IaProgram.hasMany(IaPlan, { foreignKey: "programId" });
+  IaPlan.belongsTo(IaProgram, { foreignKey: "programId" });
+  IaProgram.hasMany(IaSession, { foreignKey: "programId" });
+  IaPlan.hasMany(IaSession, { foreignKey: "planId" });
+  IaSession.belongsTo(IaPlan, { foreignKey: "planId" });
+  IaSession.belongsTo(IaProgram, { foreignKey: "programId" });
+  IaProgram.hasMany(IaFinding, { foreignKey: "programId" });
+  IaFinding.belongsTo(IaProgram, { foreignKey: "programId" });
+  IaSession.hasMany(IaFinding, { foreignKey: "sessionId" });
+  IaFinding.belongsTo(IaSession, { foreignKey: "sessionId" });
+  IaProgram.hasMany(IaReport, { foreignKey: "programId" });
+  IaReport.belongsTo(IaProgram, { foreignKey: "programId" });
+  Organization.hasMany(IaSettings, { foreignKey: "orgId" });
+  IaSettings.belongsTo(Organization, { foreignKey: "orgId" });
+
+  // Competence libraries — training may be tenant-owned (nullable org = SP-global).
+  Organization.hasMany(CompetenceTraining, { foreignKey: "orgId" });
+  CompetenceTraining.belongsTo(Organization, { foreignKey: "orgId" });
+
+  // Competence roles → assignments → assessments → gaps.
+  CompetenceRole.hasMany(CompetenceAssignment, { foreignKey: "roleId" });
+  CompetenceAssignment.belongsTo(CompetenceRole, { foreignKey: "roleId" });
+  CompetenceAssignment.hasMany(CompetenceAssessment, { foreignKey: "assignmentId" });
+  CompetenceAssessment.belongsTo(CompetenceAssignment, { foreignKey: "assignmentId" });
+  CompetenceRole.belongsTo(CompetenceEducation, { foreignKey: "eduMinLevelId" });
+  CompetenceAssignment.hasMany(CompetenceGap, { foreignKey: "assignmentId" });
+  CompetenceGap.belongsTo(CompetenceAssignment, { foreignKey: "assignmentId" });
+  CompetenceAssessment.hasMany(CompetenceGap, { foreignKey: "assessmentId" });
+
+  // Competence instruments (exam ladder + L4 practical) and their attempts.
+  CompetenceSkill.hasMany(CompetenceExamInstrument, { foreignKey: "skillId" });
+  CompetenceExamInstrument.belongsTo(CompetenceSkill, { foreignKey: "skillId" });
+  CompetenceSkill.hasMany(CompetencePracticalInstrument, { foreignKey: "skillId" });
+  CompetencePracticalInstrument.belongsTo(CompetenceSkill, { foreignKey: "skillId" });
+  CompetenceExamInstrument.hasMany(CompetenceExamAttempt, { foreignKey: "instrumentId" });
+  CompetenceExamAttempt.belongsTo(CompetenceExamInstrument, { foreignKey: "instrumentId" });
+  CompetencePracticalInstrument.hasMany(CompetencePracticalAttempt, { foreignKey: "instrumentId" });
+  CompetencePracticalAttempt.belongsTo(CompetencePracticalInstrument, { foreignKey: "instrumentId" });
+
+  // Approval engine.
+  Organization.hasMany(ApprovalScheme, { foreignKey: "orgId" });
+  ApprovalScheme.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasMany(ApprovalPoolMember, { foreignKey: "orgId" });
+  ApprovalPoolMember.belongsTo(Organization, { foreignKey: "orgId" });
+  User.hasOne(ApprovalPoolMember, { foreignKey: "userId" });
+  ApprovalPoolMember.belongsTo(User, { foreignKey: "userId" });
+  Organization.hasMany(ApprovalRecord, { foreignKey: "orgId" });
+  ApprovalRecord.belongsTo(Organization, { foreignKey: "orgId" });
+
+  // Interested parties → requirements.
+  Organization.hasMany(IpParty, { foreignKey: "orgId" });
+  IpParty.belongsTo(Organization, { foreignKey: "orgId" });
+  IpParty.hasMany(IpRequirement, { foreignKey: "partyId" });
+  IpRequirement.belongsTo(IpParty, { foreignKey: "partyId" });
+
   initialized = true;
 }
 
@@ -242,4 +307,32 @@ export {
   TestingService,
   KbArticle,
   Notification,
+  IaProgram,
+  IaPlan,
+  IaSession,
+  IaFinding,
+  IaReport,
+  IaSettings,
+  CompetenceEducation,
+  CompetenceSkill,
+  CompetenceTraining,
+  CompetenceRole,
+  CompetenceAssignment,
+  CompetenceAssessment,
+  CompetenceGap,
+  CompetenceExamInstrument,
+  CompetencePracticalInstrument,
+  CompetenceExamAttempt,
+  CompetencePracticalAttempt,
+  ApprovalScheme,
+  ApprovalModuleMap,
+  ApprovalPoolMember,
+  ApprovalRecord,
+  ApprovalSettings,
+  ScopeDataset,
+  MsScope,
+  IpParty,
+  IpRequirement,
+  DemoTenant,
+  BusinessRecord,
 };

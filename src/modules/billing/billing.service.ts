@@ -13,8 +13,8 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from ".
 
 const n = (v: number | string): number => Number(v); // coerce BIGINT (string) → number
 
-/** Revenue-share percentage by partner tier (drives partner/SP split). */
-const TIER_PCT: Record<PartnerTier, number> = { Bronze: 10, Silver: 15, Gold: 20 };
+/** Revenue-share base percentage by partner tier (drives partner/SP split). Mirrors the design's PARTNER_TIERS base share. */
+const TIER_PCT: Record<PartnerTier, number> = { Bronze: 15, Silver: 20, Gold: 30 };
 
 // --- Plans ---------------------------------------------------------------
 export interface PlanInput {

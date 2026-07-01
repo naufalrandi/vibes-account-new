@@ -36,9 +36,9 @@ async function setup(): Promise<{ token: string; tenantId: string; distId: strin
 
 describe("billing money math (unit)", () => {
   it("splits revenue by tier with no float drift", () => {
-    expect(computeShare("Gold", 12000000)).toEqual({ pct: 20, partnerShare: 2400000, axiaShare: 9600000 });
-    expect(computeShare("Silver", 10000001)).toEqual({ pct: 15, partnerShare: 1500000, axiaShare: 8500001 });
-    expect(computeShare("Bronze", 999)).toEqual({ pct: 10, partnerShare: 100, axiaShare: 899 });
+    expect(computeShare("Gold", 12000000)).toEqual({ pct: 30, partnerShare: 3600000, axiaShare: 8400000 });
+    expect(computeShare("Silver", 10000001)).toEqual({ pct: 20, partnerShare: 2000000, axiaShare: 8000001 });
+    expect(computeShare("Bronze", 999)).toEqual({ pct: 15, partnerShare: 150, axiaShare: 849 });
   });
 });
 
@@ -96,17 +96,17 @@ describe("billing", () => {
     expect(res.status).toBe(400);
   });
 
-  it("revenue share: generate from paid invoices (Gold 20%) and mark the payout paid", async () => {
+  it("revenue share: generate from paid invoices (Gold 30%) and mark the payout paid", async () => {
     const { token, distId } = await setup();
     await generateStatementForPartner(distId, "January 2026");
 
     const rs = await request(app).get("/v1/billing/revenue-share").set(authed(token));
     expect(rs.body.data).toHaveLength(1);
-    expect(rs.body.data[0]).toMatchObject({ pct: 20, totalRev: 12000000, partnerShare: 2400000, axiaShare: 9600000 });
+    expect(rs.body.data[0]).toMatchObject({ pct: 30, totalRev: 12000000, partnerShare: 3600000, axiaShare: 8400000 });
 
     const payouts = await request(app).get("/v1/billing/payouts").set(authed(token));
     expect(payouts.body.data[0].status).toBe("Pending");
-    expect(payouts.body.data[0].amount).toBe(2400000);
+    expect(payouts.body.data[0].amount).toBe(3600000);
     const paid = await request(app).post(`/v1/billing/payouts/${payouts.body.data[0].id}/mark-paid`).set(authed(token));
     expect(paid.body.data.status).toBe("Paid");
     expect(paid.body.data.date).toBeTruthy();
@@ -122,8 +122,8 @@ describe("billing", () => {
     expect(d.outstanding).toBe(12000000);
     expect(d.activeSubscriptions).toBe(1);
     expect(d.draftInvoices).toBe(0);
-    expect(d.partnerShareLiability).toBe(2400000); // statement not yet Paid
-    expect(d.upcomingPayouts).toBe(2400000);
+    expect(d.partnerShareLiability).toBe(3600000); // statement not yet Paid (Gold 30%)
+    expect(d.upcomingPayouts).toBe(3600000);
     expect(d.recentInvoices.length).toBe(2);
   });
 

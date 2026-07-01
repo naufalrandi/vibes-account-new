@@ -110,6 +110,34 @@ describe("tickets", () => {
     expect((await request(app).get(`/v1/tickets/${otherTicket.body.data.id}`).set(authed(dist.token))).status).toBe(403);
   });
 
+  it("attaches file metadata to a ticket and logs the activity", async () => {
+    const sp = await actor("ServiceOwner", "AXIA", "soadmin", ALL);
+    const created = await request(app).post("/v1/tickets").set(authed(sp.token)).send(NEW);
+    const id = created.body.data.id;
+    const res = await request(app).post(`/v1/tickets/${id}/attach`).set(authed(sp.token)).send({ name: "log.txt", size: 2048 });
+    expect(res.status).toBe(200);
+    expect(res.body.data.attachments).toHaveLength(1);
+    expect(res.body.data.attachments[0]).toMatchObject({ name: "log.txt", size: 2048 });
+    expect(res.body.data.attachments[0].date).toBeTruthy();
+    expect(res.body.data.activity.some((e: { event: string }) => e.event === "Attachment added: log.txt")).toBe(true);
+  });
+
+  it("accepts attachments supplied at ticket creation", async () => {
+    const sp = await actor("ServiceOwner", "AXIA", "soadmin", ALL);
+    const res = await request(app).post("/v1/tickets").set(authed(sp.token)).send({ ...NEW, attachments: [{ name: "screenshot.png", size: 51200 }] });
+    expect(res.status).toBe(201);
+    expect(res.body.data.attachments).toHaveLength(1);
+    expect(res.body.data.attachments[0].name).toBe("screenshot.png");
+  });
+
+  it("rejects an attachment on a closed ticket", async () => {
+    const sp = await actor("ServiceOwner", "AXIA", "soadmin", ALL);
+    const created = await request(app).post("/v1/tickets").set(authed(sp.token)).send(NEW);
+    await request(app).post(`/v1/tickets/${created.body.data.id}/status`).set(authed(sp.token)).send({ status: "Closed" });
+    const res = await request(app).post(`/v1/tickets/${created.body.data.id}/attach`).set(authed(sp.token)).send({ name: "x.pdf", size: 10 });
+    expect(res.status).toBe(409);
+  });
+
   it("filters by status and priority", async () => {
     const sp = await actor("ServiceOwner", "AXIA", "soadmin", ALL);
     await request(app).post("/v1/tickets").set(authed(sp.token)).send({ ...NEW, priority: "Low" });

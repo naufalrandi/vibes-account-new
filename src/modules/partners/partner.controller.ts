@@ -63,6 +63,27 @@ export async function get(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+export async function team(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const d = await service.getPartnerTeam(req.auth, req.params.id as string);
+    sendOk(res, d, 200, { page: 1, limit: d.length, total: d.length });
+  } catch (e) { next(e); }
+}
+export async function tenants(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const d = await service.getPartnerTenants(req.auth, req.params.id as string);
+    sendOk(res, d, 200, { page: 1, limit: d.length, total: d.length });
+  } catch (e) { next(e); }
+}
+export async function billing(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    sendOk(res, await service.getPartnerBilling(req.auth, req.params.id as string));
+  } catch (e) { next(e); }
+}
+
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();

@@ -9,14 +9,17 @@ const categorySchema = z.enum(["Technical Support", "Billing", "Commercial", "Fe
 const prioritySchema = z.enum(["Low", "Medium", "High", "Critical"]);
 const statusSchema = z.enum(["Open", "In Progress", "Waiting for Customer", "Resolved", "Closed"]);
 
+const attachmentSchema = z.object({ name: z.string().min(1).max(255), size: z.number().nonnegative() });
 const createSchema = z.object({
   subject: z.string().min(1).max(255),
   description: z.string().min(1),
   category: categorySchema,
   priority: prioritySchema.optional(),
+  attachments: z.array(attachmentSchema).optional(),
 });
 const replySchema = z.object({ text: z.string().min(1) });
 const assignSchema = z.object({ assignee: z.string().nullable() });
+const attachSchema = z.object({ name: z.string().min(1).max(255), size: z.number().nonnegative().optional() });
 
 const guard = (req: Request) => {
   if (!req.auth) throw new UnauthorizedError();
@@ -57,5 +60,10 @@ export async function status(req: Request, res: Response, next: NextFunction) {
 
 export async function assign(req: Request, res: Response, next: NextFunction) {
   try { const { assignee } = assignSchema.parse(req.body); sendOk(res, await service.assignTicket(guard(req), req.params.id as string, assignee, req.ip ?? null)); }
+  catch (e) { next(e); }
+}
+
+export async function attach(req: Request, res: Response, next: NextFunction) {
+  try { const { name, size } = attachSchema.parse(req.body); sendOk(res, await service.addAttachment(guard(req), req.params.id as string, name, size ?? 0, req.ip ?? null)); }
   catch (e) { next(e); }
 }

@@ -6,6 +6,7 @@ import type {
 } from "../../db/models/ticket.model";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
+import { createNotification } from "../notifications/notification.service";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 /** First-response SLA target (hours) by priority — the verified legacy values. */
@@ -96,6 +97,7 @@ export interface CreateTicketInput {
   description: string;
   category: TicketCategory;
   priority?: TicketPriority;
+  attachments?: { name: string; size: number }[];
 }
 
 export async function createTicket(auth: AuthContext, input: CreateTicketInput, ip: string | null) {
@@ -118,9 +120,11 @@ export async function createTicket(auth: AuthContext, input: CreateTicketInput, 
     code: await nextCode(), subject: input.subject, description: input.description,
     category: input.category, priority: input.priority ?? "Medium", status: "Open",
     scope, orgId: org.id, managedBy, createdBy, assignedTo: null,
-    messages: [message], activity, attachments: [],
+    messages: [message], activity,
+    attachments: (input.attachments ?? []).map((a) => ({ name: String(a.name), size: Number(a.size) || 0, date: ts })),
   });
   await writeAudit({ actorUserId: auth.userId, organizationId: org.id, tenantId: org.tenantId, action: "ticket.created", entityType: "Ticket", entityId: ticket.id, sourceIp: ip, result: "Success" });
+  await createNotification({ orgId: org.id, type: "ticket", text: `New ticket: ${ticket.subject}`, link: `/tickets/${ticket.id}` });
   return toView(ticket, org.name);
 }
 
@@ -131,10 +135,28 @@ export async function replyTicket(auth: AuthContext, id: string, text: string, i
   // SP staff post as "support" (and their first reply starts the SLA clock); the
   // customer side (Distributor/Tenant) posts as "user".
   const kind = auth.orgType === "ServiceOwner" ? "support" : "user";
-  const message: TicketMessage = { author: { name: actor?.fullName ?? "User", kind }, text, ts: nowIso() };
+  const authorName = actor?.fullName ?? "User";
+  const message: TicketMessage = { author: { name: authorName, kind }, text, ts: nowIso() };
   ticket.messages = [...ticket.messages, message];
+  ticket.activity = [...ticket.activity, { event: `Reply posted by ${authorName}`, ts: nowIso() }];
+  // A customer reply re-opens a ticket that was waiting on them.
+  if (kind === "user" && ticket.status === "Waiting for Customer") ticket.status = "In Progress";
   await ticket.save();
   await writeAudit({ actorUserId: auth.userId, organizationId: ticket.orgId, action: "ticket.replied", entityType: "Ticket", entityId: ticket.id, sourceIp: ip, result: "Success" });
+  await createNotification({ orgId: ticket.orgId, type: "ticket", text: `New reply on ${ticket.code} — ${ticket.subject}`, link: `/tickets/${ticket.id}` });
+  return toView(ticket, orgName);
+}
+
+/** Attach a file's metadata (name/size) to a ticket (no file storage; mirrors the design). */
+export async function addAttachment(auth: AuthContext, id: string, name: string, size: number, ip: string | null) {
+  const { ticket, orgName } = await resolveTicket(auth, id);
+  if (ticket.status === "Closed") throw new ConflictError("Cannot attach to a closed ticket", "TICKET_CLOSED");
+  const clean = name.trim();
+  if (!clean) throw new BadRequestError("Attachment name is required", "NAME_REQUIRED");
+  ticket.attachments = [...ticket.attachments, { name: clean, size: Number.isFinite(size) ? size : 0, date: nowIso() }];
+  ticket.activity = [...ticket.activity, { event: `Attachment added: ${clean}`, ts: nowIso() }];
+  await ticket.save();
+  await writeAudit({ actorUserId: auth.userId, organizationId: ticket.orgId, action: "ticket.attached", entityType: "Ticket", entityId: ticket.id, sourceIp: ip, result: "Success" });
   return toView(ticket, orgName);
 }
 
@@ -145,6 +167,7 @@ export async function setStatus(auth: AuthContext, id: string, status: TicketSta
   ticket.activity = [...ticket.activity, { event, ts: nowIso() }];
   await ticket.save();
   await writeAudit({ actorUserId: auth.userId, organizationId: ticket.orgId, action: "ticket.status", entityType: "Ticket", entityId: ticket.id, sourceIp: ip, result: "Success", metadata: { status } });
+  await createNotification({ orgId: ticket.orgId, type: "ticket", text: `Ticket ${ticket.code} status: ${status}`, link: `/tickets/${ticket.id}` });
   return toView(ticket, orgName);
 }
 
@@ -152,8 +175,13 @@ export async function assignTicket(auth: AuthContext, id: string, assignee: stri
   const { ticket, orgName } = await resolveTicket(auth, id);
   const name = assignee?.trim() ? assignee.trim() : null;
   ticket.assignedTo = name;
-  if (name) ticket.activity = [...ticket.activity, { event: `Assigned to ${name}`, ts: nowIso() }];
+  if (name) {
+    ticket.activity = [...ticket.activity, { event: `Assigned to ${name}`, ts: nowIso() }];
+    // Assigning an unstarted ticket moves it into progress.
+    if (ticket.status === "Open") ticket.status = "In Progress";
+  }
   await ticket.save();
   await writeAudit({ actorUserId: auth.userId, organizationId: ticket.orgId, action: "ticket.assigned", entityType: "Ticket", entityId: ticket.id, sourceIp: ip, result: "Success", metadata: { assignee: name } });
+  if (name) await createNotification({ orgId: ticket.orgId, type: "ticket", text: `Ticket ${ticket.code} assigned to ${name}`, link: `/tickets/${ticket.id}` });
   return toView(ticket, orgName);
 }
