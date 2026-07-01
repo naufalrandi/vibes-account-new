@@ -1,7 +1,12 @@
 node_modules
 dist
+coverage
+.turbo
 .env
 .env.*
 *.log
 .git
+.gitignore
 .DS_Store
+test-results
+tsconfig.tsbuildinfo

@@ -63,7 +63,7 @@ export async function listRequirements(auth: AuthContext, frameworkId?: string) 
   );
 }
 
-async function require(id: string): Promise<FrameworkRequirement> {
+async function requireRequirement(id: string): Promise<FrameworkRequirement> {
   const r = await FrameworkRequirement.findByPk(id);
   if (!r) throw new NotFoundError("Requirement does not exist", "REQUIREMENT_NOT_FOUND");
   return r;
@@ -71,7 +71,7 @@ async function require(id: string): Promise<FrameworkRequirement> {
 
 export async function getRequirement(auth: AuthContext, id: string) {
   assertServiceOwner(auth);
-  const r = await require(id);
+  const r = await requireRequirement(id);
   const fw = await Framework.findByPk(r.frameworkId);
   return toView(r, fw?.name ?? "");
 }
@@ -90,7 +90,7 @@ export async function createRequirement(auth: AuthContext, input: CreateRequirem
 
 export async function updateRequirement(auth: AuthContext, id: string, input: UpdateRequirementInput, ip: string | null) {
   assertServiceOwner(auth);
-  const r = await require(id);
+  const r = await requireRequirement(id);
   if (input.code !== undefined) r.code = input.code;
   if (input.subject !== undefined) r.subject = input.subject;
   if (input.description !== undefined) r.description = input.description;
@@ -103,7 +103,7 @@ export async function updateRequirement(auth: AuthContext, id: string, input: Up
 
 export async function deleteRequirement(auth: AuthContext, id: string, ip: string | null) {
   assertServiceOwner(auth);
-  const r = await require(id);
+  const r = await requireRequirement(id);
   await r.destroy();
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "requirement.deleted", entityType: "FrameworkRequirement", entityId: id, sourceIp: ip, result: "Success" });
 }

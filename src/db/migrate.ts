@@ -2,13 +2,13 @@ import "dotenv/config";
 import { Umzug, SequelizeStorage } from "umzug";
 import { sequelize } from "./sequelize";
 
+const migrationExtension = __filename.endsWith(".ts") ? "ts" : "js";
+
 export const migrator = new Umzug({
   migrations: {
-    glob: ["migrations/*.ts", { cwd: __dirname }],
-    // Umzug's default loader uses Node's native module resolution, which cannot
-    // transpile .ts files. Resolve each migration via dynamic import() so the
-    // active loader (tsx for the CLI, Vitest's transformer under test) handles
-    // the TypeScript instead. Keeps a single migration source for prod + tests.
+    glob: [`migrations/*.${migrationExtension}`, { cwd: __dirname }],
+    // Resolve each migration through the active runtime: tsx/Vitest in source
+    // mode, plain Node after tsc emits dist/db/migrations/*.js.
     resolve: ({ name, path, context }) => {
       if (!path) {
         throw new Error(`Migration ${name} is missing a file path`);

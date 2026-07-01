@@ -54,7 +54,7 @@ export async function listElements(auth: AuthContext) {
   return Promise.all(rows.map(async (e) => summary(e, await ElementRequirementXref.count({ where: { elementId: e.id } }))));
 }
 
-async function require(id: string): Promise<FrameworkElement> {
+async function requireElement(id: string): Promise<FrameworkElement> {
   const e = await FrameworkElement.findByPk(id);
   if (!e) throw new NotFoundError("Framework element does not exist", "ELEMENT_NOT_FOUND");
   return e;
@@ -62,7 +62,7 @@ async function require(id: string): Promise<FrameworkElement> {
 
 export async function getElement(auth: AuthContext, id: string) {
   assertServiceOwner(auth);
-  return detail(await require(id));
+  return detail(await requireElement(id));
 }
 
 export async function createElement(auth: AuthContext, input: CreateElementInput, ip: string | null) {
@@ -77,7 +77,7 @@ export async function createElement(auth: AuthContext, input: CreateElementInput
 
 export async function updateElement(auth: AuthContext, id: string, input: UpdateElementInput, ip: string | null) {
   assertServiceOwner(auth);
-  const e = await require(id);
+  const e = await requireElement(id);
   if (input.name !== undefined) e.name = input.name;
   if (input.description !== undefined) e.description = input.description ?? null;
   if (input.status !== undefined) e.status = input.status;
@@ -89,7 +89,7 @@ export async function updateElement(auth: AuthContext, id: string, input: Update
 
 export async function deleteElement(auth: AuthContext, id: string, ip: string | null) {
   assertServiceOwner(auth);
-  const e = await require(id);
+  const e = await requireElement(id);
   await e.destroy();
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "element.deleted", entityType: "FrameworkElement", entityId: id, sourceIp: ip, result: "Success" });
 }
@@ -97,7 +97,7 @@ export async function deleteElement(auth: AuthContext, id: string, ip: string | 
 /** Replace the element's requirement mappings (xref) with the given set. */
 export async function setMappings(auth: AuthContext, id: string, requirementIds: string[], ip: string | null) {
   assertServiceOwner(auth);
-  const e = await require(id);
+  const e = await requireElement(id);
   const unique = [...new Set(requirementIds)];
   if (unique.length > 0) {
     const found = await FrameworkRequirement.count({ where: { id: unique } });
