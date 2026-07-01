@@ -7,7 +7,7 @@
 export async function resetDb(): Promise<void> {
   const { sequelize } = await import("../src/db/sequelize");
   await sequelize.query(
-    'TRUNCATE TABLE "implementation_records","gaps","assessment_answers","assessments","framework_groups","framework_elements","framework_requirements","requirement_criteria","element_requirement_xref","conformance_questions","conformance_responses","plans","accounts","profiles","organization_frameworks","frameworks","framework_families","framework_types","refresh_tokens","login_history","audit_logs","registration_requests","subscriptions","role_action_grants","role_menu_grants","user_roles","actions","menus","users","roles","organizations" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "notifications","kb_articles","testing_services","implementation_records","gaps","assessment_answers","assessments","framework_groups","framework_elements","framework_requirements","requirement_criteria","element_requirement_xref","conformance_questions","conformance_responses","plans","accounts","profiles","organization_frameworks","frameworks","framework_families","framework_types","refresh_tokens","login_history","audit_logs","registration_requests","subscriptions","role_action_grants","role_menu_grants","user_roles","actions","menus","users","roles","organizations" RESTART IDENTITY CASCADE',
   );
 }
 

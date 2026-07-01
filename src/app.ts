@@ -39,6 +39,10 @@ import { elementRoutes, xrefRoutes } from "./modules/frameworks/element.routes";
 import { assessmentRoutes } from "./modules/frameworks/assessment.routes";
 import { assessmentRunRoutes } from "./modules/assessments/assessment.routes";
 import { implementationRoutes } from "./modules/implementation/implementation.routes";
+import { limsRoutes } from "./modules/lims/lims.routes";
+import { kbRoutes } from "./modules/knowledge-base/kb.routes";
+import { notificationRoutes } from "./modules/notifications/notification.routes";
+import { referenceRoutes } from "./modules/reference/reference.routes";
 
 export function createApp() {
   const app = express();
@@ -87,6 +91,10 @@ export function createApp() {
   app.use("/v1/tickets", authenticate, tenantScope, ticketRoutes);
   app.use("/v1/assessments", authenticate, tenantScope, assessmentRunRoutes);
   app.use("/v1/implementation", authenticate, tenantScope, implementationRoutes);
+  app.use("/v1/lims", authenticate, tenantScope, limsRoutes);
+  app.use("/v1/kb-articles", authenticate, tenantScope, kbRoutes);
+  app.use("/v1/notifications", authenticate, tenantScope, notificationRoutes);
+  app.use("/v1/reference", authenticate, tenantScope, referenceRoutes);
 
   app.use(errorHandler);
   return app;

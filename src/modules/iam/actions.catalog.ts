@@ -86,6 +86,10 @@ export const ACTIONS = {
   ASSESSMENT_RUN_MANAGE: "assessmentRun.manage",
   MS_READ: "ms.read",
   MS_MANAGE: "ms.manage",
+  LIMS_READ: "lims.read",
+  LIMS_MANAGE: "lims.manage",
+  KB_READ: "kb.read",
+  KB_MANAGE: "kb.manage",
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS];
@@ -311,6 +315,16 @@ export const MENU_SEED: SeedMenu[] = [
           { key: ACTIONS.TICKET_MANAGE, name: "Assign / change status" },
         ],
       },
+      {
+        name: "Knowledge Base",
+        route: "/knowledge-base",
+        routeSeo: "knowledge-base",
+        icon: "book-open",
+        actions: [
+          { key: ACTIONS.KB_READ, name: "View knowledge base" },
+          { key: ACTIONS.KB_MANAGE, name: "Author / publish articles" },
+        ],
+      },
     ],
   },
   {
@@ -336,6 +350,23 @@ export const MENU_SEED: SeedMenu[] = [
         actions: [
           { key: ACTIONS.MS_READ, name: "View clause registers" },
           { key: ACTIONS.MS_MANAGE, name: "Manage clause-register entries" },
+        ],
+      },
+    ],
+  },
+  {
+    name: "Laboratory",
+    heading: "Laboratory",
+    icon: "flask-conical",
+    children: [
+      {
+        name: "LIMS",
+        route: "/lab",
+        routeSeo: "lab",
+        icon: "flask-conical",
+        actions: [
+          { key: ACTIONS.LIMS_READ, name: "View testing services + workflow" },
+          { key: ACTIONS.LIMS_MANAGE, name: "Manage testing services + stage config" },
         ],
       },
     ],

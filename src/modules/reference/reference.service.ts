@@ -1,0 +1,50 @@
+import {
+  ISIC, ISIC_NOTES, NACE, NACE_NOTES, KBLI, KBLI_NOTES, ISCEDF, EXAM_BANK, ROLE_SUGGESTIONS,
+  type HierNode, type ExamQuestion, type RoleSuggestion,
+} from "./reference.data";
+
+function filterHier(rows: HierNode[], parent?: string, search?: string): HierNode[] {
+  let out = rows;
+  if (parent !== undefined) out = out.filter((r) => (parent === "" ? r.parent === null : r.parent === parent));
+  if (search) {
+    const s = search.toLowerCase();
+    out = out.filter((r) => r.code.toLowerCase().includes(s) || r.label.toLowerCase().includes(s));
+  }
+  return out;
+}
+
+export const listIsic = (parent?: string, search?: string) => filterHier(ISIC, parent, search);
+export const isicNotes = (code: string) => ISIC_NOTES[code] ?? null;
+export const listNace = (parent?: string, search?: string) => filterHier(NACE, parent, search);
+export const naceNotes = (code: string) => NACE_NOTES[code] ?? null;
+export const listKbli = (parent?: string, search?: string) => filterHier(KBLI, parent, search);
+export const kbliNotes = (code: string) => (KBLI_NOTES[code] !== undefined ? { note: KBLI_NOTES[code] } : null);
+export const listIscedf = (search?: string) => filterHier(ISCEDF, undefined, search);
+
+/** Exam bank filtered by skill and/or level (question banks for auto-generated exams). */
+export function examBank(skill?: string, level?: string): { skill: string; level: string; questions: ExamQuestion[] }[] {
+  const out: { skill: string; level: string; questions: ExamQuestion[] }[] = [];
+  for (const [sk, def] of Object.entries(EXAM_BANK)) {
+    if (skill && sk.toLowerCase() !== skill.toLowerCase()) continue;
+    for (const [lvl, qs] of Object.entries(def.levels)) {
+      if (level && lvl.toLowerCase() !== level.toLowerCase()) continue;
+      out.push({ skill: sk, level: lvl, questions: qs });
+    }
+  }
+  return out;
+}
+
+/** Fuzzy role-archetype match: rank by name/alias substring hit, then framework overlap. */
+export function roleSuggestions(q?: string): RoleSuggestion[] {
+  if (!q || !q.trim()) return ROLE_SUGGESTIONS;
+  const s = q.toLowerCase();
+  const scored = ROLE_SUGGESTIONS.map((r) => {
+    const hay = [r.name, ...r.aliases].map((x) => x.toLowerCase());
+    let score = 0;
+    if (hay.some((h) => h === s)) score += 3;
+    else if (hay.some((h) => h.includes(s) || s.includes(h))) score += 2;
+    if (r.description.toLowerCase().includes(s)) score += 1;
+    return { r, score };
+  }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
+  return scored.map((x) => x.r);
+}

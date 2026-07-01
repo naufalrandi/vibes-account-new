@@ -30,6 +30,9 @@ import {
   Gap,
   FrameworkAssignment,
   ImplementationRecord,
+  TestingService,
+  KbArticle,
+  Notification,
 } from "../models";
 import { ACTIONS, MENU_SEED, type SeedMenu } from "../../modules/iam/actions.catalog";
 import type { AgreementBlock, AgreementTemplateStatus } from "../models/agreementTemplate.model";
@@ -166,7 +169,7 @@ export async function seed(): Promise<void> {
     [
       "Dashboard", "Organizations", "Users", "Roles & Access", "Audit Log",
       "Organization Settings", "Partners", "Partnership Agreements", "Billing",
-      "Tenants", "Sites", "Site Requests", "Tickets", "Gap Assessment", "Management System",
+      "Tenants", "Sites", "Site Requests", "Tickets", "Gap Assessment", "Management System", "LIMS", "Knowledge Base",
       "Frameworks", "Requirement Library", "Element Library", "Cross References",
     ],
     [
@@ -192,6 +195,8 @@ export async function seed(): Promise<void> {
       ACTIONS.ASSESSMENT_READ,
       ACTIONS.ASSESSMENT_RUN_READ,
       ACTIONS.MS_READ,
+      ACTIONS.LIMS_READ,
+      ACTIONS.KB_READ,
     ],
   );
 
@@ -541,6 +546,53 @@ export async function seed(): Promise<void> {
       where: { module: m.module, code: m.code },
       defaults: { orgId: tenant.id, module: m.module, code: m.code, title: m.title, status: m.status, owner: m.owner, data: m.data, elementId: m.elementId ?? null, frameworks: ["ISO/IEC 27001:2022"] },
     });
+  }
+
+  // 15. Phase 10 — LIMS: the 9 seeded testing services with their exact stage
+  //     configs (order: planning, sampling, cert, retention, disposal).
+  type Lss = "Mandatory" | "Optional" | "Not Applicable";
+  const st = (planning: Lss, sampling: Lss, cert: Lss, retention: Lss, disposal: Lss): Record<string, Lss> => ({ planning, sampling, cert, retention, disposal });
+  const M: Lss = "Mandatory", O: Lss = "Optional", N: Lss = "Not Applicable";
+  const limsServices: { code: string; name: string; stages: Record<string, Lss> }[] = [
+    { code: "TS-1001", name: "Environmental Testing", stages: st(M, M, N, M, M) },
+    { code: "TS-1002", name: "Material Testing", stages: st(O, O, O, M, M) },
+    { code: "TS-1003", name: "Food Testing", stages: st(O, O, N, M, M) },
+    { code: "TS-1004", name: "Microbiology Testing", stages: st(O, O, N, M, M) },
+    { code: "TS-1005", name: "Electronic Product Testing", stages: st(N, N, O, O, O) },
+    { code: "TS-1006", name: "Chemical Testing", stages: st(O, O, N, M, M) },
+    { code: "TS-1007", name: "Water Testing", stages: st(M, M, N, M, M) },
+    { code: "TS-1008", name: "Air Testing", stages: st(M, M, N, M, M) },
+    { code: "TS-1009", name: "Soil Testing", stages: st(M, M, N, M, M) },
+  ];
+  for (const svc of limsServices) {
+    await TestingService.findOrCreate({
+      where: { orgId: tenant.id, code: svc.code },
+      defaults: { orgId: tenant.id, code: svc.code, name: svc.name, description: `${svc.name} service line.`, status: "Active", stages: svc.stages },
+    });
+  }
+
+  // 16. Phase 11 — knowledge base (global SO articles) + a couple of demo
+  //     notifications for the tenant org bell.
+  const kb: { code: string; title: string; category: string; status: "Draft" | "Published" | "Archived"; summary: string; content: string; featured: boolean }[] = [
+    { code: "KB-2026-0001", title: "How to Create a Tenant", category: "platform", status: "Published", summary: "Provision a new customer organization and its primary site.", content: "# Creating a Tenant\nTenants are created by the Service Owner from **Tenant Management**.\n\n1. Open Tenant Management → New Tenant.\n2. Choose the acquisition source.\n3. Enter the organization details and the primary site.", featured: true },
+    { code: "KB-2026-0002", title: "How to Assign Frameworks", category: "framework", status: "Published", summary: "Assign frameworks to tenant sites.", content: "# Assigning Frameworks\nFramework assignments pair a **site** with a **framework**.", featured: true },
+    { code: "KB-2026-0003", title: "How Subscription Billing Works", category: "billing", status: "Published", summary: "How AXIA bills tenants and issues invoices.", content: "# Subscription Billing\nAll revenue is collected by **AXIA**.", featured: false },
+    { code: "KB-2026-0004", title: "Cannot Activate Account", category: "troubleshooting", status: "Published", summary: "Resolve activation link issues.", content: "# Cannot Activate Account\nActivation links expire for security. Use **Resend Activation**.", featured: false },
+    { code: "KB-2026-0005", title: "Tenant Onboarding Checklist (Draft)", category: "platform", status: "Draft", summary: "Internal draft checklist.", content: "# Onboarding Checklist\n- Create tenant\n- Create primary site", featured: false },
+  ];
+  for (const a of kb) {
+    await KbArticle.findOrCreate({
+      where: { code: a.code },
+      defaults: { orgId: null, code: a.code, title: a.title, category: a.category, status: a.status, author: "AXIA Support", summary: a.summary, content: a.content, keywords: [], featured: a.featured, publishedAt: a.status === "Published" ? new Date() : null },
+    });
+  }
+  const notifCount = await Notification.count({ where: { orgId: tenant.id } });
+  if (notifCount === 0) {
+    await Notification.bulkCreate([
+      { orgId: tenant.id, userId: null, type: "ticket", text: "Ticket TKT-2026-0001 needs attention", link: "/tickets", read: false },
+      { orgId: tenant.id, userId: null, type: "assessment", text: "Assessment ASM-1001 finalized with 1 gap", link: "/gap-assessment", read: false },
+      { orgId: tenant.id, userId: null, type: "info", text: "Framework ISO/IEC 27001 assigned to Garuda HQ", link: "/my-frameworks", read: true },
+    ]);
   }
 
   // eslint-disable-next-line no-console

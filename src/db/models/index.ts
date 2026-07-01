@@ -33,6 +33,9 @@ import {
 } from "./frameworkMeta.models";
 import { Assessment, AssessmentAnswer, Gap } from "./assessment.models";
 import { ImplementationRecord } from "./implementationRecord.model";
+import { TestingService } from "./testingService.model";
+import { KbArticle } from "./kbArticle.model";
+import { Notification } from "./notification.model";
 
 let initialized = false;
 
@@ -175,6 +178,18 @@ export function initModels(): void {
   FrameworkElement.hasMany(ImplementationRecord, { foreignKey: "elementId" });
   ImplementationRecord.belongsTo(FrameworkElement, { foreignKey: "elementId" });
 
+  // Phase 10 — LIMS testing services (tenant lab master data).
+  Organization.hasMany(TestingService, { foreignKey: "orgId" });
+  TestingService.belongsTo(Organization, { foreignKey: "orgId" });
+
+  // Phase 11 — knowledge base + notifications.
+  Organization.hasMany(KbArticle, { foreignKey: "orgId" });
+  KbArticle.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasMany(Notification, { foreignKey: "orgId" });
+  Notification.belongsTo(Organization, { foreignKey: "orgId" });
+  User.hasMany(Notification, { foreignKey: "userId" });
+  Notification.belongsTo(User, { foreignKey: "userId" });
+
   initialized = true;
 }
 
@@ -224,4 +239,7 @@ export {
   AssessmentAnswer,
   Gap,
   ImplementationRecord,
+  TestingService,
+  KbArticle,
+  Notification,
 };
