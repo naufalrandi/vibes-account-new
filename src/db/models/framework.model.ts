@@ -1,7 +1,7 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
 
-export type FrameworkStatus = "Draft" | "Published" | "Archived";
+export type FrameworkStatus = "Draft" | "Published" | "Active" | "Archived";
 
 /**
  * A framework is a master-catalog entry that belongs to a framework family
@@ -13,8 +13,10 @@ export class Framework extends Model<
   InferCreationAttributes<Framework>
 > {
   declare id: CreationOptional<string>;
-  declare familyId: string;
-  declare code: string;
+  // Catalog frameworks belong to a family; group-based meta-model frameworks
+  // (Phase 7) carry a groupId instead, so both are nullable.
+  declare familyId: string | null;
+  declare code: string | null;
   declare name: string;
   declare version: string | null;
   declare status: CreationOptional<FrameworkStatus>;
@@ -22,6 +24,9 @@ export class Framework extends Model<
   declare publishedDate: string | null;
   declare shortDescription: string | null;
   declare fullDescription: string | null;
+  // Phase 7 meta-model fields.
+  declare groupId: string | null;
+  declare jurisdictions: CreationOptional<string[]>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -29,14 +34,16 @@ export class Framework extends Model<
 Framework.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-    familyId: { type: DataTypes.UUID, allowNull: false, field: "family_id" },
-    code: { type: DataTypes.STRING, allowNull: false, unique: true },
+    familyId: { type: DataTypes.UUID, allowNull: true, field: "family_id" },
+    code: { type: DataTypes.STRING, allowNull: true, unique: true },
     name: { type: DataTypes.STRING, allowNull: false },
     version: { type: DataTypes.STRING, allowNull: true },
-    status: { type: DataTypes.ENUM("Draft", "Published", "Archived"), allowNull: false, defaultValue: "Draft" },
+    status: { type: DataTypes.ENUM("Draft", "Published", "Active", "Archived"), allowNull: false, defaultValue: "Draft" },
     publishedDate: { type: DataTypes.DATEONLY, allowNull: true, field: "published_date" },
     shortDescription: { type: DataTypes.TEXT, allowNull: true, field: "short_description" },
     fullDescription: { type: DataTypes.TEXT, allowNull: true, field: "full_description" },
+    groupId: { type: DataTypes.UUID, allowNull: true, field: "group_id" },
+    jurisdictions: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

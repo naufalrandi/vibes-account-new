@@ -33,6 +33,12 @@ import { siteRequestRoutes } from "./modules/site-requests/siteRequest.routes";
 import { frameworkAssignmentRoutes } from "./modules/framework-assignments/frameworkAssignment.routes";
 import { billingRoutes } from "./modules/billing/billing.routes";
 import { ticketRoutes } from "./modules/tickets/ticket.routes";
+import { frameworkGroupRoutes } from "./modules/frameworks/frameworkGroup.routes";
+import { requirementRoutes, criteriaRoutes } from "./modules/frameworks/requirement.routes";
+import { elementRoutes, xrefRoutes } from "./modules/frameworks/element.routes";
+import { assessmentRoutes } from "./modules/frameworks/assessment.routes";
+import { assessmentRunRoutes } from "./modules/assessments/assessment.routes";
+import { implementationRoutes } from "./modules/implementation/implementation.routes";
 
 export function createApp() {
   const app = express();
@@ -60,6 +66,12 @@ export function createApp() {
   app.use("/v1/framework-types", authenticate, tenantScope, frameworkTypeRoutes);
   app.use("/v1/framework-families", authenticate, tenantScope, frameworkFamilyRoutes);
   app.use("/v1/frameworks", authenticate, tenantScope, frameworkRoutes);
+  app.use("/v1/framework-groups", authenticate, tenantScope, frameworkGroupRoutes);
+  app.use("/v1/requirements", authenticate, tenantScope, requirementRoutes);
+  app.use("/v1/criteria", authenticate, tenantScope, criteriaRoutes);
+  app.use("/v1/elements", authenticate, tenantScope, elementRoutes);
+  app.use("/v1/framework-xref", authenticate, tenantScope, xrefRoutes);
+  app.use("/v1/assessment", authenticate, tenantScope, assessmentRoutes);
   app.use("/v1/framework-catalog", authenticate, tenantScope, frameworkCatalogRoutes);
   app.use("/v1/my-frameworks", authenticate, tenantScope, myFrameworkRoutes);
   app.use("/v1/profiles", authenticate, tenantScope, profileRoutes);
@@ -73,6 +85,8 @@ export function createApp() {
   app.use("/v1/framework-assignments", authenticate, tenantScope, frameworkAssignmentRoutes);
   app.use("/v1/billing", authenticate, tenantScope, billingRoutes);
   app.use("/v1/tickets", authenticate, tenantScope, ticketRoutes);
+  app.use("/v1/assessments", authenticate, tenantScope, assessmentRunRoutes);
+  app.use("/v1/implementation", authenticate, tenantScope, implementationRoutes);
 
   app.use(errorHandler);
   return app;

@@ -60,6 +60,12 @@ export const ACTIONS = {
   TICKET_CREATE: "ticket.create",
   TICKET_REPLY: "ticket.reply",
   TICKET_MANAGE: "ticket.manage",
+  ELEMENT_READ: "element.read",
+  ELEMENT_MANAGE: "element.manage",
+  REQUIREMENT_READ: "requirement.read",
+  REQUIREMENT_MANAGE: "requirement.manage",
+  ASSESSMENT_READ: "assessment.read",
+  ASSESSMENT_MANAGE: "assessment.manage",
   FRAMEWORK_TYPE_READ: "frameworkType.read",
   FRAMEWORK_TYPE_CREATE: "frameworkType.create",
   FRAMEWORK_TYPE_UPDATE: "frameworkType.update",
@@ -76,6 +82,10 @@ export const ACTIONS = {
   FRAMEWORK_CATALOG_SUBSCRIBE: "frameworkCatalog.subscribe",
   MY_FRAMEWORK_READ: "myFramework.read",
   MY_FRAMEWORK_DELETE: "myFramework.delete",
+  ASSESSMENT_RUN_READ: "assessmentRun.read",
+  ASSESSMENT_RUN_MANAGE: "assessmentRun.manage",
+  MS_READ: "ms.read",
+  MS_MANAGE: "ms.manage",
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS];
@@ -304,6 +314,33 @@ export const MENU_SEED: SeedMenu[] = [
     ],
   },
   {
+    name: "Compliance",
+    heading: "Compliance",
+    icon: "clipboard-check",
+    children: [
+      {
+        name: "Gap Assessment",
+        route: "/gap-assessment",
+        routeSeo: "gap-assessment",
+        icon: "clipboard-check",
+        actions: [
+          { key: ACTIONS.ASSESSMENT_RUN_READ, name: "View assessments + gap analysis" },
+          { key: ACTIONS.ASSESSMENT_RUN_MANAGE, name: "Run assessment / answer / finalize" },
+        ],
+      },
+      {
+        name: "Management System",
+        route: "/implementation",
+        routeSeo: "implementation",
+        icon: "clipboard-list",
+        actions: [
+          { key: ACTIONS.MS_READ, name: "View clause registers" },
+          { key: ACTIONS.MS_MANAGE, name: "Manage clause-register entries" },
+        ],
+      },
+    ],
+  },
+  {
     name: "Framework Configuration",
     heading: "Framework Configuration",
     icon: "layers",
@@ -342,6 +379,36 @@ export const MENU_SEED: SeedMenu[] = [
           { key: ACTIONS.FRAMEWORK_CREATE, name: "Create framework" },
           { key: ACTIONS.FRAMEWORK_UPDATE, name: "Edit framework" },
           { key: ACTIONS.FRAMEWORK_DELETE, name: "Delete framework" },
+        ],
+      },
+      {
+        name: "Requirement Library",
+        route: "/requirement-library",
+        routeSeo: "requirement-library",
+        icon: "file-text",
+        actions: [
+          { key: ACTIONS.REQUIREMENT_READ, name: "View requirements" },
+          { key: ACTIONS.REQUIREMENT_MANAGE, name: "Manage requirements + criteria" },
+        ],
+      },
+      {
+        name: "Element Library",
+        route: "/element-library",
+        routeSeo: "element-library",
+        icon: "share-2",
+        actions: [
+          { key: ACTIONS.ELEMENT_READ, name: "View framework elements" },
+          { key: ACTIONS.ELEMENT_MANAGE, name: "Manage elements + mappings" },
+        ],
+      },
+      {
+        name: "Cross References",
+        route: "/cross-references/elements",
+        routeSeo: "cross-references",
+        icon: "git-compare",
+        actions: [
+          { key: ACTIONS.ASSESSMENT_READ, name: "View cross-references / rcmap" },
+          { key: ACTIONS.ASSESSMENT_MANAGE, name: "Author conformance questions / responses" },
         ],
       },
       {

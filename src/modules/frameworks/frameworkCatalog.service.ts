@@ -75,7 +75,7 @@ export async function getCatalog(auth: AuthContext): Promise<CatalogType[]> {
         frameworkCount: frameworks.length,
         frameworks: frameworks.map((f) => ({
           id: f.id,
-          code: f.code,
+          code: f.code ?? "",
           name: f.name,
           version: f.version,
           status: f.status,

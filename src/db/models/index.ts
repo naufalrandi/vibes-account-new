@@ -27,6 +27,12 @@ import { SiteRequest } from "./siteRequest.model";
 import { FrameworkAssignment } from "./frameworkAssignment.model";
 import { Plan, Invoice, Payment, Receipt, RevenueShareStatement, Payout } from "./billing.models";
 import { Ticket } from "./ticket.model";
+import {
+  FrameworkGroup, FrameworkElement, FrameworkRequirement, RequirementCriterion,
+  ElementRequirementXref, ConformanceQuestion, ConformanceResponse,
+} from "./frameworkMeta.models";
+import { Assessment, AssessmentAnswer, Gap } from "./assessment.models";
+import { ImplementationRecord } from "./implementationRecord.model";
 
 let initialized = false;
 
@@ -126,6 +132,49 @@ export function initModels(): void {
   Organization.hasMany(Ticket, { foreignKey: "orgId" });
   Ticket.belongsTo(Organization, { foreignKey: "orgId" });
 
+  // Phase 7 meta-model.
+  FrameworkGroup.hasMany(Framework, { foreignKey: "groupId" });
+  Framework.belongsTo(FrameworkGroup, { foreignKey: "groupId" });
+  Framework.hasMany(FrameworkRequirement, { foreignKey: "frameworkId" });
+  FrameworkRequirement.belongsTo(Framework, { foreignKey: "frameworkId" });
+  FrameworkRequirement.hasMany(RequirementCriterion, { foreignKey: "requirementId" });
+  RequirementCriterion.belongsTo(FrameworkRequirement, { foreignKey: "requirementId" });
+  // Element ↔ Requirement many-to-many through the xref join.
+  FrameworkElement.belongsToMany(FrameworkRequirement, { through: ElementRequirementXref, foreignKey: "elementId", otherKey: "requirementId" });
+  FrameworkRequirement.belongsToMany(FrameworkElement, { through: ElementRequirementXref, foreignKey: "requirementId", otherKey: "elementId" });
+  FrameworkElement.hasMany(ElementRequirementXref, { foreignKey: "elementId" });
+  ElementRequirementXref.belongsTo(FrameworkElement, { foreignKey: "elementId" });
+  ElementRequirementXref.belongsTo(FrameworkRequirement, { foreignKey: "requirementId" });
+  // Conformance Q&R + the rcmap criterion link.
+  FrameworkElement.hasMany(ConformanceQuestion, { foreignKey: "elementId" });
+  ConformanceQuestion.belongsTo(FrameworkElement, { foreignKey: "elementId" });
+  ConformanceQuestion.hasMany(ConformanceResponse, { foreignKey: "questionId" });
+  ConformanceResponse.belongsTo(ConformanceQuestion, { foreignKey: "questionId" });
+  RequirementCriterion.hasMany(ConformanceResponse, { foreignKey: "criterionId" });
+  ConformanceResponse.belongsTo(RequirementCriterion, { foreignKey: "criterionId" });
+
+  // Phase 8 — tenant assessment run engine + gap analysis.
+  Organization.hasMany(Assessment, { foreignKey: "orgId" });
+  Assessment.belongsTo(Organization, { foreignKey: "orgId" });
+  Site.hasMany(Assessment, { foreignKey: "siteId" });
+  Assessment.belongsTo(Site, { foreignKey: "siteId" });
+  Framework.hasMany(Assessment, { foreignKey: "frameworkId" });
+  Assessment.belongsTo(Framework, { foreignKey: "frameworkId" });
+  Assessment.hasMany(AssessmentAnswer, { foreignKey: "assessmentId" });
+  AssessmentAnswer.belongsTo(Assessment, { foreignKey: "assessmentId" });
+  ConformanceQuestion.hasMany(AssessmentAnswer, { foreignKey: "questionId" });
+  AssessmentAnswer.belongsTo(ConformanceQuestion, { foreignKey: "questionId" });
+  ConformanceResponse.hasMany(AssessmentAnswer, { foreignKey: "responseId" });
+  AssessmentAnswer.belongsTo(ConformanceResponse, { foreignKey: "responseId" });
+  Assessment.hasMany(Gap, { foreignKey: "assessmentId" });
+  Gap.belongsTo(Assessment, { foreignKey: "assessmentId" });
+
+  // Phase 9 — ISO clause registers (one shared table, org-scoped, FWE trace).
+  Organization.hasMany(ImplementationRecord, { foreignKey: "orgId" });
+  ImplementationRecord.belongsTo(Organization, { foreignKey: "orgId" });
+  FrameworkElement.hasMany(ImplementationRecord, { foreignKey: "elementId" });
+  ImplementationRecord.belongsTo(FrameworkElement, { foreignKey: "elementId" });
+
   initialized = true;
 }
 
@@ -164,4 +213,15 @@ export {
   RevenueShareStatement,
   Payout,
   Ticket,
+  FrameworkGroup,
+  FrameworkElement,
+  FrameworkRequirement,
+  RequirementCriterion,
+  ElementRequirementXref,
+  ConformanceQuestion,
+  ConformanceResponse,
+  Assessment,
+  AssessmentAnswer,
+  Gap,
+  ImplementationRecord,
 };

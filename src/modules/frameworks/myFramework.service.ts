@@ -56,7 +56,7 @@ export async function listMyFrameworks(auth: AuthContext): Promise<MyFrameworkSu
         subscriptionId: sub.id,
         frameworkId: framework.id,
         frameworkName: framework.name,
-        frameworkCode: framework.code,
+        frameworkCode: framework.code ?? "",
         shortDescription: framework.shortDescription,
         familyId: family?.id ?? "",
         familyName: family?.name ?? "",
