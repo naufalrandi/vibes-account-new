@@ -3,17 +3,30 @@ import { env } from "../../config/env";
 import { Notification } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 
-/** Stub transport: logs the link. Replace with a real SMTP/provider later. */
+// Stub transport. NEVER log the token/link — those are bearer credentials that
+// would leak into log aggregators. Only the non-production build prints the full
+// link (for local testing); production logs nothing sensitive. Replace with a
+// real SMTP/provider before shipping.
+const isDev = env.NODE_ENV === "development";
+
 export function sendActivationInvite(email: string, activationToken: string): void {
-  const link = `${env.APP_BASE_URL}/activate?token=${activationToken}`;
-  // eslint-disable-next-line no-console
-  console.log(`[notification] activation invite -> ${email}: ${link}`);
+  if (isDev) {
+    // eslint-disable-next-line no-console
+    console.log(`[notification] activation invite -> ${email}: ${env.APP_BASE_URL}/activate?token=${activationToken}`);
+  } else {
+    // eslint-disable-next-line no-console
+    console.log(`[notification] activation invite sent to ${email}`);
+  }
 }
 
 export function sendPasswordReset(email: string, resetToken: string): void {
-  const link = `${env.APP_BASE_URL}/reset-password?token=${resetToken}`;
-  // eslint-disable-next-line no-console
-  console.log(`[notification] password reset -> ${email}: ${link}`);
+  if (isDev) {
+    // eslint-disable-next-line no-console
+    console.log(`[notification] password reset -> ${email}: ${env.APP_BASE_URL}/reset-password?token=${resetToken}`);
+  } else {
+    // eslint-disable-next-line no-console
+    console.log(`[notification] password reset sent to ${email}`);
+  }
 }
 
 export interface NotificationView {

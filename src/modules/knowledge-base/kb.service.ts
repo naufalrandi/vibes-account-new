@@ -4,7 +4,7 @@ import type { KbStatus } from "../../db/models/kbArticle.model";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
-import { BadRequestError, NotFoundError } from "../../lib/errors";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 /** The fixed KB category catalog (KB_CATEGORIES). */
 export const KB_CATEGORIES: { id: string; name: string; desc: string }[] = [
@@ -91,9 +91,28 @@ export async function listArticles(auth: AuthContext, filters: { category?: stri
   return rows.map(view);
 }
 
+/** Read scope: SO → any; others → own-org articles or published globals. */
+async function assertCanReadArticle(auth: AuthContext, a: KbArticle): Promise<void> {
+  const ids = await visibleTenantOrgIds(auth); // null = ServiceOwner (unrestricted)
+  if (ids === null) return;
+  const ownedByVisible = a.orgId !== null && ids.includes(a.orgId);
+  const globalPublished = a.orgId === null && a.status === "Published";
+  if (!ownedByVisible && !globalPublished) throw new ForbiddenError();
+}
+
+/** Write scope: SO → any; others → own-org only (never global SO-authored articles). */
+async function requireWritableArticle(auth: AuthContext, id: string): Promise<KbArticle> {
+  const a = await KbArticle.findByPk(id);
+  if (!a) throw new NotFoundError("Article does not exist", "ARTICLE_NOT_FOUND");
+  const ids = await visibleTenantOrgIds(auth);
+  if (ids !== null && (a.orgId === null || !ids.includes(a.orgId))) throw new ForbiddenError();
+  return a;
+}
+
 export async function getArticle(auth: AuthContext, id: string, track: boolean): Promise<ArticleView> {
   const a = await KbArticle.findByPk(id);
   if (!a) throw new NotFoundError("Article does not exist", "ARTICLE_NOT_FOUND");
+  await assertCanReadArticle(auth, a);
   if (track) {
     a.views += 1;
     a.uniqueViews += 1;
@@ -128,14 +147,8 @@ export async function createArticle(auth: AuthContext, input: ArticleInput, ip: 
   return view(a);
 }
 
-async function requireArticle(id: string): Promise<KbArticle> {
-  const a = await KbArticle.findByPk(id);
-  if (!a) throw new NotFoundError("Article does not exist", "ARTICLE_NOT_FOUND");
-  return a;
-}
-
 export async function updateArticle(auth: AuthContext, id: string, input: Partial<ArticleInput>, ip: string | null): Promise<ArticleView> {
-  const a = await requireArticle(id);
+  const a = await requireWritableArticle(auth, id);
   if (input.title !== undefined) a.title = input.title.trim();
   if (input.category !== undefined) a.category = input.category;
   if (input.author !== undefined) a.author = input.author;
@@ -153,7 +166,7 @@ export async function updateArticle(auth: AuthContext, id: string, input: Partia
 }
 
 export async function setStatus(auth: AuthContext, id: string, status: KbStatus, ip: string | null): Promise<ArticleView> {
-  const a = await requireArticle(id);
+  const a = await requireWritableArticle(auth, id);
   a.status = status;
   if (status === "Published" && !a.publishedAt) a.publishedAt = new Date();
   await a.save();
@@ -161,8 +174,10 @@ export async function setStatus(auth: AuthContext, id: string, status: KbStatus,
   return view(a);
 }
 
-export async function vote(_auth: AuthContext, id: string, helpful: boolean): Promise<ArticleView> {
-  const a = await requireArticle(id);
+export async function vote(auth: AuthContext, id: string, helpful: boolean): Promise<ArticleView> {
+  const a = await KbArticle.findByPk(id);
+  if (!a) throw new NotFoundError("Article does not exist", "ARTICLE_NOT_FOUND");
+  await assertCanReadArticle(auth, a); // any reader of a visible article may vote
   if (helpful) a.helpful += 1;
   else a.notHelpful += 1;
   await a.save();
@@ -170,7 +185,7 @@ export async function vote(_auth: AuthContext, id: string, helpful: boolean): Pr
 }
 
 export async function deleteArticle(auth: AuthContext, id: string, ip: string | null): Promise<void> {
-  const a = await requireArticle(id);
+  const a = await requireWritableArticle(auth, id);
   await a.destroy();
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "kb.deleted", entityType: "KbArticle", entityId: id, sourceIp: ip, result: "Success" });
 }

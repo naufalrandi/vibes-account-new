@@ -78,7 +78,8 @@ export async function resendActivation(req: Request, res: Response, next: NextFu
 export async function assignRole(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    await userService.assignRole(req.auth, req.params.id as string, req.body.roleId, req.ip ?? null);
+    const { roleId } = z.object({ roleId: z.string().uuid() }).parse(req.body);
+    await userService.assignRole(req.auth, req.params.id as string, roleId, req.ip ?? null);
     sendOk(res, { assigned: true }, 201);
   } catch (e) {
     next(e);

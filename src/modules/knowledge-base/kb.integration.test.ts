@@ -65,6 +65,31 @@ describe("Knowledge Base", () => {
     const { token } = await makeUser("ro", "RO", "Tenant", [ACTIONS.KB_READ]);
     expect((await request(app).post("/v1/kb-articles").set(authed(token)).send({ title: "x", category: "faq" })).status).toBe(403);
   });
+
+  it("blocks cross-tenant access to another tenant's article by ID (IDOR regression)", async () => {
+    const a = await makeUser("ta", "TENA", "Tenant", [ACTIONS.KB_READ, ACTIONS.KB_MANAGE]);
+    const b = await makeUser("tb", "TENB", "Tenant", [ACTIONS.KB_READ, ACTIONS.KB_MANAGE]);
+    const created = await request(app).post("/v1/kb-articles").set(authed(a.token)).send({ title: "Tenant A private note", category: "platform" });
+    const id = created.body.data.id;
+    // Tenant B must not be able to read, edit, publish, or delete A's article.
+    expect((await request(app).get(`/v1/kb-articles/${id}`).set(authed(b.token))).status).toBe(403);
+    expect((await request(app).put(`/v1/kb-articles/${id}`).set(authed(b.token)).send({ title: "hijacked" })).status).toBe(403);
+    expect((await request(app).post(`/v1/kb-articles/${id}/publish`).set(authed(b.token))).status).toBe(403);
+    expect((await request(app).delete(`/v1/kb-articles/${id}`).set(authed(b.token))).status).toBe(403);
+    // Owner still can.
+    expect((await request(app).get(`/v1/kb-articles/${id}`).set(authed(a.token))).status).toBe(200);
+  });
+
+  it("forbids a non-ServiceOwner from mutating a global (SO-authored) article", async () => {
+    const so = await makeUser("so", "AXIA", "ServiceOwner", [ACTIONS.KB_READ, ACTIONS.KB_MANAGE]);
+    const global = await request(app).post("/v1/kb-articles").set(authed(so.token)).send({ title: "Global doc", category: "faq", status: "Published" });
+    const id = global.body.data.id;
+    const tenant = await makeUser("t", "TEN", "Tenant", [ACTIONS.KB_READ, ACTIONS.KB_MANAGE]);
+    // Tenant can READ the published global, but cannot edit/archive/delete it.
+    expect((await request(app).get(`/v1/kb-articles/${id}`).set(authed(tenant.token))).status).toBe(200);
+    expect((await request(app).put(`/v1/kb-articles/${id}`).set(authed(tenant.token)).send({ title: "x" })).status).toBe(403);
+    expect((await request(app).post(`/v1/kb-articles/${id}/archive`).set(authed(tenant.token))).status).toBe(403);
+  });
 });
 
 describe("Notifications", () => {

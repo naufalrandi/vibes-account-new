@@ -5,12 +5,16 @@ const schema = z.object({
   PORT: z.coerce.number().default(4000),
   DATABASE_URL: z.string().min(1),
   DATABASE_URL_TEST: z.string().optional(),
-  JWT_ACCESS_SECRET: z.string().min(8),
-  JWT_REFRESH_SECRET: z.string().min(8),
+  // HS256 secrets must carry ≥256 bits of entropy. Generate with `openssl rand -hex 32`.
+  JWT_ACCESS_SECRET: z.string().min(32),
+  JWT_REFRESH_SECRET: z.string().min(32),
   ACCESS_TOKEN_TTL: z.coerce.number().default(900),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().default(30),
   PASSWORD_MIN_LENGTH: z.coerce.number().default(8),
   APP_BASE_URL: z.string().default("http://localhost:3000"),
+  // Comma-separated CORS allowlist. Defaults to the local FE origin; set the real
+  // frontend origin(s) in production (never leave the API open to all origins).
+  CORS_ALLOWED_ORIGINS: z.string().default("http://localhost:3000"),
   AUTH_RATE_LIMIT_MAX: z.coerce.number().default(100),
   AUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60_000),
 });

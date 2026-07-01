@@ -46,8 +46,12 @@ import { referenceRoutes } from "./modules/reference/reference.routes";
 
 export function createApp() {
   const app = express();
-  app.use(helmet());
-  app.use(cors());
+  // Trust one proxy hop so `req.ip` (used by the rate limiter) reflects the real
+  // client behind a single load balancer, not the proxy address.
+  app.set("trust proxy", 1);
+  app.use(helmet({ frameguard: { action: "deny" } }));
+  // Restrict CORS to the configured frontend origin(s) — never reflect all origins.
+  app.use(cors({ origin: env.CORS_ALLOWED_ORIGINS.split(",").map((o) => o.trim()) }));
   app.use(express.json());
   app.use(cookieParser());
   app.use(requestId);

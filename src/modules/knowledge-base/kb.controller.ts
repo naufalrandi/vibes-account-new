@@ -5,14 +5,15 @@ import { sendOk } from "../../lib/apiResponse";
 import { UnauthorizedError } from "../../lib/errors";
 
 const statusSchema = z.enum(["Draft", "Published", "Archived"]);
+const categorySchema = z.enum(["platform", "framework", "billing", "partner", "troubleshooting", "faq", "release"]);
 const inputSchema = z.object({
   title: z.string().max(300).optional(),
-  category: z.string().max(80).optional(),
+  category: categorySchema.optional(),
   status: statusSchema.optional(),
   author: z.string().max(200).optional(),
-  summary: z.string().nullish(),
-  content: z.string().optional(),
-  keywords: z.array(z.string()).optional(),
+  summary: z.string().max(2_000).nullish(),
+  content: z.string().max(500_000).optional(), // cap body size (DoS guard)
+  keywords: z.array(z.string().max(60)).max(30).optional(),
   featured: z.boolean().optional(),
 });
 

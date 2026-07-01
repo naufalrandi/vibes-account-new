@@ -118,9 +118,37 @@ export async function resendActivation(
   return { resent: true };
 }
 
+/**
+ * Assert the actor may act on the given user (object-level authorization).
+ * ServiceOwner → any; Tenant → same tenant only; Distributor → the user's org
+ * must be the distributor's own org or a managed child tenant.
+ */
+async function assertCanActOnUser(auth: AuthContext, user: User): Promise<void> {
+  if (auth.orgType === "ServiceOwner") return;
+  if (auth.orgType === "Tenant") {
+    if (user.tenantId !== auth.tenantId) throw new ForbiddenError();
+    return;
+  }
+  const org = await Organization.findByPk(user.orgId);
+  if (!org || (org.parentOrgId !== auth.orgId && org.id !== auth.orgId)) throw new ForbiddenError();
+}
+
+/** Reject a client-supplied `orgId` filter that falls outside the actor's scope. */
+async function assertOrgVisible(auth: AuthContext, orgId: string): Promise<void> {
+  if (auth.orgType === "ServiceOwner") return;
+  const org = await Organization.findByPk(orgId);
+  const ok = auth.orgType === "Tenant"
+    ? !!org && org.id === auth.orgId
+    : !!org && (org.id === auth.orgId || org.parentOrgId === auth.orgId);
+  if (!ok) throw new ForbiddenError();
+}
+
 export async function listUsers(auth: AuthContext, filters: UserFilters): Promise<User[]> {
   const where: WhereOptions = { ...userScopeWhere(auth) };
-  if (filters.orgId) Object.assign(where, { orgId: filters.orgId });
+  if (filters.orgId) {
+    await assertOrgVisible(auth, filters.orgId);
+    Object.assign(where, { orgId: filters.orgId });
+  }
   if (filters.status) Object.assign(where, { status: filters.status });
   if (filters.email) Object.assign(where, { email: { [Op.iLike]: `%${filters.email}%` } });
   if (filters.username) Object.assign(where, { username: { [Op.iLike]: `%${filters.username}%` } });
@@ -154,7 +182,7 @@ export async function setUserStatus(
 ): Promise<User> {
   const user = await User.findByPk(userId);
   if (!user) throw new NotFoundError("User not found");
-  if (auth.orgType === "Tenant" && user.tenantId !== auth.tenantId) throw new ForbiddenError();
+  await assertCanActOnUser(auth, user);
   user.status = status;
   await user.save();
   await writeAudit({
@@ -198,7 +226,9 @@ export async function assignRole(auth: AuthContext, userId: string, roleId: stri
   const user = await User.findByPk(userId);
   const role = await Role.findByPk(roleId);
   if (!user || !role) throw new NotFoundError("User or role not found");
-  if (auth.orgType === "Tenant" && user.tenantId !== auth.tenantId) throw new ForbiddenError();
+  await assertCanActOnUser(auth, user);
+  // Only a super admin may grant a super-admin role (privilege-escalation guard).
+  if (role.isSuperAdmin && !auth.isSuperAdmin) throw new ForbiddenError();
   await UserRole.findOrCreate({ where: { userId, roleId } });
   await writeAudit({
     actorUserId: auth.userId,
@@ -216,7 +246,7 @@ export async function assignRole(auth: AuthContext, userId: string, roleId: stri
 export async function removeRole(auth: AuthContext, userId: string, roleId: string, ip: string | null): Promise<void> {
   const user = await User.findByPk(userId);
   if (!user) throw new NotFoundError("User not found");
-  if (auth.orgType === "Tenant" && user.tenantId !== auth.tenantId) throw new ForbiddenError();
+  await assertCanActOnUser(auth, user);
   await UserRole.destroy({ where: { userId, roleId } });
   await writeAudit({
     actorUserId: auth.userId,
