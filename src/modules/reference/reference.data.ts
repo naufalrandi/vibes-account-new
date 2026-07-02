@@ -8,78 +8,27 @@
  * the module, endpoints and FE loaders already handle any volume.
  */
 
+import { ISIC as ISIC_RAW } from "./data/isic";
+import { NACE as NACE_RAW } from "./data/nace";
+import { KBLI as KBLI_RAW } from "./data/kbli";
+import { ISCEDF as ISCEDF_RAW } from "./data/iscedf";
+import { ISIC_NOTES as ISIC_NOTES_RAW } from "./data/isicNotes";
+import { NACE_NOTES as NACE_NOTES_RAW } from "./data/naceNotes";
+import { KBLI_NOTES as KBLI_NOTES_RAW } from "./data/kbliNotes";
+
 export interface HierNode { code: string; label: string; level: number; parent: string | null; isic?: string }
-export interface Note { i: string; e: string } // includes / excludes
+export interface Note { i?: string; e?: string } // includes / excludes (either may be absent)
 
-// --- ISIC Rev.4 (21 sections + sample divisions) ----------------------------
-export const ISIC: HierNode[] = [
-  { code: "A", label: "Agriculture, forestry and fishing", level: 1, parent: null },
-  { code: "B", label: "Mining and quarrying", level: 1, parent: null },
-  { code: "C", label: "Manufacturing", level: 1, parent: null },
-  { code: "D", label: "Electricity, gas, steam and air conditioning supply", level: 1, parent: null },
-  { code: "E", label: "Water supply; sewerage, waste management and remediation", level: 1, parent: null },
-  { code: "F", label: "Construction", level: 1, parent: null },
-  { code: "G", label: "Wholesale and retail trade; repair of motor vehicles", level: 1, parent: null },
-  { code: "H", label: "Transportation and storage", level: 1, parent: null },
-  { code: "I", label: "Accommodation and food service activities", level: 1, parent: null },
-  { code: "J", label: "Information and communication", level: 1, parent: null },
-  { code: "K", label: "Financial and insurance activities", level: 1, parent: null },
-  { code: "L", label: "Real estate activities", level: 1, parent: null },
-  { code: "M", label: "Professional, scientific and technical activities", level: 1, parent: null },
-  { code: "N", label: "Administrative and support service activities", level: 1, parent: null },
-  { code: "O", label: "Public administration and defence", level: 1, parent: null },
-  { code: "P", label: "Education", level: 1, parent: null },
-  { code: "Q", label: "Human health and social work activities", level: 1, parent: null },
-  { code: "R", label: "Arts, entertainment and recreation", level: 1, parent: null },
-  { code: "S", label: "Other service activities", level: 1, parent: null },
-  { code: "T", label: "Activities of households as employers", level: 1, parent: null },
-  { code: "U", label: "Activities of extraterritorial organizations and bodies", level: 1, parent: null },
-  // Sample divisions.
-  { code: "10", label: "Manufacture of food products", level: 2, parent: "C" },
-  { code: "26", label: "Manufacture of computer, electronic and optical products", level: 2, parent: "C" },
-  { code: "62", label: "Computer programming, consultancy and related activities", level: 2, parent: "J" },
-  { code: "63", label: "Information service activities", level: 2, parent: "J" },
-];
-
-export const ISIC_NOTES: Record<string, Note> = {
-  C: { i: "Physical or chemical transformation of materials into new products.", e: "Excludes construction (section F)." },
-  "62": { i: "Writing, modifying and testing software; consultancy.", e: "Excludes packaged software publishing (division 58)." },
-};
-
-// --- NACE Rev.2 (EU, cross-ref ISIC) ----------------------------------------
-export const NACE: HierNode[] = [
-  { code: "C", label: "Manufacturing", level: 1, parent: null, isic: "C" },
-  { code: "J", label: "Information and communication", level: 1, parent: null, isic: "J" },
-  { code: "62", label: "Computer programming, consultancy and related activities", level: 2, parent: "J", isic: "62" },
-];
-export const NACE_NOTES: Record<string, Note> = {
-  "62": { i: "Provision of expertise in information technologies.", e: "Excludes hardware repair." },
-};
-
-// --- KBLI 2015 (Indonesia, cross-ref ISIC) ----------------------------------
-export const KBLI: HierNode[] = [
-  { code: "C", label: "Industri Pengolahan", level: 1, parent: null, isic: "C" },
-  { code: "J", label: "Informasi dan Komunikasi", level: 1, parent: null, isic: "J" },
-  { code: "62010", label: "Aktivitas Pemrograman Komputer", level: 2, parent: "J", isic: "62" },
-];
-export const KBLI_NOTES: Record<string, string> = {
-  "62010": "Mencakup penulisan, modifikasi, dan pengujian perangkat lunak.",
-};
-
-// --- ISCED-F 2013 broad fields ----------------------------------------------
-export const ISCEDF: HierNode[] = [
-  { code: "00", label: "Generic programmes and qualifications", level: 1, parent: null },
-  { code: "01", label: "Education", level: 1, parent: null },
-  { code: "02", label: "Arts and humanities", level: 1, parent: null },
-  { code: "03", label: "Social sciences, journalism and information", level: 1, parent: null },
-  { code: "04", label: "Business, administration and law", level: 1, parent: null },
-  { code: "05", label: "Natural sciences, mathematics and statistics", level: 1, parent: null },
-  { code: "06", label: "Information and Communication Technologies (ICTs)", level: 1, parent: null },
-  { code: "07", label: "Engineering, manufacturing and construction", level: 1, parent: null },
-  { code: "08", label: "Agriculture, forestry, fisheries and veterinary", level: 1, parent: null },
-  { code: "09", label: "Health and welfare", level: 1, parent: null },
-  { code: "10", label: "Services", level: 1, parent: null },
-];
+// Full OD reference datasets generated from the legacy js/ sources into ./data/*
+// (ISIC 766, NACE 996, KBLI 2443, ISCED-F 116, + explanatory notes). Served
+// read-only, BE-only (never bundled to the FE — decision R7).
+export const ISIC: HierNode[] = ISIC_RAW;
+export const ISIC_NOTES: Record<string, Note> = ISIC_NOTES_RAW;
+export const NACE: HierNode[] = NACE_RAW;
+export const NACE_NOTES: Record<string, Note> = NACE_NOTES_RAW;
+export const KBLI: HierNode[] = KBLI_RAW;
+export const KBLI_NOTES: Record<string, string> = KBLI_NOTES_RAW;
+export const ISCEDF: HierNode[] = ISCEDF_RAW;
 
 // --- Exam bank (competence written exams; sample) ---------------------------
 export interface ExamQuestion { t: string; q: string; o: string[]; a: number; m: number; p: number; ref: string }
