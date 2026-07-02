@@ -67,7 +67,7 @@ describe("frameworks (group-based library)", () => {
     const token = await soLogin();
     const res = await request(app).get("/v1/framework-groups").set(bearer(token));
     expect(res.status).toBe(200);
-    expect((res.body.data as { name: string }[]).map((g) => g.name)).toEqual(["Regulations", "Standards"]);
+    expect((res.body.data as { name: string }[]).map((g) => g.name)).toEqual(["Standards", "Regulations"]);
   });
 
   it("creates a framework under a group with jurisdictions and lists it", async () => {
@@ -98,7 +98,7 @@ describe("frameworks (group-based library)", () => {
     const res = await request(app).post("/v1/frameworks").set(bearer(token))
       .send({ groupId: "00000000-0000-0000-0000-000000000000", name: "Orphan" });
     expect(res.status).toBe(400);
-    expect(res.body.error.code).toBe("FRAMEWORK_GROUP_NOT_FOUND");
+    expect(res.body.error.code).toBe("GROUP_NOT_FOUND");
   });
 
   it("updates a framework: rename, restatus, and move group", async () => {

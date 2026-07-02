@@ -83,8 +83,20 @@ export async function getFramework(auth: AuthContext, id: string): Promise<Recor
   return toView(f);
 }
 
+/**
+ * The Library ships two fixed framework groups (Standards / Regulations). Ensure
+ * they exist lazily — mirrors the scope-dataset lazy-seed pattern so both fresh
+ * databases and the test harness (which runs migrations only, not the seeder)
+ * always expose them.
+ */
+async function ensureGroups(): Promise<void> {
+  await FrameworkGroup.findOrCreate({ where: { name: "Standards" }, defaults: { name: "Standards", sortOrder: 1 } });
+  await FrameworkGroup.findOrCreate({ where: { name: "Regulations" }, defaults: { name: "Regulations", sortOrder: 2 } });
+}
+
 export async function listGroups(auth: AuthContext): Promise<{ id: string; name: string }[]> {
   assertServiceOwner(auth);
+  await ensureGroups();
   const groups = await FrameworkGroup.findAll({ order: [["sortOrder", "ASC"], ["name", "ASC"]] });
   return groups.map((g) => ({ id: g.id, name: g.name }));
 }

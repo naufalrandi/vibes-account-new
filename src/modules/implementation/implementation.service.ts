@@ -5,6 +5,7 @@ import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
 import { MS_MODULES, isMsModule, enrichData } from "./registry";
+import { logActivity } from "../record-events/recordEvent.service";
 
 export interface RecordView {
   id: string;
@@ -110,11 +111,14 @@ export async function createRecord(auth: AuthContext, module: string, input: Rec
     actorUserId: auth.userId, organizationId: targetOrg,
     action: `ms.${module}.created`, entityType: "ImplementationRecord", entityId: r.id, sourceIp: ip, result: "Success",
   });
+  await logActivity(auth, targetOrg, module, r.id, "Record created");
   return view(r);
 }
 
 export async function updateRecord(auth: AuthContext, module: string, id: string, input: RecordInput, ip: string | null): Promise<RecordView> {
   const r = await requireRecord(auth, module, id);
+  const statusChanged = input.status !== undefined && input.status !== r.status;
+  const prevStatus = r.status;
   if (input.title !== undefined) r.title = input.title.trim();
   if (input.status !== undefined) {
     assertStatus(module, input.status);
@@ -129,6 +133,7 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
     actorUserId: auth.userId, organizationId: r.orgId,
     action: `ms.${module}.updated`, entityType: "ImplementationRecord", entityId: r.id, sourceIp: ip, result: "Success",
   });
+  await logActivity(auth, r.orgId, module, r.id, statusChanged ? `Status changed: ${prevStatus} → ${r.status}` : "Record updated");
   return view(r);
 }
 

@@ -43,6 +43,10 @@ import { ScopeDataset, MsScope } from "./scope.models";
 import { IpParty, IpRequirement } from "./interestedParty.models";
 import { DemoTenant } from "./demoTenant.model";
 import { BusinessRecord } from "./businessRecord.model";
+import { WorkUnit } from "./workUnit.model";
+import { RoleTemplate, RoleAssignment } from "./roleRegister.models";
+import { RecordEvent } from "./recordEvent.model";
+import { Fwrc } from "./fwrc.model";
 
 let initialized = false;
 
@@ -335,4 +339,9 @@ export {
   IpRequirement,
   DemoTenant,
   BusinessRecord,
+  WorkUnit,
+  RoleTemplate,
+  RoleAssignment,
+  RecordEvent,
+  Fwrc,
 };

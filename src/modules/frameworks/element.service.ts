@@ -30,7 +30,7 @@ async function nextElementCode(): Promise<string> {
 
 function summary(e: FrameworkElement, mappedRequirementCount: number) {
   return {
-    id: e.id, name: e.name, description: e.description, status: e.status,
+    id: e.id, code: e.code, name: e.name, description: e.description, category: e.category, status: e.status,
     mappedRequirementCount, createdAt: e.createdAt, updatedAt: e.updatedAt,
   };
 }

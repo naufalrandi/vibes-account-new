@@ -5,17 +5,22 @@ import { sendOk } from "../../lib/apiResponse";
 import { UnauthorizedError, BadRequestError } from "../../lib/errors";
 
 const statusSchema = z.enum(["Draft", "Active", "Archived"]);
+const typeSchema = z.enum(["Header", "Assessable"]);
 const createSchema = z.object({
   frameworkId: z.string().uuid(),
   code: z.string().min(1),
   subject: z.string().min(1),
   description: z.string().min(1),
+  type: typeSchema.optional(),
+  shortLabel: z.string().nullish(),
   status: statusSchema.optional(),
 });
 const updateSchema = z.object({
   code: z.string().min(1).optional(),
   subject: z.string().min(1).optional(),
   description: z.string().min(1).optional(),
+  type: typeSchema.optional(),
+  shortLabel: z.string().nullish(),
   status: statusSchema.optional(),
 });
 const critCreateSchema = z.object({

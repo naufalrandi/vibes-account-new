@@ -101,6 +101,10 @@ export const ACTIONS = {
   APPROVAL_APPROVE: "approval.approve",
   SCOPE_READ: "scope.read",
   SCOPE_MANAGE: "scope.manage",
+  WORKUNIT_READ: "workUnit.read",
+  WORKUNIT_MANAGE: "workUnit.manage",
+  ORGROLE_READ: "orgRole.read",
+  ORGROLE_MANAGE: "orgRole.manage",
   IP_READ: "ip.read",
   IP_MANAGE: "ip.manage",
   LIMS_READ: "lims.read",
@@ -429,6 +433,26 @@ export const MENU_SEED: SeedMenu[] = [
         actions: [
           { key: ACTIONS.IP_READ, name: "View interested parties & requirements" },
           { key: ACTIONS.IP_MANAGE, name: "Manage parties, requirements, raise risk, link obligations" },
+        ],
+      },
+      {
+        name: "Work Units",
+        route: "/work-units",
+        routeSeo: "work-units",
+        icon: "network",
+        actions: [
+          { key: ACTIONS.WORKUNIT_READ, name: "View work units & applied processes" },
+          { key: ACTIONS.WORKUNIT_MANAGE, name: "Manage work units, processes, environments & dependencies" },
+        ],
+      },
+      {
+        name: "Roles & Responsibilities",
+        route: "/org-roles",
+        routeSeo: "org-roles",
+        icon: "id-card",
+        actions: [
+          { key: ACTIONS.ORGROLE_READ, name: "View role templates & assignments" },
+          { key: ACTIONS.ORGROLE_MANAGE, name: "Manage role templates, assign roles, track modifications" },
         ],
       },
     ],

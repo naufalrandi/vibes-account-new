@@ -17,8 +17,10 @@ export const MS_MODULES: Record<string, RegisterModule> = {
   parties: { prefix: "IPX", statuses: ["Active", "Under Review", "Archived"] },
   scope: { prefix: "SCP", statuses: ["Draft", "Active", "Archived"] },
   processes: { prefix: "PRC", statuses: ["Draft", "Active", "Archived"] },
-  "work-units": { prefix: "WKU", statuses: ["Applicable", "Inapplicable"] },
-  risks: { prefix: "RSK", statuses: ["Identified", "Under Review", "Approved", "Implemented", "Monitored", "Closed"] },
+  "work-units": { prefix: "WKU", statuses: ["Applicable", "Inapplicable", "Archived"] },
+  // Risk lifecycle mirrors the OD prototype (renderTnRisk): raised risks land at
+  // "Pending Assessment", then assess → Assessed/Treated/Monitored, and archive.
+  risks: { prefix: "RSK", statuses: ["Pending Assessment", "Assessed", "Treated", "Monitored", "Archived"] },
   objectives: { prefix: "OBJ", statuses: ["Draft", "Active", "Achieved", "On Hold", "Closed"] },
   compliance: { prefix: "COM", statuses: ["Active", "Completed", "On Hold", "Waived"] },
 

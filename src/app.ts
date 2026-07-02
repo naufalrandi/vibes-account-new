@@ -36,6 +36,7 @@ import { billingRoutes } from "./modules/billing/billing.routes";
 import { ticketRoutes } from "./modules/tickets/ticket.routes";
 import { frameworkGroupRoutes } from "./modules/frameworks/frameworkGroup.routes";
 import { requirementRoutes, criteriaRoutes } from "./modules/frameworks/requirement.routes";
+import { fwrcRoutes } from "./modules/frameworks/fwrc.routes";
 import { elementRoutes, xrefRoutes } from "./modules/frameworks/element.routes";
 import { assessmentRoutes } from "./modules/frameworks/assessment.routes";
 import { assessmentRunRoutes } from "./modules/assessments/assessment.routes";
@@ -44,6 +45,9 @@ import { internalAuditRoutes } from "./modules/internal-audit/internalAudit.rout
 import { competenceRoutes } from "./modules/competence/competence.routes";
 import { approvalRoutes } from "./modules/approvals/approval.routes";
 import { scopeRoutes } from "./modules/scope/scope.routes";
+import { workUnitRoutes } from "./modules/work-units/workUnit.routes";
+import { roleRegisterRoutes } from "./modules/roles-register/roleRegister.routes";
+import { recordEventRoutes } from "./modules/record-events/recordEvent.routes";
 import { interestedPartyRoutes } from "./modules/interested-parties/ip.routes";
 import { demoRoutes } from "./modules/demo/demo.routes";
 import { businessRoutes } from "./modules/business/business.routes";
@@ -86,6 +90,7 @@ export function createApp() {
   app.use("/v1/framework-groups", authenticate, tenantScope, frameworkGroupRoutes);
   app.use("/v1/requirements", authenticate, tenantScope, requirementRoutes);
   app.use("/v1/criteria", authenticate, tenantScope, criteriaRoutes);
+  app.use("/v1/fwrc", authenticate, tenantScope, fwrcRoutes);
   app.use("/v1/elements", authenticate, tenantScope, elementRoutes);
   app.use("/v1/framework-xref", authenticate, tenantScope, xrefRoutes);
   app.use("/v1/assessment", authenticate, tenantScope, assessmentRoutes);
@@ -108,6 +113,9 @@ export function createApp() {
   app.use("/v1/competence", authenticate, tenantScope, competenceRoutes);
   app.use("/v1/approvals", authenticate, tenantScope, approvalRoutes);
   app.use("/v1/scope", authenticate, tenantScope, scopeRoutes);
+  app.use("/v1/work-units", authenticate, tenantScope, workUnitRoutes);
+  app.use("/v1/org-roles", authenticate, tenantScope, roleRegisterRoutes);
+  app.use("/v1/record-events", authenticate, tenantScope, recordEventRoutes);
   app.use("/v1/interested-parties", authenticate, tenantScope, interestedPartyRoutes);
   app.use("/v1/demo-tenants", authenticate, tenantScope, demoRoutes);
   app.use("/v1/business", authenticate, tenantScope, businessRoutes);

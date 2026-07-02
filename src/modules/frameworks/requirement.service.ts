@@ -13,6 +13,8 @@ export interface CreateRequirementInput {
   code: string;
   subject: string;
   description: string;
+  type?: string;
+  shortLabel?: string | null;
   status?: LibraryStatus;
 }
 export type UpdateRequirementInput = Partial<Omit<CreateRequirementInput, "frameworkId">>;
@@ -34,7 +36,7 @@ async function toView(r: FrameworkRequirement, frameworkName: string) {
   const criteriaCount = await RequirementCriterion.count({ where: { requirementId: r.id } });
   return {
     id: r.id, frameworkId: r.frameworkId, frameworkName,
-    code: r.code, subject: r.subject, description: r.description, status: r.status,
+    code: r.code, subject: r.subject, description: r.description, type: r.type, shortLabel: r.shortLabel, status: r.status,
     mappedElements: await mappedElementsFor(r.id),
     criteriaCount, createdAt: r.createdAt, updatedAt: r.updatedAt,
   };
@@ -55,7 +57,7 @@ export async function listRequirements(auth: AuthContext, frameworkId?: string) 
       const criteriaCount = await RequirementCriterion.count({ where: { requirementId: r.id } });
       return {
         id: r.id, frameworkId: r.frameworkId, frameworkName: names.get(r.frameworkId) ?? "",
-        code: r.code, subject: r.subject, description: r.description, status: r.status,
+        code: r.code, subject: r.subject, description: r.description, type: r.type, shortLabel: r.shortLabel, status: r.status,
         mappedElements: elements.map((e) => ({ id: e.id, name: e.name })),
         criteriaCount, createdAt: r.createdAt, updatedAt: r.updatedAt,
       };
@@ -82,7 +84,7 @@ export async function createRequirement(auth: AuthContext, input: CreateRequirem
   if (!fw) throw new BadRequestError("Framework does not exist", "FRAMEWORK_NOT_FOUND");
   const r = await FrameworkRequirement.create({
     frameworkId: input.frameworkId, code: input.code, subject: input.subject,
-    description: input.description, status: input.status ?? "Active",
+    description: input.description, type: input.type ?? "Assessable", shortLabel: input.shortLabel ?? null, status: input.status ?? "Active",
   });
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "requirement.created", entityType: "FrameworkRequirement", entityId: r.id, sourceIp: ip, result: "Success" });
   return toView(r, fw.name);
@@ -94,6 +96,8 @@ export async function updateRequirement(auth: AuthContext, id: string, input: Up
   if (input.code !== undefined) r.code = input.code;
   if (input.subject !== undefined) r.subject = input.subject;
   if (input.description !== undefined) r.description = input.description;
+  if (input.type !== undefined) r.type = input.type;
+  if (input.shortLabel !== undefined) r.shortLabel = input.shortLabel;
   if (input.status !== undefined) r.status = input.status;
   await r.save();
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "requirement.updated", entityType: "FrameworkRequirement", entityId: r.id, sourceIp: ip, result: "Success" });

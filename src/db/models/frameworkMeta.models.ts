@@ -56,6 +56,8 @@ export class FrameworkRequirement extends Model<InferAttributes<FrameworkRequire
   declare code: string;
   declare subject: string;
   declare description: string;
+  declare type: CreationOptional<string>;
+  declare shortLabel: string | null;
   declare status: CreationOptional<LibraryStatus>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -67,6 +69,8 @@ FrameworkRequirement.init(
     code: { type: DataTypes.STRING, allowNull: false },
     subject: { type: DataTypes.STRING, allowNull: false },
     description: { type: DataTypes.TEXT, allowNull: false },
+    type: { type: DataTypes.STRING, allowNull: false, defaultValue: "Assessable" },
+    shortLabel: { type: DataTypes.STRING, allowNull: true, field: "short_label" },
     status: { type: DataTypes.ENUM("Draft", "Active", "Archived"), allowNull: false, defaultValue: "Active" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
