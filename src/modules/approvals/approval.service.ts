@@ -27,9 +27,61 @@ export const AP_DEFAULT_MAP: Record<string, string> = {
 };
 
 /** Governed register modules whose BE status set supports the engine transitions. */
+/** OD `POL_FREQ_MO` — review cadence in months. */
+const POL_FREQ_MO: Record<string, number> = {
+  Quarterly: 3, "Semi-annually": 6, Annually: 12, "Every 2 years": 24, Custom: 12,
+};
+
+/**
+ * OD `polPublishCore`: publishing a policy is not just a status flip. It
+ * supersedes the previously published policy *in the same lineage* (so only one
+ * version of a policy is ever live), stamps the publication, and derives
+ * `nextReview` from the review frequency when it was left blank.
+ *
+ * Lineage is `data.lineageId` falling back to the record's own id, matching OD
+ * — a first-generation policy is the root of its own lineage.
+ */
+async function publishWithLineage(
+  auth: AuthContext, rec: ImplementationRecord, who: string,
+): Promise<void> {
+  const data = (rec.data ?? {}) as Record<string, unknown>;
+  const lineage = (data.lineageId as string) ?? rec.id;
+  const now = nowIso();
+
+  const siblings = await ImplementationRecord.findAll({
+    where: { orgId: rec.orgId, module: rec.module, status: "Published" },
+  });
+  const prior = siblings.find(
+    (x) => x.id !== rec.id && (((x.data ?? {}) as Record<string, unknown>).lineageId ?? x.id) === lineage,
+  );
+  if (prior) {
+    prior.status = "Superseded";
+    prior.data = { ...(prior.data ?? {}), supersededBy: rec.id };
+    await prior.save();
+  }
+
+  const effectiveDate = (data.effectiveDate as string) || now;
+  let nextReview = data.nextReview as string | undefined;
+  if (!nextReview) {
+    const months = POL_FREQ_MO[String(data.reviewFreq ?? "")] ?? 12;
+    const d = new Date(effectiveDate);
+    d.setMonth(d.getMonth() + months);
+    nextReview = d.toISOString();
+  }
+
+  rec.data = {
+    ...data, lineageId: lineage, publishedBy: who, publishedDate: now,
+    effectiveDate, nextReview, ...(prior ? { supersedes: prior.id } : {}),
+  };
+}
+
 const GOVERNED: Record<string, { submit: string; mid: string; final: string; revision: string; draft: string }> = {
   policies: { submit: "Under Review", mid: "Pending Final Approval", final: "Published", revision: "Needs Revision", draft: "Draft" },
   context: { submit: "Open", mid: "Open", final: "Monitored", revision: "Open", draft: "Open" },
+  // Controlled documents are gate-approved like policies; "Active" is the
+  // published state, and an approved document is versioned rather than edited
+  // in place (see forkPublishedDocument in implementation.service.ts).
+  documents: { submit: "Under Review", mid: "Approved", final: "Published", revision: "Revision Requested", draft: "Draft" },
 };
 
 async function audit(auth: AuthContext, action: string, entityType: string, entityId: string, ip: string | null) {
@@ -217,6 +269,9 @@ export async function submit(auth: AuthContext, module: string, recordId: string
   if (scheme.selfServe) {
     rec.status = cfg.final;
     rec.data = { ...rec.data, approvedBy: who, approvedDate: nowIso().slice(0, 10) };
+    // A self-serve scheme publishes immediately, so it supersedes the prior
+    // version exactly as the gated path does.
+    if (module === "policies") await publishWithLineage(auth, rec, who);
     await rec.save();
     await audit(auth, "approval.selfServe.published", "ImplementationRecord", rec.id, ip);
     return { record: null, status: rec.status };
@@ -255,6 +310,7 @@ export async function approve(auth: AuthContext, module: string, recordId: strin
       ar.state = "approved";
       rec.status = cfg.final;
       rec.data = { ...rec.data, approvedBy: who, approvedDate: nowIso().slice(0, 10) };
+      if (module === "policies") await publishWithLineage(auth, rec, who);
       await rec.save();
     } else {
       result = "advanced";
@@ -292,4 +348,26 @@ export async function withdraw(auth: AuthContext, module: string, recordId: stri
   await ar.destroy();
   await audit(auth, "approval.withdrawn", "ImplementationRecord", rec.id, ip);
   return { status: rec.status };
+}
+
+/**
+ * Governance check for records that are approved outside the multi-gate engine
+ * (competence sign-off, which lives on its own model rather than
+ * ImplementationRecord). It applies the two rules that actually protect the
+ * decision: the approver must sit in a configured approval pool, and
+ * self-approval is refused unless the org has enabled it.
+ *
+ * Throws ForbiddenError when the caller may not approve.
+ */
+export async function assertMayApprove(auth: AuthContext, authorName: string | null): Promise<void> {
+  const who = await actorName(auth);
+  const { selfApprovalAllowed } = await getSettings(auth);
+  if (!selfApprovalAllowed && authorName && authorName === who) {
+    throw new ForbiddenError("Self-approval is disabled for this organization");
+  }
+  const members = await listPoolMembers(auth);
+  const me = members.find((m) => m.userId === auth.userId);
+  if (!me || (!me.isMST && !me.isTM)) {
+    throw new ForbiddenError("You are not in an approval pool. Add yourself under Approvals to sign off.");
+  }
 }

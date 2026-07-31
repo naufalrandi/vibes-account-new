@@ -54,3 +54,22 @@ export async function remove(req: Request, res: Response, next: NextFunction) {
     next(e);
   }
 }
+
+const routeSchema = z.object({
+  reviewer: z.string().min(1).max(200),
+  classification: z.string().min(1).max(80),
+  reviewNotes: z.string().max(4000).optional(),
+  routingNotes: z.string().max(4000).optional(),
+  relatedExisting: z.string().max(200).optional(),
+  closureReason: z.string().max(4000).optional(),
+});
+
+export async function routeConcern(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const input = routeSchema.parse(req.body);
+    sendOk(res, await service.routeConcern(req.auth, req.params.id as string, input, req.ip ?? null), 201);
+  } catch (e) {
+    next(e);
+  }
+}

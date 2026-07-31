@@ -34,27 +34,27 @@ export const updateTraining = wrap(async (req, res) => sendOk(res, await service
 export const deleteTraining = wrap(async (req, res) => { await service.deleteTraining(guard(req), req.params.id as string, ip(req)); sendOk(res, { id: req.params.id }); });
 
 // Roles (competence profiles)
-export const listRoles = wrap(async (req, res) => { const d = await assess.listRoles(guard(req)); sendOk(res, d, 200, listMeta(d)); });
+export const listRoles = wrap(async (req, res) => { const d = await assess.listRoles(guard(req), req.query.scope === "enterprise" ? "enterprise" : undefined); sendOk(res, d, 200, listMeta(d)); });
 export const createRole = wrap(async (req, res) => sendOk(res, await assess.createRole(guard(req), body.parse(req.body), ip(req)), 201));
 export const updateRole = wrap(async (req, res) => sendOk(res, await assess.updateRole(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
 export const setRoleStatus = wrap(async (req, res) => sendOk(res, await assess.setRoleStatus(guard(req), req.params.id as string, statusSchema.parse(req.body).status, ip(req))));
 export const deleteRole = wrap(async (req, res) => { await assess.deleteRole(guard(req), req.params.id as string, ip(req)); sendOk(res, { id: req.params.id }); });
 
 // Assignments
-export const listAssignments = wrap(async (req, res) => { const d = await assess.listAssignments(guard(req)); sendOk(res, d, 200, listMeta(d)); });
+export const listAssignments = wrap(async (req, res) => { const d = await assess.listAssignments(guard(req), req.query.scope === "enterprise" ? "enterprise" : undefined); sendOk(res, d, 200, listMeta(d)); });
 export const assignRole = wrap(async (req, res) => sendOk(res, await assess.assignRole(guard(req), body.parse(req.body), ip(req)), 201));
 export const setAssignmentStatus = wrap(async (req, res) => sendOk(res, await assess.setAssignmentStatus(guard(req), req.params.id as string, statusSchema.parse(req.body).status, ip(req))));
 export const getChecklist = wrap(async (req, res) => sendOk(res, await assess.getChecklist(guard(req), req.params.id as string)));
 
 // Assessments
-export const listAssessments = wrap(async (req, res) => { const d = await assess.listAssessments(guard(req)); sendOk(res, d, 200, listMeta(d)); });
+export const listAssessments = wrap(async (req, res) => { const d = await assess.listAssessments(guard(req), req.query.scope === "enterprise" ? "enterprise" : undefined); sendOk(res, d, 200, listMeta(d)); });
 export const getAssessment = wrap(async (req, res) => sendOk(res, await assess.getAssessment(guard(req), req.params.id as string)));
 export const createAssessment = wrap(async (req, res) => sendOk(res, await assess.createAssessment(guard(req), body.parse(req.body), ip(req)), 201));
 export const approveAssessment = wrap(async (req, res) => sendOk(res, await assess.approveAssessment(guard(req), req.params.id as string, ip(req))));
-export const reassessQueue = wrap(async (req, res) => sendOk(res, await assess.reassessQueue(guard(req))));
+export const reassessQueue = wrap(async (req, res) => sendOk(res, await assess.reassessQueue(guard(req), req.query.scope === "enterprise" ? "enterprise" : undefined)));
 
 // Gaps
-export const listGaps = wrap(async (req, res) => { const d = await assess.listGaps(guard(req)); sendOk(res, d, 200, listMeta(d)); });
+export const listGaps = wrap(async (req, res) => { const d = await assess.listGaps(guard(req), req.query.scope === "enterprise" ? "enterprise" : undefined); sendOk(res, d, 200, listMeta(d)); });
 export const updateGap = wrap(async (req, res) => sendOk(res, await assess.updateGap(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
 
 // Exam instruments (L1–L3)

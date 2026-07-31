@@ -10,6 +10,7 @@ import {
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
+import { assertMayApprove } from "../approvals/approval.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 const nowIso = () => new Date().toISOString();
@@ -27,7 +28,12 @@ async function targetOrg(auth: AuthContext, orgId?: string | null): Promise<stri
   if (ids !== null && !ids.includes(org)) throw new ForbiddenError();
   return org;
 }
-async function orgWhere(auth: AuthContext): Promise<Record<string, unknown>> {
+async function orgWhere(auth: AuthContext, scope?: "enterprise"): Promise<Record<string, unknown>> {
+  // Enterprise personnel are the Service Provider's own staff, so an
+  // Enterprise-scoped read is the caller's own org — NOT the unrestricted
+  // Service-Owner view, which would surface every tenant's records on the
+  // Enterprise screens.
+  if (scope === "enterprise") return { orgId: auth.orgId };
   const ids = await visibleTenantOrgIds(auth);
   return ids === null ? {} : { orgId: { [Op.in]: ids } };
 }
@@ -42,9 +48,15 @@ async function audit(auth: AuthContext, orgId: string, action: string, entityTyp
 }
 
 // ============================ ROLES (competence profiles) ============================
-export async function listRoles(auth: AuthContext) {
+// OD `compScopeRoles()`: strict scope match — a tenant only ever sees its own
+// roles, Enterprise (`orgId: null`) only ever sees Enterprise's. `scope:
+// "enterprise"` is how the Enterprise Roles screen (ServiceOwner-only, RBAC
+// already gates the route) asks for just the null-org roles instead of the
+// unrestricted cross-tenant view ServiceOwner otherwise gets everywhere else.
+export async function listRoles(auth: AuthContext, scope?: "enterprise") {
+  if (scope === "enterprise") return (await CompetenceRole.findAll({ where: { orgId: null }, order: [["createdAt", "DESC"]] })).map((r) => r.get({ plain: true }));
   const ids = await visibleTenantOrgIds(auth);
-  const where = ids === null ? {} : { [Op.or]: [{ orgId: null }, { orgId: { [Op.in]: ids } }] };
+  const where = ids === null ? {} : { orgId: { [Op.in]: ids } };
   return (await CompetenceRole.findAll({ where, order: [["createdAt", "DESC"]] })).map((r) => r.get({ plain: true }));
 }
 const ROLE_STR = ["name", "description", "reviewFreq", "eduMinLevelId", "eduCountry"] as const;
@@ -95,8 +107,8 @@ export async function deleteRole(auth: AuthContext, id: string, ip: string | nul
 }
 
 // ============================ ASSIGNMENTS ============================
-export async function listAssignments(auth: AuthContext) {
-  return (await CompetenceAssignment.findAll({ where: await orgWhere(auth), order: [["createdAt", "DESC"]] })).map((r) => r.get({ plain: true }));
+export async function listAssignments(auth: AuthContext, scope?: "enterprise") {
+  return (await CompetenceAssignment.findAll({ where: await orgWhere(auth, scope), order: [["createdAt", "DESC"]] })).map((r) => r.get({ plain: true }));
 }
 export async function assignRole(auth: AuthContext, input: Record<string, unknown>, ip: string | null) {
   const org = await targetOrg(auth);
@@ -233,8 +245,8 @@ export function assessValidUntil(dateStr: string, role: CompetenceRole, requirem
 }
 
 // ============================ ASSESSMENTS ============================
-export async function listAssessments(auth: AuthContext) {
-  return (await CompetenceAssessment.findAll({ where: await orgWhere(auth), order: [["createdAt", "DESC"]] })).map((r) => r.get({ plain: true }));
+export async function listAssessments(auth: AuthContext, scope?: "enterprise") {
+  return (await CompetenceAssessment.findAll({ where: await orgWhere(auth, scope), order: [["createdAt", "DESC"]] })).map((r) => r.get({ plain: true }));
 }
 export async function getAssessment(auth: AuthContext, id: string) {
   const row = await CompetenceAssessment.findByPk(id);
@@ -313,6 +325,10 @@ export async function approveAssessment(auth: AuthContext, id: string, ip: strin
   const row = await CompetenceAssessment.findByPk(id);
   if (!row) throw new NotFoundError("Assessment not found", "ASSESSMENT_NOT_FOUND");
   await targetOrg(auth, row.orgId);
+  // Competence is a governed module on the Approvals screen, so sign-off has to
+  // respect the same pool membership and self-approval rules as the rest —
+  // previously this was an unguarded flag flip.
+  await assertMayApprove(auth, row.assessor);
   const who = await actorName(auth);
   row.approvalState = "Approved"; row.approvedBy = who; row.approvedDate = new Date().toISOString().slice(0, 10);
   row.activity = [...row.activity, { ts: nowIso(), user: who, action: "approved", summary: "Assessment signed off" }];
@@ -322,8 +338,8 @@ export async function approveAssessment(auth: AuthContext, id: string, ip: strin
 }
 
 /** Reassessment queue: bucket active assignments by validity horizon. */
-export async function reassessQueue(auth: AuthContext) {
-  const rows = await CompetenceAssignment.findAll({ where: { ...(await orgWhere(auth)), status: "Active" } });
+export async function reassessQueue(auth: AuthContext, scope?: "enterprise") {
+  const rows = await CompetenceAssignment.findAll({ where: { ...(await orgWhere(auth, scope)), status: "Active" } });
   const today = new Date().toISOString().slice(0, 10);
   const buckets = { never: [] as unknown[], overdue: [] as unknown[], due: [] as unknown[] };
   for (const a of rows) {
@@ -337,8 +353,8 @@ export async function reassessQueue(auth: AuthContext) {
 }
 
 // ============================ GAPS ============================
-export async function listGaps(auth: AuthContext) {
-  return (await CompetenceGap.findAll({ where: await orgWhere(auth), order: [["createdAt", "DESC"]] })).map((r) => r.get({ plain: true }));
+export async function listGaps(auth: AuthContext, scope?: "enterprise") {
+  return (await CompetenceGap.findAll({ where: await orgWhere(auth, scope), order: [["createdAt", "DESC"]] })).map((r) => r.get({ plain: true }));
 }
 export async function updateGap(auth: AuthContext, id: string, input: Record<string, unknown>, ip: string | null) {
   const row = await CompetenceGap.findByPk(id);

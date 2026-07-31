@@ -14,6 +14,9 @@ export interface SiteView {
   type: SiteType;
   country: string | null;
   address: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
   status: SiteStatus;
   isPrimary: boolean;
   description: string | null;
@@ -30,6 +33,9 @@ export interface CreateSiteInput {
   type?: SiteType;
   country?: string | null;
   address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
   status?: SiteStatus;
   isPrimary?: boolean;
   description?: string | null;
@@ -44,7 +50,7 @@ function toView(site: Site, tenantName: string): SiteView {
   return {
     id: site.id, orgId: site.orgId, tenantName,
     code: site.code, name: site.name, type: site.type,
-    country: site.country, address: site.address, status: site.status, isPrimary: site.isPrimary,
+    country: site.country, address: site.address, city: site.city, state: site.state, postalCode: site.postalCode, status: site.status, isPrimary: site.isPrimary,
     description: site.description, contactPerson: site.contactPerson,
     contactEmail: site.contactEmail, contactPhone: site.contactPhone,
     createdAt: site.createdAt, updatedAt: site.updatedAt,
@@ -114,6 +120,9 @@ export async function createSite(auth: AuthContext, input: CreateSiteInput, ip: 
     type: input.type ?? "Branch Office",
     country: input.country ?? null,
     address: input.address ?? null,
+    city: input.city ?? null,
+    state: input.state ?? null,
+    postalCode: input.postalCode ?? null,
     status: input.status ?? "Active",
     isPrimary: input.isPrimary ?? false,
     description: input.description ?? null,
@@ -135,6 +144,9 @@ export async function updateSite(auth: AuthContext, id: string, input: UpdateSit
   if (input.type !== undefined) site.type = input.type;
   if (input.country !== undefined) site.country = input.country ?? null;
   if (input.address !== undefined) site.address = input.address ?? null;
+  if (input.city !== undefined) site.city = input.city ?? null;
+  if (input.state !== undefined) site.state = input.state ?? null;
+  if (input.postalCode !== undefined) site.postalCode = input.postalCode ?? null;
   if (input.status !== undefined) site.status = input.status;
   if (input.isPrimary !== undefined) site.isPrimary = input.isPrimary;
   if (input.description !== undefined) site.description = input.description ?? null;

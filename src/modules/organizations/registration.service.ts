@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { sequelize } from "../../db/sequelize";
 import { Organization, RegistrationRequest, User } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
+import type { RegistrationStatus } from "../../db/models/registrationRequest.model";
 import { assignSubscription } from "../subscriptions/subscription.service";
 import { sendActivationInvite } from "../notifications/notification.service";
 import { writeAudit } from "../audit/audit.service";
@@ -22,11 +23,23 @@ export interface RegistrationView {
   distributorOrgId: string;
   distributorName: string;
   proposedTenant: Record<string, unknown>;
-  status: "PendingApproval" | "Approved" | "Rejected";
+  status: RegistrationStatus;
   decisionReason: string | null;
+  submittedBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
+
+/** OD `TREQ_STATUSES` transitions. Approve/reject live in their own functions. */
+const NEXT: Record<string, RegistrationStatus[]> = {
+  Draft: ["Submitted", "Cancelled"],
+  Submitted: ["Under Review", "Cancelled"],
+  "Under Review": ["Submitted", "Cancelled"],
+  PendingApproval: ["Under Review", "Cancelled"],
+};
+
+/** Statuses an SO may still act on. */
+const REVIEWABLE: RegistrationStatus[] = ["Submitted", "Under Review", "PendingApproval"];
 
 /**
  * List registration requests visible to the actor (ServiceOwner sees all;
@@ -34,7 +47,7 @@ export interface RegistrationView {
  */
 export async function listRegistrations(
   auth: AuthContext,
-  status?: "PendingApproval" | "Approved" | "Rejected",
+  status?: RegistrationStatus,
 ): Promise<RegistrationView[]> {
   const where: Record<string, unknown> = {};
   if (auth.orgType === "Distributor") where.distributorOrgId = auth.orgId;
@@ -51,17 +64,37 @@ export async function listRegistrations(
     proposedTenant: r.proposedTenant,
     status: r.status,
     decisionReason: r.decisionReason,
+    submittedBy: r.submittedBy,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   }));
 }
 
-export async function submitRegistration(auth: AuthContext, proposed: ProposedTenant, ip: string | null): Promise<RegistrationRequest> {
-  if (auth.orgType !== "Distributor") throw new ForbiddenError("Only distributors may submit tenant registrations");
+async function requireRequest(auth: AuthContext, id: string): Promise<RegistrationRequest> {
+  const req = await RegistrationRequest.findByPk(id);
+  if (!req) throw new NotFoundError("Registration request not found");
+  // A partner may only touch its own; the Service Owner sees everything.
+  if (auth.orgType === "Distributor" && req.distributorOrgId !== auth.orgId) throw new ForbiddenError();
+  if (auth.orgType === "Tenant") throw new ForbiddenError();
+  return req;
+}
+
+/**
+ * Create a request. Partners raise them against their own org; the Service
+ * Owner may raise a Direct one (OD's "+ New Request" exists for both).
+ * `asDraft` keeps it editable before it enters the review queue.
+ */
+export async function submitRegistration(
+  auth: AuthContext, proposed: ProposedTenant, ip: string | null, asDraft = false,
+): Promise<RegistrationRequest> {
+  if (auth.orgType !== "Distributor" && auth.orgType !== "ServiceOwner") {
+    throw new ForbiddenError("Only partners or the Service Owner may raise tenant requests");
+  }
   const req = await RegistrationRequest.create({
     distributorOrgId: auth.orgId,
+    submittedBy: auth.orgId,
     proposedTenant: proposed as unknown as Record<string, unknown>,
-    status: "PendingApproval",
+    status: asDraft ? "Draft" : "Submitted",
     decisionReason: null,
   });
   await writeAudit({
@@ -76,11 +109,53 @@ export async function submitRegistration(auth: AuthContext, proposed: ProposedTe
   return req;
 }
 
+/** Edit a request that has not been decided yet (OD allows editing a Draft). */
+export async function updateRegistration(
+  auth: AuthContext, id: string, proposed: Partial<ProposedTenant>, ip: string | null,
+): Promise<RegistrationView> {
+  const req = await requireRequest(auth, id);
+  if (req.status === "Approved" || req.status === "Rejected" || req.status === "Cancelled") {
+    throw new BadRequestError("This request has already been decided", "REQUEST_DECIDED");
+  }
+  req.proposedTenant = { ...(req.proposedTenant ?? {}), ...proposed };
+  await req.save();
+  await writeAudit({
+    actorUserId: auth.userId, organizationId: auth.orgId, action: "registration.updated",
+    entityType: "RegistrationRequest", entityId: req.id, sourceIp: ip, result: "Success",
+  });
+  return (await listRegistrations(auth)).find((r) => r.id === req.id)!;
+}
+
+/**
+ * Move a request along OD's lifecycle (submit a draft, take it under review,
+ * send it back, or cancel). Approve/reject remain separate SO-only decisions.
+ */
+export async function transitionRegistration(
+  auth: AuthContext, id: string, next: RegistrationStatus, ip: string | null,
+): Promise<RegistrationView> {
+  const req = await requireRequest(auth, id);
+  const allowed = NEXT[req.status] ?? [];
+  if (!allowed.includes(next)) {
+    throw new BadRequestError(`Cannot move a ${req.status} request to ${next}`, "INVALID_TRANSITION");
+  }
+  // Only the reviewer takes something under review.
+  if (next === "Under Review" && auth.orgType !== "ServiceOwner") {
+    throw new ForbiddenError("Only the Service Owner can review tenant requests");
+  }
+  req.status = next;
+  await req.save();
+  await writeAudit({
+    actorUserId: auth.userId, organizationId: auth.orgId, action: `registration.${next.toLowerCase().replace(/ /g, "_")}`,
+    entityType: "RegistrationRequest", entityId: req.id, sourceIp: ip, result: "Success",
+  });
+  return (await listRegistrations(auth)).find((r) => r.id === req.id)!;
+}
+
 export async function approveRegistration(auth: AuthContext, requestId: string, ip: string | null): Promise<Organization> {
   if (auth.orgType !== "ServiceOwner") throw new ForbiddenError("Only the Service Owner can approve registrations");
   const req = await RegistrationRequest.findByPk(requestId);
   if (!req) throw new NotFoundError("Registration request not found");
-  if (req.status !== "PendingApproval") throw new BadRequestError("Request is not pending");
+  if (!REVIEWABLE.includes(req.status)) throw new BadRequestError("Request is not awaiting a decision", "NOT_REVIEWABLE");
 
   const p = req.proposedTenant as unknown as ProposedTenant;
 
@@ -130,7 +205,7 @@ export async function rejectRegistration(auth: AuthContext, requestId: string, r
   if (auth.orgType !== "ServiceOwner") throw new ForbiddenError("Only the Service Owner can reject registrations");
   const req = await RegistrationRequest.findByPk(requestId);
   if (!req) throw new NotFoundError("Registration request not found");
-  if (req.status !== "PendingApproval") throw new BadRequestError("Request is not pending");
+  if (!REVIEWABLE.includes(req.status)) throw new BadRequestError("Request is not awaiting a decision", "NOT_REVIEWABLE");
   req.status = "Rejected";
   req.decisionReason = reason;
   await req.save();

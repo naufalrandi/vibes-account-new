@@ -12,3 +12,19 @@ export function requireAction(actionKey: string) {
     next();
   };
 }
+
+/**
+ * Passes when the caller holds ANY of the listed grants. Used where one screen
+ * serves two roles — e.g. the tenant-request queue, which both the partner who
+ * raises requests and the Service Owner who decides them need to read.
+ */
+export function requireAnyAction(...actionKeys: string[]) {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    if (!req.auth) return next(new UnauthorizedError());
+    if (req.auth.isSuperAdmin) return next();
+    if (!actionKeys.some((key) => req.auth!.actions.includes(key))) {
+      return next(new ForbiddenError(`Missing action grant: one of ${actionKeys.join(", ")}`));
+    }
+    next();
+  };
+}

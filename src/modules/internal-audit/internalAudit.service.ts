@@ -5,7 +5,7 @@ import {
 import {
   IA_PROG_STATUS, IA_PLAN_STATUS, IA_SESS_STATUS, IA_FIND_TYPES,
   IA_REVIEW_STATUS, IA_ISSUE_STATUS, IA_REPORT_STATUS, IA_REVIEW_DECISIONS,
-  type IaActivityEntry,
+  type IaActivityEntry, type IaComment,
 } from "../../db/models/internalAudit.models";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
@@ -46,6 +46,32 @@ async function nextCode(model: ModelStatic<Model>, prefix: string): Promise<stri
 
 function pushActivity(list: IaActivityEntry[], user: string, action: string, summary?: string): IaActivityEntry[] {
   return [...list, { ts: nowIso(), user, action, ...(summary ? { summary } : {}) }];
+}
+
+function pushComment(list: IaComment[], user: string, text: string): IaComment[] {
+  return [...list, { ts: nowIso(), user, text }];
+}
+
+type Commentable = Model & { orgId: string; comments: IaComment[]; lastUpdatedBy: string | null; id: string };
+
+// OD `recComment`: one shared "add a comment" mutation reused by every
+// register's detail drawer — here parametrized over the 5 IA models rather
+// than duplicated per entity, since the logic is identical.
+async function addComment<T extends Commentable>(
+  model: ModelStatic<T>, auth: AuthContext, id: string, text: string, ip: string | null,
+  notFoundMsg: string, notFoundCode: string, entityType: string, auditAction: string,
+): Promise<Record<string, unknown>> {
+  const trimmed = typeof text === "string" ? text.trim() : "";
+  if (!trimmed) throw new BadRequestError("Comment text is required", "TEXT_REQUIRED");
+  const row = await model.findByPk(id);
+  if (!row) throw new NotFoundError(notFoundMsg, notFoundCode);
+  await targetOrg(auth, row.orgId);
+  const who = await actorName(auth);
+  row.comments = pushComment(row.comments, who, trimmed);
+  row.lastUpdatedBy = who;
+  await row.save();
+  await logAudit(auth, row.orgId, auditAction, entityType, row.id, ip);
+  return row.get({ plain: true });
 }
 
 async function logAudit(auth: AuthContext, orgId: string, action: string, entityType: string, entityId: string, ip: string | null) {
@@ -155,6 +181,10 @@ export async function setProgramStatus(auth: AuthContext, id: string, status: st
   return row.get({ plain: true });
 }
 
+export async function addProgramComment(auth: AuthContext, id: string, text: string, ip: string | null) {
+  return addComment(IaProgram, auth, id, text, ip, "Program not found", "PROGRAM_NOT_FOUND", "IaProgram", "ia.program.comment");
+}
+
 // --- Plans ---------------------------------------------------------------
 export async function listPlans(auth: AuthContext, orgId?: string) {
   const where = await orgWhere(auth, orgId);
@@ -209,6 +239,10 @@ export async function setPlanStatus(auth: AuthContext, id: string, status: strin
   await row.save();
   await logAudit(auth, row.orgId, "ia.plan.status", "IaPlan", row.id, ip);
   return row.get({ plain: true });
+}
+
+export async function addPlanComment(auth: AuthContext, id: string, text: string, ip: string | null) {
+  return addComment(IaPlan, auth, id, text, ip, "Plan not found", "PLAN_NOT_FOUND", "IaPlan", "ia.plan.comment");
 }
 
 // --- Sessions ------------------------------------------------------------
@@ -273,6 +307,10 @@ export async function setSessionStatus(auth: AuthContext, id: string, status: st
   await row.save();
   await logAudit(auth, row.orgId, "ia.session.status", "IaSession", row.id, ip);
   return row.get({ plain: true });
+}
+
+export async function addSessionComment(auth: AuthContext, id: string, text: string, ip: string | null) {
+  return addComment(IaSession, auth, id, text, ip, "Session not found", "SESSION_NOT_FOUND", "IaSession", "ia.session.comment");
 }
 
 // --- Findings ------------------------------------------------------------
@@ -425,6 +463,10 @@ export async function routeFinding(auth: AuthContext, id: string, target: "nc" |
   return row.get({ plain: true });
 }
 
+export async function addFindingComment(auth: AuthContext, id: string, text: string, ip: string | null) {
+  return addComment(IaFinding, auth, id, text, ip, "Finding not found", "FINDING_NOT_FOUND", "IaFinding", "ia.finding.comment");
+}
+
 // --- Reports -------------------------------------------------------------
 export async function listReports(auth: AuthContext, orgId?: string) {
   const where = await orgWhere(auth, orgId);
@@ -471,6 +513,10 @@ export async function setReportStatus(auth: AuthContext, id: string, status: str
   await row.save();
   await logAudit(auth, row.orgId, "ia.report.status", "IaReport", row.id, ip);
   return row.get({ plain: true });
+}
+
+export async function addReportComment(auth: AuthContext, id: string, text: string, ip: string | null) {
+  return addComment(IaReport, auth, id, text, ip, "Report not found", "REPORT_NOT_FOUND", "IaReport", "ia.report.comment");
 }
 
 export const CATALOG = { IA_PROG_STATUS, IA_PLAN_STATUS, IA_SESS_STATUS, IA_ISSUE_STATUS, IA_REVIEW_STATUS };

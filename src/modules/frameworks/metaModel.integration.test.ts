@@ -121,4 +121,69 @@ describe("framework meta-model", () => {
     const unlinked = await request(app).put(`/v1/assessment/responses/${r.body.data.id}/criterion`).set(authed(token)).send({ criterionId: null });
     expect(unlinked.body.data.criterion).toBeNull();
   });
+
+  it("carries Coverage/Maturity dimension + code/title/child metadata through question and response authoring", async () => {
+    const { token } = await makeSo();
+    const el = await request(app).post("/v1/elements").set(authed(token)).send({ name: "Risk Management" });
+
+    const cov = await request(app).post("/v1/assessment/questions").set(authed(token)).send({
+      elementId: el.body.data.id, text: "Is risk formally covered?", dimension: "Coverage", category: "Scope", code: "CQ-001", title: "Coverage",
+    });
+    expect(cov.body.data).toMatchObject({ dimension: "Coverage", category: "Scope", code: "CQ-001", title: "Coverage" });
+
+    const mat = await request(app).post("/v1/assessment/questions").set(authed(token)).send({ elementId: el.body.data.id, text: "How mature?" });
+    expect(mat.body.data.dimension).toBe("Maturity"); // default
+
+    const childResp = await request(app).post("/v1/assessment/responses").set(authed(token)).send({
+      questionId: cov.body.data.id, text: "Yes, under specific frameworks.", code: "R2", child: true,
+    });
+    expect(childResp.body.data).toMatchObject({ code: "R2", child: true });
+
+    const updated = await request(app).put(`/v1/assessment/questions/${mat.body.data.id}`).set(authed(token)).send({ dimension: "Coverage", category: "Perspective A" });
+    expect(updated.body.data).toMatchObject({ dimension: "Coverage", category: "Perspective A" });
+  });
+
+  it("persists, lists, and resets the fwe-assess self-assessment answers per question", async () => {
+    const { token } = await makeSo();
+    const el = await request(app).post("/v1/elements").set(authed(token)).send({ name: "Governance" });
+    const q = await request(app).post("/v1/assessment/questions").set(authed(token)).send({ elementId: el.body.data.id, text: "How mature?", dimension: "Maturity" });
+    const rLow = await request(app).post("/v1/assessment/responses").set(authed(token)).send({ questionId: q.body.data.id, text: "Ad hoc." });
+    const rChild = await request(app).post("/v1/assessment/responses").set(authed(token)).send({ questionId: q.body.data.id, text: "Formalized under frameworks.", child: true });
+
+    // No answers yet.
+    expect((await request(app).get(`/v1/assessment/elements/${el.body.data.id}/answers`).set(authed(token))).body.data).toEqual([]);
+
+    // Answering a non-child response clears any framework picks.
+    const set1 = await request(app).put(`/v1/assessment/elements/${el.body.data.id}/answers/${q.body.data.id}`)
+      .set(authed(token)).send({ responseId: rLow.body.data.id, frameworks: ["ISO 9001:2015"] });
+    expect(set1.body.data).toMatchObject({ questionId: q.body.data.id, responseId: rLow.body.data.id, frameworks: [] });
+
+    // Re-answering with the child response persists the framework picks.
+    const set2 = await request(app).put(`/v1/assessment/elements/${el.body.data.id}/answers/${q.body.data.id}`)
+      .set(authed(token)).send({ responseId: rChild.body.data.id, frameworks: ["ISO 9001:2015", "ISO 27001:2022"] });
+    expect(set2.body.data).toMatchObject({ responseId: rChild.body.data.id, frameworks: ["ISO 9001:2015", "ISO 27001:2022"] });
+
+    const listed = await request(app).get(`/v1/assessment/elements/${el.body.data.id}/answers`).set(authed(token));
+    expect(listed.body.data).toEqual([{ questionId: q.body.data.id, responseId: rChild.body.data.id, frameworks: ["ISO 9001:2015", "ISO 27001:2022"] }]);
+
+    // Clearing (responseId: null) deletes the row rather than leaving an orphaned answer.
+    await request(app).put(`/v1/assessment/elements/${el.body.data.id}/answers/${q.body.data.id}`).set(authed(token)).send({ responseId: null });
+    expect((await request(app).get(`/v1/assessment/elements/${el.body.data.id}/answers`).set(authed(token))).body.data).toEqual([]);
+
+    // Reset wipes every answer for the element.
+    await request(app).put(`/v1/assessment/elements/${el.body.data.id}/answers/${q.body.data.id}`).set(authed(token)).send({ responseId: rLow.body.data.id });
+    await request(app).post(`/v1/assessment/elements/${el.body.data.id}/reset`).set(authed(token));
+    expect((await request(app).get(`/v1/assessment/elements/${el.body.data.id}/answers`).set(authed(token))).body.data).toEqual([]);
+  });
+
+  it("rejects an answer whose response doesn't belong to the given question", async () => {
+    const { token } = await makeSo();
+    const el = await request(app).post("/v1/elements").set(authed(token)).send({ name: "Docs" });
+    const q1 = await request(app).post("/v1/assessment/questions").set(authed(token)).send({ elementId: el.body.data.id, text: "Q1" });
+    const q2 = await request(app).post("/v1/assessment/questions").set(authed(token)).send({ elementId: el.body.data.id, text: "Q2" });
+    const rOfQ2 = await request(app).post("/v1/assessment/responses").set(authed(token)).send({ questionId: q2.body.data.id, text: "R" });
+
+    const res = await request(app).put(`/v1/assessment/elements/${el.body.data.id}/answers/${q1.body.data.id}`).set(authed(token)).send({ responseId: rOfQ2.body.data.id });
+    expect(res.status).toBe(400);
+  });
 });

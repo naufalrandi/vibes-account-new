@@ -108,4 +108,33 @@ describe("tenants", () => {
     expect(list.body.data).toHaveLength(1);
     expect(list.body.data[0].name).toBe("Alpha");
   });
+
+  // Governance boundary: a Distributor's only route to a new tenant is
+  // submitRegistration() → SO review → approveRegistration(). Direct
+  // provisioning used to be open to Distributors too, which bypassed the
+  // Tenant Requests queue entirely.
+  it("refuses direct tenant provisioning by a Distributor", async () => {
+    const so = await makeSo();
+    const dist = await Organization.create({
+      name: "Partner Co", code: "PCO", type: "Distributor", status: "Active",
+      parentOrgId: so.orgId, tenantId: null, email: null, phone: null, website: null, country: null, address: null,
+    });
+    const role = await Role.create({ name: "Administrator", tierScope: "Distributor", orgId: dist.id, isSuperAdmin: false, status: true });
+    await grantActions(role.id, [ACTIONS.TENANT_READ, ACTIONS.TENANT_CREATE]);
+    const u = await User.create({
+      orgId: dist.id, tenantId: null, fullName: "Partner Admin", username: "pco.admin", email: "admin@pco.io",
+      passwordHash: await hashPassword("ChangeMe123"), status: "Active",
+      position: null, workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null,
+    });
+    await (u as unknown as { setRoles: (r: Role[]) => Promise<unknown> }).setRoles([role]);
+    const login = await request(app).post("/v1/auth/login").send({ identifier: "pco.admin", password: "ChangeMe123" });
+
+    const res = await request(app)
+      .post("/v1/tenants")
+      .set(authed(login.body.data.accessToken))
+      .send(provisionBody("draft", "Bypass"));
+
+    expect(res.status).toBe(403);
+    expect(await Organization.findOne({ where: { name: "Bypass" } })).toBeNull();
+  });
 });

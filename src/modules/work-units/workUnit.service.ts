@@ -1,5 +1,5 @@
 import { WorkUnit } from "../../db/models/workUnit.model";
-import { Site } from "../../db/models";
+import { Site, User } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError, NotFoundError } from "../../lib/errors";
@@ -65,7 +65,9 @@ async function nextCode(orgId: string): Promise<string> {
 }
 
 async function actorName(auth: AuthContext): Promise<string | null> {
-  return auth.userId ? auth.userId : null;
+  if (!auth.userId) return null;
+  const u = await User.findByPk(auth.userId);
+  return u?.fullName ?? u?.username ?? null;
 }
 
 export async function listWorkUnits(auth: AuthContext): Promise<WorkUnitView[]> {

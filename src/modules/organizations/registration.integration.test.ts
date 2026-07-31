@@ -72,11 +72,84 @@ describe("registration workflow", () => {
     expect(list.body.data[0]).toMatchObject({
       distributorOrgId: dist.org.id,
       distributorName: "NWP",
-      status: "PendingApproval",
+      status: "Submitted",
     });
     expect(list.body.data[0].proposedTenant.name).toBe("Acme");
 
     const approved = await request(app).get("/v1/registration-requests?status=Approved").set("authorization", `Bearer ${so.token}`);
     expect(approved.body.data).toHaveLength(0);
+  });
+
+  // OD's TREQ_STATUSES lifecycle: Draft → Submitted → Under Review → decision,
+  // with Cancelled available before a decision is made.
+  it("drafts, edits, submits and reviews a request", async () => {
+    const dist = await makeAdmin("Distributor", "NWP", "distadmin", ["registration.submit"]);
+    const so = await makeAdmin("ServiceOwner", "AXIA", "soadmin", ["registration.decide", "registration.submit"]);
+    const auth = (t: string) => ({ authorization: `Bearer ${t}` });
+
+    const draft = await request(app).post("/v1/registration-requests").set(auth(dist.token))
+      .send({ name: "Acme", code: "ACME", adminFullName: "A", adminUsername: "acmeadmin", adminEmail: "admin@acme.com", asDraft: true });
+    expect(draft.body.data.status).toBe("Draft");
+    const id = draft.body.data.id;
+
+    // A draft is still editable.
+    const edited = await request(app).put(`/v1/registration-requests/${id}`).set(auth(dist.token)).send({ name: "Acme Group" });
+    expect(edited.body.data.proposedTenant.name).toBe("Acme Group");
+
+    const submitted = await request(app).post(`/v1/registration-requests/${id}/transition`).set(auth(dist.token)).send({ status: "Submitted" });
+    expect(submitted.body.data.status).toBe("Submitted");
+
+    // Only the Service Owner takes a request under review.
+    expect((await request(app).post(`/v1/registration-requests/${id}/transition`).set(auth(dist.token)).send({ status: "Under Review" })).status).toBe(403);
+    const review = await request(app).post(`/v1/registration-requests/${id}/transition`).set(auth(so.token)).send({ status: "Under Review" });
+    expect(review.body.data.status).toBe("Under Review");
+
+    // A request under review can still be approved.
+    // Approval provisions the tenant org, so it responds 201 Created.
+    expect((await request(app).post(`/v1/registration-requests/${id}/approve`).set(auth(so.token))).status).toBe(201);
+  });
+
+  it("rejects an illegal transition and refuses to edit a decided request", async () => {
+    const dist = await makeAdmin("Distributor", "NWP", "distadmin", ["registration.submit"]);
+    const so = await makeAdmin("ServiceOwner", "AXIA", "soadmin", ["registration.decide", "registration.submit"]);
+    const auth = (t: string) => ({ authorization: `Bearer ${t}` });
+
+    const submitted = await request(app).post("/v1/registration-requests").set(auth(dist.token))
+      .send({ name: "Beta", code: "BETA", adminFullName: "B", adminUsername: "betaadmin", adminEmail: "admin@beta.com" });
+    const id = submitted.body.data.id;
+
+    // Already Submitted — cannot go back to Submitted.
+    const bad = await request(app).post(`/v1/registration-requests/${id}/transition`).set(auth(dist.token)).send({ status: "Submitted" });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.code).toBe("INVALID_TRANSITION");
+
+    await request(app).post(`/v1/registration-requests/${id}/reject`).set(auth(so.token)).send({ reason: "Duplicate" });
+    const late = await request(app).put(`/v1/registration-requests/${id}`).set(auth(dist.token)).send({ name: "Beta 2" });
+    expect(late.status).toBe(400);
+    expect(late.body.error.code).toBe("REQUEST_DECIDED");
+  });
+
+  it("lets the Service Owner raise a Direct request of its own", async () => {
+    const so = await makeAdmin("ServiceOwner", "AXIA", "soadmin", ["registration.decide", "registration.submit"]);
+    const auth = { authorization: `Bearer ${so.token}` };
+
+    const res = await request(app).post("/v1/registration-requests").set(auth)
+      .send({ name: "Direct Co", code: "DIRECT", adminFullName: "D", adminUsername: "directadmin", adminEmail: "admin@direct.com" });
+    expect(res.status).toBe(201);
+    expect(res.body.data.submittedBy).toBe(so.org.id);
+
+    const list = await request(app).get("/v1/registration-requests").set(auth);
+    expect(list.body.data.map((r: { proposedTenant: { name: string } }) => r.proposedTenant.name)).toContain("Direct Co");
+  });
+
+  it("keeps a partner out of another partner's requests", async () => {
+    const a = await makeAdmin("Distributor", "PA", "pa.admin", ["registration.submit"]);
+    const b = await makeAdmin("Distributor", "PB", "pb.admin", ["registration.submit"]);
+    const submitted = await request(app).post("/v1/registration-requests").set({ authorization: `Bearer ${a.token}` })
+      .send({ name: "Gamma", code: "GAMMA", adminFullName: "G", adminUsername: "gammaadmin", adminEmail: "admin@gamma.com" });
+
+    const res = await request(app).put(`/v1/registration-requests/${submitted.body.data.id}`)
+      .set({ authorization: `Bearer ${b.token}` }).send({ name: "Hijack" });
+    expect(res.status).toBe(403);
   });
 });

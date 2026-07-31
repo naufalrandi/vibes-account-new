@@ -15,6 +15,9 @@ export class Site extends Model<InferAttributes<Site>, InferCreationAttributes<S
   declare type: CreationOptional<SiteType>;
   declare country: string | null;
   declare address: string | null;
+  declare city: string | null;
+  declare state: string | null;
+  declare postalCode: string | null;
   declare status: CreationOptional<SiteStatus>;
   declare isPrimary: CreationOptional<boolean>;
   declare description: string | null;
@@ -40,6 +43,9 @@ Site.init(
     },
     country: { type: DataTypes.STRING, allowNull: true },
     address: { type: DataTypes.STRING, allowNull: true },
+    city: { type: DataTypes.STRING, allowNull: true },
+    state: { type: DataTypes.STRING, allowNull: true },
+    postalCode: { type: DataTypes.STRING, allowNull: true, field: "postal_code" },
     status: { type: DataTypes.ENUM("Active", "Inactive"), allowNull: false, defaultValue: "Active" },
     isPrimary: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: "is_primary" },
     description: { type: DataTypes.TEXT, allowNull: true },

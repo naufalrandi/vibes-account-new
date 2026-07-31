@@ -157,4 +157,67 @@ describe("approval engine", () => {
     expect((await request(app).post("/v1/approvals/schemes").set(authed(weak.token)).send({ name: "Y", gates: [{ label: "G", pool: "mst" }] })).status).toBe(403);
     expect((await request(app).get("/v1/approvals/schemes").set(authed(weak.token))).status).toBe(200);
   });
+
+  // OD `polPublishCore`: publishing supersedes the previously published policy
+  // in the same lineage, so only one version of a policy is ever live, and
+  // `nextReview` is derived from the review frequency when left blank.
+  it("supersedes the prior published policy by lineage and computes nextReview", async () => {
+    const orgId = await makeOrg();
+    const admin = await makeUser(orgId, "pl-admin", "Admin User", ADMIN);
+    const tm = await makeUser(orgId, "pl-tm", "Jennifer Walters", APPROVER);
+    await request(app).put(`/v1/approvals/pools/${tm.userId}`).set(authed(admin.token)).send({ isTM: true, tmFinal: true });
+    await request(app).put(`/v1/approvals/pools/${admin.userId}`).set(authed(admin.token)).send({ isMST: true, mstPriority: "required" });
+
+    const publish = async (id: string) => {
+      await request(app).post(`/v1/approvals/records/policies/${id}/submit`).set(authed(admin.token));
+      await request(app).post(`/v1/approvals/records/policies/${id}/approve`).set(authed(admin.token));
+      await request(app).post(`/v1/approvals/records/policies/${id}/approve`).set(authed(tm.token));
+    };
+    const fetch = async (id: string) =>
+      (await request(app).get("/v1/implementation/policies").set(authed(admin.token))).body.data.find((p: { id: string }) => p.id === id);
+
+    const v1 = (await request(app).post("/v1/implementation/policies").set(authed(admin.token))
+      .send({ title: "Information Security Policy", status: "Draft", data: { reviewFreq: "Annually", effectiveDate: "2026-01-01" } })).body.data.id;
+    await publish(v1);
+
+    const p1 = await fetch(v1);
+    expect(p1.status).toBe("Published");
+    expect(p1.data.lineageId).toBe(v1);
+    // Annually → effectiveDate + 12 months.
+    expect(String(p1.data.nextReview).slice(0, 10)).toBe("2027-01-01");
+
+    // A second policy in the SAME lineage supersedes the first on publish.
+    const v2 = (await request(app).post("/v1/implementation/policies").set(authed(admin.token))
+      .send({ title: "Information Security Policy v2", status: "Draft", data: { lineageId: v1, reviewFreq: "Annually" } })).body.data.id;
+    await publish(v2);
+
+    expect((await fetch(v1)).status).toBe("Superseded");
+    expect((await fetch(v1)).data.supersededBy).toBe(v2);
+    expect((await fetch(v2)).status).toBe("Published");
+  });
+
+  it("leaves an unrelated policy lineage untouched when publishing", async () => {
+    const orgId = await makeOrg();
+    const admin = await makeUser(orgId, "pl2-admin", "Admin User", ADMIN);
+    const tm = await makeUser(orgId, "pl2-tm", "Jennifer Walters", APPROVER);
+    await request(app).put(`/v1/approvals/pools/${tm.userId}`).set(authed(admin.token)).send({ isTM: true, tmFinal: true });
+    await request(app).put(`/v1/approvals/pools/${admin.userId}`).set(authed(admin.token)).send({ isMST: true, mstPriority: "required" });
+
+    const publish = async (id: string) => {
+      await request(app).post(`/v1/approvals/records/policies/${id}/submit`).set(authed(admin.token));
+      await request(app).post(`/v1/approvals/records/policies/${id}/approve`).set(authed(admin.token));
+      await request(app).post(`/v1/approvals/records/policies/${id}/approve`).set(authed(tm.token));
+    };
+    const fetch = async (id: string) =>
+      (await request(app).get("/v1/implementation/policies").set(authed(admin.token))).body.data.find((p: { id: string }) => p.id === id);
+
+    const quality = (await request(app).post("/v1/implementation/policies").set(authed(admin.token)).send({ title: "Quality Policy", status: "Draft" })).body.data.id;
+    await publish(quality);
+    const security = (await request(app).post("/v1/implementation/policies").set(authed(admin.token)).send({ title: "Security Policy", status: "Draft" })).body.data.id;
+    await publish(security);
+
+    // Different lineages — both stay Published.
+    expect((await fetch(quality)).status).toBe("Published");
+    expect((await fetch(security)).status).toBe("Published");
+  });
 });

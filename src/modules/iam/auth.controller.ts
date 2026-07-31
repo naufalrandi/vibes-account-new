@@ -7,6 +7,20 @@ const loginSchema = z.object({ identifier: z.string().min(1), password: z.string
 const tokenSchema = z.object({ token: z.string().min(1), password: z.string().min(1) });
 const refreshSchema = z.object({ refreshToken: z.string().min(1) });
 const emailSchema = z.object({ email: z.string().email() });
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(1),
+});
+
+export async function changePassword(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+    await authService.changePassword(req.auth!.userId, currentPassword, newPassword, req.ip ?? null);
+    sendOk(res, { changed: true });
+  } catch (e) {
+    next(e);
+  }
+}
 
 export async function login(req: Request, res: Response, next: NextFunction) {
   try {
@@ -62,6 +76,15 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
     const { token, password } = tokenSchema.parse(req.body);
     await authService.resetPassword(token, password);
     sendOk(res, { reset: true });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function demoLinkLogin(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { demoId } = z.object({ demoId: z.string().max(64) }).parse(req.body);
+    sendOk(res, await authService.demoLinkLogin(demoId, req.ip ?? null));
   } catch (e) {
     next(e);
   }

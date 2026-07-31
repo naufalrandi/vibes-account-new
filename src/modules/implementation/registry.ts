@@ -27,10 +27,19 @@ export const MS_MODULES: Record<string, RegisterModule> = {
   // --- Leadership & support (clause 5, 7) ---
   policies: { prefix: "POL", deep: true, statuses: ["Draft", "Under Review", "Pending Final Approval", "Approved", "Published", "Needs Revision", "Superseded", "Archived"] },
   training: { prefix: "TRN", statuses: ["Planned", "In Progress", "Completed", "Overdue"] },
-  awareness: { prefix: "AWR", statuses: ["Planned", "Active", "Completed"] },
+  // OD models awareness as three tiers (db.awPrograms / awTopics / awCampaigns).
+  // Each tier gets its own register entry so it inherits the same code
+  // sequence, activity log and permission gating as every other module.
+  awareness: { prefix: "AWR", statuses: ["Draft", "Planned", "Active", "Completed", "Under Review", "Archived"] },
+  "awareness-topics": { prefix: "AWT", statuses: ["Draft", "Active", "Inactive", "Archived"] },
+  "awareness-campaigns": { prefix: "AWC", statuses: ["Draft", "Scheduled", "Active", "Completed", "Partially Completed", "Overdue", "Archived"] },
   competence: { prefix: "CMP", statuses: ["Competent", "In Training", "Needs Refresher", "Expired"] },
-  documents: { prefix: "DOC", statuses: ["Draft", "Active", "Superseded", "Archived"] },
-  records: { prefix: "EXT", statuses: ["Draft", "Active", "Superseded", "Archived"] },
+  documents: { prefix: "DOC", statuses: ["Draft", "Under Review", "Revision Requested", "Approved", "Published", "Review Due", "Superseded", "Obsolete", "Archived", "Rejected"] },
+  // External documents carry OD's own status vocabulary (ED_STATUS) — they are
+  // externally issued, so "Draft" never applies to them.
+  records: { prefix: "EXT", statuses: ["Active", "Under Review", "Updated Version Available", "Superseded", "Obsolete", "Archived"] },
+  // Folders for the external-document explorer (OD `db.edFolders`).
+  "record-folders": { prefix: "EDF", statuses: ["Active", "Archived"] },
 
   // --- Operation (clause 8) ---
   controls: { prefix: "CTL", statuses: ["Draft", "Active", "Retired"] },
@@ -40,10 +49,10 @@ export const MS_MODULES: Record<string, RegisterModule> = {
   performance: { prefix: "PRF", statuses: ["Draft", "Active", "Achieved", "At Risk", "Closed"] },
   audits: { prefix: "AUD", deep: true, statuses: ["Planned", "In Progress", "Completed", "Closed"] },
   reviews: { prefix: "MRV", deep: true, statuses: ["Draft", "Scheduled", "In Progress", "Pending Outputs", "Completed", "Finalized", "Cancelled", "Archived"] },
-  nonconformities: { prefix: "NCR", statuses: ["Open", "Under Investigation", "Correction", "Corrective Action", "Verified", "Closed"] },
-  improvements: { prefix: "IMP", statuses: ["Proposed", "Approved", "In Progress", "Implemented", "Closed"] },
-  concerns: { prefix: "CNC", statuses: ["New", "Triaged", "Routed", "Closed"] },
-  incidents: { prefix: "INC", statuses: ["Open", "In Progress", "Corrected", "Verified", "Closed"] },
+  nonconformities: { prefix: "NCR", statuses: ["Open", "CAP Required", "CAP Planned", "In Progress", "Pending Effectiveness Check", "Closed", "Cancelled", "Archived"] },
+  improvements: { prefix: "IMP", statuses: ["Open", "Under Review", "Planned", "In Progress", "Implemented", "Completed", "Deferred", "Cancelled", "Archived"] },
+  concerns: { prefix: "CNC", statuses: ["Draft", "Submitted", "Under Review", "Routed", "Closed", "Cancelled", "Archived"] },
+  incidents: { prefix: "INC", statuses: ["Open", "Under Investigation", "Contained", "Action Required", "In Progress", "Resolved", "Closed", "Cancelled", "Archived"] },
 
   // --- ISO 9001 extensions (gated in the UI behind an ISO 9001 assignment) ---
   "customer-focus": { prefix: "CFO", statuses: ["Open", "In Progress", "Closed"] },

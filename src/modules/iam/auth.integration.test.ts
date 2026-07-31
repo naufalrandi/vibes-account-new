@@ -125,3 +125,59 @@ describe("auth", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("auth — self-service password change", () => {
+  beforeAll(() => initModels());
+  beforeEach(() => resetRateLimits());
+  afterEach(() => resetDb());
+
+  const change = (token: string, currentPassword: string, newPassword: string) =>
+    request(app).post("/v1/auth/password/change")
+      .set({ Authorization: `Bearer ${token}` })
+      .send({ currentPassword, newPassword });
+
+  it("requires a live session", async () => {
+    await makeActiveUser();
+    const res = await request(app).post("/v1/auth/password/change")
+      .send({ currentPassword: "ChangeMe123", newPassword: "BrandNew123" });
+    expect(res.status).toBe(401);
+  });
+
+  it("changes the password, and the new one works while the old one stops", async () => {
+    await makeActiveUser();
+    const { accessToken } = await loginOk();
+
+    expect((await change(accessToken, "ChangeMe123", "BrandNew123")).status).toBe(200);
+
+    expect((await request(app).post("/v1/auth/login").send({ identifier: "soadmin", password: "ChangeMe123" })).status).toBe(401);
+    expect((await request(app).post("/v1/auth/login").send({ identifier: "soadmin", password: "BrandNew123" })).status).toBe(200);
+  });
+
+  it("revokes other sessions so a stolen refresh token dies with the password", async () => {
+    await makeActiveUser();
+    const stale = await loginOk();
+    const active = await loginOk();
+
+    await change(active.accessToken, "ChangeMe123", "BrandNew123");
+
+    expect((await request(app).post("/v1/auth/refresh").send({ refreshToken: stale.refreshToken })).status).toBe(401);
+  });
+
+  it("rejects a wrong current password without changing anything", async () => {
+    await makeActiveUser();
+    const { accessToken } = await loginOk();
+
+    const res = await change(accessToken, "WrongPassword1", "BrandNew123");
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe("CURRENT_PASSWORD_INVALID");
+    expect((await request(app).post("/v1/auth/login").send({ identifier: "soadmin", password: "ChangeMe123" })).status).toBe(200);
+  });
+
+  it("enforces the password policy and rejects reusing the current password", async () => {
+    await makeActiveUser();
+    const { accessToken } = await loginOk();
+
+    expect((await change(accessToken, "ChangeMe123", "weak")).body.error.code).toBe("WEAK_PASSWORD");
+    expect((await change(accessToken, "ChangeMe123", "ChangeMe123")).body.error.code).toBe("PASSWORD_UNCHANGED");
+  });
+});

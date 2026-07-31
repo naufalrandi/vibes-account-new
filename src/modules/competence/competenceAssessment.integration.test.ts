@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
+import { randomUUID } from "node:crypto";
 import { createApp } from "../../app";
 import { initModels, Organization, User, Role } from "../../db/models";
 import { hashPassword } from "../../lib/password";
@@ -11,7 +12,7 @@ const authed = (t: string) => ({ Authorization: `Bearer ${t}` });
 const CO = [ACTIONS.COMPETENCE_READ, ACTIONS.COMPETENCE_MANAGE];
 const PERSON = "11111111-1111-1111-1111-111111111111";
 
-async function makeTenant(username: string, code: string, actions: string[] = CO): Promise<{ token: string; orgId: string }> {
+async function makeTenant(username: string, code: string, actions: string[] = CO): Promise<{ token: string; orgId: string; userId: string }> {
   const org = await Organization.create({ name: code, code, type: "Tenant", status: "Active", parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null });
   await User.create({ orgId: org.id, tenantId: null, fullName: "Assessor", username, email: `${username}@x.io`, passwordHash: await hashPassword("ChangeMe123"), status: "Active", position: null, workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null });
   const role = await Role.create({ name: `R-${username}`, tierScope: "Tenant", orgId: org.id, isSuperAdmin: false, status: true });
@@ -19,7 +20,7 @@ async function makeTenant(username: string, code: string, actions: string[] = CO
   await (u as unknown as { setRoles: (r: Role[]) => Promise<unknown> }).setRoles([role]);
   await grantActions(role.id, actions);
   const login = await request(app).post("/v1/auth/login").send({ identifier: username, password: "ChangeMe123" });
-  return { token: login.body.data.accessToken, orgId: org.id };
+  return { token: login.body.data.accessToken, orgId: org.id, userId: u!.id };
 }
 
 // Build role (edu + Required hard L3 rf6 + Required training + Preferred soft L2) and assign a person.
@@ -92,7 +93,11 @@ describe("competence assessments (scoring engine)", () => {
   });
 
   it("scores Not-yet-competent when a required line fails, and approval signs off", async () => {
-    const { token } = await makeTenant("ca4", "CA4");
+    const { token, userId } = await makeTenant("ca4", "CA4", [...CO, ACTIONS.APPROVAL_READ, ACTIONS.APPROVAL_MANAGE]);
+    // Competence sign-off now requires approval-pool membership, like every
+    // other governed module.
+    await request(app).put(`/v1/approvals/pools/${userId}`).set(authed(token)).send({ isMST: true });
+    await request(app).put("/v1/approvals/settings").set(authed(token)).send({ selfApprovalAllowed: true });
     const s = await scaffold(token);
     const a = await request(app).post("/v1/competence/assessments").set(authed(token)).send({
       assignmentId: s.asg.id, date: "2026-06-01",
@@ -113,5 +118,122 @@ describe("competence assessments (scoring engine)", () => {
     const readonly = await makeTenant("ca5", "CA5", [ACTIONS.COMPETENCE_READ]);
     expect((await request(app).get("/v1/competence/roles").set(authed(readonly.token))).status).toBe(200);
     expect((await request(app).post("/v1/competence/roles").set(authed(readonly.token)).send({ name: "x" })).status).toBe(403);
+  });
+
+  it("keeps Enterprise roles out of a tenant's own role list, and ?scope=enterprise returns only Enterprise's", async () => {
+    const sp = await (async () => {
+      const org = await Organization.create({ name: "SPCO", code: "SPCO", type: "ServiceOwner", status: "Active", parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null });
+      await User.create({ orgId: org.id, tenantId: null, fullName: "SP", username: "ca6-sp", email: "ca6-sp@x.io", passwordHash: await hashPassword("ChangeMe123"), status: "Active", position: null, workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null });
+      const role = await Role.create({ name: "R-ca6-sp", tierScope: "ServiceOwner", orgId: org.id, isSuperAdmin: false, status: true });
+      const u = await User.findOne({ where: { username: "ca6-sp" } });
+      await (u as unknown as { setRoles: (r: Role[]) => Promise<unknown> }).setRoles([role]);
+      await grantActions(role.id, CO);
+      const login = await request(app).post("/v1/auth/login").send({ identifier: "ca6-sp", password: "ChangeMe123" });
+      return { token: login.body.data.accessToken as string };
+    })();
+    await request(app).post("/v1/competence/roles").set(authed(sp.token)).send({ name: "Lead Auditor" });
+
+    const { token } = await makeTenant("ca6", "CA6");
+    await request(app).post("/v1/competence/roles").set(authed(token)).send({ name: "Quality Manager" });
+
+    const tenantRoles = (await request(app).get("/v1/competence/roles").set(authed(token))).body.data;
+    expect(tenantRoles.map((r: { name: string }) => r.name)).toEqual(["Quality Manager"]);
+
+    const spRoles = (await request(app).get("/v1/competence/roles?scope=enterprise").set(authed(sp.token))).body.data;
+    expect(spRoles.map((r: { name: string }) => r.name)).toEqual(["Lead Auditor"]);
+  });
+
+  // Assignments/assessments/gaps carry a NOT NULL orgId, so "Enterprise" for
+  // them means the Service Provider's own org. Without an explicit scope a
+  // ServiceOwner read is unrestricted — which would put every tenant's records
+  // on the Enterprise screens.
+  it("?scope=enterprise narrows assignments to the Service Provider's own org", async () => {
+    const sp = await (async () => {
+      const org = await Organization.create({ name: "SPCO2", code: "SPCO2", type: "ServiceOwner", status: "Active", parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null });
+      await User.create({ orgId: org.id, tenantId: null, fullName: "SP", username: "ca7-sp", email: "ca7-sp@x.io", passwordHash: await hashPassword("ChangeMe123"), status: "Active", position: null, workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null });
+      const role = await Role.create({ name: "R-ca7-sp", tierScope: "ServiceOwner", orgId: org.id, isSuperAdmin: false, status: true });
+      const u = await User.findOne({ where: { username: "ca7-sp" } });
+      await (u as unknown as { setRoles: (r: Role[]) => Promise<unknown> }).setRoles([role]);
+      await grantActions(role.id, CO);
+      const login = await request(app).post("/v1/auth/login").send({ identifier: "ca7-sp", password: "ChangeMe123" });
+      return { token: login.body.data.accessToken as string };
+    })();
+
+    // A tenant creates its own role + assignment.
+    const { token } = await makeTenant("ca7", "CA7");
+    const tRole = (await request(app).post("/v1/competence/roles").set(authed(token)).send({ name: "Operator" })).body.data;
+    const created = await request(app).post("/v1/competence/assignments").set(authed(token))
+      .send({ personId: randomUUID(), personName: "Tenant Person", roleId: tRole.id });
+    expect(created.status).toBe(201);
+
+    // Unscoped, the Service Owner sees the tenant's assignment...
+    const all = (await request(app).get("/v1/competence/assignments").set(authed(sp.token))).body.data;
+    expect(all.some((a: { personName: string }) => a.personName === "Tenant Person")).toBe(true);
+
+    // ...but the Enterprise view must not.
+    const ent = (await request(app).get("/v1/competence/assignments?scope=enterprise").set(authed(sp.token))).body.data;
+    expect(ent.some((a: { personName: string }) => a.personName === "Tenant Person")).toBe(false);
+  });
+
+  // Competence is listed as a governed module on the Approvals screen, but
+  // sign-off used to be an unguarded flag flip with no eligibility check at all.
+  it("refuses competence sign-off from outside an approval pool", async () => {
+    const { token } = await makeTenant("ca8", "CA8", [...CO, ACTIONS.APPROVAL_READ, ACTIONS.APPROVAL_MANAGE]);
+    const s = await scaffold(token);
+    const a = await request(app).post("/v1/competence/assessments").set(authed(token)).send({
+      assignmentId: s.asg.id, date: "2026-06-01",
+      requirements: [{ key: "edu", result: "Met" }],
+    });
+
+    const blocked = await request(app).post(`/v1/competence/assessments/${a.body.data.id}/approve`).set(authed(token)).send({});
+    expect(blocked.status).toBe(403);
+    expect(blocked.body.error.message).toMatch(/approval pool/i);
+  });
+
+  it("refuses self-approval of one's own assessment unless the org allows it", async () => {
+    const { token, userId } = await makeTenant("ca9", "CA9", [...CO, ACTIONS.APPROVAL_READ, ACTIONS.APPROVAL_MANAGE]);
+    await request(app).put(`/v1/approvals/pools/${userId}`).set(authed(token)).send({ isMST: true });
+    // Self-approval is permitted by default, so turn it off to exercise the rule.
+    await request(app).put("/v1/approvals/settings").set(authed(token)).send({ selfApprovalAllowed: false });
+    const s = await scaffold(token);
+
+    // The assessor is recorded as the acting user's own name.
+    const a = await request(app).post("/v1/competence/assessments").set(authed(token)).send({
+      assignmentId: s.asg.id, date: "2026-06-01", assessor: "Assessor",
+      requirements: [{ key: "edu", result: "Met" }],
+    });
+
+    const blocked = await request(app).post(`/v1/competence/assessments/${a.body.data.id}/approve`).set(authed(token)).send({});
+    expect(blocked.status).toBe(403);
+    expect(blocked.body.error.message).toMatch(/self-approval/i);
+
+    await request(app).put("/v1/approvals/settings").set(authed(token)).send({ selfApprovalAllowed: true });
+    const allowed = await request(app).post(`/v1/competence/assessments/${a.body.data.id}/approve`).set(authed(token)).send({});
+    expect(allowed.status).toBe(200);
+  });
+
+  // The Enterprise competence screens show the SP's own staff. Every other list
+  // function honours `scope=enterprise`; the reassessment queue used to ignore
+  // it, so a Service Owner saw every tenant's assignments on that tab.
+  it("does not leak tenant assignments into the Enterprise reassessment queue", async () => {
+    const tenant = await makeTenant("cq-tenant", "CQTEN");
+    await scaffold(tenant.token);
+
+    const so = await Organization.create({ name: "SO", code: "CQSO", type: "ServiceOwner", status: "Active", parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null });
+    await User.create({ orgId: so.id, tenantId: null, fullName: "SO", username: "cq-so", email: "cq-so@x.io", passwordHash: await hashPassword("ChangeMe123"), status: "Active", position: null, workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null });
+    const soRole = await Role.create({ name: "R-cq-so", tierScope: "ServiceOwner", orgId: so.id, isSuperAdmin: false, status: true });
+    const soUser = await User.findOne({ where: { username: "cq-so" } });
+    await (soUser as unknown as { setRoles: (r: Role[]) => Promise<unknown> }).setRoles([soRole]);
+    await grantActions(soRole.id, CO);
+    const soToken = (await request(app).post("/v1/auth/login").send({ identifier: "cq-so", password: "ChangeMe123" })).body.data.accessToken;
+
+    const unscoped = await request(app).get("/v1/competence/assessments/reassess-queue").set(authed(soToken));
+    expect(unscoped.body.data.never.length).toBe(1); // Service Owner's full view still works
+
+    const enterprise = await request(app).get("/v1/competence/assessments/reassess-queue?scope=enterprise").set(authed(soToken));
+    expect(enterprise.status).toBe(200);
+    const all = [...enterprise.body.data.never, ...enterprise.body.data.overdue, ...enterprise.body.data.due];
+    expect(all).toHaveLength(0);
+    expect(all.some((a: { orgId: string }) => a.orgId === tenant.orgId)).toBe(false);
   });
 });

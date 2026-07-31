@@ -55,6 +55,7 @@ import { limsRoutes } from "./modules/lims/lims.routes";
 import { kbRoutes } from "./modules/knowledge-base/kb.routes";
 import { notificationRoutes } from "./modules/notifications/notification.routes";
 import { referenceRoutes } from "./modules/reference/reference.routes";
+import { referenceDbRoutes } from "./modules/reference-db/referenceDb.routes";
 
 export function createApp() {
   const app = express();
@@ -123,6 +124,7 @@ export function createApp() {
   app.use("/v1/kb-articles", authenticate, tenantScope, kbRoutes);
   app.use("/v1/notifications", authenticate, tenantScope, notificationRoutes);
   app.use("/v1/reference", authenticate, tenantScope, referenceRoutes);
+  app.use("/v1/reference-db", authenticate, tenantScope, referenceDbRoutes);
 
   app.use(errorHandler);
   return app;

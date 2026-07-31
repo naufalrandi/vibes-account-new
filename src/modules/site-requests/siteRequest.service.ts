@@ -156,6 +156,9 @@ export async function approveSiteRequest(auth: AuthContext, id: string, ip: stri
       if (p.siteType) site.type = p.siteType as SiteType;
       if (p.country !== undefined) site.country = p.country ?? null;
       if (p.address !== undefined) site.address = p.address ?? null;
+      if (p.city !== undefined) site.city = p.city ?? null;
+      if (p.state !== undefined) site.state = p.state ?? null;
+      if (p.postalCode !== undefined) site.postalCode = p.postalCode ?? null;
       if (p.isPrimary) {
         await Site.update({ isPrimary: false }, { where: { orgId: site.orgId } });
         site.isPrimary = true;
@@ -181,7 +184,7 @@ export async function provisionSiteRequest(auth: AuthContext, id: string, ip: st
   const site = await Site.create({
     orgId: req.orgId, code: await nextSiteCode(), name: req.proposed.name || "New Site",
     type: (req.proposed.siteType as SiteType) || "Branch Office",
-    country: req.proposed.country ?? null, address: req.proposed.address ?? null,
+    country: req.proposed.country ?? null, address: req.proposed.address ?? null, city: req.proposed.city ?? null, state: req.proposed.state ?? null, postalCode: req.proposed.postalCode ?? null,
     status: "Active", isPrimary: false, description: null, contactPerson: null, contactEmail: null, contactPhone: null,
   });
   req.provisioned = true;

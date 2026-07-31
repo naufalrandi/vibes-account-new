@@ -99,6 +99,26 @@ describe("internal audit", () => {
     expect(report.body.data.plans).toContain("IAPL-0001");
   });
 
+  it("adds comments to a program and a finding, validating and scoping them", async () => {
+    const { token } = await makeTenant("ia7", "IA7");
+    const prog = await request(app).post("/v1/internal-audit/programs").set(authed(token)).send(PROGRAM);
+    const programId = prog.body.data.id;
+
+    expect((await request(app).post(`/v1/internal-audit/programs/${programId}/comments`).set(authed(token)).send({ text: "   " })).status).toBe(400);
+    const commented = await request(app).post(`/v1/internal-audit/programs/${programId}/comments`).set(authed(token)).send({ text: "Kicking off @Scott" });
+    expect(commented.status).toBe(201);
+    expect(commented.body.data.comments).toHaveLength(1);
+    expect(commented.body.data.comments[0]).toMatchObject({ user: "Lead Auditor", text: "Kicking off @Scott" });
+
+    const finding = await request(app).post("/v1/internal-audit/findings").set(authed(token))
+      .send({ programId, title: "Missing test records", type: "Nonconformity", description: "x", process: "Software Development", evidence: "Sampled logs" });
+    const commentedFinding = await request(app).post(`/v1/internal-audit/findings/${finding.body.data.id}/comments`).set(authed(token)).send({ text: "Following up" });
+    expect(commentedFinding.body.data.comments).toHaveLength(1);
+
+    const b = await makeTenant("ia8", "IA8");
+    expect((await request(app).post(`/v1/internal-audit/programs/${programId}/comments`).set(authed(b.token)).send({ text: "cross-tenant" })).status).toBe(403);
+  });
+
   it("issues without review when mandatoryReview is disabled", async () => {
     const { token } = await makeTenant("ia2", "IA2");
     await request(app).put("/v1/internal-audit/settings").set(authed(token)).send({ mandatoryReview: false });

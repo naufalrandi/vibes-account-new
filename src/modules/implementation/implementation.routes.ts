@@ -7,5 +7,6 @@ import { ACTIONS } from "../iam/actions.catalog";
 export const implementationRoutes = Router();
 implementationRoutes.get("/:module", requireAction(ACTIONS.MS_READ), c.list);
 implementationRoutes.post("/:module", requireAction(ACTIONS.MS_MANAGE), c.create);
+implementationRoutes.post("/concerns/:id/route", requireAction(ACTIONS.MS_MANAGE), c.routeConcern);
 implementationRoutes.put("/:module/:id", requireAction(ACTIONS.MS_MANAGE), c.update);
 implementationRoutes.delete("/:module/:id", requireAction(ACTIONS.MS_MANAGE), c.remove);

@@ -124,9 +124,9 @@ describe("assessment run engine", () => {
     const gaps = await request(app).get(`/v1/assessments/${id}/gaps`).set(authed(token));
     expect(gaps.body.data).toHaveLength(2);
     expect(gaps.body.data.every((g: { severity: string }) => g.severity === "High")).toBe(true);
-    // Internal Audit maps to the audits module.
+    // Internal Audit maps to the dedicated Internal Audit module, not the generic implementation register.
     const audit = gaps.body.data.find((g: { elementName: string }) => g.elementName === "Internal Audit");
-    expect(audit.recommendedRoute).toBe("/implementation/audits");
+    expect(audit.recommendedRoute).toBe("/internal-audit");
   });
 
   it("rejects out-of-scope questions and finalize with no answers", async () => {

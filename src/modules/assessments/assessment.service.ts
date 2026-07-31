@@ -21,7 +21,7 @@ interface ModuleRec {
 const DEFAULT_MODULE: ModuleRec = { key: "documented-information", label: "Documented Information", route: "/implementation/documents" };
 // Weak element → the implementation module that closes it (the gap journey exit).
 const MODULE_BY_ELEMENT: Record<string, ModuleRec> = {
-  "Internal Audit": { key: "internal-audit", label: "Internal Audit", route: "/implementation/audits" },
+  "Internal Audit": { key: "internal-audit", label: "Internal Audit", route: "/internal-audit" },
   "Risk Assessment": { key: "risk-management", label: "Risk Management", route: "/implementation/risks" },
   "Risk Treatment": { key: "risk-management", label: "Risk Management", route: "/implementation/risks" },
   "Management Review": { key: "management-review", label: "Management Review", route: "/implementation/reviews" },

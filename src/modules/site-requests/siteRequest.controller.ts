@@ -13,6 +13,9 @@ const proposedSchema = z.object({
   siteType: z.string().optional(),
   country: z.string().nullish(),
   address: z.string().nullish(),
+  city: z.string().nullish(),
+  state: z.string().nullish(),
+  postalCode: z.string().nullish(),
   isPrimary: z.boolean().optional(),
 });
 

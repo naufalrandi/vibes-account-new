@@ -29,7 +29,7 @@ import { Plan, Invoice, Payment, Receipt, RevenueShareStatement, Payout } from "
 import { Ticket } from "./ticket.model";
 import {
   FrameworkGroup, FrameworkElement, FrameworkRequirement, RequirementCriterion,
-  ElementRequirementXref, ConformanceQuestion, ConformanceResponse,
+  ElementRequirementXref, ConformanceQuestion, ConformanceResponse, ElementAssessmentAnswer,
 } from "./frameworkMeta.models";
 import { Assessment, AssessmentAnswer, Gap } from "./assessment.models";
 import { ImplementationRecord } from "./implementationRecord.model";
@@ -43,6 +43,7 @@ import { ScopeDataset, MsScope } from "./scope.models";
 import { IpParty, IpRequirement } from "./interestedParty.models";
 import { DemoTenant } from "./demoTenant.model";
 import { BusinessRecord } from "./businessRecord.model";
+import { ReferenceSectorFramework, ReferenceIndustrySector, ReferenceEducationField, ReferenceEducationLevel, ReferenceCountry } from "./referenceDb.models";
 import { WorkUnit } from "./workUnit.model";
 import { RoleTemplate, RoleAssignment } from "./roleRegister.models";
 import { RecordEvent } from "./recordEvent.model";
@@ -166,6 +167,14 @@ export function initModels(): void {
   ConformanceResponse.belongsTo(ConformanceQuestion, { foreignKey: "questionId" });
   RequirementCriterion.hasMany(ConformanceResponse, { foreignKey: "criterionId" });
   ConformanceResponse.belongsTo(RequirementCriterion, { foreignKey: "criterionId" });
+  // SP self-assessment (OD `fwe-assess`) — one persisted answer per question, distinct
+  // from the tenant-scoped Assessment/AssessmentAnswer run engine below.
+  FrameworkElement.hasMany(ElementAssessmentAnswer, { foreignKey: "elementId" });
+  ElementAssessmentAnswer.belongsTo(FrameworkElement, { foreignKey: "elementId" });
+  ConformanceQuestion.hasOne(ElementAssessmentAnswer, { foreignKey: "questionId" });
+  ElementAssessmentAnswer.belongsTo(ConformanceQuestion, { foreignKey: "questionId" });
+  ConformanceResponse.hasMany(ElementAssessmentAnswer, { foreignKey: "responseId" });
+  ElementAssessmentAnswer.belongsTo(ConformanceResponse, { foreignKey: "responseId" });
 
   // Phase 8 — tenant assessment run engine + gap analysis.
   Organization.hasMany(Assessment, { foreignKey: "orgId" });
@@ -259,6 +268,10 @@ export function initModels(): void {
   IpParty.hasMany(IpRequirement, { foreignKey: "partyId" });
   IpRequirement.belongsTo(IpParty, { foreignKey: "partyId" });
 
+  // Demo tenants → the real Organization/User generateDemoTenant() provisions.
+  DemoTenant.belongsTo(Organization, { foreignKey: "provisionedOrgId", as: "provisionedOrg" });
+  DemoTenant.belongsTo(User, { foreignKey: "provisionedUserId", as: "provisionedUser" });
+
   initialized = true;
 }
 
@@ -304,6 +317,7 @@ export {
   ElementRequirementXref,
   ConformanceQuestion,
   ConformanceResponse,
+  ElementAssessmentAnswer,
   Assessment,
   AssessmentAnswer,
   Gap,
@@ -344,4 +358,9 @@ export {
   RoleAssignment,
   RecordEvent,
   Fwrc,
+  ReferenceSectorFramework,
+  ReferenceIndustrySector,
+  ReferenceEducationField,
+  ReferenceEducationLevel,
+  ReferenceCountry,
 };

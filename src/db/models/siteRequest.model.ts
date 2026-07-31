@@ -10,6 +10,9 @@ export interface SiteRequestProposed {
   siteType?: string;
   country?: string | null;
   address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
   isPrimary?: boolean;
 }
 

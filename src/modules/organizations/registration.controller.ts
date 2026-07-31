@@ -14,7 +14,12 @@ const proposedSchema = z.object({
   adminEmail: z.string().email(),
 });
 const rejectSchema = z.object({ reason: z.string().min(1) });
-const listQuerySchema = z.object({ status: z.enum(["PendingApproval", "Approved", "Rejected"]).optional() });
+const STATUSES = ["Draft", "Submitted", "Under Review", "PendingApproval", "Approved", "Rejected", "Cancelled"] as const;
+const listQuerySchema = z.object({ status: z.enum(STATUSES).optional() });
+const submitSchema = proposedSchema.extend({ asDraft: z.boolean().optional() });
+const updateSchema = proposedSchema.partial();
+// Approve/reject are their own decisions, so they are not transition targets.
+const transitionSchema = z.object({ status: z.enum(["Submitted", "Under Review", "Cancelled"]) });
 
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
@@ -30,7 +35,27 @@ export async function list(req: Request, res: Response, next: NextFunction) {
 export async function submit(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    sendOk(res, await svc.submitRegistration(req.auth, proposedSchema.parse(req.body), req.ip ?? null), 201);
+    const { asDraft, ...proposed } = submitSchema.parse(req.body);
+    sendOk(res, await svc.submitRegistration(req.auth, proposed, req.ip ?? null, asDraft ?? false), 201);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function update(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    sendOk(res, await svc.updateRegistration(req.auth, String(req.params.id), updateSchema.parse(req.body), req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function transition(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const { status } = transitionSchema.parse(req.body);
+    sendOk(res, await svc.transitionRegistration(req.auth, String(req.params.id), status, req.ip ?? null));
   } catch (e) {
     next(e);
   }

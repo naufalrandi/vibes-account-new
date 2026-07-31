@@ -135,13 +135,19 @@ export async function getTenant(auth: AuthContext, orgId: string): Promise<Tenan
 }
 
 export async function provisionTenant(auth: AuthContext, input: ProvisionTenantInput, ip: string | null): Promise<TenantView> {
-  if (auth.orgType !== "ServiceOwner" && auth.orgType !== "Distributor") throw new ForbiddenError();
+  // Service-Owner only, deliberately. A Distributor's route to a new tenant is
+  // submitRegistration() → SO review → approveRegistration(), which is the
+  // governance control the Tenant Requests queue exists to enforce. Allowing
+  // Distributors here was a second, unreviewed door to the same outcome.
+  if (auth.orgType !== "ServiceOwner") throw new ForbiddenError("Only the Service Owner can provision tenants directly; partners submit a tenant request for review");
   const code = input.organization.code?.trim() || (await nextTenantCode());
   const dup = await Organization.findOne({ where: { code } });
   if (dup) throw new ConflictError(`Organization code ${code} is already in use`, "DUPLICATE_CODE");
 
   const activate = input.mode === "activate";
-  const partnerOrgId = input.organization.partnerOrgId ?? (auth.orgType === "Distributor" ? auth.orgId : null);
+  // Caller is always the Service Owner now, so an attributed partner can only
+  // come from the input (SP provisioning a tenant on a partner's behalf).
+  const partnerOrgId = input.organization.partnerOrgId ?? null;
   const acquisition: TenantAcquisition = partnerOrgId ? "Partner" : "Direct";
   const status: TenantStatus = activate ? "Pending Activation" : "Draft";
 

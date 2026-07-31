@@ -32,6 +32,12 @@ export class DemoTenant extends Model<
   declare username: string;
   declare tempPassword: string;
   declare role: CreationOptional<string>;
+  // Real Organization/User rows created by generateDemoTenant() (null until
+  // generated). tenantId/userId above stay the display codes (DEMO-xxx/DU-xxx,
+  // asserted by existing tests) — these are the actual FKs the real /v1/auth/login
+  // flow authenticates against.
+  declare provisionedOrgId: string | null;
+  declare provisionedUserId: string | null;
   // Lifecycle.
   declare approval: CreationOptional<DemoApproval>;
   declare accessStatus: DemoAccessStatus | null;
@@ -61,6 +67,8 @@ DemoTenant.init(
     username: { type: DataTypes.STRING, allowNull: false },
     tempPassword: { type: DataTypes.STRING, allowNull: false, field: "temp_password" },
     role: { type: DataTypes.STRING, allowNull: false, defaultValue: "Demo Tenant Admin" },
+    provisionedOrgId: { type: DataTypes.UUID, allowNull: true, field: "provisioned_org_id" },
+    provisionedUserId: { type: DataTypes.UUID, allowNull: true, field: "provisioned_user_id" },
     approval: { type: DataTypes.ENUM("Pending", "Approved", "Rejected"), allowNull: false, defaultValue: "Pending" },
     accessStatus: {
       type: DataTypes.ENUM("Active", "Expired", "Disabled", "Deleted", "Archived"),

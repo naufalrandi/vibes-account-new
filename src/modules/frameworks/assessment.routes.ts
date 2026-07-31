@@ -5,6 +5,9 @@ import { ACTIONS } from "../iam/actions.catalog";
 
 export const assessmentRoutes = Router();
 assessmentRoutes.get("/elements/:id", requireAction(ACTIONS.ASSESSMENT_READ), c.elementAssessment);
+assessmentRoutes.get("/elements/:id/answers", requireAction(ACTIONS.ASSESSMENT_READ), c.listAnswers);
+assessmentRoutes.put("/elements/:id/answers/:questionId", requireAction(ACTIONS.ASSESSMENT_MANAGE), c.setAnswer);
+assessmentRoutes.post("/elements/:id/reset", requireAction(ACTIONS.ASSESSMENT_MANAGE), c.resetAssessment);
 assessmentRoutes.post("/questions", requireAction(ACTIONS.ASSESSMENT_MANAGE), c.createQuestion);
 assessmentRoutes.put("/questions/:id", requireAction(ACTIONS.ASSESSMENT_MANAGE), c.updateQuestion);
 assessmentRoutes.delete("/questions/:id", requireAction(ACTIONS.ASSESSMENT_MANAGE), c.removeQuestion);

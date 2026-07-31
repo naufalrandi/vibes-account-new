@@ -4,6 +4,7 @@ import { sequelize } from "../sequelize";
 export type LibraryStatus = "Draft" | "Active" | "Archived";
 export type ElementCategory = "Core" | "Framework Extension";
 export type AssessmentStatus = "Draft" | "Active";
+export type QuestionDimension = "Coverage" | "Maturity";
 
 /** Framework grouping (Standards / Regulations) for the meta-model Library. */
 export class FrameworkGroup extends Model<InferAttributes<FrameworkGroup>, InferCreationAttributes<FrameworkGroup>> {
@@ -121,6 +122,13 @@ export class ConformanceQuestion extends Model<InferAttributes<ConformanceQuesti
   declare text: string;
   declare sortOrder: CreationOptional<number>;
   declare status: CreationOptional<AssessmentStatus>;
+  /** Coverage questions gate applicability; Maturity questions score it (OD `q.dimension`). */
+  declare dimension: CreationOptional<QuestionDimension>;
+  /** Groups Maturity questions into perspectives on the element detail page (OD `q.category`). */
+  declare category: string | null;
+  declare code: string | null;
+  /** Short label shown above `text` when it differs (OD `q.title`). */
+  declare title: string | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -131,6 +139,10 @@ ConformanceQuestion.init(
     text: { type: DataTypes.TEXT, allowNull: false },
     sortOrder: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: "sort_order" },
     status: { type: DataTypes.ENUM("Draft", "Active"), allowNull: false, defaultValue: "Draft" },
+    dimension: { type: DataTypes.ENUM("Coverage", "Maturity"), allowNull: false, defaultValue: "Maturity" },
+    category: { type: DataTypes.STRING, allowNull: true },
+    code: { type: DataTypes.STRING, allowNull: true },
+    title: { type: DataTypes.TEXT, allowNull: true },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },
@@ -145,6 +157,9 @@ export class ConformanceResponse extends Model<InferAttributes<ConformanceRespon
   declare sortOrder: CreationOptional<number>;
   declare status: CreationOptional<AssessmentStatus>;
   declare criterionId: string | null;
+  declare code: string | null;
+  /** When chosen, reveals a framework picker on the assessment page (OD `r.child`). */
+  declare child: CreationOptional<boolean>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -156,8 +171,34 @@ ConformanceResponse.init(
     sortOrder: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: "sort_order" },
     status: { type: DataTypes.ENUM("Draft", "Active"), allowNull: false, defaultValue: "Draft" },
     criterionId: { type: DataTypes.UUID, allowNull: true, field: "criterion_id" },
+    code: { type: DataTypes.STRING, allowNull: true },
+    child: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },
   { sequelize, tableName: "conformance_responses", underscored: true },
+);
+
+/** Persisted answer to one conformance question — the `fwe-assess` self-assessment (OD `db.fweAssess`). */
+export class ElementAssessmentAnswer extends Model<InferAttributes<ElementAssessmentAnswer>, InferCreationAttributes<ElementAssessmentAnswer>> {
+  declare id: CreationOptional<string>;
+  declare elementId: string;
+  declare questionId: string;
+  declare responseId: string | null;
+  /** Framework names picked when the answered response is a "child" response. */
+  declare frameworks: CreationOptional<string[]>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+ElementAssessmentAnswer.init(
+  {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    elementId: { type: DataTypes.UUID, allowNull: false, field: "element_id" },
+    questionId: { type: DataTypes.UUID, allowNull: false, unique: true, field: "question_id" },
+    responseId: { type: DataTypes.UUID, allowNull: true, field: "response_id" },
+    frameworks: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE,
+  },
+  { sequelize, tableName: "element_assessment_answers", underscored: true },
 );
