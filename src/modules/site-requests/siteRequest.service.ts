@@ -120,7 +120,22 @@ export async function createSiteRequest(auth: AuthContext, input: CreateSiteRequ
   return buildView(req);
 }
 
+// Deciding a request (review/reject/approve/provision) is Service-Owner-only —
+// OD lets only the SP review/approve/reject/provision site requests
+// (index.html:7838-7841). Enforced here as defense-in-depth alongside the
+// route-level grant exclusion (SITE_REQUEST_DECIDE is SP-only in
+// tenantGrants.ts) so an already-granted Distributor/Tenant actor is still
+// blocked, not just newly-provisioned ones (certification audit finding —
+// a Tenant could otherwise self-approve/self-provision changes to the exact
+// controlled site fields site.service.ts locks down).
+function assertServiceOwner(auth: AuthContext): void {
+  if (auth.orgType !== "ServiceOwner") {
+    throw new ForbiddenError("Only the Service Owner can decide site requests", "SITE_REQUEST_SP_ONLY");
+  }
+}
+
 async function setStatus(auth: AuthContext, id: string, from: SiteRequestStatus[], to: SiteRequestStatus, action: string, ip: string | null): Promise<SiteRequestView> {
+  assertServiceOwner(auth);
   const req = await requireRequest(auth, id);
   if (!from.includes(req.status)) throw new ConflictError(`Cannot ${action} a request that is "${req.status}"`, "ILLEGAL_TRANSITION");
   req.status = to;
@@ -139,6 +154,7 @@ export const rejectSiteRequest = (a: AuthContext, id: string, ip: string | null)
 
 /** Approve a request; Change/Closure are applied to the target site immediately. */
 export async function approveSiteRequest(auth: AuthContext, id: string, ip: string | null): Promise<SiteRequestView> {
+  assertServiceOwner(auth);
   const req = await requireRequest(auth, id);
   if (!["Submitted", "Under Review"].includes(req.status)) {
     throw new ConflictError(`Cannot approve a request that is "${req.status}"`, "ILLEGAL_TRANSITION");
@@ -177,6 +193,7 @@ export async function approveSiteRequest(auth: AuthContext, id: string, ip: stri
 
 /** Provision an approved Site Addition into a real site. */
 export async function provisionSiteRequest(auth: AuthContext, id: string, ip: string | null): Promise<SiteRequestView> {
+  assertServiceOwner(auth);
   const req = await requireRequest(auth, id);
   if (req.type !== "Site Addition") throw new BadRequestError("Only Site Addition requests are provisioned", "NOT_AN_ADDITION");
   if (req.status !== "Approved") throw new ConflictError("Only approved requests can be provisioned", "NOT_APPROVED");

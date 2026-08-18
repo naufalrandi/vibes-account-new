@@ -1,13 +1,22 @@
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
-import { initModels, Organization, User, Role, AgreementTemplate, PartnerProfile } from "../../db/models";
+import { initModels, Organization, User, Role, RoleActionGrant, Action, AgreementTemplate, PartnerProfile } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
 
 const app = createApp();
 const authed = (t: string) => ({ Authorization: `Bearer ${t}` });
+
+/** Activate a PendingActivation user by its activation token and log in. */
+async function activateAndLogin(username: string, token: string): Promise<string> {
+  const activateRes = await request(app).post("/v1/auth/activate").send({ token, password: "NewPass123!" });
+  expect(activateRes.status).toBe(200);
+  const login = await request(app).post("/v1/auth/login").send({ identifier: username, password: "NewPass123!" });
+  expect(login.status).toBe(200);
+  return login.body.data.accessToken as string;
+}
 
 /** Super-admin SO (bypasses action grants) — used for happy-path lifecycle flows. */
 async function makeSo(superAdmin = true, actions: string[] = []): Promise<{ token: string; orgId: string }> {
@@ -152,5 +161,53 @@ describe("partners", () => {
     const betaOrgId = others.map((p) => p.orgId).find((oid) => oid !== a.body.data.id)!;
     const forbidden = await request(app).get(`/v1/partners/${betaOrgId}`).set(authed(distToken));
     expect(forbidden.status).toBe(403);
+  });
+
+  /**
+   * Certification audit finding: `createPartner` used to create the Distributor
+   * org + PendingActivation admin user with NO Role at all, so once the admin
+   * activated their account every authorized request 403d (zero action
+   * grants) — the same defect class already fixed for tenant provisioning
+   * (see tenantGrants.integration.test.ts). Fixed by creating a real
+   * "Administrator" Role (tierScope "Distributor") and calling
+   * `grantEverythingExceptSpOnly` + `setRoles([role])`, mirroring
+   * tenant.service.ts's `provisionTenant`.
+   */
+  it("createPartner provisions the new admin with a real Role + the curated non-SP grant set", async () => {
+    const { token: soToken } = await makeSo();
+    const res = await request(app).post("/v1/partners").set(authed(soToken)).send({
+      name: "Borneo Digital", admin: { fullName: "Budi Santoso", username: "budi.admin", email: "budi@borneo.io" },
+    });
+    expect(res.status).toBe(201);
+    const orgId = res.body.data.id;
+
+    const role = await Role.findOne({ where: { orgId, name: "Administrator" } });
+    expect(role).not.toBeNull();
+    expect(role!.tierScope).toBe("Distributor");
+
+    // Curated set: a representative granted action + a representative SP-only
+    // action that must NOT be granted (mirrors SP_ONLY_ACTIONS in tenantGrants.ts).
+    const grants = await RoleActionGrant.findAll({ where: { roleId: role!.id }, include: [Action] });
+    const grantedKeys = new Set(grants.map((g) => (g.get("Action") as Action).key));
+    expect(grantedKeys.has(ACTIONS.SITE_READ)).toBe(true);
+    expect(grantedKeys.has(ACTIONS.MS_READ)).toBe(true);
+    expect(grantedKeys.has(ACTIONS.FRAMEWORK_CREATE)).toBe(false);
+
+    // Activate the admin (the notification send is a stub in tests — pull the
+    // token straight from the row) and confirm the grants are real end-to-end.
+    const admin = await User.findOne({ where: { username: "budi.admin" } });
+    expect(admin).not.toBeNull();
+    const adminToken = await activateAndLogin("budi.admin", admin!.activationToken!);
+
+    // Curated read within the new org succeeds…
+    const siteList = await request(app).get("/v1/sites").set(authed(adminToken));
+    expect(siteList.status).toBe(200);
+    // …but an SP-only action is still forbidden (defense-in-depth: the route
+    // itself rejects it even though the FE never renders the control).
+    const frameworkCreate = await request(app)
+      .post("/v1/frameworks")
+      .set(authed(adminToken))
+      .send({ name: "Should be rejected" });
+    expect(frameworkCreate.status).toBe(403);
   });
 });

@@ -607,6 +607,12 @@ export async function deleteRecord(auth: AuthContext, module: string, id: string
   if (module === "policies") {
     throw new BadRequestError("Policies are archived, never deleted", "POLICY_DELETE_FORBIDDEN");
   }
+  // OD offers no hard delete for external documents either — edDocMenu
+  // (13210–13220) ends at Archive; the FE never exposes a delete action, but
+  // the API route was still reachable directly (certification audit finding).
+  if (module === "records") {
+    throw new BadRequestError("External documents are archived, never deleted", "RECORD_DELETE_FORBIDDEN");
+  }
   const r = await requireRecord(auth, module, id);
   // OD `edFolderDelete` (13153): a folder that still holds documents cannot be
   // hard-deleted — move or remove them first. Enforced server-side so no client

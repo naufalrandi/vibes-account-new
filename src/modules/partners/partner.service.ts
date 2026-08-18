@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Op, type WhereOptions } from "sequelize";
+import { Op, type WhereOptions, type Transaction } from "sequelize";
 import { sequelize } from "../../db/sequelize";
 import {
   Organization,
@@ -10,6 +10,7 @@ import {
   RevenueShareStatement,
   Payout,
   Subscription,
+  Role,
 } from "../../db/models";
 import type { PartnerStatus, PartnerTier, PartnerAuditEntry } from "../../db/models/partnerProfile.model";
 import type { AuthContext } from "../../lib/scope";
@@ -18,6 +19,13 @@ import { renderBlocks } from "../agreements/agreement.service";
 import { sendActivationInvite } from "../notifications/notification.service";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { grantEverythingExceptSpOnly } from "../iam/tenantGrants";
+
+// A freshly created Partner Administrator needs an actual Role + grants, or
+// every authenticated request 403s post-activation (same defect class as
+// tenant.service.ts's provisionTenant / registration.service.ts's
+// approveRegistration, fixed here in lockstep — certification audit finding).
+type WithSetRoles = { setRoles: (roles: Role[], options?: { transaction?: Transaction }) => Promise<unknown> };
 
 // --- DTO shapes (match the FE contract exactly) --------------------------
 export interface PartnerView {
@@ -213,6 +221,12 @@ export async function createPartner(
       { transaction: tx },
     );
 
+    const role = await Role.create(
+      { name: "Administrator", tierScope: "Distributor", orgId: org.id, isSuperAdmin: false, status: true },
+      { transaction: tx },
+    );
+    await grantEverythingExceptSpOnly(role.id, tx);
+
     const activationToken = randomUUID();
     const admin = await User.create(
       {
@@ -232,6 +246,7 @@ export async function createPartner(
       },
       { transaction: tx },
     );
+    await (admin as unknown as WithSetRoles).setRoles([role], { transaction: tx });
 
     const audit: PartnerAuditEntry[] = [nowEntry("Partner organization created")];
     const profile = await PartnerProfile.create(
