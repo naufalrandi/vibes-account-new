@@ -38,6 +38,10 @@ const updateSchema = z.object({
   phone: z.string().nullish(),
   photo: z.string().nullish(),
   workUnit: z.string().nullish(),
+  // OD tenant-team member fields (migration 0047).
+  siteId: z.string().uuid().nullish(),
+  personnelType: z.string().nullish(),
+  processIds: z.array(z.string()).nullish(),
 });
 
 const statusSchema = z.object({ status: z.enum(["Active", "Suspended", "Inactive"]) });

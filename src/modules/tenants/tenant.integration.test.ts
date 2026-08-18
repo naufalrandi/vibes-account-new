@@ -109,6 +109,69 @@ describe("tenants", () => {
     expect(list.body.data[0].name).toBe("Alpha");
   });
 
+  it("provisions with a Draft subscription agreement and allows deactivate from Draft", async () => {
+    const { token } = await makeSo();
+    const created = await request(app).post("/v1/tenants").set(authed(token)).send(provisionBody("draft"));
+    expect(created.body.data.agreement).toMatchObject({
+      name: "VIBES Subscription Agreement", status: "Draft", subscriptionType: "Professional",
+      billingCycle: "Monthly", currency: "IDR", paymentDueDays: 14,
+    });
+    expect(created.body.data.agreement.number).toMatch(/^TA-\d{4}-\d{4}$/);
+    // OD offers Deactivate from every status except Inactive (index.html:7349).
+    const res = await request(app).post(`/v1/tenants/${created.body.data.id}/deactivate`).set(authed(token));
+    expect(res.body.data.status).toBe("Inactive");
+  });
+
+  it("updates tenant details via PUT and records the audit entry", async () => {
+    const { token } = await makeSo();
+    const created = await request(app).post("/v1/tenants").set(authed(token)).send(provisionBody("draft"));
+    const id = created.body.data.id;
+
+    const res = await request(app).put(`/v1/tenants/${id}`).set(authed(token)).send({
+      name: "Acme Renamed", acquisitionSource: "Direct", email: "new@acme.io",
+      phone: "+62 21 555", website: "acme.io", country: "SG", address: "1 Raffles Place",
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.data.name).toBe("Acme Renamed");
+    expect(res.body.data.email).toBe("new@acme.io");
+    expect(res.body.data.country).toBe("SG");
+    expect(res.body.data.acquisitionSource).toBe("Direct");
+
+    const { TenantProfile } = await import("../../db/models");
+    const profile = await TenantProfile.findOne({ where: { orgId: id } });
+    expect(profile?.audit[0]?.msg).toBe("Tenant details updated");
+  });
+
+  it("rejects Partner acquisition without a partner and refuses non-SP editors", async () => {
+    const so = await makeSo();
+    const created = await request(app).post("/v1/tenants").set(authed(so.token)).send(provisionBody("draft"));
+    const id = created.body.data.id;
+
+    const missingPartner = await request(app).put(`/v1/tenants/${id}`).set(authed(so.token)).send({
+      name: "Acme", acquisitionSource: "Partner", email: "admin@acme.io",
+    });
+    expect(missingPartner.status).toBe(400);
+
+    // A Distributor with the grant is still refused at the service boundary.
+    const dist = await Organization.create({
+      name: "Partner Co", code: "PCO", type: "Distributor", status: "Active",
+      parentOrgId: so.orgId, tenantId: null, email: null, phone: null, website: null, country: null, address: null,
+    });
+    const role = await Role.create({ name: "Administrator", tierScope: "Distributor", orgId: dist.id, isSuperAdmin: false, status: true });
+    await grantActions(role.id, [ACTIONS.TENANT_READ, ACTIONS.TENANT_UPDATE]);
+    const u = await User.create({
+      orgId: dist.id, tenantId: null, fullName: "Partner Admin", username: "pco.editor", email: "editor@pco.io",
+      passwordHash: await hashPassword("ChangeMe123"), status: "Active",
+      position: null, workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null,
+    });
+    await (u as unknown as { setRoles: (r: Role[]) => Promise<unknown> }).setRoles([role]);
+    const login = await request(app).post("/v1/auth/login").send({ identifier: "pco.editor", password: "ChangeMe123" });
+    const res = await request(app).put(`/v1/tenants/${id}`).set(authed(login.body.data.accessToken)).send({
+      name: "Hijacked", acquisitionSource: "Direct", email: "admin@acme.io",
+    });
+    expect(res.status).toBe(403);
+  });
+
   // Governance boundary: a Distributor's only route to a new tenant is
   // submitRegistration() → SO review → approveRegistration(). Direct
   // provisioning used to be open to Distributors too, which bypassed the

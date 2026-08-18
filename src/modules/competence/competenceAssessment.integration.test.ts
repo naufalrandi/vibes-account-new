@@ -2,7 +2,7 @@ import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { randomUUID } from "node:crypto";
 import { createApp } from "../../app";
-import { initModels, Organization, User, Role } from "../../db/models";
+import { initModels, Organization, User, Role, CompetenceEducation } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
@@ -25,7 +25,8 @@ async function makeTenant(username: string, code: string, actions: string[] = CO
 
 // Build role (edu + Required hard L3 rf6 + Required training + Preferred soft L2) and assign a person.
 async function scaffold(token: string) {
-  const edu = (await request(app).post("/v1/competence/education").set(authed(token)).send({ level: 6, label: "Bachelor's" })).body.data;
+  // The ISCED ladder is SP-managed reference data (tenant writes 403) — seed it directly.
+  const edu = (await CompetenceEducation.create({ level: 6, label: "Bachelor's", description: null })).get({ plain: true });
   const hard = (await request(app).post("/v1/competence/skills").set(authed(token)).send({ name: "Internal Auditing", type: "hard", methods: ["Written exam"] })).body.data;
   const soft = (await request(app).post("/v1/competence/skills").set(authed(token)).send({ name: "Communication", type: "soft" })).body.data;
   const tr = (await request(app).post("/v1/competence/training").set(authed(token)).send({ name: "ISO 9001 Lead Auditor" })).body.data;

@@ -27,6 +27,8 @@ export class Framework extends Model<
   // Phase 7 meta-model fields.
   declare groupId: string | null;
   declare jurisdictions: CreationOptional<string[]>;
+  /** OD Short Label — compact register tag (e.g. "9001"); null = auto-derive. */
+  declare shortLabel: string | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -44,6 +46,7 @@ Framework.init(
     fullDescription: { type: DataTypes.TEXT, allowNull: true, field: "full_description" },
     groupId: { type: DataTypes.UUID, allowNull: true, field: "group_id" },
     jurisdictions: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+    shortLabel: { type: DataTypes.STRING, allowNull: true, field: "short_label" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

@@ -15,7 +15,8 @@ function view(e: RecordEvent): RecordEventView {
   return { id: e.id, type: e.type, actor: e.actor, text: e.text, createdAt: e.createdAt };
 }
 
-async function actorName(auth: AuthContext): Promise<string | null> {
+/** Resolves the caller's display name for attribution (activity log, justification stamps, etc). */
+export async function actorName(auth: AuthContext): Promise<string | null> {
   const u = auth.userId ? await User.findByPk(auth.userId) : null;
   return u?.fullName ?? u?.username ?? null;
 }

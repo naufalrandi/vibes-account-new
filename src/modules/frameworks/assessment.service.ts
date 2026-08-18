@@ -54,6 +54,35 @@ export async function getElementAssessment(auth: AuthContext, elementId: string)
   return { elementId, elementName: element.name, questions: await Promise.all(questions.map(questionView)) };
 }
 
+// --- CQ/CQR code generation (OD nextQCode/nextRCode, index.html:2326-2335) ---
+
+/** Next question code for an element: `CQ-<elemNum>-NN` (elemNum from the FWE code). */
+async function nextQCode(elementId: string): Promise<string> {
+  const element = await FrameworkElement.findByPk(elementId);
+  const eln = (element?.code ?? "FWE-000").replace("FWE-", "");
+  const rows = await ConformanceQuestion.findAll({ where: { elementId }, attributes: ["code"] });
+  const pattern = new RegExp(`^CQ-${eln}-(\\d+)$`);
+  let max = 0;
+  for (const row of rows) {
+    const m = pattern.exec(row.code ?? "");
+    if (m) max = Math.max(max, Number.parseInt(m[1], 10));
+  }
+  return `CQ-${eln}-${String(max + 1).padStart(2, "0")}`;
+}
+
+/** Next response code for a question: `<CQ code>-Rn`. */
+async function nextRCode(questionId: string): Promise<string> {
+  const question = await ConformanceQuestion.findByPk(questionId);
+  const base = question?.code ?? "CQ";
+  const rows = await ConformanceResponse.findAll({ where: { questionId }, attributes: ["code"] });
+  let max = 0;
+  for (const row of rows) {
+    const m = /-R(\d+)$/.exec(row.code ?? "");
+    if (m) max = Math.max(max, Number.parseInt(m[1], 10));
+  }
+  return `${base}-R${max + 1}`;
+}
+
 // --- Questions -----------------------------------------------------------
 export interface CreateQuestionInput {
   elementId: string; text: string; sortOrder?: number; status?: AssessmentStatus;
@@ -69,7 +98,8 @@ export async function createQuestion(auth: AuthContext, input: CreateQuestionInp
   if (!(await FrameworkElement.findByPk(input.elementId))) throw new BadRequestError("Element does not exist", "ELEMENT_NOT_FOUND");
   const q = await ConformanceQuestion.create({
     elementId: input.elementId, text: input.text, sortOrder: input.sortOrder ?? 0, status: input.status ?? "Draft",
-    dimension: input.dimension ?? "Maturity", category: input.category ?? null, code: input.code ?? null, title: input.title ?? null,
+    dimension: input.dimension ?? "Maturity", category: input.category ?? null,
+    code: input.code ?? (await nextQCode(input.elementId)), title: input.title ?? null,
   });
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "cq.created", entityType: "ConformanceQuestion", entityId: q.id, sourceIp: ip, result: "Success" });
   return questionView(q);
@@ -108,7 +138,7 @@ export async function createResponse(auth: AuthContext, input: CreateResponseInp
   if (!(await ConformanceQuestion.findByPk(input.questionId))) throw new BadRequestError("Question does not exist", "CQ_NOT_FOUND");
   const r = await ConformanceResponse.create({
     questionId: input.questionId, text: input.text, sortOrder: input.sortOrder ?? 0, status: input.status ?? "Draft", criterionId: null,
-    code: input.code ?? null, child: input.child ?? false,
+    code: input.code ?? (await nextRCode(input.questionId)), child: input.child ?? false,
   });
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "cqr.created", entityType: "ConformanceResponse", entityId: r.id, sourceIp: ip, result: "Success" });
   return responseView(r);

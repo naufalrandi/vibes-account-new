@@ -9,6 +9,8 @@ const proposedSchema = z.object({
   code: z.string().min(1),
   email: z.string().email().optional(),
   country: z.string().optional(),
+  industry: z.string().optional(),
+  phone: z.string().optional(),
   adminFullName: z.string().min(1),
   adminUsername: z.string().min(1),
   adminEmail: z.string().email(),
@@ -16,8 +18,11 @@ const proposedSchema = z.object({
 const rejectSchema = z.object({ reason: z.string().min(1) });
 const STATUSES = ["Draft", "Submitted", "Under Review", "PendingApproval", "Approved", "Rejected", "Cancelled"] as const;
 const listQuerySchema = z.object({ status: z.enum(STATUSES).optional() });
-const submitSchema = proposedSchema.extend({ asDraft: z.boolean().optional() });
-const updateSchema = proposedSchema.partial();
+// `partnerOrgId` is a sibling of the proposed-tenant fields, not part of them —
+// null selects OD's "Direct (Service Provider acquisition)" (7713); omitted
+// leaves the existing/partner-forced attribution untouched.
+const submitSchema = proposedSchema.extend({ asDraft: z.boolean().optional(), partnerOrgId: z.string().uuid().nullish() });
+const updateSchema = proposedSchema.partial().extend({ partnerOrgId: z.string().uuid().nullish() });
 // Approve/reject are their own decisions, so they are not transition targets.
 const transitionSchema = z.object({ status: z.enum(["Submitted", "Under Review", "Cancelled"]) });
 
@@ -35,8 +40,8 @@ export async function list(req: Request, res: Response, next: NextFunction) {
 export async function submit(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    const { asDraft, ...proposed } = submitSchema.parse(req.body);
-    sendOk(res, await svc.submitRegistration(req.auth, proposed, req.ip ?? null, asDraft ?? false), 201);
+    const { asDraft, partnerOrgId, ...proposed } = submitSchema.parse(req.body);
+    sendOk(res, await svc.submitRegistration(req.auth, proposed, req.ip ?? null, asDraft ?? false, partnerOrgId), 201);
   } catch (e) {
     next(e);
   }
@@ -45,7 +50,8 @@ export async function submit(req: Request, res: Response, next: NextFunction) {
 export async function update(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    sendOk(res, await svc.updateRegistration(req.auth, String(req.params.id), updateSchema.parse(req.body), req.ip ?? null));
+    const { partnerOrgId, ...proposed } = updateSchema.parse(req.body);
+    sendOk(res, await svc.updateRegistration(req.auth, String(req.params.id), proposed, req.ip ?? null, partnerOrgId));
   } catch (e) {
     next(e);
   }

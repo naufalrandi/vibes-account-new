@@ -4,7 +4,8 @@ import * as service from "./element.service";
 import { sendOk } from "../../lib/apiResponse";
 import { UnauthorizedError } from "../../lib/errors";
 
-const statusSchema = z.enum(["Draft", "Active", "Archived"]);
+// OD vocabulary is Active/Inactive; Draft/Archived stay accepted as legacy values.
+const statusSchema = z.enum(["Draft", "Active", "Inactive", "Archived"]);
 const createSchema = z.object({
   name: z.string().min(1),
   description: z.string().nullish(),

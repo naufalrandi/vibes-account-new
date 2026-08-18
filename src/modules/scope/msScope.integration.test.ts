@@ -91,6 +91,25 @@ describe("management system scope (6-dimension)", () => {
     expect((await request(app).get(`/v1/scope/scopes/${id}/diff`).set(authed(token))).body.data.entries).toHaveLength(0);
   });
 
+  it("previews a draft statement from picked dimensions without persisting (S4)", async () => {
+    const { token } = await makeTenant("ms5", "MS5");
+    const preview = await request(app).post("/v1/scope/scopes/generate-statement").set(authed(token)).send({
+      ...baseDims(),
+      processes: [{ name: "Front End Development", status: "Included", note: "" }],
+    });
+    expect(preview.status).toBe(200);
+    expect(preview.body.data.statement).toContain("ISO 9001:2015 and ISO/IEC 27001:2022");
+    expect(preview.body.data.statement).toContain("Front End Development");
+    expect(preview.body.data.statement).toContain("Hammer Industries at Head Office");
+    // Excluded rows stay out of the generated statement.
+    expect(preview.body.data.statement).not.toContain("Client Site");
+    // Nothing was persisted.
+    expect((await request(app).get("/v1/scope/scopes").set(authed(token))).body.data).toHaveLength(0);
+    // Read grant suffices for the preview.
+    const readonly = await makeTenant("ms6", "MS6", [ACTIONS.SCOPE_READ]);
+    expect((await request(app).post("/v1/scope/scopes/generate-statement").set(authed(readonly.token)).send(baseDims())).status).toBe(200);
+  });
+
   it("supersedes a prior Active scope and enforces grants", async () => {
     const a = await makeTenant("ms3", "MS3");
     const id1 = (await request(app).post("/v1/scope/scopes").set(authed(a.token)).send({ name: "Scope A", ...baseDims() })).body.data.id;

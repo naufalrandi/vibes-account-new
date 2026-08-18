@@ -8,6 +8,7 @@ import {
 import { ISIC, NACE, KBLI, ISCEDF, type HierNode } from "../reference/reference.data";
 import { COUNTRY_SEED } from "./data/countrySeed";
 import { EDUCATION_LEVEL_SEED } from "./data/educationLevelSeed";
+import { EDU_FRAMEWORK_SEED } from "./data/eduFrameworkSeed";
 
 /**
  * Enterprise "Database" reference registers (OD `ent-db-*`). Each org gets
@@ -62,18 +63,29 @@ async function ensureSectorFrameworksSeeded(orgId: string): Promise<string> {
   return row.id;
 }
 
+// OD `index.html:16786-16804` — national education-qualification frameworks
+// (ID KKNI, AU AQF, GB RQF, MY MQF, IE NFQ, SG SGUS, ZA NQF) mapped to ISCED
+// 2011, seeded per country so the role-editor's national-equivalence feature
+// has data to work with.
+const EDU_FRAMEWORK_BY_COUNTRY = new Map(EDU_FRAMEWORK_SEED.map((f) => [f.code, f]));
+
 async function ensureCountriesSeeded(orgId: string): Promise<void> {
   if (await ReferenceCountry.count({ where: { orgId } })) return;
   const naceFrameworkId = await ensureSectorFrameworksSeeded(orgId);
   const kbliLevels = KBLI.map(nodeToFrameworkLevel);
-  await ReferenceCountry.bulkCreate(COUNTRY_SEED.map((c) => ({
-    orgId, code: c.code, name: c.name, currency: c.currency, language: c.language, capital: null,
-    eduFramework: null, sectorFramework: null,
-    sectorFrameworkRef: EU_MEMBERS.includes(c.code) ? naceFrameworkId : null,
-    // OD special-case: Indonesia auto-seeds the full KBLI tree as its own sector levels.
-    sectorLevels: c.code === "ID" ? kbliLevels : [],
-    regions: [], eduLevels: [], edited: false,
-  })));
+  await ReferenceCountry.bulkCreate(COUNTRY_SEED.map((c) => {
+    const eduSeed = EDU_FRAMEWORK_BY_COUNTRY.get(c.code);
+    return {
+      orgId, code: c.code, name: c.name, currency: c.currency, language: c.language, capital: null,
+      eduFramework: eduSeed?.framework ?? null, sectorFramework: null,
+      sectorFrameworkRef: EU_MEMBERS.includes(c.code) ? naceFrameworkId : null,
+      // OD special-case: Indonesia auto-seeds the full KBLI tree as its own sector levels.
+      sectorLevels: c.code === "ID" ? kbliLevels : [],
+      regions: [],
+      eduLevels: eduSeed ? eduSeed.levels.map((l) => ({ level: l.isced, code: l.code, label: l.label, isced: String(l.isced) })) : [],
+      edited: false,
+    };
+  }));
 }
 
 async function logAudit(auth: AuthContext, action: string, entityType: string, entityId: string, ip: string | null) {
@@ -99,6 +111,13 @@ export async function createEducationLevel(auth: AuthContext, input: Record<stri
 export async function updateEducationLevel(auth: AuthContext, id: string, input: Record<string, unknown>, ip: string | null) {
   const row = await ReferenceEducationLevel.findOne({ where: { id, orgId: auth.orgId } });
   if (!row) throw new NotFoundError("Education level not found", "LEVEL_NOT_FOUND");
+  // OD `eduSave` (index.html:18400-18406) writes level on update, not just create —
+  // this previously silently dropped it, so editing the ISCED number never persisted.
+  if (input.level !== undefined) {
+    const level = Number(input.level);
+    if (!Number.isInteger(level) || level < 0 || level > 8) throw new BadRequestError("Level must be an integer 0-8", "LEVEL_INVALID");
+    row.level = level;
+  }
   if (input.label !== undefined) {
     const label = str(input.label);
     if (!label) throw new BadRequestError("Label is required", "LABEL_REQUIRED");

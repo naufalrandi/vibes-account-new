@@ -10,7 +10,12 @@ import { sequelize } from "../sequelize";
  */
 
 export interface CountryRegion { name: string; cities: string[] }
-export interface CountryEduLevel { level: number; label: string; isced: string | null }
+// `code` is the national qualification code (OD's `level` field, e.g. "Jenjang 6",
+// "AQF 3" — a framework-defined string, not a number). `level` is kept as a
+// numeric ISCED-derived ordering key (least-breaking: existing callers that
+// sort/compare `.level` as a number keep working); `isced` mirrors it as the
+// ISCED 2011 level string, matching OD's `{level, label, isced}` triplet.
+export interface CountryEduLevel { level: number; code: string; label: string; isced: string | null }
 export interface CountrySectorLevel { code: string; label: string; isic: string | null; lv: number; parent: string | null }
 export interface SectorFrameworkNode { code: string; label: string; lv: number; parent: string | null; isic: string | null }
 

@@ -23,6 +23,7 @@ const createSchema = z.object({
   groupId: z.string().uuid().optional(),
   description: z.string().nullish(),
   jurisdictions: z.array(z.string()).optional(),
+  shortLabel: z.string().nullish(),
 });
 
 const updateSchema = createSchema.partial();

@@ -46,6 +46,38 @@ export interface CreateSiteInput {
 
 export type UpdateSiteInput = Partial<Omit<CreateSiteInput, "orgId">>;
 
+/**
+ * OD governance contract (od-gap-analysis-2026-08-18 §2.3/§2.5, P0-5): sites are
+ * controlled commercial objects provisioned only by the Service Provider.
+ * Tenants may edit operational info on their own sites; partners are read-only.
+ * Provisioning still flows through the site-requests module, which applies
+ * approved changes to Site rows directly under SP auth.
+ */
+const OPERATIONAL_FIELDS: ReadonlySet<string> = new Set(["description", "contactPerson", "contactEmail", "contactPhone"]);
+
+function assertServiceOwner(auth: AuthContext): void {
+  if (auth.orgType !== "ServiceOwner") {
+    throw new ForbiddenError("Sites are managed by the Service Provider; submit a site request", "SITES_SP_MANAGED");
+  }
+}
+
+/** SO edits anything; Tenant only operational fields; Distributor nothing. */
+function assertCanUpdateFields(auth: AuthContext, input: UpdateSiteInput): void {
+  if (auth.orgType === "ServiceOwner") return;
+  if (auth.orgType === "Distributor") {
+    throw new ForbiddenError("Partners have read-only access to sites; submit a request", "SITES_READ_ONLY");
+  }
+  const controlled = Object.entries(input)
+    .filter(([key, value]) => value !== undefined && !OPERATIONAL_FIELDS.has(key))
+    .map(([key]) => key);
+  if (controlled.length > 0) {
+    throw new ForbiddenError(
+      `Controlled fields (${controlled.join(", ")}) are managed by the Service Provider; use a change request`,
+      "SITE_FIELDS_CONTROLLED",
+    );
+  }
+}
+
 function toView(site: Site, tenantName: string): SiteView {
   return {
     id: site.id, orgId: site.orgId, tenantName,
@@ -107,6 +139,7 @@ export async function getSite(auth: AuthContext, id: string): Promise<SiteView> 
 }
 
 export async function createSite(auth: AuthContext, input: CreateSiteInput, ip: string | null): Promise<SiteView> {
+  assertServiceOwner(auth);
   const org = await Organization.findByPk(input.orgId);
   if (!org || org.type !== "Tenant") throw new BadRequestError("Sites can only belong to a Tenant organization", "NOT_A_TENANT");
   await assertCanSeeOrg(auth, org.id);
@@ -139,6 +172,7 @@ export async function createSite(auth: AuthContext, input: CreateSiteInput, ip: 
 
 export async function updateSite(auth: AuthContext, id: string, input: UpdateSiteInput, ip: string | null): Promise<SiteView> {
   const { site, org } = await requireSite(auth, id);
+  assertCanUpdateFields(auth, input);
   if (input.isPrimary) await Site.update({ isPrimary: false }, { where: { orgId: site.orgId } });
   if (input.name !== undefined) site.name = input.name;
   if (input.type !== undefined) site.type = input.type;
@@ -162,6 +196,7 @@ export async function updateSite(auth: AuthContext, id: string, input: UpdateSit
 }
 
 export async function deleteSite(auth: AuthContext, id: string, ip: string | null): Promise<void> {
+  assertServiceOwner(auth);
   const { site } = await requireSite(auth, id);
   if (site.isPrimary) throw new BadRequestError("The primary site cannot be deleted", "PRIMARY_SITE");
   const orgId = site.orgId;

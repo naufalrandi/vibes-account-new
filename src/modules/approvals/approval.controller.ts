@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import * as service from "./approval.service";
 import { sendOk } from "../../lib/apiResponse";
-import { UnauthorizedError } from "../../lib/errors";
+import { BadRequestError, UnauthorizedError } from "../../lib/errors";
 import type { AuthContext } from "../../lib/scope";
 
 const body = z.record(z.string(), z.unknown());
@@ -35,5 +35,28 @@ const rec = (req: Request) => ({ module: req.params.module as string, recordId: 
 export const getRecord = wrap(async (req, res) => sendOk(res, await service.getApproval(guard(req), rec(req).module, rec(req).recordId)));
 export const submit = wrap(async (req, res) => sendOk(res, await service.submit(guard(req), rec(req).module, rec(req).recordId, ip(req))));
 export const approve = wrap(async (req, res) => sendOk(res, await service.approve(guard(req), rec(req).module, rec(req).recordId, ip(req))));
-export const requestRevision = wrap(async (req, res) => sendOk(res, await service.requestRevision(guard(req), rec(req).module, rec(req).recordId, ip(req))));
+export const requestRevision = wrap(async (req, res) => {
+  const b = z.object({ comments: z.string().max(4000).optional() }).parse(req.body ?? {});
+  sendOk(res, await service.requestRevision(guard(req), rec(req).module, rec(req).recordId, ip(req), b.comments));
+});
 export const withdraw = wrap(async (req, res) => sendOk(res, await service.withdraw(guard(req), rec(req).module, rec(req).recordId, ip(req))));
+
+// Controlled documents — OD's bespoke 3-step flow (review decision + explicit publish).
+const documentsOnly = (req: Request) => {
+  if (req.params.module !== "documents") {
+    throw new BadRequestError("Only controlled documents use the review/publish flow", "MODULE_NOT_DOCUMENTS");
+  }
+};
+export const review = wrap(async (req, res) => {
+  documentsOnly(req);
+  const b = z.object({
+    decision: z.string().min(1).max(40),
+    effectiveDate: z.string().max(40).nullish(),
+    comments: z.string().max(4000).nullish(),
+  }).parse(req.body ?? {});
+  sendOk(res, await service.reviewDocument(guard(req), rec(req).recordId, b, ip(req)));
+});
+export const publish = wrap(async (req, res) => {
+  documentsOnly(req);
+  sendOk(res, await service.publishDocument(guard(req), rec(req).recordId, ip(req)));
+});

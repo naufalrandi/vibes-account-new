@@ -16,6 +16,8 @@ scopeRoutes.delete("/datasets/:id", manage, c.deleteDataset);
 
 // Management System Scope document
 scopeRoutes.get("/scopes", read, c.listScopes);
+// Draft-statement preview (OD `msGenStatement`) — read-only, persists nothing.
+scopeRoutes.post("/scopes/generate-statement", read, c.generateStatement);
 scopeRoutes.post("/scopes", manage, c.createScope);
 scopeRoutes.get("/scopes/:id", read, c.getScope);
 scopeRoutes.put("/scopes/:id", manage, c.updateScope);

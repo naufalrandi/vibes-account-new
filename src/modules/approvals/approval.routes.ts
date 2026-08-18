@@ -33,3 +33,6 @@ approvalRoutes.post("/records/:module/:recordId/submit", approve, c.submit);
 approvalRoutes.post("/records/:module/:recordId/approve", approve, c.approve);
 approvalRoutes.post("/records/:module/:recordId/request-revision", approve, c.requestRevision);
 approvalRoutes.post("/records/:module/:recordId/withdraw", approve, c.withdraw);
+// Controlled documents — bespoke review decision + explicit publish (OD cdReview/cdPublish).
+approvalRoutes.post("/records/:module/:recordId/review", approve, c.review);
+approvalRoutes.post("/records/:module/:recordId/publish", approve, c.publish);

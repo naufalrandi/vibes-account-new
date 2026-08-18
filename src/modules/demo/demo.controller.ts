@@ -20,6 +20,23 @@ const createSchema = z.object({
 });
 const extendSchema = z.object({ validityHours: z.number().int().positive() });
 
+// Public intake (POST /v1/demo-requests, no auth). Length caps double as the
+// payload-size control: the strings below bound everything that gets persisted.
+const publicCreateSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  email: z.string().trim().email().max(254),
+  org: z.string().trim().min(1).max(160),
+  title: z.string().trim().max(120).nullish(),
+  country: z.string().trim().max(80).nullish(),
+  modules: z.array(z.enum(service.PUBLIC_DEMO_MODULES)).min(1).max(4),
+  intendedUse: z.string().trim().max(2000).nullish(),
+  consent: z.literal(true),
+  // Honeypot — humans never see or fill this field. Validated loosely so a bot
+  // that fills it still gets a well-formed request through to the handler,
+  // where it is silently dropped.
+  website: z.string().max(500).optional(),
+});
+
 const guard = (req: Request): AuthContext => {
   if (!req.auth) throw new UnauthorizedError();
   return req.auth;
@@ -44,6 +61,21 @@ export async function get(req: Request, res: Response, next: NextFunction) {
 export async function create(req: Request, res: Response, next: NextFunction) {
   try { sendOk(res, await service.createDemoTenant(guard(req), createSchema.parse(req.body), req.ip ?? null), 201); }
   catch (e) { next(e); }
+}
+
+/** Anonymous demo-request intake — the only unauthenticated demo endpoint. */
+export async function createPublic(req: Request, res: Response, next: NextFunction) {
+  try {
+    const input = publicCreateSchema.parse(req.body);
+    if (input.website) {
+      // Honeypot tripped: answer with a plausible, throwaway request code so
+      // automated submitters cannot tell they were filtered. Nothing is stored.
+      sendOk(res, { code: `DMO-${1000 + Math.floor(Math.random() * 9000)}`, approval: "Pending" }, 201);
+      return;
+    }
+    const { consent: _consent, website: _website, ...rest } = input;
+    sendOk(res, await service.createPublicDemoRequest(rest, req.ip ?? null), 201);
+  } catch (e) { next(e); }
 }
 
 export async function extend(req: Request, res: Response, next: NextFunction) {

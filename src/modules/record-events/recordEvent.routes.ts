@@ -13,6 +13,7 @@ import { ACTIONS } from "../iam/actions.catalog";
 const MODULE_ACTIONS: Record<string, { read: string; manage: string }> = {
   "interested-parties": { read: ACTIONS.IP_READ, manage: ACTIONS.IP_MANAGE },
   scope: { read: ACTIONS.SCOPE_READ, manage: ACTIONS.SCOPE_MANAGE },
+  "work-units": { read: ACTIONS.WORKUNIT_READ, manage: ACTIONS.WORKUNIT_MANAGE },
 };
 
 /** Defaults to the ISO clause registers, which every other module here is. */

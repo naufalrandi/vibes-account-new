@@ -1,11 +1,13 @@
 import { Op } from "sequelize";
 import {
   ApprovalScheme, ApprovalModuleMap, ApprovalPoolMember, ApprovalRecord, ApprovalSettings,
-  User, ImplementationRecord,
+  User, ImplementationRecord, IpRequirement,
 } from "../../db/models";
 import { AP_POOLS, type SchemeGate, type RuntimeGate } from "../../db/models/approval.models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
+import { logActivity } from "../record-events/recordEvent.service";
+import { CD_FREQ_MO, getDocSettings } from "../implementation/documentControl";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 const nowIso = () => new Date().toISOString();
@@ -26,20 +28,47 @@ export const AP_DEFAULT_MAP: Record<string, string> = {
   awareness: "S0", documents: "S0", records: "S0", competence: "S0",
 };
 
-/** Governed register modules whose BE status set supports the engine transitions. */
-/** OD `POL_FREQ_MO` — review cadence in months. */
-const POL_FREQ_MO: Record<string, number> = {
-  Quarterly: 3, "Semi-annually": 6, Annually: 12, "Every 2 years": 24, Custom: 12,
-};
+/**
+ * Every governed module key — OD `apModuleGroups()` (index.html:10349–10353):
+ * the VIEWCFG tenant sections at tiers basic+ext, minus `tn-roles`, ~29 modules
+ * across 9 groups. Keys follow the BE short-name convention (`policies`, not
+ * `tn-m-policies`) and line up with the implementation-register module keys, so
+ * a module the gate engine later learns to drive (see GOVERNED) picks up its
+ * stored assignment automatically. Until then an assignment for a non-GOVERNED
+ * module is stored but inert. Modules outside AP_DEFAULT_MAP default to S0
+ * (OD `apModuleSchemeId`: `AP_DEFAULT_MAP[k]||'S0'`).
+ */
+export const AP_MODULE_KEYS: readonly string[] = [
+  // Organization
+  "context", "parties", "scope",
+  // Governance
+  "policies", "objectives", "compliance", "risks",
+  // Personnel (tn-roles excluded)
+  "training", "awareness",
+  // Competence (tn-complib / tn-instruments / tn-assess)
+  "competence", "instruments", "assessments",
+  // Operations
+  "processes", "controls", "suppliers",
+  // Documents
+  "documents", "records",
+  // Evaluation
+  "performance", "audits", "reviews",
+  // Improvement
+  "concerns", "nonconformities", "incidents", "improvements",
+  // Framework Extensions (ISO 9001)
+  "customer-focus", "customer-satisfaction", "psr", "design", "provision",
+];
 
 /**
- * OD `polPublishCore`: publishing a policy is not just a status flip. It
- * supersedes the previously published policy *in the same lineage* (so only one
- * version of a policy is ever live), stamps the publication, and derives
- * `nextReview` from the review frequency when it was left blank.
+ * OD `polPublishCore` / `cdPublish`: publishing a policy or controlled document
+ * is not just a status flip. It supersedes the previously published version
+ * *in the same lineage* (so only one version is ever live), stamps the
+ * publication, defaults the effective date, and derives `nextReview` from the
+ * review frequency when it was left blank. Cadence months come from
+ * `CD_FREQ_MO` (a superset of the policies map — adds "Every 3 years").
  *
  * Lineage is `data.lineageId` falling back to the record's own id, matching OD
- * — a first-generation policy is the root of its own lineage.
+ * — a first-generation record is the root of its own lineage.
  */
 async function publishWithLineage(
   auth: AuthContext, rec: ImplementationRecord, who: string,
@@ -63,7 +92,7 @@ async function publishWithLineage(
   const effectiveDate = (data.effectiveDate as string) || now;
   let nextReview = data.nextReview as string | undefined;
   if (!nextReview) {
-    const months = POL_FREQ_MO[String(data.reviewFreq ?? "")] ?? 12;
+    const months = CD_FREQ_MO[String(data.reviewFreq ?? "")] ?? 12;
     const d = new Date(effectiveDate);
     d.setMonth(d.getMonth() + months);
     nextReview = d.toISOString();
@@ -75,13 +104,33 @@ async function publishWithLineage(
   };
 }
 
+/**
+ * OD `polPublishCore` activity trail: the publish entry on the new version and
+ * the "policy superseded — replaced by …" entry on the prior version in the
+ * same lineage (which `publishWithLineage` just flipped to Superseded and
+ * recorded on `rec.data.supersedes`).
+ */
+async function logPolicyPublished(auth: AuthContext, rec: ImplementationRecord, text: string): Promise<void> {
+  const superseded = ((rec.data ?? {}) as Record<string, unknown>).supersedes as string | undefined;
+  await logActivity(auth, rec.orgId, rec.module, rec.id, superseded ? `${text} · superseded prior version` : text);
+  if (superseded) {
+    await logActivity(auth, rec.orgId, rec.module, superseded, `Policy superseded — replaced by ${rec.code}`);
+  }
+}
+
+/** Governed register modules whose BE status set supports the engine transitions. */
 const GOVERNED: Record<string, { submit: string; mid: string; final: string; revision: string; draft: string }> = {
   policies: { submit: "Under Review", mid: "Pending Final Approval", final: "Published", revision: "Needs Revision", draft: "Draft" },
   context: { submit: "Open", mid: "Open", final: "Monitored", revision: "Open", draft: "Open" },
-  // Controlled documents are gate-approved like policies; "Active" is the
-  // published state, and an approved document is versioned rather than edited
-  // in place (see forkPublishedDocument in implementation.service.ts).
-  documents: { submit: "Under Review", mid: "Approved", final: "Published", revision: "Revision Requested", draft: "Draft" },
+  // Interested-party requirements (OD `apModuleSchemeFor('tn-m-parties')`,
+  // 8871–8905): the Under Review → Addressed acceptance is what the scheme
+  // gates. The governed row lives on its own IpRequirement table (not
+  // ImplementationRecord) — see `governedRecord` / `stampOutcome`.
+  parties: { submit: "Under Review", mid: "Under Review", final: "Addressed", revision: "Under Review", draft: "Open" },
+  // Controlled documents deliberately do NOT route through the gate engine:
+  // OD's cdocs flow is a bespoke 3-step lifecycle (submit → single-reviewer
+  // decision Approve / Request Revision / Reject → explicit Publish) — see
+  // submitDocument / reviewDocument / publishDocument below.
 };
 
 async function audit(auth: AuthContext, action: string, entityType: string, entityId: string, ip: string | null) {
@@ -145,7 +194,10 @@ export async function deleteScheme(auth: AuthContext, code: string, ip: string |
 // ---- Module → scheme map ----
 export async function getModuleMap(auth: AuthContext): Promise<Record<string, string>> {
   const rows = await ApprovalModuleMap.findAll({ where: { orgId: auth.orgId } });
-  const out: Record<string, string> = { ...AP_DEFAULT_MAP };
+  // Full governed key set, unmapped modules defaulting to S0 (OD 10355), then
+  // the org's stored assignments on top (including any legacy off-list key).
+  const out: Record<string, string> = {};
+  for (const k of AP_MODULE_KEYS) out[k] = AP_DEFAULT_MAP[k] ?? "S0";
   for (const r of rows) out[r.moduleKey] = r.schemeId;
   return out;
 }
@@ -154,6 +206,7 @@ export async function resolveSchemeId(auth: AuthContext, moduleKey: string): Pro
   return row?.schemeId ?? AP_DEFAULT_MAP[moduleKey] ?? "S0";
 }
 export async function setModuleScheme(auth: AuthContext, moduleKey: string, schemeId: string, ip: string | null) {
+  if (!AP_MODULE_KEYS.includes(moduleKey)) throw new BadRequestError("Unknown module", "MODULE_UNKNOWN");
   const schemes = await listSchemes(auth);
   if (!schemes.some((s) => s.id === schemeId)) throw new BadRequestError("Unknown scheme", "SCHEME_UNKNOWN");
   const [row] = await ApprovalModuleMap.findOrCreate({ where: { orgId: auth.orgId, moduleKey }, defaults: { orgId: auth.orgId, moduleKey, schemeId } });
@@ -163,8 +216,45 @@ export async function setModuleScheme(auth: AuthContext, moduleKey: string, sche
 }
 
 // ---- Pool members ----
+
+/**
+ * OD parity (`apMigrateFlags`, index.html:4530-4536): OD self-heals an empty
+ * approval pool on every `render()` — if a tenant has no MS Team member it
+ * promotes an Administrator into the pool (falling back to injecting a
+ * synthetic team member when no Administrator candidate exists) so gate
+ * resolution always has someone to show. BE has no equivalent, which left a
+ * fresh org's pool permanently empty (P0/B-series finding: "a fresh tenant
+ * has an empty approval pool making every gated scheme unclearable" —
+ * `poolNames`'s empty-pool fallback and the `submit()` "POOL_EMPTY" guard
+ * above are the symptom).
+ *
+ * We port the same self-heal, scoped to the actual pool-read path
+ * (`listPoolMembers`, the org's Approvals page) rather than every request:
+ * idempotent, runs at most once per org (skips as soon as the org has *any*
+ * `ApprovalPoolMember` row, seeded or user-set), and only ever *adds* rows —
+ * it never edits or removes existing membership. Unlike OD's narrower
+ * `hasTM && !hasMST` branch, we derive both pools from scratch (no BE
+ * equivalent of OD's legacy `topMgmt` flag to read `hasTM` from), so an
+ * empty pool gets a full working default: the earliest Administrator (or,
+ * failing that, the org's earliest user) as MS Team (required), and a
+ * second distinct user — when one exists — as the final-say Top Management
+ * signer, so both S1 gates ("mst" and "top") resolve rather than only one.
+ */
+async function ensurePoolDefaults(orgId: string): Promise<void> {
+  const existing = await ApprovalPoolMember.count({ where: { orgId } });
+  if (existing > 0) return; // OD only self-heals a pool that has never been set up.
+  const users = await User.findAll({ where: { orgId }, order: [["createdAt", "ASC"]], attributes: ["id", "position", "createdAt"] });
+  if (users.length === 0) return;
+  const isAdmin = (u: User): boolean => (u.position ?? "").toLowerCase().includes("administrator");
+  const mst = users.find(isAdmin) ?? users[0];
+  await ApprovalPoolMember.create({ orgId, userId: mst.id, isMST: true, mstPriority: "required", isTM: false, tmFinal: false });
+  const tm = users.find((u) => u.id !== mst.id && isAdmin(u)) ?? users.find((u) => u.id !== mst.id);
+  if (tm) await ApprovalPoolMember.create({ orgId, userId: tm.id, isMST: false, mstPriority: "required", isTM: true, tmFinal: true });
+}
+
 export interface PoolMemberView { userId: string; fullName: string; isMST: boolean; mstPriority: string; isTM: boolean; tmFinal: boolean }
 export async function listPoolMembers(auth: AuthContext): Promise<PoolMemberView[]> {
+  await ensurePoolDefaults(auth.orgId);
   const users = await User.findAll({ where: { orgId: auth.orgId }, attributes: ["id", "fullName"] });
   const flags = new Map((await ApprovalPoolMember.findAll({ where: { orgId: auth.orgId } })).map((f) => [f.userId, f]));
   return users.map((u) => {
@@ -239,10 +329,54 @@ function approveBlockReason(gates: RuntimeGate[], gateIdx: number, who: string, 
   return null;
 }
 
-async function governedRecord(auth: AuthContext, module: string, recordId: string): Promise<ImplementationRecord> {
+/**
+ * The surface the gate engine needs from a governed row. Clause registers store
+ * governed rows on ImplementationRecord; interested-party requirements live on
+ * their own IpRequirement table (no `data` JSON), so the engine works against
+ * this common shape and casts back only in module-specific branches.
+ */
+interface GovernedRow {
+  id: string;
+  orgId: string;
+  code: string;
+  status: string;
+  data?: Record<string, unknown> | null;
+  save(): Promise<unknown>;
+}
+
+async function governedRecord(auth: AuthContext, module: string, recordId: string): Promise<GovernedRow> {
+  if (module === "parties") {
+    const req = await IpRequirement.findOne({ where: { id: recordId, orgId: auth.orgId } });
+    if (!req) throw new NotFoundError("Governed record not found", "RECORD_NOT_FOUND");
+    return req;
+  }
   const rec = await ImplementationRecord.findOne({ where: { id: recordId, module, orgId: auth.orgId } });
   if (!rec) throw new NotFoundError("Governed record not found", "RECORD_NOT_FOUND");
   return rec;
+}
+
+const entityTypeOf = (module: string): string => (module === "parties" ? "IpRequirement" : "ImplementationRecord");
+
+/**
+ * Stamp (or clear, when `who` is null) the approval outcome on a governed row.
+ * Register rows keep it on `data.approvedBy/approvedDate`; interested-party
+ * requirements record the acceptance on `decidedBy/decidedAt` plus an activity
+ * entry, mirroring OD's `ipReqApprove` final branch (8875–8878).
+ */
+function stampOutcome(module: string, rec: GovernedRow, who: string | null): void {
+  if (module === "parties") {
+    const r = rec as unknown as IpRequirement;
+    if (who) {
+      r.decidedBy = who;
+      r.decidedAt = nowIso();
+      r.lastUpdatedBy = who;
+      r.activity = [{ ts: nowIso(), user: who, action: "approved", summary: "Final approval — requirement addressed" }, ...r.activity];
+    }
+    return;
+  }
+  rec.data = who
+    ? { ...rec.data, approvedBy: who, approvedDate: nowIso().slice(0, 10) }
+    : { ...rec.data, approvedBy: null, approvedDate: null };
 }
 function requireGoverned(module: string) {
   const cfg = GOVERNED[module];
@@ -260,20 +394,28 @@ export async function getApproval(auth: AuthContext, module: string, recordId: s
 
 /** Submit a governed record into its assigned scheme (or self-serve publish). */
 export async function submit(auth: AuthContext, module: string, recordId: string, ip: string | null) {
+  // Controlled documents use OD's bespoke single-reviewer flow, not the gates.
+  if (module === "documents") return submitDocument(auth, recordId, ip);
   const cfg = requireGoverned(module);
   const rec = await governedRecord(auth, module, recordId);
+  // OD gates the *acceptance* of an Under Review requirement — submitting any
+  // other state into the engine is a sequencing error (ipReqSubmitApproval 8871).
+  if (module === "parties" && rec.status !== "Under Review") {
+    throw new ConflictError("Submit the requirement for review first", "NOT_UNDER_REVIEW");
+  }
   const schemeId = await resolveSchemeId(auth, module);
   const scheme = (await listSchemes(auth)).find((s) => s.id === schemeId);
   if (!scheme) throw new BadRequestError("Assigned scheme not found", "SCHEME_MISSING");
   const who = await actorName(auth);
   if (scheme.selfServe) {
     rec.status = cfg.final;
-    rec.data = { ...rec.data, approvedBy: who, approvedDate: nowIso().slice(0, 10) };
+    stampOutcome(module, rec, who);
     // A self-serve scheme publishes immediately, so it supersedes the prior
     // version exactly as the gated path does.
-    if (module === "policies") await publishWithLineage(auth, rec, who);
+    if (module === "policies") await publishWithLineage(auth, rec as ImplementationRecord, who);
     await rec.save();
-    await audit(auth, "approval.selfServe.published", "ImplementationRecord", rec.id, ip);
+    await audit(auth, "approval.selfServe.published", entityTypeOf(module), rec.id, ip);
+    if (module === "policies") await logPolicyPublished(auth, rec as ImplementationRecord, "Published the policy — self-serve publish");
     return { record: null, status: rec.status };
   }
   const gates = await buildApproval(auth, scheme);
@@ -285,9 +427,13 @@ export async function submit(auth: AuthContext, module: string, recordId: string
   ar.schemeId = scheme.id; ar.schemeName = scheme.name; ar.selfServe = false; ar.gateIdx = 0; ar.gates = gates; ar.authorName = who; ar.state = "active";
   await ar.save();
   rec.status = cfg.submit;
-  rec.data = { ...rec.data, approvedBy: null, approvedDate: null };
+  stampOutcome(module, rec, null);
   await rec.save();
-  await audit(auth, "approval.submitted", "ImplementationRecord", rec.id, ip);
+  await audit(auth, "approval.submitted", entityTypeOf(module), rec.id, ip);
+  // OD `polSubmit` activity: "<scheme> — awaiting <first gate>".
+  if (module === "policies") {
+    await logActivity(auth, rec.orgId, module, rec.id, `Submitted for review — ${scheme.name} · awaiting ${gates[0]?.label ?? "review"}`);
+  }
   return { record: recView(ar), status: rec.status };
 }
 
@@ -303,35 +449,148 @@ export async function approve(auth: AuthContext, module: string, recordId: strin
   const gates = ar.gates.map((g) => ({ ...g, approvals: [...g.approvals] }));
   gates[ar.gateIdx].approvals.push({ by: who, at: nowIso() });
   const active = gates[ar.gateIdx];
+  // OD `polApprove` activity: pool sign-off with the Prioritized/Optional flag.
+  if (module === "policies") {
+    const prio = active.required.includes(who) ? "Prioritized" : "Optional";
+    const self = who === (ar.authorName ?? "") ? " (self-approval)" : "";
+    await logActivity(auth, rec.orgId, module, rec.id,
+      `Approved · ${active.label} — ${active.pool === "mst" ? "MS Team" : "Top Management"} sign-off · ${prio} approver${self}`);
+  }
   let result: "open" | "advanced" | "final" = "open";
   if (gateDone(active)) {
     if (active.isFinalGate || ar.gateIdx >= gates.length - 1) {
       result = "final";
       ar.state = "approved";
       rec.status = cfg.final;
-      rec.data = { ...rec.data, approvedBy: who, approvedDate: nowIso().slice(0, 10) };
-      if (module === "policies") await publishWithLineage(auth, rec, who);
+      stampOutcome(module, rec, who);
+      if (module === "policies") await publishWithLineage(auth, rec as ImplementationRecord, who);
       await rec.save();
+      if (module === "policies") {
+        await logPolicyPublished(auth, rec as ImplementationRecord, `Published the policy — final approval by ${active.pool === "mst" ? "MS Team" : "Top Management"}`);
+      }
     } else {
       result = "advanced";
       ar.gateIdx += 1;
       rec.status = cfg.mid;
       await rec.save();
+      if (module === "policies") {
+        const next = gates[ar.gateIdx];
+        await logActivity(auth, rec.orgId, module, rec.id, `Gate cleared — ${active.label} complete, advanced to ${next?.label ?? "final approval"}`);
+      }
     }
   }
   ar.gates = gates;
   await ar.save();
-  await audit(auth, "approval.approved", "ImplementationRecord", rec.id, ip);
+  await audit(auth, "approval.approved", entityTypeOf(module), rec.id, ip);
   return { record: recView(ar), status: rec.status, result };
 }
 
-export async function requestRevision(auth: AuthContext, module: string, recordId: string, ip: string | null) {
+export async function requestRevision(auth: AuthContext, module: string, recordId: string, ip: string | null, comments?: string | null) {
+  // Documents route through the bespoke review decision so the outcome and
+  // comment land in the same fields the Review modal writes.
+  if (module === "documents") return reviewDocument(auth, recordId, { decision: "Request Revision", comments }, ip);
   const cfg = requireGoverned(module);
   const rec = await governedRecord(auth, module, recordId);
   rec.status = cfg.revision;
+  // Store the reviewer's comment on the record (OD keeps it on `reviewComments`);
+  // previously the whole approval run was destroyed and the comment lost.
+  // Party requirements have no `data` JSON — their comment lands in the
+  // record-events activity line below only.
+  const text = (comments ?? "").trim();
+  if (text && module !== "parties") rec.data = { ...rec.data, reviewComments: text };
   await rec.save();
-  await ApprovalRecord.destroy({ where: { orgId: auth.orgId, module, recordId } });
-  await audit(auth, "approval.revisionRequested", "ImplementationRecord", rec.id, ip);
+  await ApprovalRecord.update({ state: "returned" }, { where: { orgId: auth.orgId, module, recordId } });
+  await audit(auth, "approval.revisionRequested", entityTypeOf(module), rec.id, ip);
+  await logActivity(auth, rec.orgId, module, rec.id, text ? `Revision requested — ${text}` : "Revision requested");
+  return { status: rec.status };
+}
+
+// ---- Controlled documents: OD's bespoke 3-step flow (cdSubmit → cdReview → cdPublish) ----
+
+/** OD `cdSubmit` (12836): Draft / Revision Requested → Under Review, gated on the org's requireApprover setting. */
+async function submitDocument(auth: AuthContext, recordId: string, ip: string | null) {
+  const rec = await governedRecord(auth, "documents", recordId);
+  if (rec.status !== "Draft" && rec.status !== "Revision Requested") {
+    throw new ConflictError("Only a Draft or Revision Requested document can be submitted for review", "INVALID_STATE");
+  }
+  const settings = await getDocSettings(auth.orgId);
+  const data = (rec.data ?? {}) as Record<string, unknown>;
+  if (settings.requireApprover && !String(data.approver ?? "").trim()) {
+    throw new BadRequestError("Assign an approver first", "DOC_APPROVER_REQUIRED");
+  }
+  const who = await actorName(auth);
+  rec.status = "Under Review";
+  rec.data = { ...data, submittedBy: who, submittedDate: nowIso() };
+  await rec.save();
+  await audit(auth, "approval.document.submitted", "ImplementationRecord", rec.id, ip);
+  await logActivity(auth, rec.orgId, "documents", rec.id, "Submitted for review — status set to Under Review");
+  return { record: null, status: rec.status };
+}
+
+export const CD_REVIEW_DECISIONS = ["Approve", "Request Revision", "Reject"] as const;
+export interface DocumentReviewInput { decision: string; effectiveDate?: string | null; comments?: string | null }
+
+/**
+ * OD `cdReview`/`cdReviewSave` (12837–12849): the single reviewer decides
+ * Approve (→ Approved, with an optional Approved Effective Date), Request
+ * Revision (→ Revision Requested), or Reject (→ Rejected). The decision and
+ * the review comments are stored on the record either way.
+ */
+export async function reviewDocument(auth: AuthContext, recordId: string, input: DocumentReviewInput, ip: string | null) {
+  const rec = await governedRecord(auth, "documents", recordId);
+  if (rec.status !== "Under Review") {
+    throw new ConflictError("Only a document under review can receive a review decision", "NOT_UNDER_REVIEW");
+  }
+  const decision = input.decision;
+  if (!CD_REVIEW_DECISIONS.includes(decision as (typeof CD_REVIEW_DECISIONS)[number])) {
+    throw new BadRequestError("Review decision is required", "DECISION_REQUIRED");
+  }
+  const who = await actorName(auth);
+  const now = nowIso();
+  const comments = (input.comments ?? "").trim();
+  const data: Record<string, unknown> = { ...(rec.data ?? {}), reviewDecision: decision, reviewComments: comments };
+  let activityText: string;
+  if (decision === "Approve") {
+    rec.status = "Approved";
+    data.approvedBy = who;
+    data.approvedDate = now;
+    if (input.effectiveDate) {
+      const d = new Date(input.effectiveDate);
+      if (!Number.isNaN(d.getTime())) data.effectiveDate = d.toISOString();
+    }
+    activityText = "Approved the document";
+  } else if (decision === "Request Revision") {
+    rec.status = "Revision Requested";
+    activityText = `Requested revision — ${comments || "Returned to owner"}`;
+  } else {
+    rec.status = "Rejected";
+    activityText = `Rejected the document — ${comments || "Rejected"}`;
+  }
+  rec.data = data;
+  await rec.save();
+  await audit(auth, "approval.document.reviewed", "ImplementationRecord", rec.id, ip);
+  await logActivity(auth, rec.orgId, "documents", rec.id, activityText);
+  return { status: rec.status, decision };
+}
+
+/**
+ * OD `cdPublish` (12850–12856): a separate, explicit publish gated on the
+ * Approved status. Supersedes the previously published version in the same
+ * lineage, defaults the effective date, and derives the next review.
+ */
+export async function publishDocument(auth: AuthContext, recordId: string, ip: string | null) {
+  const rec = await governedRecord(auth, "documents", recordId);
+  if (rec.status !== "Approved") {
+    throw new ConflictError("Only approved documents can be published", "NOT_APPROVED");
+  }
+  const who = await actorName(auth);
+  await publishWithLineage(auth, rec as ImplementationRecord, who);
+  rec.status = "Published";
+  await rec.save();
+  await audit(auth, "approval.document.published", "ImplementationRecord", rec.id, ip);
+  const superseded = ((rec.data ?? {}) as Record<string, unknown>).supersedes as string | undefined;
+  await logActivity(auth, rec.orgId, "documents", rec.id, superseded ? "Published — superseded prior version" : "Published the document");
+  if (superseded) await logActivity(auth, rec.orgId, "documents", superseded, `Superseded — replaced by ${rec.code}`);
   return { status: rec.status };
 }
 
@@ -346,7 +605,10 @@ export async function withdraw(auth: AuthContext, module: string, recordId: stri
   rec.status = cfg.draft;
   await rec.save();
   await ar.destroy();
-  await audit(auth, "approval.withdrawn", "ImplementationRecord", rec.id, ip);
+  await audit(auth, "approval.withdrawn", entityTypeOf(module), rec.id, ip);
+  if (module === "policies") {
+    await logActivity(auth, rec.orgId, module, rec.id, "Withdrew submission — returned to Draft by author");
+  }
   return { status: rec.status };
 }
 

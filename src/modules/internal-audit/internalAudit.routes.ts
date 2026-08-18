@@ -31,6 +31,9 @@ internalAuditRoutes.get("/sessions", read, c.listSessions);
 internalAuditRoutes.post("/sessions", manage, c.createSession);
 internalAuditRoutes.put("/sessions/:id", manage, c.updateSession);
 internalAuditRoutes.post("/sessions/:id/status", manage, c.setSessionStatus);
+// Planning Mode drag-reschedule / merge (OD `iaCommitMove`); requires an
+// audit-manager org role on top of the manage action — see `assertCanPlan`.
+internalAuditRoutes.post("/sessions/:id/move", manage, c.moveSession);
 internalAuditRoutes.post("/sessions/:id/comments", manage, c.addSessionComment);
 
 // Findings

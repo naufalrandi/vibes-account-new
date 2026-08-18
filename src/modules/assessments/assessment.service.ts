@@ -26,7 +26,11 @@ const MODULE_BY_ELEMENT: Record<string, ModuleRec> = {
   "Risk Treatment": { key: "risk-management", label: "Risk Management", route: "/implementation/risks" },
   "Management Review": { key: "management-review", label: "Management Review", route: "/implementation/reviews" },
   "Objectives & Planning": { key: "objectives", label: "Objectives & Planning", route: "/implementation/objectives" },
-  Competence: { key: "competence", label: "Competence", route: "/implementation/competence" },
+  // OD redirects its 'tn-m-competence' gap recommendation straight into the
+  // real Competence/Assessments area (index.html:8079, `tnAssessRender`) —
+  // never a clause register. The FE's duplicate orphan register at
+  // `/implementation/competence` was removed; route there instead.
+  Competence: { key: "competence", label: "Competence", route: "/competence?tab=assessments" },
   "Nonconformity & Corrective Action": { key: "corrective-actions", label: "Corrective Actions", route: "/implementation/incidents" },
   "Continual Improvement": { key: "compliance", label: "Compliance Monitoring", route: "/implementation/compliance" },
 };

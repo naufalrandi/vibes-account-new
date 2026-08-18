@@ -43,6 +43,11 @@ export async function get(req: Request, res: Response, next: NextFunction) {
   catch (e) { next(e); }
 }
 
+export async function agents(req: Request, res: Response, next: NextFunction) {
+  try { sendOk(res, await service.listAgents(guard(req))); }
+  catch (e) { next(e); }
+}
+
 export async function create(req: Request, res: Response, next: NextFunction) {
   try { sendOk(res, await service.createTicket(guard(req), createSchema.parse(req.body), req.ip ?? null), 201); }
   catch (e) { next(e); }

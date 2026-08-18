@@ -23,6 +23,10 @@ competenceRoutes.post("/training", manage, c.createTraining);
 competenceRoutes.put("/training/:id", manage, c.updateTraining);
 competenceRoutes.delete("/training/:id", manage, c.deleteTraining);
 
+// Settings (OD `compSettings`, index.html:13378)
+competenceRoutes.get("/settings", read, c.getCompetenceSettings);
+competenceRoutes.put("/settings", manage, c.putCompetenceSettings);
+
 // Roles (competence profiles)
 competenceRoutes.get("/roles", read, c.listRoles);
 competenceRoutes.post("/roles", manage, c.createRole);
@@ -54,6 +58,8 @@ competenceRoutes.put("/instruments/exams/:id", manage, c.updateExam);
 competenceRoutes.post("/instruments/exams/:id/status", manage, c.setExamStatus);
 competenceRoutes.delete("/instruments/exams/:id", manage, c.deleteExam);
 competenceRoutes.post("/instruments/exams/:id/take", manage, c.takeExam);
+// Assessor grading phase for short-answer exams (finalizes a PendingGrading attempt).
+competenceRoutes.post("/instruments/exams/attempts/:id/grade", manage, c.gradeExamAttempt);
 
 // Assessment instruments — L4 practical
 competenceRoutes.get("/instruments/practicals", read, c.listPracticals);

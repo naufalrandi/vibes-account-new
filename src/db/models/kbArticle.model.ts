@@ -20,6 +20,10 @@ export class KbArticle extends Model<InferAttributes<KbArticle>, InferCreationAt
   declare uniqueViews: CreationOptional<number>;
   declare helpful: CreationOptional<number>;
   declare notHelpful: CreationOptional<number>;
+  /** User ids already counted toward `uniqueViews` (B4 view dedupe). */
+  declare viewerIds: CreationOptional<string[]>;
+  /** userId -> vote cast, so a repeat/changed vote adjusts counts instead of double-counting (B4). */
+  declare voterIds: CreationOptional<Record<string, "helpful" | "notHelpful">>;
   declare publishedAt: Date | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -42,6 +46,8 @@ KbArticle.init(
     uniqueViews: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: "unique_views" },
     helpful: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
     notHelpful: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: "not_helpful" },
+    viewerIds: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "viewer_ids" },
+    voterIds: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "voter_ids" },
     publishedAt: { type: DataTypes.DATE, allowNull: true, field: "published_at" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,

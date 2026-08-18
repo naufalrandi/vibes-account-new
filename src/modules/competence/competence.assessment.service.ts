@@ -11,6 +11,7 @@ import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
 import { assertMayApprove } from "../approvals/approval.service";
+import { getCompSettings } from "./competence.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 const nowIso = () => new Date().toISOString();
@@ -62,14 +63,29 @@ export async function listRoles(auth: AuthContext, scope?: "enterprise") {
 const ROLE_STR = ["name", "description", "reviewFreq", "eduMinLevelId", "eduCountry"] as const;
 const ROLE_JSON = ["eduFields", "expReqs", "responsibilities", "authorities"] as const;
 
+/** Validates an optional status field the way `setRoleStatus` does, so the
+ * role editor's Status select (OD `rolesEditHtml`, index.html:17632 — the
+ * only way to reach "Under review") can be persisted from create/update too,
+ * not just the dedicated status-transition endpoint. */
+function optionalRoleStatus(input: Record<string, unknown>): string | undefined {
+  if (input.status === undefined) return undefined;
+  const status = str(input.status);
+  if (!status || !ROLE_STATUS.includes(status as never)) throw new BadRequestError(`Invalid role status "${input.status}"`, "INVALID_STATUS");
+  return status;
+}
 export async function createRole(auth: AuthContext, input: Record<string, unknown>, ip: string | null) {
   const isSp = auth.orgType === "ServiceOwner";
   const org = isSp ? null : await targetOrg(auth);
   const name = str(input.name);
   if (!name) throw new BadRequestError("Role name is required", "NAME_REQUIRED");
+  // Falls back to the org's `compSettings.defaultReassess` (OD `compSettings()`,
+  // index.html:13378) rather than a bare `12` — unchanged for orgs that never
+  // touch the setting (its own default is `12`), but now configurable.
+  // SP-global roles (org === null) have no per-org settings row, so `12` applies.
+  const defaultReassess = org ? (await getCompSettings(org)).defaultReassess : 12;
   const row = await CompetenceRole.create({
-    orgId: org, name, description: str(input.description), status: "Draft",
-    reviewFreq: str(input.reviewFreq) || "12", eduMinLevelId: str(input.eduMinLevelId), eduCountry: str(input.eduCountry),
+    orgId: org, name, description: str(input.description), status: optionalRoleStatus(input) ?? "Draft",
+    reviewFreq: str(input.reviewFreq) || String(defaultReassess), eduMinLevelId: str(input.eduMinLevelId), eduCountry: str(input.eduCountry),
     eduFields: arr(input.eduFields) as string[], expReqs: arr(input.expReqs) as never, responsibilities: arr(input.responsibilities) as never, authorities: arr(input.authorities) as never,
   });
   await audit(auth, org ?? auth.orgId, "competence.role.created", "CompetenceRole", row.id, ip);
@@ -87,6 +103,8 @@ export async function updateRole(auth: AuthContext, id: string, input: Record<st
   const rec = row as unknown as Record<string, unknown>;
   for (const k of ROLE_STR) if (input[k] !== undefined) rec[k] = str(input[k]);
   for (const k of ROLE_JSON) if (input[k] !== undefined) rec[k] = arr(input[k]);
+  const status = optionalRoleStatus(input);
+  if (status !== undefined) rec.status = status;
   await row.save();
   await audit(auth, row.orgId ?? auth.orgId, "competence.role.updated", "CompetenceRole", row.id, ip);
   return row.get({ plain: true });
@@ -238,8 +256,14 @@ function addMonths(dateStr: string, months: number): string {
   d.setUTCMonth(d.getUTCMonth() + months);
   return d.toISOString().slice(0, 10);
 }
-export function assessValidUntil(dateStr: string, role: CompetenceRole, requirements: AssessReqResult[]): string {
-  let months = num(role.reviewFreq) || 12;
+/**
+ * `defaultMonths` is the org's `compSettings.defaultReassess` (OD
+ * `compSettings()`, index.html:13378) — falls back to `12` (the setting's own
+ * default value) so existing callers/tests that don't thread it through keep
+ * working unchanged.
+ */
+export function assessValidUntil(dateStr: string, role: CompetenceRole, requirements: AssessReqResult[], defaultMonths = 12): string {
+  let months = num(role.reviewFreq) || defaultMonths;
   for (const r of requirements) { if (r.reviewFreq) months = Math.min(months, num(r.reviewFreq) || months); }
   return addMonths(dateStr, months);
 }
@@ -284,7 +308,8 @@ export async function createAssessment(auth: AuthContext, input: Record<string, 
   });
 
   const { status, score, openGaps } = assessCompute(merged);
-  const validUntil = assessValidUntil(date, role, merged);
+  const { defaultReassess } = await getCompSettings(org);
+  const validUntil = assessValidUntil(date, role, merged, defaultReassess);
   const row = await CompetenceAssessment.create({
     orgId: org, code: await nextCode(CompetenceAssessment, "CA"), assignmentId: asg.id, personId: asg.personId, roleId: asg.roleId,
     assessor: str(input.assessor) ?? who, date, notes: str(input.notes), requirements: merged,

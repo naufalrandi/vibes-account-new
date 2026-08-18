@@ -4,10 +4,10 @@ import * as orgService from "./organization.service";
 import { sendOk } from "../../lib/apiResponse";
 import { UnauthorizedError } from "../../lib/errors";
 
-// Partial-update schema for the Org Settings page. Unknown keys (notably `code`)
-// are stripped by Zod, so the read-only organization code can never be changed
-// through this endpoint. `name`, when provided, must be a non-empty string;
-// `contactEmail`, when provided, must be a valid email.
+// Partial-update schema for the Org Settings page. `name` and `code`, when
+// provided, must be non-empty strings (`code` is further checked for
+// uniqueness in organization.service.updateOrgSettings — it carries a DB-level
+// unique constraint); `contactEmail`, when provided, must be a valid email.
 const brandingSchema = z.object({
   logo: z.string(),
   favicon: z.string(),
@@ -24,6 +24,7 @@ const defaultsSchema = z.object({
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
+  code: z.string().min(1).optional(),
   legalName: z.string().nullish(),
   industry: z.string().nullish(),
   address: z.string().nullish(),

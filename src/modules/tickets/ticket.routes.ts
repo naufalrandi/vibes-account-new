@@ -6,6 +6,8 @@ import { ACTIONS } from "../iam/actions.catalog";
 export const ticketRoutes = Router();
 ticketRoutes.get("/", requireAction(ACTIONS.TICKET_READ), c.list);
 ticketRoutes.post("/", requireAction(ACTIONS.TICKET_CREATE), c.create);
+// `/agents` before `/:id` so the literal wins over the param.
+ticketRoutes.get("/agents", requireAction(ACTIONS.TICKET_MANAGE), c.agents);
 ticketRoutes.get("/:id", requireAction(ACTIONS.TICKET_READ), c.get);
 ticketRoutes.post("/:id/reply", requireAction(ACTIONS.TICKET_REPLY), c.reply);
 ticketRoutes.post("/:id/attach", requireAction(ACTIONS.TICKET_REPLY), c.attach);

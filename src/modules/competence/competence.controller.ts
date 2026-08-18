@@ -22,7 +22,7 @@ export const updateEducation = wrap(async (req, res) => sendOk(res, await servic
 export const deleteEducation = wrap(async (req, res) => { await service.deleteEducation(guard(req), req.params.id as string, ip(req)); sendOk(res, { id: req.params.id }); });
 
 // Skills
-export const listSkills = wrap(async (req, res) => { const d = await service.listSkills({ type: typeof req.query.type === "string" ? req.query.type : undefined }); sendOk(res, d, 200, listMeta(d)); });
+export const listSkills = wrap(async (req, res) => { const d = await service.listSkills(guard(req), { type: typeof req.query.type === "string" ? req.query.type : undefined }); sendOk(res, d, 200, listMeta(d)); });
 export const createSkill = wrap(async (req, res) => sendOk(res, await service.createSkill(guard(req), body.parse(req.body), ip(req)), 201));
 export const updateSkill = wrap(async (req, res) => sendOk(res, await service.updateSkill(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
 export const deleteSkill = wrap(async (req, res) => { await service.deleteSkill(guard(req), req.params.id as string, ip(req)); sendOk(res, { id: req.params.id }); });
@@ -32,6 +32,10 @@ export const listTraining = wrap(async (req, res) => { const d = await service.l
 export const createTraining = wrap(async (req, res) => sendOk(res, await service.createTraining(guard(req), body.parse(req.body), ip(req)), 201));
 export const updateTraining = wrap(async (req, res) => sendOk(res, await service.updateTraining(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
 export const deleteTraining = wrap(async (req, res) => { await service.deleteTraining(guard(req), req.params.id as string, ip(req)); sendOk(res, { id: req.params.id }); });
+
+// Settings (OD `compSettings`, index.html:13378)
+export const getCompetenceSettings = wrap(async (req, res) => sendOk(res, await service.getCompSettings(guard(req).orgId)));
+export const putCompetenceSettings = wrap(async (req, res) => sendOk(res, await service.setCompSettings(guard(req), body.parse(req.body), ip(req))));
 
 // Roles (competence profiles)
 export const listRoles = wrap(async (req, res) => { const d = await assess.listRoles(guard(req), req.query.scope === "enterprise" ? "enterprise" : undefined); sendOk(res, d, 200, listMeta(d)); });
@@ -59,15 +63,16 @@ export const updateGap = wrap(async (req, res) => sendOk(res, await assess.updat
 
 // Exam instruments (L1–L3)
 const skillFilter = (req: Request) => ({ skillId: typeof req.query.skillId === "string" ? req.query.skillId : undefined });
-export const listExams = wrap(async (req, res) => { const d = await instr.listExamInstruments(skillFilter(req)); sendOk(res, d, 200, listMeta(d)); });
+export const listExams = wrap(async (req, res) => { const d = await instr.listExamInstruments(guard(req), skillFilter(req)); sendOk(res, d, 200, listMeta(d)); });
 export const createExam = wrap(async (req, res) => sendOk(res, await instr.createExamInstrument(guard(req), body.parse(req.body), ip(req)), 201));
 export const updateExam = wrap(async (req, res) => sendOk(res, await instr.updateExamInstrument(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
 export const setExamStatus = wrap(async (req, res) => sendOk(res, await instr.setExamStatus(guard(req), req.params.id as string, statusSchema.parse(req.body).status, ip(req))));
 export const deleteExam = wrap(async (req, res) => { await instr.deleteExamInstrument(guard(req), req.params.id as string, ip(req)); sendOk(res, { id: req.params.id }); });
 export const takeExam = wrap(async (req, res) => sendOk(res, await instr.takeExam(guard(req), req.params.id as string, body.parse(req.body), ip(req)), 201));
+export const gradeExamAttempt = wrap(async (req, res) => sendOk(res, await instr.gradeExamAttempt(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
 
 // Practical instruments (L4)
-export const listPracticals = wrap(async (req, res) => { const d = await instr.listPracticalInstruments(skillFilter(req)); sendOk(res, d, 200, listMeta(d)); });
+export const listPracticals = wrap(async (req, res) => { const d = await instr.listPracticalInstruments(guard(req), skillFilter(req)); sendOk(res, d, 200, listMeta(d)); });
 export const createPractical = wrap(async (req, res) => sendOk(res, await instr.createPracticalInstrument(guard(req), body.parse(req.body), ip(req)), 201));
 export const updatePractical = wrap(async (req, res) => sendOk(res, await instr.updatePracticalInstrument(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
 export const setPracticalStatus = wrap(async (req, res) => sendOk(res, await instr.setPracticalStatus(guard(req), req.params.id as string, statusSchema.parse(req.body).status, ip(req))));

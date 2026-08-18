@@ -129,18 +129,59 @@ describe("org-settings", () => {
     expect(reloaded?.systemDefaults).toEqual(defaults);
   });
 
-  it("ignores attempts to change the read-only code", async () => {
+  it("updates the organization code when it is unique", async () => {
     const { token, org } = await seedLogin({ superAdmin: true });
     const res = await request(app)
       .patch("/v1/org-settings")
       .set("authorization", `Bearer ${token}`)
-      .send({ name: "AXIA Renamed", code: "HACKED" });
+      .send({ name: "AXIA Renamed", code: "AXIA2" });
     expect(res.status).toBe(200);
-    expect(res.body.data.code).toBe("AXIA");
+    expect(res.body.data.code).toBe("AXIA2");
     expect(res.body.data.name).toBe("AXIA Renamed");
 
     const reloaded = await Organization.findByPk(org.id);
+    expect(reloaded?.code).toBe("AXIA2");
+  });
+
+  it("rejects changing the organization code to one already in use", async () => {
+    const { token, org } = await seedLogin({ superAdmin: true });
+    await Organization.create({
+      name: "Globex",
+      code: "GLBX",
+      type: "Tenant",
+      status: "Active",
+      parentOrgId: null,
+      tenantId: null,
+      email: null,
+      phone: null,
+      website: null,
+      country: null,
+      address: null,
+      legalName: null,
+      industry: null,
+      contactName: null,
+      contactEmail: null,
+      contactPhone: null,
+    });
+    const res = await request(app)
+      .patch("/v1/org-settings")
+      .set("authorization", `Bearer ${token}`)
+      .send({ code: "GLBX" });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe("DUPLICATE_CODE");
+
+    const reloaded = await Organization.findByPk(org.id);
     expect(reloaded?.code).toBe("AXIA");
+  });
+
+  it("rejects an empty organization code", async () => {
+    const { token } = await seedLogin({ superAdmin: true });
+    const res = await request(app)
+      .patch("/v1/org-settings")
+      .set("authorization", `Bearer ${token}`)
+      .send({ code: "" });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("VALIDATION_ERROR");
   });
 
   it("rejects an empty organization name", async () => {

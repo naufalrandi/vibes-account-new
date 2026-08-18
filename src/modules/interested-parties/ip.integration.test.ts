@@ -9,6 +9,7 @@ import { ACTIONS } from "../iam/actions.catalog";
 const app = createApp();
 const authed = (t: string) => ({ Authorization: `Bearer ${t}` });
 const IP = [ACTIONS.IP_READ, ACTIONS.IP_MANAGE, ACTIONS.MS_READ, ACTIONS.MS_MANAGE];
+const IP_AP = [...IP, ACTIONS.APPROVAL_READ, ACTIONS.APPROVAL_MANAGE, ACTIONS.APPROVAL_APPROVE];
 
 async function makeTenant(username: string, code: string, actions: string[] = IP): Promise<{ token: string; orgId: string }> {
   const org = await Organization.create({ name: code, code, type: "Tenant", status: "Active", parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null });
@@ -43,14 +44,17 @@ describe("interested parties + requirements", () => {
   });
 
   it("runs the requirement lifecycle and raises a risk into the risks register", async () => {
-    const { token } = await makeTenant("ip2", "IP2");
+    const { token } = await makeTenant("ip2", "IP2", IP_AP);
     const pid = (await request(app).post("/v1/interested-parties/parties").set(authed(token)).send({ name: "Key Customer", category: "Clients or Customers" })).body.data.id;
     const rid = (await request(app).post("/v1/interested-parties/requirements").set(authed(token)).send({ partyId: pid, topic: "Secure delivery", type: "Customer Requirement", description: "Consistent, secure service" })).body.data.id;
 
     // Cannot raise a risk before Addressed.
     expect((await request(app).post(`/v1/interested-parties/requirements/${rid}/raise-risk`).set(authed(token)).send({})).status).toBe(409);
-    // Open → Under Review → Addressed.
+    // Open → Under Review; the default parties scheme is gated (S1), so a
+    // direct Addressed is refused (P1) until the module is mapped self-serve.
     await request(app).post(`/v1/interested-parties/requirements/${rid}/status`).set(authed(token)).send({ status: "Under Review" });
+    expect((await request(app).post(`/v1/interested-parties/requirements/${rid}/status`).set(authed(token)).send({ status: "Addressed" })).status).toBe(409);
+    await request(app).put("/v1/approvals/module-map").set(authed(token)).send({ moduleKey: "parties", schemeId: "S2" });
     const addressed = await request(app).post(`/v1/interested-parties/requirements/${rid}/status`).set(authed(token)).send({ status: "Addressed" });
     expect(addressed.body.data).toMatchObject({ status: "Addressed", decidedBy: "Jennifer Susan Walters" });
 
@@ -88,5 +92,50 @@ describe("interested parties + requirements", () => {
     const readonly = await makeTenant("ip4", "IP4", [ACTIONS.IP_READ]);
     expect((await request(app).get("/v1/interested-parties/parties").set(authed(readonly.token))).status).toBe(200);
     expect((await request(app).post("/v1/interested-parties/parties").set(authed(readonly.token)).send({ name: "N", category: "Suppliers" })).status).toBe(403);
+  });
+
+  it("gates Under Review → Addressed through the parties approval scheme (P1)", async () => {
+    const { token, orgId } = await makeTenant("ip5", "IP5", IP_AP);
+    const addUser = async (username: string, fullName: string): Promise<{ token: string; userId: string }> => {
+      const user = await User.create({ orgId, tenantId: null, fullName, username, email: `${username}@x.io`, passwordHash: await hashPassword("ChangeMe123"), status: "Active", position: null, workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null });
+      const role = await Role.create({ name: `R-${username}`, tierScope: "Tenant", orgId, isSuperAdmin: false, status: true });
+      await (user as unknown as { setRoles: (r: Role[]) => Promise<unknown> }).setRoles([role]);
+      await grantActions(role.id, [ACTIONS.APPROVAL_READ, ACTIONS.APPROVAL_APPROVE]);
+      const login = await request(app).post("/v1/auth/login").send({ identifier: username, password: "ChangeMe123" });
+      return { token: login.body.data.accessToken, userId: user.id };
+    };
+    const mst = await addUser("ip5-mst", "Monica Rambeau");
+    const tm = await addUser("ip5-tm", "Wanda Maximoff");
+    await request(app).put(`/v1/approvals/pools/${mst.userId}`).set(authed(token)).send({ isMST: true, mstPriority: "required" });
+    await request(app).put(`/v1/approvals/pools/${tm.userId}`).set(authed(token)).send({ isTM: true, tmFinal: true });
+
+    const pid = (await request(app).post("/v1/interested-parties/parties").set(authed(token)).send({ name: "Regulator", category: "Regulators" })).body.data.id;
+    const rid = (await request(app).post("/v1/interested-parties/requirements").set(authed(token)).send({ partyId: pid, topic: "Licence conditions" })).body.data.id;
+
+    // The engine only accepts an Under Review requirement (OD ipReqSubmitApproval).
+    expect((await request(app).post(`/v1/approvals/records/parties/${rid}/submit`).set(authed(token))).status).toBe(409);
+    await request(app).post(`/v1/interested-parties/requirements/${rid}/status`).set(authed(token)).send({ status: "Under Review" });
+    // Default map is S1 (gated) → direct Addressed is refused.
+    expect((await request(app).post(`/v1/interested-parties/requirements/${rid}/status`).set(authed(token)).send({ status: "Addressed" })).status).toBe(409);
+
+    // Submit into the scheme: status stays Under Review, two gates built.
+    const sub = await request(app).post(`/v1/approvals/records/parties/${rid}/submit`).set(authed(token));
+    expect(sub.body.data.status).toBe("Under Review");
+    expect(sub.body.data.record.gates).toHaveLength(2);
+
+    // Gate 1 (MS Team) advances but keeps the requirement Under Review.
+    const g1 = await request(app).post(`/v1/approvals/records/parties/${rid}/approve`).set(authed(mst.token));
+    expect(g1.body.data).toMatchObject({ result: "advanced", status: "Under Review" });
+    // Final gate (Top Management) → Addressed, decision stamped on the row.
+    const g2 = await request(app).post(`/v1/approvals/records/parties/${rid}/approve`).set(authed(tm.token));
+    expect(g2.body.data).toMatchObject({ result: "final", status: "Addressed" });
+    const reqRow = (await request(app).get(`/v1/interested-parties/requirements?partyId=${pid}`).set(authed(token))).body.data[0];
+    expect(reqRow).toMatchObject({ status: "Addressed", decidedBy: "Wanda Maximoff" });
+    expect((await request(app).get(`/v1/approvals/records/parties/${rid}`).set(authed(token))).body.data.state).toBe("approved");
+
+    // P2 — send back to Under Review: the stored approval run is cleared so a
+    // fresh submission starts a new run (OD clears r.approval on back-transition).
+    await request(app).post(`/v1/interested-parties/requirements/${rid}/status`).set(authed(token)).send({ status: "Under Review" });
+    expect((await request(app).get(`/v1/approvals/records/parties/${rid}`).set(authed(token))).body.data).toBeNull();
   });
 });

@@ -1,6 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import * as service from "./implementation.service";
+import * as docControl from "./documentControl";
+import * as awControl from "./awarenessControl";
 import { sendOk } from "../../lib/apiResponse";
 import { UnauthorizedError } from "../../lib/errors";
 
@@ -50,6 +52,135 @@ export async function remove(req: Request, res: Response, next: NextFunction) {
     if (!req.auth) throw new UnauthorizedError();
     await service.deleteRecord(req.auth, req.params.module as string, req.params.id as string, req.ip ?? null);
     sendOk(res, { id: req.params.id });
+  } catch (e) {
+    next(e);
+  }
+}
+
+// --- Controlled-document settings (OD `cdSettings`) --------------------------
+const docSettingsSchema = z.record(z.string(), z.unknown());
+
+export async function getDocumentSettings(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    sendOk(res, await docControl.getDocSettings(req.auth.orgId));
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function putDocumentSettings(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const input = docSettingsSchema.parse(req.body);
+    sendOk(res, await docControl.setDocSettings(req.auth, input, req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
+
+// --- Awareness settings + campaign launch/ack/eval (OD `aw*` 14227–14680) ----
+
+const awSettingsSchema = z.record(z.string(), z.unknown());
+
+export async function getAwarenessSettings(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    sendOk(res, await awControl.getAwSettings(req.auth.orgId));
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function putAwarenessSettings(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const input = awSettingsSchema.parse(req.body);
+    sendOk(res, await awControl.setAwSettings(req.auth, input, req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function launchAwarenessCampaign(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    sendOk(res, await awControl.launchCampaign(req.auth, req.params.id as string, req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function acknowledgeAwarenessAck(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    sendOk(res, await awControl.acknowledgeAck(req.auth, req.params.id as string, req.params.ackId as string, req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function remindAwarenessAck(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    sendOk(res, await awControl.remindAck(req.auth, req.params.id as string, req.params.ackId as string, req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
+
+const waiveSchema = z.object({ reason: z.string().min(1).max(4000) });
+
+export async function waiveAwarenessAck(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const { reason } = waiveSchema.parse(req.body);
+    sendOk(res, await awControl.waiveAck(req.auth, req.params.id as string, req.params.ackId as string, reason, req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
+
+const evalResultSchema = z.object({
+  method: z.string().max(80).optional(),
+  result: z.string().min(1).max(80),
+  score: z.string().max(80).optional(),
+  evaluator: z.string().max(200).optional(),
+  notes: z.string().max(4000).optional(),
+});
+
+export async function recordAwarenessEvaluation(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const input = evalResultSchema.parse(req.body);
+    sendOk(res, await awControl.recordEvaluation(req.auth, req.params.id as string, req.params.evalId as string, input, req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
+
+const followupSchema = z.object({
+  title: z.string().min(1).max(300),
+  description: z.string().max(4000).optional(),
+  owner: z.string().max(200).optional(),
+  due: z.string().max(40).optional(),
+  priority: z.string().max(40).optional(),
+});
+
+export async function createAwarenessFollowup(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const input = followupSchema.parse(req.body);
+    sendOk(res, await awControl.createEvalFollowup(req.auth, req.params.id as string, req.params.evalId as string, input, req.ip ?? null), 201);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function awarenessEvalToTraining(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    sendOk(res, await awControl.evalToTrainingPlan(req.auth, req.params.id as string, req.params.evalId as string, req.ip ?? null), 201);
   } catch (e) {
     next(e);
   }

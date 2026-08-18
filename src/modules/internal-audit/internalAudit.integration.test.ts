@@ -1,7 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
-import { initModels, Organization, User, Role } from "../../db/models";
+import { initModels, Organization, User, Role, RoleAssignment } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
@@ -134,6 +135,78 @@ describe("internal audit", () => {
     expect((await request(app).post(`/v1/internal-audit/findings/${finding.body.data.id}/route`).set(authed(token)).send({ target: "nc" })).status).toBe(400);
     const routed = await request(app).post(`/v1/internal-audit/findings/${finding.body.data.id}/route`).set(authed(token)).send({ target: "imp" });
     expect(routed.body.data.linkedImp).toBe("IMP-0001");
+  });
+
+  it("moves and merges sessions in Planning Mode, gated by audit-manager org roles", async () => {
+    const { token, orgId } = await makeTenant("ia9", "IA9");
+    const prog = await request(app).post("/v1/internal-audit/programs").set(authed(token)).send(PROGRAM);
+    const programId = prog.body.data.id;
+    const plan = await request(app).post("/v1/internal-audit/plans").set(authed(token)).send({ programId, name: "Move plan" });
+    const planId = plan.body.data.id;
+    const mk = (b: Record<string, unknown>) =>
+      request(app).post("/v1/internal-audit/sessions").set(authed(token))
+        .send({ planId, process: "Software Development", auditor: "Auditor A", start: "09:00", end: "12:00", ...b });
+    const s1 = (await mk({ title: "SD review", date: "2026-06-15" })).body.data;
+    const s2 = (await mk({ title: "SD follow-up", date: "2026-07-10", start: "13:00", end: "15:00", auditor: "Auditor B" })).body.data;
+
+    // No org-role assignment and no admin role → the move endpoint refuses.
+    const denied = await request(app).post(`/v1/internal-audit/sessions/${s1.id}/move`).set(authed(token)).send({ toPeriod: "2026-08" });
+    expect(denied.status).toBe(403);
+    expect(denied.body.error.code).toBe("PLAN_FORBIDDEN");
+
+    // Grant an allowed org role ("Internal Auditor") in the roles register.
+    await RoleAssignment.create({
+      orgId, code: "RAS-0001", memberId: "tm-1", memberName: "Lead Auditor", roleId: randomUUID(),
+      roleName: "Internal Auditor", workUnit: null, effectiveDate: null, modReason: null, modSummary: null,
+      modifiedBy: null, modifiedDate: null, status: "Active", notes: null, createdBy: null,
+    });
+
+    // Plain move: day-of-month kept, activity records the reschedule.
+    const moved = await request(app).post(`/v1/internal-audit/sessions/${s1.id}/move`).set(authed(token)).send({ toPeriod: "2026-08" });
+    expect(moved.status).toBe(200);
+    expect(moved.body.data.merged).toBe(false);
+    expect(moved.body.data.session.date).toBe("2026-08-15");
+    expect(moved.body.data.session.activity.some((a: { action: string }) => a.action === "rescheduled")).toBe(true);
+
+    // Day clamps to the target month's length.
+    await request(app).put(`/v1/internal-audit/sessions/${s1.id}`).set(authed(token)).send({ date: "2026-08-31" });
+    const clamped = await request(app).post(`/v1/internal-audit/sessions/${s1.id}/move`).set(authed(token)).send({ toPeriod: "2026-02" });
+    expect(clamped.body.data.session.date).toBe("2026-02-28");
+
+    // Double-booking (same auditor in the target month) → 409 unless overridden.
+    const s3 = (await mk({ title: "Clash", date: "2026-03-05" })).body.data;
+    await request(app).post(`/v1/internal-audit/sessions/${s3.id}/move`).set(authed(token)).send({ toPeriod: "2026-04" });
+    const s4 = (await mk({ title: "Second clash", date: "2026-05-05" })).body.data;
+    const conflicted = await request(app).post(`/v1/internal-audit/sessions/${s4.id}/move`).set(authed(token)).send({ toPeriod: "2026-04" });
+    expect(conflicted.status).toBe(409);
+    expect(conflicted.body.error.code).toBe("SCHEDULE_CONFLICT");
+    const overridden = await request(app).post(`/v1/internal-audit/sessions/${s4.id}/move`).set(authed(token))
+      .send({ toPeriod: "2026-04", overrideReason: "Approved by QM — combined visit" });
+    expect(overridden.status).toBe(200);
+    expect(overridden.body.data.session.activity.some((a: { action: string; summary?: string }) =>
+      a.action === "override" && (a.summary ?? "").includes("Approved by QM"))).toBe(true);
+
+    // Merge: durations sum (180m + 120m from 09:00 → 14:00), criteria union,
+    // the source block is cancelled so the move stays undoable.
+    const tgt = (await mk({ title: "Merge target", date: "2026-09-08", criteria: ["ISO 9001:2015"] })).body.data;
+    const src = (await mk({ title: "Merge source", date: "2026-10-20", start: "09:00", end: "11:00", auditor: "Auditor C", criteria: ["ISO 27001:2022"] })).body.data;
+    const mergeDenied = await request(app).post(`/v1/internal-audit/sessions/${src.id}/move`).set(authed(token))
+      .send({ toPeriod: "2026-11", mergeTargetId: tgt.id });
+    expect(mergeDenied.status).toBe(400); // target not in the requested period
+    const merged = await request(app).post(`/v1/internal-audit/sessions/${src.id}/move`).set(authed(token))
+      .send({ toPeriod: "2026-09", mergeTargetId: tgt.id, overrideReason: "Combined audit block" });
+    expect(merged.status).toBe(200);
+    expect(merged.body.data.merged).toBe(true);
+    expect(merged.body.data.session.end).toBe("14:00");
+    expect(merged.body.data.session.criteria.sort()).toEqual(["ISO 27001:2022", "ISO 9001:2015"]);
+    const all = await request(app).get("/v1/internal-audit/sessions").set(authed(token));
+    expect(all.body.data.find((s: { id: string }) => s.id === src.id).status).toBe("Cancelled");
+
+    // Locked sessions (completed) refuse the move.
+    await request(app).post(`/v1/internal-audit/sessions/${s2.id}/status`).set(authed(token)).send({ status: "Completed" });
+    const locked = await request(app).post(`/v1/internal-audit/sessions/${s2.id}/move`).set(authed(token)).send({ toPeriod: "2026-12" });
+    expect(locked.status).toBe(409);
+    expect(locked.body.error.code).toBe("SESSION_LOCKED");
   });
 
   it("scopes per tenant and enforces action grants", async () => {

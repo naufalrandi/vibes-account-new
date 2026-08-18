@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { Op, type Transaction } from "sequelize";
 import { sequelize } from "../../db/sequelize";
-import { DemoTenant, Organization, User, Role, Site, Menu, Action, RoleMenuGrant, RoleActionGrant, RefreshToken, TestingService } from "../../db/models";
+import { DemoTenant, Organization, User, Role, Site, RefreshToken, TestingService } from "../../db/models";
 import type { DemoApproval, DemoAccessStatus, DemoSeedStatus } from "../../db/models/demoTenant.model";
 import type { AuthContext } from "../../lib/scope";
 import { hashPassword } from "../../lib/password";
 import { assignSubscription } from "../subscriptions/subscription.service";
+import { applyDemoGrants } from "./demo.grants";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
@@ -218,14 +219,13 @@ async function seedDemoLims(orgId: string, modules: string[], tx: Transaction): 
   }
 }
 
-/** Grant a role every menu + every action (mirrors seed.ts's grantEverything — a demo admin gets full access to whatever the collapsed demo nav lets them reach). */
-async function grantEverything(roleId: string, tx: Transaction): Promise<void> {
-  for (const menu of await Menu.findAll({ transaction: tx })) {
-    await RoleMenuGrant.findOrCreate({ where: { roleId, menuId: menu.id }, defaults: { roleId, menuId: menu.id, granted: true }, transaction: tx });
-  }
-  for (const action of await Action.findAll({ transaction: tx })) {
-    await RoleActionGrant.findOrCreate({ where: { roleId, actionId: action.id }, defaults: { roleId, actionId: action.id, granted: true }, transaction: tx });
-  }
+/**
+ * The module list the workspace was approved for. createDemoTenant always fills
+ * `modules`; rows created before that column existed fall back to the joined
+ * free-text `module` string (the matchers in demo.grants regex-match either way).
+ */
+function approvedModules(d: DemoTenant): string[] {
+  return d.modules && d.modules.length ? d.modules : [d.module];
 }
 
 /**
@@ -262,7 +262,9 @@ async function provisionRealDemoIdentity(d: DemoTenant): Promise<{ orgId: string
 
     const role = await Role.create({ name: d.role, tierScope: "Tenant", orgId: org.id, isSuperAdmin: false, status: true }, { transaction: tx });
     await (user as unknown as WithSetRoles).setRoles([role], { transaction: tx });
-    await grantEverything(role.id, tx);
+    // P0-12: grant only what the approved modules imply — requireAction() then
+    // enforces the DemoTenant.modules allowlist server-side on every request.
+    await applyDemoGrants(role.id, approvedModules(d), tx);
     await assignSubscription(org.id, "standard", tx);
     await seedDemoLims(org.id, d.modules, tx);
 
@@ -282,11 +284,17 @@ export async function generateDemoTenant(auth: AuthContext, id: string, ip: stri
   } else {
     // Re-generating an already-provisioned workspace: keep the real login in
     // sync with the temp password still shown to the SP, and reactivate it.
-    const user = await User.findByPk(d.provisionedUserId);
+    const user = await User.findByPk(d.provisionedUserId, { include: [Role] });
     if (user) {
       user.passwordHash = await hashPassword(d.tempPassword);
       user.status = "Active";
       await user.save();
+      // Re-sync grants to the module allowlist too — clamps workspaces that
+      // were provisioned under the old grant-everything behaviour.
+      const roles = ((user.get("Roles") as Role[]) ?? []).filter((r) => !r.isSuperAdmin);
+      for (const role of roles) {
+        await applyDemoGrants(role.id, approvedModules(d));
+      }
     }
   }
 
@@ -370,4 +378,116 @@ export async function deleteDemoTenant(auth: AuthContext, id: string, ip: string
   await d.save();
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "demo.deleted", entityType: "DemoTenant", entityId: d.id, sourceIp: ip, result: "Success" });
   return toView(d);
+}
+
+// --- Public demo-request intake (no auth) ------------------------------------
+// OD's anonymous funnel: business-operations.html form + js/demo.js writes a
+// request into `vibes:demo:requests` which the in-app Demo Access dashboard
+// syncs. Here the same funnel lands directly as a Pending DemoTenant row that
+// the SP sees in /demo-access.
+//
+// DELIBERATE DIVERGENCE from OD: js/demo.js "emails" (simulates) working
+// credentials the instant the form is submitted. In the real flow credentials
+// only exist after the SP approves + generates the workspace, so the public
+// response returns ONLY the request code — never username/tempPassword — and
+// the confirmation surface tells the requester credentials arrive by email
+// after approval.
+
+/** The module choices the public form may submit (OD business-operations.html + landing.html demo forms). */
+export const PUBLIC_DEMO_MODULES = [
+  "Framework Implementation",
+  "Testing Services",
+  "Calibration Services",
+  "Testing + Calibration Bundle",
+  "Other / Not Sure",
+] as const;
+export type PublicDemoModule = (typeof PUBLIC_DEMO_MODULES)[number];
+
+/** OD js/demo.js `ROLE` map — demo role labels derived from the requested modules. */
+const PUBLIC_MODULE_ROLE: Record<string, string> = {
+  "Framework Implementation": "Demo Framework User",
+  "Testing Services": "Demo Testing Services User",
+  "Calibration Services": "Demo Calibration Services User",
+  "Testing + Calibration Bundle": "Demo Laboratory Services User",
+  "Other / Not Sure": "Demo Framework User",
+};
+
+/** OD js/demo.js `rolesFor` — unique role labels for the selected modules, joined. */
+function publicRolesFor(modules: string[]): string {
+  const out: string[] = [];
+  for (const m of modules) {
+    const role = PUBLIC_MODULE_ROLE[m] ?? "Demo Framework User";
+    if (!out.includes(role)) out.push(role);
+  }
+  return out.join(", ");
+}
+
+/** How long an identical pending request from the same email is treated as a duplicate. */
+const PUBLIC_DEDUPE_WINDOW_MS = 24 * HOUR_MS;
+
+export interface PublicDemoRequestInput {
+  name: string;
+  email: string;
+  org: string;
+  title?: string | null;
+  country?: string | null;
+  modules: PublicDemoModule[];
+  intendedUse?: string | null;
+}
+
+/** Credential-free projection of a DemoTenant, safe for an anonymous caller. */
+export interface PublicDemoRequestView {
+  code: string;
+  org: string;
+  name: string;
+  email: string;
+  module: string;
+  modules: string[];
+  approval: DemoApproval;
+  validityHours: number;
+  createdAt: Date;
+}
+
+function toPublicView(d: DemoTenant): PublicDemoRequestView {
+  return {
+    code: d.code, org: d.org, name: d.name, email: d.email,
+    module: d.module, modules: d.modules, approval: d.approval,
+    validityHours: d.validityHours, createdAt: d.createdAt,
+  };
+}
+
+/**
+ * Anonymous demo-request intake. Creates a Pending DemoTenant the SP reviews in
+ * /demo-access; the workspace/credentials are only provisioned by the SP's
+ * approve + generate actions. Abuse controls beyond the route rate limiter:
+ * input length caps live in the zod schema (demo.controller.ts), and repeat
+ * submissions from the same email while a request is still Pending are folded
+ * into the existing row instead of creating duplicates.
+ */
+export async function createPublicDemoRequest(input: PublicDemoRequestInput, ip: string | null): Promise<PublicDemoRequestView> {
+  const email = input.email.trim().toLowerCase();
+  const existing = await DemoTenant.findOne({
+    where: { email, approval: "Pending" },
+    order: [["createdAt", "DESC"]],
+  });
+  if (existing && Date.now() - existing.createdAt.getTime() < PUBLIC_DEDUPE_WINDOW_MS) {
+    return toPublicView(existing);
+  }
+
+  const code = await nextCode();
+  const suffix = code.replace(/^DMO-/, "");
+  const modules = [...input.modules];
+  const d = await DemoTenant.create({
+    code,
+    org: input.org.trim(), name: input.name.trim(), email,
+    title: input.title?.trim() || null, country: input.country?.trim() || null,
+    module: modules.join(", "), modules, intendedUse: input.intendedUse?.trim() || null,
+    tenantId: `DEMO-${suffix}`, userId: `DU-${suffix}`,
+    username: slugUsername(email, input.org), tempPassword: randomUUID().slice(0, 12),
+    role: publicRolesFor(modules),
+    approval: "Pending", accessStatus: null, seedStatus: "Pending",
+    validityHours: 48, expiresAt: null, lastLogin: null, deletedAt: null,
+  });
+  await writeAudit({ actorUserId: null, organizationId: null, action: "demo.requested", entityType: "DemoTenant", entityId: d.id, sourceIp: ip, result: "Success" });
+  return toPublicView(d);
 }

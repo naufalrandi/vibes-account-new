@@ -1,10 +1,11 @@
 import { Op, Model, type ModelStatic } from "sequelize";
-import { IpParty, IpRequirement, ImplementationRecord, User } from "../../db/models";
+import { IpParty, IpRequirement, ImplementationRecord, ApprovalRecord, User } from "../../db/models";
 import { IP_CATEGORIES, IP_REQ_TYPES, IP_REQ_STATUS } from "../../db/models/interestedParty.models";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
 import { createRecord } from "../implementation/implementation.service";
+import { listSchemes, resolveSchemeId } from "../approvals/approval.service";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 const nowIso = () => new Date().toISOString();
@@ -160,6 +161,23 @@ const JUSTIFY: Record<string, string> = { "On Hold": "holdJustification", Dismis
 export async function setRequirementStatus(auth: AuthContext, id: string, status: string, justification: string | null, ip: string | null) {
   if (!IP_REQ_STATUS.includes(status as never)) throw new BadRequestError(`Invalid status "${status}"`, "INVALID_STATUS");
   const r = await requireReq(auth, id);
+  // P1 — OD gates Under Review → Addressed through the module's approval scheme
+  // (`apModuleSchemeFor('tn-m-parties')`, 8871–8905): only a self-serve scheme
+  // may mark a requirement Addressed directly. Gated schemes go through
+  // /approvals/records/parties/:id (submit → gates → final approval), whose
+  // engine flips the status itself.
+  if (status === "Addressed") {
+    const schemeId = await resolveSchemeId(auth, "parties");
+    const scheme = (await listSchemes(auth)).find((s) => s.id === schemeId);
+    if (scheme && !scheme.selfServe) {
+      throw new ConflictError("The Interested Parties approval scheme gates acceptance — submit the requirement for approval instead", "APPROVAL_REQUIRED");
+    }
+  }
+  // Back-transitions to Open / Under Review clear any in-flight approval run
+  // (OD `ipReqSetStatus`: `if(to==='Open'||to==='Under Review')r.approval=null`).
+  if (status === "Open" || status === "Under Review") {
+    await ApprovalRecord.destroy({ where: { orgId: r.orgId, module: "parties", recordId: r.id } });
+  }
   const who = await actorName(auth);
   if (JUSTIFY[status]) {
     if (!justification || !justification.trim()) throw new BadRequestError(`A justification is required to ${status === "Dismissed" ? "dismiss" : "put on hold"} the requirement`, "JUSTIFICATION_REQUIRED");

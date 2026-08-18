@@ -1,5 +1,5 @@
 import {
-  ISIC, ISIC_NOTES, NACE, NACE_NOTES, KBLI, KBLI_NOTES, ISCEDF, EXAM_BANK, ROLE_SUGGESTIONS,
+  ISIC, ISIC_NOTES, NACE, NACE_NOTES, KBLI, KBLI_NOTES, ISCEDF, EXAM_BANK, ROLE_SUGGESTIONS, ROLE_SUGGEST_COMMON,
   type HierNode, type ExamQuestion, type RoleSuggestion,
 } from "./reference.data";
 
@@ -34,9 +34,15 @@ export function examBank(skill?: string, level?: string): { skill: string; level
   return out;
 }
 
+export interface RoleSuggestionsResult {
+  roles: RoleSuggestion[];
+  /** OD `ROLE_SUGGEST_COMMON`: cross-cutting items offered regardless of the matched archetype. */
+  common: { responsibilities: string[]; authorities: string[] };
+}
+
 /** Fuzzy role-archetype match: rank by name/alias substring hit, then framework overlap. */
-export function roleSuggestions(q?: string): RoleSuggestion[] {
-  if (!q || !q.trim()) return ROLE_SUGGESTIONS;
+export function roleSuggestions(q?: string): RoleSuggestionsResult {
+  if (!q || !q.trim()) return { roles: ROLE_SUGGESTIONS, common: ROLE_SUGGEST_COMMON };
   const s = q.toLowerCase();
   const scored = ROLE_SUGGESTIONS.map((r) => {
     const hay = [r.name, ...r.aliases].map((x) => x.toLowerCase());
@@ -46,5 +52,5 @@ export function roleSuggestions(q?: string): RoleSuggestion[] {
     if (r.description.toLowerCase().includes(s)) score += 1;
     return { r, score };
   }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
-  return scored.map((x) => x.r);
+  return { roles: scored.map((x) => x.r), common: ROLE_SUGGEST_COMMON };
 }

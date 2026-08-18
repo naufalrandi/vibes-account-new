@@ -1,6 +1,6 @@
 import { Op, Model, type ModelStatic } from "sequelize";
 import {
-  IaProgram, IaPlan, IaSession, IaFinding, IaReport, IaSettings, User,
+  IaProgram, IaPlan, IaSession, IaFinding, IaReport, IaSettings, User, Role, RoleAssignment,
 } from "../../db/models";
 import {
   IA_PROG_STATUS, IA_PLAN_STATUS, IA_SESS_STATUS, IA_FIND_TYPES,
@@ -313,6 +313,158 @@ export async function addSessionComment(auth: AuthContext, id: string, text: str
   return addComment(IaSession, auth, id, text, ip, "Session not found", "SESSION_NOT_FOUND", "IaSession", "ia.session.comment");
 }
 
+// --- Planning mode: move / merge (OD `iaCommitMove`, index.html:12212) ---
+
+/** Org-role assignments that grant Planning Mode (OD `iaCanPlan`, 12159). */
+const IA_PLAN_ROLES = ["Top Management", "Quality Manager", "Internal Auditor", "Information Security Officer"] as const;
+
+/** Session statuses that may still be dragged (OD `iaMovableSessions`). */
+const MOVABLE_SESS_STATUS = ["Scheduled", "Rescheduled"] as const;
+
+/**
+ * OD `iaCanPlan`: planning is allowed for the Administrator role-group or for
+ * members holding one of the audit-management org roles in the roles register.
+ * Enforced server-side so the FE button gate cannot be bypassed.
+ */
+async function assertCanPlan(auth: AuthContext, orgId: string): Promise<void> {
+  if (auth.isSuperAdmin) return;
+  const user = await User.findByPk(auth.userId, { include: [Role] });
+  const iamRoles = (user?.get("Roles") as Role[] | undefined) ?? [];
+  if (iamRoles.some((r) => r.isSuperAdmin || r.name.toLowerCase().includes("admin"))) return;
+  const memberOr: Record<string, unknown>[] = [{ memberId: auth.userId }];
+  if (user?.fullName) memberOr.push({ memberName: user.fullName });
+  const held = await RoleAssignment.count({
+    where: {
+      orgId, roleName: { [Op.in]: [...IA_PLAN_ROLES] }, status: { [Op.ne]: "Archived" },
+      [Op.or]: memberOr,
+    },
+  });
+  if (held === 0) throw new ForbiddenError("Rescheduling requires audit manager permission", "PLAN_FORBIDDEN");
+}
+
+/** OD `iaDurHrs`, in minutes: end − start, floored at 0. */
+function sessMinutes(s: { start: string | null; end: string | null }): number {
+  if (!s.start || !s.end) return 0;
+  const [sh = 0, sm = 0] = s.start.split(":").map((n) => Number.parseInt(n, 10));
+  const [eh = 0, em = 0] = s.end.split(":").map((n) => Number.parseInt(n, 10));
+  const mins = eh * 60 + em - (sh * 60 + sm);
+  return Number.isFinite(mins) && mins > 0 ? mins : 0;
+}
+
+/** OD `iaAddMin`: HH:MM plus minutes, clamped to the same day. */
+function addMinutes(hhmm: string, mins: number): string {
+  const [h = 0, m = 0] = hhmm.split(":").map((n) => Number.parseInt(n, 10));
+  const total = Math.max(0, Math.min(1439, (h || 0) * 60 + (m || 0) + mins));
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+export interface IaSessionMoveInput {
+  toPeriod: string;
+  toProcess?: string;
+  toWorkUnit?: string | null;
+  mergeTargetId?: string;
+  overrideReason?: string;
+}
+
+/**
+ * Move (drag-reschedule) a session to another period/process, or merge it into
+ * an existing session block in the target cell. Mirrors OD's Planning Mode:
+ * locked sessions refuse the move, double-bookings demand an override reason
+ * (recorded to the activity log), and a merge sums planned durations and
+ * unions criteria/methods. The merged-away source is cancelled — not deleted —
+ * so the client-side undo can restore it.
+ */
+export async function moveSession(auth: AuthContext, id: string, input: IaSessionMoveInput, ip: string | null) {
+  const row = await IaSession.findByPk(id);
+  if (!row) throw new NotFoundError("Session not found", "SESSION_NOT_FOUND");
+  await targetOrg(auth, row.orgId);
+  await assertCanPlan(auth, row.orgId);
+
+  const toPeriod = input.toPeriod;
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(toPeriod)) throw new BadRequestError("Target period must be YYYY-MM", "INVALID_PERIOD");
+
+  // OD `iaMovableSessions`: started/completed work, open findings or a
+  // generated report freeze the schedule.
+  if (!(MOVABLE_SESS_STATUS as readonly string[]).includes(row.status)) {
+    throw new ConflictError("Completed audit records cannot be rescheduled", "SESSION_LOCKED");
+  }
+  const openFinds = await IaFinding.count({
+    where: { orgId: row.orgId, sessionId: row.id, issueStatus: { [Op.notIn]: ["Closed", "Rejected"] } },
+  });
+  if (openFinds > 0) throw new ConflictError("Sessions with open findings cannot be rescheduled", "SESSION_LOCKED");
+  const orgReports = await IaReport.findAll({ where: { orgId: row.orgId }, attributes: ["sessions"] });
+  if (orgReports.some((r) => (r.sessions ?? []).includes(row.code))) {
+    throw new ConflictError("Reported audit sessions cannot be rescheduled", "SESSION_LOCKED");
+  }
+
+  // Double-booking detection (OD `iaPlanMove`, 12181): the same auditor or
+  // auditee already engaged in the target month requires an override reason.
+  const monthPeers = await IaSession.findAll({
+    where: { orgId: row.orgId, id: { [Op.ne]: row.id }, status: { [Op.ne]: "Cancelled" }, date: { [Op.like]: `${toPeriod}-%` } },
+  });
+  const conflicts: string[] = [];
+  if (row.auditor && monthPeers.some((s) => s.auditor === row.auditor)) {
+    conflicts.push(`Auditor ${row.auditor} already has an audit session in ${toPeriod}.`);
+  }
+  if (row.auditee && monthPeers.some((s) => s.auditee === row.auditee)) {
+    conflicts.push(`Auditee ${row.auditee} is already assigned in ${toPeriod}.`);
+  }
+  const override = typeof input.overrideReason === "string" ? input.overrideReason.trim() : "";
+  if (conflicts.length > 0 && !override) {
+    throw new ConflictError(`Potential scheduling conflict: ${conflicts.join(" ")}`, "SCHEDULE_CONFLICT");
+  }
+
+  const who = await actorName(auth);
+  const fromYm = (row.date ?? "").slice(0, 7);
+  const fromProcess = row.process;
+
+  if (input.mergeTargetId) {
+    const target = await IaSession.findOne({ where: { id: input.mergeTargetId, orgId: row.orgId } });
+    if (!target || target.id === row.id) throw new NotFoundError("Merge target session not found", "MERGE_TARGET_NOT_FOUND");
+    if ((target.date ?? "").slice(0, 7) !== toPeriod) throw new BadRequestError("Merge target is not in the target period", "MERGE_TARGET_PERIOD");
+    // OD merge (12212): durations sum into the target block; criteria and
+    // methods union; notes concatenate.
+    target.end = addMinutes(target.start || "09:00", sessMinutes(target) + sessMinutes(row));
+    target.criteria = [...new Set([...(target.criteria ?? []), ...(row.criteria ?? [])])];
+    target.methods = [...new Set([...(target.methods ?? []), ...(row.methods ?? [])])];
+    if (row.notes) target.notes = target.notes ? `${target.notes}\n${row.notes}` : row.notes;
+    target.lastUpdatedBy = who;
+    target.activity = pushActivity(
+      target.activity, who, "merged",
+      `Merged ${row.code} from ${fromYm}${fromProcess !== target.process ? ` · ${fromProcess}` : ""} — planned duration combined`,
+    );
+    if (override) target.activity = pushActivity(target.activity, who, "override", `Scheduling conflict override recorded: ${override}`);
+    await target.save();
+    row.status = "Cancelled";
+    row.lastUpdatedBy = who;
+    row.activity = pushActivity(row.activity, who, "merged", `Merged into ${target.code}`);
+    await row.save();
+    await logAudit(auth, row.orgId, "ia.session.merged", "IaSession", target.id, ip);
+    return { session: target.get({ plain: true }), merged: true };
+  }
+
+  // Plain move: keep the day-of-month, clamped to the target month's length.
+  const [y = 0, m = 0] = toPeriod.split("-").map((n) => Number.parseInt(n, 10));
+  const monthLen = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const day = Math.min(Number.parseInt((row.date ?? "").slice(8, 10), 10) || 1, monthLen);
+  row.date = `${toPeriod}-${String(day).padStart(2, "0")}`;
+  const toProcess = typeof input.toProcess === "string" ? input.toProcess.trim() : "";
+  const procChanged = toProcess !== "" && toProcess !== row.process;
+  if (procChanged) {
+    row.process = toProcess;
+    if (input.toWorkUnit !== undefined) row.workUnit = str(input.toWorkUnit);
+  }
+  row.lastUpdatedBy = who;
+  row.activity = pushActivity(
+    row.activity, who, "rescheduled",
+    `Moved ${fromYm} → ${toPeriod}${procChanged ? ` · ${fromProcess} → ${row.process}` : ""}`,
+  );
+  if (override) row.activity = pushActivity(row.activity, who, "override", `Scheduling conflict override recorded: ${override}`);
+  await row.save();
+  await logAudit(auth, row.orgId, "ia.session.moved", "IaSession", row.id, ip);
+  return { session: row.get({ plain: true }), merged: false };
+}
+
 // --- Findings ------------------------------------------------------------
 export async function listFindings(auth: AuthContext, orgId?: string) {
   const where = await orgWhere(auth, orgId);
@@ -441,17 +593,32 @@ export async function routeFinding(auth: AuthContext, id: string, target: "nc" |
   if (target === "nc") {
     if (row.type !== "Nonconformity") throw new BadRequestError("Only nonconformity findings route to an NC", "NOT_NC_TYPE");
     if (row.linkedNC) throw new ConflictError("Finding is already linked to an NC", "ALREADY_LINKED");
+    // OD `iafRoute` (index.html:12626–12630) carries the finding's process,
+    // work unit, PIC, due date and framework relevance across to the NC it
+    // creates — routing used to drop all of that context.
     const nc = await createRecord(auth, "nonconformities", {
       title: row.title,
-      data: { category: "Audit Finding", sourceFindingId: row.code, description: row.description, source: `Internal audit ${row.code}` },
+      frameworks: row.frameworks ?? [],
+      data: {
+        category: "Audit Finding", sourceFindingId: row.code, description: row.description,
+        source: `Internal audit ${row.code}`, process: row.process ?? "", workUnit: row.workUnit ?? "",
+        pic: row.pic ?? "", due: row.due ?? "",
+      },
     }, row.orgId, ip);
     row.linkedNC = nc.code;
   } else {
     if (row.type !== "Observation" && row.type !== "Opportunity for Improvement") throw new BadRequestError("Only observations / OFIs route to an improvement", "NOT_IMP_TYPE");
     if (row.linkedImp) throw new ConflictError("Finding is already linked to an improvement", "ALREADY_LINKED");
+    // OD's improvement carries the same context, plus `evidence` (owner is the
+    // finding's PIC, matching OD `owner:f.pic`).
     const imp = await createRecord(auth, "improvements", {
       title: row.title,
-      data: { category: "Process Improvement", priority: "Medium", sourceFindingId: row.code, benefit: row.description },
+      owner: row.pic ?? null,
+      frameworks: row.frameworks ?? [],
+      data: {
+        category: "Process Improvement", priority: "Medium", sourceFindingId: row.code, benefit: row.description,
+        process: row.process ?? "", workUnit: row.workUnit ?? "", due: row.due ?? "", evidence: row.evidence ?? "",
+      },
     }, row.orgId, ip);
     row.linkedImp = imp.code;
   }

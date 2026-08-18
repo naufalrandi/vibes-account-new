@@ -1,5 +1,6 @@
+import { Op } from "sequelize";
 import {
-  Framework, FrameworkFamily, FrameworkType, FrameworkGroup, FrameworkRequirement,
+  Framework, FrameworkFamily, FrameworkType, FrameworkGroup, FrameworkRequirement, Fwrc,
 } from "../../db/models";
 import type { FrameworkStatus } from "../../db/models/framework.model";
 import type { AuthContext } from "../../lib/scope";
@@ -19,6 +20,8 @@ export interface CreateFrameworkInput {
   groupId?: string;
   description?: string | null;
   jurisdictions?: string[];
+  /** OD Short Label — compact register tag; blank auto-derives from the name. */
+  shortLabel?: string | null;
   status?: FrameworkStatus;
 }
 
@@ -53,18 +56,34 @@ async function requireFamily(familyId: string): Promise<FrameworkFamily> {
 async function toView(f: Framework): Promise<Record<string, unknown>> {
   const group = f.get("FrameworkGroup") as FrameworkGroup | undefined;
   const requirementCount = await FrameworkRequirement.count({ where: { frameworkId: f.id } });
+  // FWE count = distinct elements this framework's FWRC rows touch (OD 4941).
+  const fweCount = await Fwrc.count({ where: { frameworkId: f.id }, distinct: true, col: "element_id" });
   return {
     ...f.toJSON(),
     groupId: f.groupId,
     groupName: group?.name ?? "",
     description: f.shortDescription,
     jurisdictions: f.jurisdictions ?? [],
+    shortLabel: f.shortLabel,
     requirementCount,
+    fweCount,
   };
 }
 
+/** OD frameworkModal guard: framework names are unique (case-insensitive) within their group. */
+async function assertNameUniqueInGroup(groupId: string | null, name: string, excludeId?: string): Promise<void> {
+  if (!groupId) return;
+  const where: Record<string, unknown> = { groupId, name: { [Op.iLike]: name } };
+  if (excludeId) where.id = { [Op.ne]: excludeId };
+  if (await Framework.findOne({ where })) {
+    throw new ConflictError("A framework with this name already exists in this group", "DUPLICATE_NAME");
+  }
+}
+
+// Read (list/get/listGroups): catalog data, no orgId — any authenticated org
+// may read (e.g. a tenant following `/my-frameworks` → `/frameworks/:id`).
+// Mutations below stay Service-Owner-only via `assertServiceOwner`.
 export async function listFrameworks(auth: AuthContext, filters: ListFrameworkFilters = {}): Promise<Record<string, unknown>[]> {
-  assertServiceOwner(auth);
   const where: Record<string, unknown> = {};
   if (filters.familyId) where.familyId = filters.familyId;
   if (filters.groupId) where.groupId = filters.groupId;
@@ -77,7 +96,6 @@ export async function listFrameworks(auth: AuthContext, filters: ListFrameworkFi
 }
 
 export async function getFramework(auth: AuthContext, id: string): Promise<Record<string, unknown>> {
-  assertServiceOwner(auth);
   const f = await Framework.findByPk(id, { include: INCLUDES });
   if (!f) throw new NotFoundError("Framework does not exist", "FRAMEWORK_NOT_FOUND");
   return toView(f);
@@ -95,7 +113,6 @@ async function ensureGroups(): Promise<void> {
 }
 
 export async function listGroups(auth: AuthContext): Promise<{ id: string; name: string }[]> {
-  assertServiceOwner(auth);
   await ensureGroups();
   const groups = await FrameworkGroup.findAll({ order: [["sortOrder", "ASC"], ["name", "ASC"]] });
   return groups.map((g) => ({ id: g.id, name: g.name }));
@@ -117,18 +134,20 @@ export async function createFramework(auth: AuthContext, input: CreateFrameworkI
       version: input.version ?? null, status: input.status ?? "Draft",
       publishedDate: input.publishedDate ?? null,
       shortDescription: input.shortDescription ?? null, fullDescription: input.fullDescription ?? null,
-      groupId: null, jurisdictions: [],
+      groupId: null, jurisdictions: [], shortLabel: null,
     });
   } else {
     // Meta-model create (group-based Framework Library).
     if (input.groupId && !(await FrameworkGroup.findByPk(input.groupId))) {
       throw new BadRequestError("Framework group does not exist", "GROUP_NOT_FOUND");
     }
+    await assertNameUniqueInGroup(input.groupId ?? null, input.name);
     created = await Framework.create({
       familyId: null, code: null, name: input.name,
       version: null, status: input.status ?? "Active",
       publishedDate: null, shortDescription: input.description ?? null, fullDescription: null,
       groupId: input.groupId ?? null, jurisdictions: input.jurisdictions ?? [],
+      shortLabel: input.shortLabel?.trim() ? input.shortLabel.trim() : null,
     });
   }
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "framework.created", entityType: "Framework", entityId: created.id, sourceIp: ip, result: "Success" });
@@ -151,8 +170,12 @@ export async function updateFramework(auth: AuthContext, id: string, input: Upda
     if (input.groupId && !(await FrameworkGroup.findByPk(input.groupId))) throw new BadRequestError("Framework group does not exist", "GROUP_NOT_FOUND");
     f.groupId = input.groupId;
   }
-  if (input.name !== undefined) f.name = input.name;
+  if (input.name !== undefined && input.name !== f.name) {
+    await assertNameUniqueInGroup(input.groupId ?? f.groupId, input.name, f.id);
+    f.name = input.name;
+  }
   if (input.version !== undefined) f.version = input.version ?? null;
+  if (input.shortLabel !== undefined) f.shortLabel = input.shortLabel?.trim() ? input.shortLabel.trim() : null;
   if (input.status !== undefined) f.status = input.status;
   if (input.publishedDate !== undefined) f.publishedDate = input.publishedDate ?? null;
   if (input.description !== undefined) f.shortDescription = input.description ?? null;

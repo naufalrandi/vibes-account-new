@@ -22,6 +22,7 @@ export const deleteDataset = wrap(async (req, res) => { await ds.deleteDataset(g
 // Management System Scope (6-dimension document)
 const orgOf = (req: Request) => (typeof req.query.orgId === "string" ? req.query.orgId : undefined);
 export const listScopes = wrap(async (req, res) => { const d = await scope.listScopes(guard(req)); sendOk(res, d, 200, listMeta(d)); });
+export const generateStatement = wrap(async (req, res) => sendOk(res, await scope.generateStatementPreview(guard(req), body.parse(req.body), orgOf(req))));
 export const getScope = wrap(async (req, res) => sendOk(res, await scope.getScope(guard(req), req.params.id as string)));
 export const createScope = wrap(async (req, res) => sendOk(res, await scope.createScope(guard(req), body.parse(req.body), orgOf(req), ip(req)), 201));
 export const updateScope = wrap(async (req, res) => sendOk(res, await scope.updateScope(guard(req), req.params.id as string, body.parse(req.body), ip(req))));

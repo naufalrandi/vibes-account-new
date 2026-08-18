@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Op, type Includeable, type WhereOptions } from "sequelize";
-import { User, Organization, Role, UserRole } from "../../db/models";
+import { User, Organization, Role, UserRole, Site } from "../../db/models";
 import type { PermissionMode } from "../../db/models/user.model";
 import type { AuthContext } from "../../lib/scope";
 import { userScopeWhere } from "../../lib/scope";
@@ -52,6 +52,11 @@ export interface UpdateUserInput {
   phone?: string | null;
   photo?: string | null;
   workUnit?: string | null;
+  // OD tenant-team member fields (migration 0047): Site / Type columns and the
+  // per-member business-process assignment (`tmBpForm`, index.html:9126).
+  siteId?: string | null;
+  personnelType?: string | null;
+  processIds?: string[] | null;
 }
 
 export interface UserFilters {
@@ -274,6 +279,18 @@ export async function updateUser(
   if (input.phone !== undefined) user.phone = input.phone;
   if (input.photo !== undefined) user.photo = input.photo;
   if (input.workUnit !== undefined) user.workUnit = input.workUnit;
+  // Team-member fields (OD tn-team). A site must belong to the user's own org —
+  // the update path is already tenant-scoped via requireManagedUser, so this
+  // keeps a Tenant admin from pointing a member at another org's site.
+  if (input.siteId !== undefined) {
+    if (input.siteId !== null) {
+      const site = await Site.findOne({ where: { id: input.siteId, orgId: user.orgId } });
+      if (!site) throw new BadRequestError("Site does not belong to this organization", "SITE_NOT_FOUND");
+    }
+    user.siteId = input.siteId;
+  }
+  if (input.personnelType !== undefined) user.personnelType = input.personnelType;
+  if (input.processIds !== undefined) user.processIds = input.processIds ?? [];
 
   if (input.status !== undefined) {
     if (isSuper) throw new ForbiddenError("Super Administrator can't be deactivated");

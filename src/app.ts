@@ -50,6 +50,7 @@ import { roleRegisterRoutes } from "./modules/roles-register/roleRegister.routes
 import { recordEventRoutes } from "./modules/record-events/recordEvent.routes";
 import { interestedPartyRoutes } from "./modules/interested-parties/ip.routes";
 import { demoRoutes } from "./modules/demo/demo.routes";
+import { demoPublicRoutes } from "./modules/demo/demoPublic.routes";
 import { businessRoutes } from "./modules/business/business.routes";
 import { limsRoutes } from "./modules/lims/lims.routes";
 import { kbRoutes } from "./modules/knowledge-base/kb.routes";
@@ -119,6 +120,9 @@ export function createApp() {
   app.use("/v1/record-events", authenticate, tenantScope, recordEventRoutes);
   app.use("/v1/interested-parties", authenticate, tenantScope, interestedPartyRoutes);
   app.use("/v1/demo-tenants", authenticate, tenantScope, demoRoutes);
+  // PUBLIC (no auth): landing/business-operations demo-request intake. Its own
+  // per-IP rate limiter lives on the router (demoPublic.routes.ts).
+  app.use("/v1/demo-requests", demoPublicRoutes);
   app.use("/v1/business", authenticate, tenantScope, businessRoutes);
   app.use("/v1/lims", authenticate, tenantScope, limsRoutes);
   app.use("/v1/kb-articles", authenticate, tenantScope, kbRoutes);

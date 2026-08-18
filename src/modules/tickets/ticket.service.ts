@@ -1,5 +1,5 @@
 import { Op, type WhereOptions } from "sequelize";
-import { Organization, User, TenantProfile, Ticket } from "../../db/models";
+import { Organization, User, Role, TenantProfile, Ticket } from "../../db/models";
 import type {
   TicketCategory, TicketPriority, TicketStatus, TicketScope,
   TicketMessage, TicketActivity,
@@ -161,6 +161,11 @@ export async function addAttachment(auth: AuthContext, id: string, name: string,
 }
 
 export async function setStatus(auth: AuthContext, id: string, status: TicketStatus, ip: string | null) {
+  // P0-6 / B2: status changes are a Service-Provider-only control in OD
+  // (index.html:15589). The seeded Distributor/Tenant admin roles used to
+  // carry ticket.manage via grantEverything with no server-side backstop —
+  // FE hid the controls, but the API itself allowed it.
+  if (auth.orgType !== "ServiceOwner") throw new ForbiddenError("Only the Service Owner changes ticket status");
   const { ticket, orgName } = await resolveTicket(auth, id);
   const event = status === "Resolved" ? "Ticket resolved" : status === "Closed" ? "Ticket closed" : `Status changed to ${status}`;
   ticket.status = status;
@@ -171,7 +176,24 @@ export async function setStatus(auth: AuthContext, id: string, status: TicketSta
   return toView(ticket, orgName);
 }
 
+/**
+ * OD `spAgents()` (index.html:15464): the assignable roster for the ticket
+ * Assign modal — Active users, in the actor's own (Service-Owner) org, whose
+ * role is Administrator or Technical Support. Service-Owner only, same gate
+ * as assignTicket/setStatus above.
+ */
+export async function listAgents(auth: AuthContext): Promise<string[]> {
+  if (auth.orgType !== "ServiceOwner") throw new ForbiddenError("Only the Service Owner has an agent roster");
+  const rows = await User.findAll({
+    where: { orgId: auth.orgId, status: "Active" },
+    include: [{ model: Role, where: { name: { [Op.in]: ["Administrator", "Technical Support"] } }, required: true, through: { attributes: [] } }],
+  });
+  return rows.map((u) => u.fullName).sort((a, b) => a.localeCompare(b));
+}
+
 export async function assignTicket(auth: AuthContext, id: string, assignee: string | null, ip: string | null) {
+  // P0-6 / B2: assignment is a Service-Provider-only control in OD (index.html:15592) — same rationale as setStatus above.
+  if (auth.orgType !== "ServiceOwner") throw new ForbiddenError("Only the Service Owner assigns tickets");
   const { ticket, orgName } = await resolveTicket(auth, id);
   const name = assignee?.trim() ? assignee.trim() : null;
   ticket.assignedTo = name;

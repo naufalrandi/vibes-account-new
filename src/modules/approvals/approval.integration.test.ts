@@ -92,14 +92,23 @@ describe("approval engine", () => {
     const wd = await request(app).post(`/v1/approvals/records/policies/${p2}/withdraw`).set(authed(admin.token));
     expect(wd.body.data.status).toBe("Draft");
 
-    // Submit again, MST signs, then request revision → Needs Revision + approval cleared.
+    // Submit again, MST signs, then request revision → Needs Revision; the
+    // approval run is kept (state "returned") and the reviewer's comment is
+    // stored on the record instead of being destroyed with the run.
     await request(app).post(`/v1/approvals/records/policies/${p2}/submit`).set(authed(admin.token));
     await request(app).post(`/v1/approvals/records/policies/${p2}/approve`).set(authed(mst.token));
     // After a signature, the author can no longer withdraw.
     expect((await request(app).post(`/v1/approvals/records/policies/${p2}/withdraw`).set(authed(admin.token))).status).toBe(409);
-    const rev = await request(app).post(`/v1/approvals/records/policies/${p2}/request-revision`).set(authed(admin.token));
+    const rev = await request(app).post(`/v1/approvals/records/policies/${p2}/request-revision`).set(authed(admin.token))
+      .send({ comments: "Tighten section 2 before resubmitting" });
     expect(rev.body.data.status).toBe("Needs Revision");
-    expect((await request(app).get(`/v1/approvals/records/policies/${p2}`).set(authed(admin.token))).body.data).toBeNull();
+    expect((await request(app).get(`/v1/approvals/records/policies/${p2}`).set(authed(admin.token))).body.data.state).toBe("returned");
+    const p2rec = (await request(app).get("/v1/implementation/policies").set(authed(admin.token)))
+      .body.data.find((p: { id: string }) => p.id === p2);
+    expect(p2rec.data.reviewComments).toBe("Tighten section 2 before resubmitting");
+    // A returned record can be resubmitted into a fresh run.
+    const resub = await request(app).post(`/v1/approvals/records/policies/${p2}/submit`).set(authed(admin.token));
+    expect(resub.body.data.record.state).toBe("active");
   });
 
   it("blocks self-approval when disabled, and blocks submit when the pool is empty", async () => {
@@ -156,6 +165,32 @@ describe("approval engine", () => {
     const weak = await makeUser(orgId, "ap-weak", "Weak", APPROVER);
     expect((await request(app).post("/v1/approvals/schemes").set(authed(weak.token)).send({ name: "Y", gates: [{ label: "G", pool: "mst" }] })).status).toBe(403);
     expect((await request(app).get("/v1/approvals/schemes").set(authed(weak.token))).status).toBe(200);
+  });
+
+  // OD `apModuleGroups` (10349–10353): the module map spans every governed
+  // module (~29 across 9 VIEWCFG groups), unmapped modules defaulting to S0.
+  // Assignments for modules the engine doesn't yet drive are stored but inert.
+  it("serves the full governed module key set, accepts assignments for not-yet-governed modules, rejects unknown keys", async () => {
+    const orgId = await makeOrg();
+    const admin = await makeUser(orgId, "ap-a6", "Admin", ADMIN);
+
+    const map = (await request(app).get("/v1/approvals/module-map").set(authed(admin.token))).body.data;
+    expect(Object.keys(map)).toHaveLength(29);
+    // OD AP_DEFAULT_MAP pairs survive; everything outside it defaults to S0.
+    expect(map.policies).toBe("S1");
+    expect(map.reviews).toBe("S1");
+    expect(map.training).toBe("S0");
+    expect(map.instruments).toBe("S0");
+    expect(map.nonconformities).toBe("S0");
+    expect(map["customer-satisfaction"]).toBe("S0");
+
+    // A not-yet-governed module accepts (and stores) an assignment…
+    await request(app).put("/v1/approvals/module-map").set(authed(admin.token)).send({ moduleKey: "training", schemeId: "S1" });
+    expect((await request(app).get("/v1/approvals/module-map").set(authed(admin.token))).body.data.training).toBe("S1");
+    // …but an off-list key is rejected.
+    const bad = await request(app).put("/v1/approvals/module-map").set(authed(admin.token)).send({ moduleKey: "bogus", schemeId: "S1" });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.code).toBe("MODULE_UNKNOWN");
   });
 
   // OD `polPublishCore`: publishing supersedes the previously published policy
@@ -219,5 +254,123 @@ describe("approval engine", () => {
     // Different lineages — both stay Published.
     expect((await fetch(quality)).status).toBe("Published");
     expect((await fetch(security)).status).toBe("Published");
+  });
+});
+
+// OD's Internal Documents flow is bespoke (cdSubmit → cdReview → cdPublish),
+// not the multi-gate engine: submit needs an approver, a single reviewer
+// decides Approve / Request Revision / Reject, and publishing is a separate
+// explicit step gated on Approved.
+describe("controlled documents workflow", () => {
+  beforeAll(() => initModels());
+  afterEach(() => resetDb());
+
+  const createDoc = async (token: string, extra: Record<string, unknown> = {}) => {
+    const r = await request(app).post("/v1/implementation/documents").set(authed(token)).send({
+      title: "Access Control Procedure", status: "Draft", owner: "IT Lead",
+      data: { type: "Procedure", category: "Information Security", approver: "Jennifer Walters", changeSummary: "Initial issue", reviewFreq: "Annually", content: "v1", ...extra },
+    });
+    return r.body.data;
+  };
+  const fetchDoc = async (token: string, id: string) =>
+    (await request(app).get("/v1/implementation/documents").set(authed(token))).body.data.find((d: { id: string }) => d.id === id);
+
+  it("runs submit → approve (with effective date) → explicit publish, deriving next review", async () => {
+    const orgId = await makeOrg();
+    const admin = await makeUser(orgId, "cd-a1", "Admin", ADMIN);
+    const doc = await createDoc(admin.token);
+    // TYPECODE-NNNN id scheme (no framework → no FW segment).
+    expect(doc.code).toBe("PROC-0001");
+    expect(doc.data.version).toBe("0.1");
+
+    // Publish is gated on Approved — straight from Draft it must refuse.
+    expect((await request(app).post(`/v1/approvals/records/documents/${doc.id}/publish`).set(authed(admin.token))).status).toBe(409);
+
+    const sub = await request(app).post(`/v1/approvals/records/documents/${doc.id}/submit`).set(authed(admin.token));
+    expect(sub.body.data.status).toBe("Under Review");
+    expect((await fetchDoc(admin.token, doc.id)).data.submittedBy).toBeTruthy();
+
+    // Approve is not Publish — the record parks at Approved.
+    const rev = await request(app).post(`/v1/approvals/records/documents/${doc.id}/review`).set(authed(admin.token))
+      .send({ decision: "Approve", effectiveDate: "2026-09-01", comments: "Looks complete" });
+    expect(rev.body.data.status).toBe("Approved");
+    const approved = await fetchDoc(admin.token, doc.id);
+    expect(approved.data.reviewDecision).toBe("Approve");
+    expect(approved.data.reviewComments).toBe("Looks complete");
+    expect(approved.data.effectiveDate).toBe(new Date("2026-09-01").toISOString());
+
+    const pub = await request(app).post(`/v1/approvals/records/documents/${doc.id}/publish`).set(authed(admin.token));
+    expect(pub.body.data.status).toBe("Published");
+    const published = await fetchDoc(admin.token, doc.id);
+    expect(published.data.publishedBy).toBeTruthy();
+    // Annually from the approved effective date.
+    expect(published.data.nextReview).toBe(new Date("2027-09-01").toISOString());
+  });
+
+  it("supports Request Revision (stores the comment) and Reject", async () => {
+    const orgId = await makeOrg();
+    const admin = await makeUser(orgId, "cd-a2", "Admin", ADMIN);
+    const doc = await createDoc(admin.token);
+    await request(app).post(`/v1/approvals/records/documents/${doc.id}/submit`).set(authed(admin.token));
+    const rr = await request(app).post(`/v1/approvals/records/documents/${doc.id}/review`).set(authed(admin.token))
+      .send({ decision: "Request Revision", comments: "Add the revocation steps" });
+    expect(rr.body.data.status).toBe("Revision Requested");
+    const returned = await fetchDoc(admin.token, doc.id);
+    expect(returned.data.reviewComments).toBe("Add the revocation steps");
+
+    // Revision Requested can be resubmitted, then rejected.
+    await request(app).post(`/v1/approvals/records/documents/${doc.id}/submit`).set(authed(admin.token));
+    const rj = await request(app).post(`/v1/approvals/records/documents/${doc.id}/review`).set(authed(admin.token))
+      .send({ decision: "Reject", comments: "Out of scope" });
+    expect(rj.body.data.status).toBe("Rejected");
+    // A rejected document cannot be reviewed again.
+    expect((await request(app).post(`/v1/approvals/records/documents/${doc.id}/review`).set(authed(admin.token))
+      .send({ decision: "Approve" })).status).toBe(409);
+  });
+
+  it("gates submit on the requireApprover setting", async () => {
+    const orgId = await makeOrg();
+    const admin = await makeUser(orgId, "cd-a3", "Admin", ADMIN);
+    // Relax the save gates so a doc without an approver can exist…
+    await request(app).put("/v1/implementation/documents/settings").set(authed(admin.token))
+      .send({ requireApprover: false, requireChange: false, requireOwner: false });
+    const doc = await createDoc(admin.token, { approver: "" });
+    // …then turn the submit gate back on.
+    await request(app).put("/v1/implementation/documents/settings").set(authed(admin.token)).send({ requireApprover: true });
+    const sub = await request(app).post(`/v1/approvals/records/documents/${doc.id}/submit`).set(authed(admin.token));
+    expect(sub.status).toBe(400);
+    expect(sub.body.error.code).toBe("DOC_APPROVER_REQUIRED");
+
+    // Turning the gate off lets it through.
+    await request(app).put("/v1/implementation/documents/settings").set(authed(admin.token)).send({ requireApprover: false });
+    expect((await request(app).post(`/v1/approvals/records/documents/${doc.id}/submit`).set(authed(admin.token))).status).toBe(200);
+  });
+
+  it("publishing a revision supersedes the prior published version in the lineage", async () => {
+    const orgId = await makeOrg();
+    const admin = await makeUser(orgId, "cd-a4", "Admin", ADMIN);
+    const v1 = await createDoc(admin.token);
+    await request(app).post(`/v1/approvals/records/documents/${v1.id}/submit`).set(authed(admin.token));
+    await request(app).post(`/v1/approvals/records/documents/${v1.id}/review`).set(authed(admin.token)).send({ decision: "Approve" });
+    await request(app).post(`/v1/approvals/records/documents/${v1.id}/publish`).set(authed(admin.token));
+
+    // Editing the published doc forks a draft; the original STAYS Published.
+    const fork = await request(app).put(`/v1/implementation/documents/${v1.id}`).set(authed(admin.token))
+      .send({ data: { type: "Procedure", approver: "Jennifer Walters", changeSummary: "Clarify revocation", content: "v2" } });
+    const v2 = fork.body.data;
+    expect(v2.id).not.toBe(v1.id);
+    expect(v2.status).toBe("Draft");
+    expect(v2.data.lineageId).toBe(v1.id);
+    expect(v2.data.prevVersionId).toBe(v1.id);
+    expect((await fetchDoc(admin.token, v1.id)).status).toBe("Published"); // live during the revision cycle
+
+    // Publishing the revision is what supersedes v1.
+    await request(app).post(`/v1/approvals/records/documents/${v2.id}/submit`).set(authed(admin.token));
+    await request(app).post(`/v1/approvals/records/documents/${v2.id}/review`).set(authed(admin.token)).send({ decision: "Approve" });
+    await request(app).post(`/v1/approvals/records/documents/${v2.id}/publish`).set(authed(admin.token));
+    const oldV1 = await fetchDoc(admin.token, v1.id);
+    expect(oldV1.status).toBe("Superseded");
+    expect(oldV1.data.supersededBy).toBe(v2.id);
+    expect((await fetchDoc(admin.token, v2.id)).status).toBe("Published");
   });
 });

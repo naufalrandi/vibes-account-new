@@ -1,5 +1,5 @@
 import { Op } from "sequelize";
-import { CompetenceEducation, CompetenceSkill, CompetenceTraining } from "../../db/models";
+import { CompetenceEducation, CompetenceSkill, CompetenceTraining, CompetenceSettings } from "../../db/models";
 import { SKILL_TYPES } from "../../db/models/competence.models";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
@@ -13,11 +13,25 @@ async function audit(auth: AuthContext, action: string, entityType: string, enti
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action, entityType, entityId, sourceIp: ip, result: "Success" });
 }
 
+/** Global (org_id NULL) rows are visible to everyone; tenant rows to their owner. */
+async function orgClause(auth: AuthContext): Promise<Record<string, unknown>> {
+  const ids = await visibleTenantOrgIds(auth);
+  return ids === null ? {} : { [Op.or]: [{ orgId: null }, { orgId: { [Op.in]: ids } }] };
+}
+
 // --- Education ladder (ISCED) --------------------------------------------
+// OD treats the ISCED ladder as read-only reference data (index.html:17793):
+// reads stay global, writes are Service-Owner only.
+function assertServiceOwner(auth: AuthContext): void {
+  if (auth.orgType !== "ServiceOwner") {
+    throw new ForbiddenError("Education levels are ISCED reference data managed by the Service Owner");
+  }
+}
 export async function listEducation() {
   return (await CompetenceEducation.findAll({ order: [["level", "ASC"]] })).map((r) => r.get({ plain: true }));
 }
 export async function createEducation(auth: AuthContext, input: Record<string, unknown>, ip: string | null) {
+  assertServiceOwner(auth);
   const label = str(input.label);
   const level = Number(input.level);
   if (!label) throw new BadRequestError("Label is required", "LABEL_REQUIRED");
@@ -28,6 +42,7 @@ export async function createEducation(auth: AuthContext, input: Record<string, u
   return row.get({ plain: true });
 }
 export async function updateEducation(auth: AuthContext, id: string, input: Record<string, unknown>, ip: string | null) {
+  assertServiceOwner(auth);
   const row = await CompetenceEducation.findByPk(id);
   if (!row) throw new NotFoundError("Education level not found", "EDU_NOT_FOUND");
   if (input.label !== undefined) row.label = str(input.label) ?? row.label;
@@ -37,6 +52,7 @@ export async function updateEducation(auth: AuthContext, id: string, input: Reco
   return row.get({ plain: true });
 }
 export async function deleteEducation(auth: AuthContext, id: string, ip: string | null) {
+  assertServiceOwner(auth);
   const row = await CompetenceEducation.findByPk(id);
   if (!row) throw new NotFoundError("Education level not found", "EDU_NOT_FOUND");
   await row.destroy();
@@ -44,8 +60,11 @@ export async function deleteEducation(auth: AuthContext, id: string, ip: string 
 }
 
 // --- Skill library -------------------------------------------------------
-export async function listSkills(filters: { type?: string } = {}) {
-  const where = filters.type ? { type: filters.type } : {};
+// OD's dual model (global enterprise library + tenant-scoped db.skills):
+// SP rows are global (org_id NULL); a tenant's own rows sit beside them.
+export async function listSkills(auth: AuthContext, filters: { type?: string } = {}) {
+  const scope = await orgClause(auth);
+  const where = filters.type ? { ...scope, type: filters.type } : scope;
   return (await CompetenceSkill.findAll({ where, order: [["name", "ASC"]] })).map((r) => r.get({ plain: true }));
 }
 export async function createSkill(auth: AuthContext, input: Record<string, unknown>, ip: string | null) {
@@ -53,13 +72,23 @@ export async function createSkill(auth: AuthContext, input: Record<string, unkno
   const type = str(input.type) ?? "hard";
   if (!name) throw new BadRequestError("Skill name is required", "NAME_REQUIRED");
   if (!SKILL_TYPES.includes(type as never)) throw new BadRequestError(`Invalid skill type "${type}"`, "INVALID_TYPE");
-  const row = await CompetenceSkill.create({ name, type, description: str(input.description), methods: arr(input.methods) });
+  const row = await CompetenceSkill.create({
+    orgId: auth.orgType === "ServiceOwner" ? null : auth.orgId,
+    name, type, description: str(input.description), methods: arr(input.methods),
+  });
   await audit(auth, "competence.skill.created", "CompetenceSkill", row.id, ip);
   return row.get({ plain: true });
 }
-export async function updateSkill(auth: AuthContext, id: string, input: Record<string, unknown>, ip: string | null) {
+/** SP may mutate global rows; a tenant only its own (scopeDataset `requireOwned` pattern). */
+async function requireOwnedSkill(auth: AuthContext, id: string): Promise<CompetenceSkill> {
   const row = await CompetenceSkill.findByPk(id);
   if (!row) throw new NotFoundError("Skill not found", "SKILL_NOT_FOUND");
+  const ownGlobal = row.orgId === null && auth.orgType === "ServiceOwner";
+  if (!ownGlobal && row.orgId !== auth.orgId) throw new ForbiddenError();
+  return row;
+}
+export async function updateSkill(auth: AuthContext, id: string, input: Record<string, unknown>, ip: string | null) {
+  const row = await requireOwnedSkill(auth, id);
   if (input.name !== undefined) row.name = str(input.name) ?? row.name;
   if (input.type !== undefined) {
     const type = str(input.type) ?? "hard";
@@ -73,8 +102,7 @@ export async function updateSkill(auth: AuthContext, id: string, input: Record<s
   return row.get({ plain: true });
 }
 export async function deleteSkill(auth: AuthContext, id: string, ip: string | null) {
-  const row = await CompetenceSkill.findByPk(id);
-  if (!row) throw new NotFoundError("Skill not found", "SKILL_NOT_FOUND");
+  const row = await requireOwnedSkill(auth, id);
   await row.destroy();
   await audit(auth, "competence.skill.deleted", "CompetenceSkill", id, ip);
 }
@@ -117,4 +145,52 @@ export async function deleteTraining(auth: AuthContext, id: string, ip: string |
   assertCanManageTraining(auth, row);
   await row.destroy();
   await audit(auth, "competence.training.deleted", "CompetenceTraining", id, ip);
+}
+
+// --- Settings singleton (OD `compSettings`, index.html:13378) -------------
+// Module governance toggles + the default reassessment cadence. Mirrors
+// `awarenessControl.ts`'s `AW_SETTINGS_DEFAULTS`/`getAwSettings`/`setAwSettings`
+// (a lazily-initialised per-org JSONB row, org-scoped like every other
+// competence read/write here).
+//
+// `defaultReassess` deliberately stores months (a number) rather than OD's
+// `COMP_REVFREQ` string vocabulary — see migration 0048's doc comment. It
+// feeds `competence.assessment.service.ts`'s `assessValidUntil`, which used to
+// hard-code `12`; `12` stays the *default value* of the setting itself.
+export const COMP_SETTINGS_DEFAULTS = {
+  requireMethod: true,
+  allowActivateMissing: false,
+  requireEvidenceMandatory: false,
+  allowOverride: true,
+  defaultReassess: 12,
+};
+export type CompSettings = typeof COMP_SETTINGS_DEFAULTS;
+
+/** Per-org settings with OD's defaults for any missing row/key. */
+export async function getCompSettings(orgId: string): Promise<CompSettings> {
+  const row = await CompetenceSettings.findOne({ where: { orgId } });
+  return { ...COMP_SETTINGS_DEFAULTS, ...(row?.settings ?? {}) };
+}
+
+export async function setCompSettings(auth: AuthContext, input: Record<string, unknown>, ip: string | null): Promise<CompSettings> {
+  const [row] = await CompetenceSettings.findOrCreate({
+    where: { orgId: auth.orgId },
+    defaults: { orgId: auth.orgId, settings: {} },
+  });
+  const next: Record<string, boolean | number> = { ...row.settings };
+  for (const key of Object.keys(COMP_SETTINGS_DEFAULTS)) {
+    const v = input[key];
+    if (key === "defaultReassess") {
+      if (v === undefined) continue;
+      const months = Number(v);
+      if (!Number.isInteger(months) || months < 1) throw new BadRequestError("Default reassessment must be a whole number of months", "INVALID_DEFAULT_REASSESS");
+      next[key] = months;
+    } else if (typeof v === "boolean") {
+      next[key] = v;
+    }
+  }
+  row.settings = next;
+  await row.save();
+  await audit(auth, "competence.settingsUpdated", "CompetenceSettings", row.id, ip);
+  return { ...COMP_SETTINGS_DEFAULTS, ...next };
 }

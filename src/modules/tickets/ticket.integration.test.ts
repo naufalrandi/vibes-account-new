@@ -65,6 +65,21 @@ describe("tickets", () => {
     expect(resolved.body.data.sla.resolution).not.toBeNull();
   });
 
+  it("restricts status changes and assignment to the Service Owner, even with ticket.manage granted (P0-6/B2)", async () => {
+    const sp = await actor("ServiceOwner", "AXIA", "soadmin2", ALL);
+    const created = await request(app).post("/v1/tickets").set(authed(sp.token)).send(NEW);
+    const id = created.body.data.id;
+
+    const tenant = await actor("Tenant", "T2", "t.user2", ALL);
+    const dist = await actor("Distributor", "D2", "d.user2", ALL);
+    for (const nonSo of [tenant, dist]) {
+      expect((await request(app).post(`/v1/tickets/${id}/status`).set(authed(nonSo.token)).send({ status: "Resolved" })).status).toBe(403);
+      expect((await request(app).post(`/v1/tickets/${id}/assign`).set(authed(nonSo.token)).send({ assignee: "Raka" })).status).toBe(403);
+    }
+    // The Service Owner is unaffected.
+    expect((await request(app).post(`/v1/tickets/${id}/status`).set(authed(sp.token)).send({ status: "Resolved" })).status).toBe(200);
+  });
+
   it("computes a Breached SLA from a late support response", async () => {
     const a = await actor("Tenant", "T", "t.user", ALL);
     // Critical target = 4h. Seed a ticket whose first support reply is 10h late.

@@ -30,6 +30,11 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare system: CreationOptional<boolean>;
   declare permissionMode: CreationOptional<PermissionMode | null>;
   declare permissions: CreationOptional<string[] | null>;
+  // OD tenant-team member fields (migration 0047): site membership, personnel
+  // category, and the per-member business-process assignment (`tmBpForm`).
+  declare siteId: CreationOptional<string | null>;
+  declare personnelType: CreationOptional<string | null>;
+  declare processIds: CreationOptional<string[]>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 
@@ -74,6 +79,9 @@ User.init(
     system: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     permissionMode: { type: DataTypes.STRING, allowNull: true, field: "permission_mode" },
     permissions: { type: DataTypes.JSONB, allowNull: true, defaultValue: [] },
+    siteId: { type: DataTypes.UUID, allowNull: true, field: "site_id" },
+    personnelType: { type: DataTypes.STRING, allowNull: true, field: "personnel_type" },
+    processIds: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "process_ids" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

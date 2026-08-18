@@ -19,7 +19,12 @@ const guard = (req: Request): AuthContext => { if (!req.auth) throw new Unauthor
 
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
-    const rows = await service.listFwrc(guard(req), { requirementId: req.query.requirementId as string | undefined, elementId: req.query.elementId as string | undefined });
+    const rows = await service.listFwrc(guard(req), {
+      requirementId: req.query.requirementId as string | undefined,
+      elementId: req.query.elementId as string | undefined,
+      frameworkId: req.query.frameworkId as string | undefined,
+      responseId: req.query.responseId as string | undefined,
+    });
     sendOk(res, rows, 200, { page: 1, limit: rows.length, total: rows.length });
   } catch (e) { next(e); }
 }

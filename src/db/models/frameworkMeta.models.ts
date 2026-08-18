@@ -2,6 +2,8 @@ import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, t
 import { sequelize } from "../sequelize";
 
 export type LibraryStatus = "Draft" | "Active" | "Archived";
+/** OD element vocabulary is Active/Inactive; Draft/Archived remain accepted as legacy values. */
+export type ElementStatus = "Draft" | "Active" | "Inactive" | "Archived";
 export type ElementCategory = "Core" | "Framework Extension";
 export type AssessmentStatus = "Draft" | "Active";
 export type QuestionDimension = "Coverage" | "Maturity";
@@ -32,7 +34,7 @@ export class FrameworkElement extends Model<InferAttributes<FrameworkElement>, I
   declare name: string;
   declare description: string | null;
   declare category: CreationOptional<ElementCategory>;
-  declare status: CreationOptional<LibraryStatus>;
+  declare status: CreationOptional<ElementStatus>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -43,7 +45,7 @@ FrameworkElement.init(
     name: { type: DataTypes.STRING, allowNull: false },
     description: { type: DataTypes.TEXT, allowNull: true },
     category: { type: DataTypes.ENUM("Core", "Framework Extension"), allowNull: false, defaultValue: "Core" },
-    status: { type: DataTypes.ENUM("Draft", "Active", "Archived"), allowNull: false, defaultValue: "Active" },
+    status: { type: DataTypes.ENUM("Draft", "Active", "Inactive", "Archived"), allowNull: false, defaultValue: "Active" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

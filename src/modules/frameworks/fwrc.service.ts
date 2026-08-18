@@ -14,11 +14,15 @@ export interface FwrcView {
   frameworkName: string;
   requirementId: string;
   requirementCode: string;
+  requirementSubject: string;
   elementId: string;
+  elementCode: string;
   elementName: string;
   questionId: string | null;
+  questionCode: string | null;
   questionText: string | null;
   responseId: string;
+  responseCode: string | null;
   responseText: string;
   statement: string;
   createdAt: Date;
@@ -38,10 +42,10 @@ async function toView(f: Fwrc): Promise<FwrcView> {
   ]);
   return {
     id: f.id, code: f.code, frameworkId: f.frameworkId, frameworkName: fw?.name ?? "",
-    requirementId: f.requirementId, requirementCode: req?.code ?? "",
-    elementId: f.elementId, elementName: el?.name ?? "",
-    questionId: f.questionId, questionText: q?.text ?? null,
-    responseId: f.responseId, responseText: resp?.text ?? "",
+    requirementId: f.requirementId, requirementCode: req?.code ?? "", requirementSubject: req?.subject ?? "",
+    elementId: f.elementId, elementCode: el?.code ?? "", elementName: el?.name ?? "",
+    questionId: f.questionId, questionCode: q?.code ?? null, questionText: q?.text ?? null,
+    responseId: f.responseId, responseCode: resp?.code ?? null, responseText: resp?.text ?? "",
     statement: f.statement, createdAt: f.createdAt, updatedAt: f.updatedAt,
   };
 }
@@ -56,11 +60,16 @@ async function nextCode(): Promise<string> {
   return `FWRC-${String(max + 1).padStart(4, "0")}`;
 }
 
-export async function listFwrc(auth: AuthContext, filters: { requirementId?: string; elementId?: string }): Promise<FwrcView[]> {
+export async function listFwrc(
+  auth: AuthContext,
+  filters: { requirementId?: string; elementId?: string; frameworkId?: string; responseId?: string },
+): Promise<FwrcView[]> {
   assertServiceOwner(auth);
   const where: Record<string, string> = {};
   if (filters.requirementId) where.requirementId = filters.requirementId;
   if (filters.elementId) where.elementId = filters.elementId;
+  if (filters.frameworkId) where.frameworkId = filters.frameworkId;
+  if (filters.responseId) where.responseId = filters.responseId;
   const rows = await Fwrc.findAll({ where, order: [["code", "ASC"]] });
   return Promise.all(rows.map(toView));
 }

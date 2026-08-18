@@ -1,4 +1,4 @@
-import { type WhereOptions } from "sequelize";
+import { Op, type WhereOptions } from "sequelize";
 import { Organization } from "../../db/models";
 import type { OrgBranding, OrgSystemDefaults } from "../../db/models/organization.model";
 import type { AuthContext } from "../../lib/scope";
@@ -103,7 +103,8 @@ export const suspendOrganization = (auth: AuthContext, id: string, ip: string | 
 
 /**
  * The editable profile of an organization, as surfaced on the Org Settings page.
- * `code` is included for display but is never writable — see updateOrgSettings.
+ * `code` is writable via updateOrgSettings, guarded by a uniqueness check
+ * (mirrors createOrganization's DUPLICATE_CODE check) — see updateOrgSettings.
  */
 export interface OrgSettings {
   id: string;
@@ -125,9 +126,10 @@ export interface OrgSettings {
   defaults: OrgSystemDefaults | null;
 }
 
-/** Fields a user may change via the Org Settings update. `code` is intentionally absent. */
+/** Fields a user may change via the Org Settings update. */
 export interface UpdateOrgSettingsInput {
   name?: string;
+  code?: string;
   legalName?: string | null;
   industry?: string | null;
   address?: string | null;
@@ -174,8 +176,10 @@ export async function getOrgSettings(auth: AuthContext): Promise<OrgSettings> {
 /**
  * Partially update the caller's own organization. The target org is always the
  * one from the auth context (`auth.orgId`) — never a client-supplied id — so the
- * organization scope cannot be overridden from the request. `code` is read-only
- * and is never read from input. Only present keys are written (partial update).
+ * organization scope cannot be overridden from the request. Only present keys
+ * are written (partial update). `code` carries a DB-level unique constraint, so
+ * a changed code is checked against every other organization first (mirrors the
+ * DUPLICATE_CODE check in createOrganization).
  */
 export async function updateOrgSettings(
   auth: AuthContext,
@@ -185,6 +189,11 @@ export async function updateOrgSettings(
   const org = await Organization.findByPk(auth.orgId);
   if (!org) throw new NotFoundError("Organization does not exist", "ORG_NOT_FOUND");
 
+  if (input.code !== undefined && input.code !== org.code) {
+    const dup = await Organization.findOne({ where: { code: input.code, id: { [Op.ne]: org.id } } });
+    if (dup) throw new ConflictError("Organization code already exists", "DUPLICATE_CODE");
+    org.code = input.code;
+  }
   if (input.name !== undefined) org.name = input.name;
   if (input.legalName !== undefined) org.legalName = input.legalName;
   if (input.industry !== undefined) org.industry = input.industry;

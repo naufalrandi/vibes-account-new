@@ -1,10 +1,11 @@
+import { Op } from "sequelize";
 import {
-  Framework, FrameworkElement, FrameworkRequirement, ElementRequirementXref,
+  Framework, FrameworkElement, FrameworkGroup, FrameworkRequirement, ElementRequirementXref,
 } from "../../db/models";
-import type { LibraryStatus, ElementCategory } from "../../db/models/frameworkMeta.models";
+import type { ElementStatus, ElementCategory } from "../../db/models/frameworkMeta.models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
-import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 function assertServiceOwner(auth: AuthContext): void {
   if (auth.orgType !== "ServiceOwner") throw new ForbiddenError("Only the Service Owner manages framework elements");
@@ -13,10 +14,19 @@ function assertServiceOwner(auth: AuthContext): void {
 export interface CreateElementInput {
   name: string;
   description?: string | null;
-  status?: LibraryStatus;
+  status?: ElementStatus;
   category?: ElementCategory;
 }
 export type UpdateElementInput = Partial<CreateElementInput>;
+
+/** OD elementModal guard: element names are unique (case-insensitive) across the library. */
+async function assertNameUnique(name: string, excludeId?: string): Promise<void> {
+  const where: Record<string, unknown> = { name: { [Op.iLike]: name } };
+  if (excludeId) where.id = { [Op.ne]: excludeId };
+  if (await FrameworkElement.findOne({ where })) {
+    throw new ConflictError("An element with this name already exists", "DUPLICATE_NAME");
+  }
+}
 
 async function nextElementCode(): Promise<string> {
   const rows = await FrameworkElement.findAll({ attributes: ["code"] });
@@ -67,6 +77,7 @@ export async function getElement(auth: AuthContext, id: string) {
 
 export async function createElement(auth: AuthContext, input: CreateElementInput, ip: string | null) {
   assertServiceOwner(auth);
+  await assertNameUnique(input.name);
   const e = await FrameworkElement.create({
     code: await nextElementCode(), name: input.name, description: input.description ?? null,
     category: input.category ?? "Core", status: input.status ?? "Active",
@@ -78,6 +89,9 @@ export async function createElement(auth: AuthContext, input: CreateElementInput
 export async function updateElement(auth: AuthContext, id: string, input: UpdateElementInput, ip: string | null) {
   assertServiceOwner(auth);
   const e = await requireElement(id);
+  if (input.name !== undefined && input.name !== e.name) {
+    await assertNameUnique(input.name, e.id);
+  }
   if (input.name !== undefined) e.name = input.name;
   if (input.description !== undefined) e.description = input.description ?? null;
   if (input.status !== undefined) e.status = input.status;
@@ -114,7 +128,11 @@ export async function getCrossReference(auth: AuthContext) {
   assertServiceOwner(auth);
   const elements = await FrameworkElement.findAll({ order: [["name", "ASC"]] });
   const requirements = await FrameworkRequirement.findAll({ order: [["code", "ASC"]] });
-  const frameworks = new Map((await Framework.findAll({ attributes: ["id", "name"] })).map((f) => [f.id, f.name]));
+  const fwRows = await Framework.findAll({ attributes: ["id", "name", "groupId"] });
+  const frameworks = new Map(fwRows.map((f) => [f.id, f.name]));
+  // Standards/Regulations tag per framework (OD xref cards, index.html:5512/5527).
+  const groupNames = new Map((await FrameworkGroup.findAll({ attributes: ["id", "name"] })).map((g) => [g.id, g.name]));
+  const fwGroups = new Map(fwRows.map((f) => [f.id, f.groupId ? groupNames.get(f.groupId) ?? "" : ""]));
   const links = await ElementRequirementXref.findAll();
 
   const reqsByElement = new Map<string, string[]>();
@@ -134,11 +152,11 @@ export async function getCrossReference(auth: AuthContext) {
   const byElement = elements.map((e) => ({
     elementId: e.id, elementName: e.name, elementDescription: e.description,
     requirements: (reqsByElement.get(e.id) ?? []).map((rid) => reqById.get(rid)).filter((r): r is FrameworkRequirement => !!r)
-      .map((r) => ({ id: r.id, code: r.code, subject: r.subject, description: r.description, frameworkId: r.frameworkId, frameworkName: frameworks.get(r.frameworkId) ?? "" })),
+      .map((r) => ({ id: r.id, code: r.code, subject: r.subject, description: r.description, frameworkId: r.frameworkId, frameworkName: frameworks.get(r.frameworkId) ?? "", frameworkGroupName: fwGroups.get(r.frameworkId) ?? "" })),
   }));
   const byRequirement = requirements
     .map((r) => ({
-      requirementId: r.id, code: r.code, subject: r.subject, frameworkId: r.frameworkId, frameworkName: frameworks.get(r.frameworkId) ?? "",
+      requirementId: r.id, code: r.code, subject: r.subject, description: r.description, frameworkId: r.frameworkId, frameworkName: frameworks.get(r.frameworkId) ?? "", frameworkGroupName: fwGroups.get(r.frameworkId) ?? "",
       elements: (elsByReq.get(r.id) ?? []).map((eid) => elById.get(eid)).filter((e): e is FrameworkElement => !!e)
         .map((e) => ({ id: e.id, name: e.name, description: e.description }))
         .sort((a, b) => a.name.localeCompare(b.name)),

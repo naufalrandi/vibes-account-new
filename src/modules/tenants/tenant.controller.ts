@@ -28,9 +28,16 @@ const provisionSchema = z.object({
     type: siteTypeSchema.optional(),
     country: z.string().nullish(),
     address: z.string().nullish(),
+    city: z.string().nullish(),
+    state: z.string().nullish(),
+    postalCode: z.string().nullish(),
   }),
   admin: z.object({ fullName: z.string().min(1), username: z.string().min(1), email: z.string().email() }),
   mode: z.enum(["draft", "activate"]),
+  // Set when the wizard was opened from Tenant Requests' "Provision" action
+  // (OD `treqProvision`, 7759) — links the new tenant back to its source
+  // request (OD `rq.tenantId`, 7647) so the request's "Open tenant" link works.
+  registrationRequestId: z.string().uuid().nullish(),
 });
 
 export async function list(req: Request, res: Response, next: NextFunction) {
@@ -47,6 +54,30 @@ export async function get(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
     sendOk(res, await service.getTenant(req.auth, req.params.id as string));
+  } catch (e) {
+    next(e);
+  }
+}
+
+// OD `tenantEdit` fields (index.html:7594): name/email required, partner
+// required when acquisition = Partner (enforced in the service alongside the
+// SP-only check).
+const updateSchema = z.object({
+  name: z.string().min(1),
+  acquisitionSource: z.enum(["Direct", "Partner"]),
+  partnerOrgId: z.string().uuid().nullish(),
+  email: z.string().email(),
+  phone: z.string().nullish(),
+  website: z.string().nullish(),
+  country: z.string().nullish(),
+  address: z.string().nullish(),
+});
+
+export async function update(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const input = updateSchema.parse(req.body);
+    sendOk(res, await service.updateTenant(req.auth, req.params.id as string, input, req.ip ?? null));
   } catch (e) {
     next(e);
   }

@@ -115,6 +115,7 @@ function lifecycle(fn: (auth: import("../../lib/scope").AuthContext, id: string,
   };
 }
 
+export const resendActivation = lifecycle(service.resendPartnerActivation);
 export const activate = lifecycle(service.activatePartner);
 export const suspend = lifecycle(service.suspendPartner);
 export const resume = lifecycle(service.resumePartner);

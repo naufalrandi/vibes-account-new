@@ -115,4 +115,38 @@ describe("reference database (Enterprise ent-db-*)", () => {
     expect((await request(app).get("/v1/reference-db/countries").set(authed(readonly.token))).status).toBe(200);
     expect((await request(app).post("/v1/reference-db/countries").set(authed(readonly.token)).send({ code: "ZZ", name: "Test" })).status).toBe(403);
   });
+
+  // D-12 gap: OD seeds national education frameworks (index.html:16786-16804)
+  // for these 7 countries; the BE used to hard-code eduFramework:null,
+  // eduLevels:[] for every country. D-7.5 gap: each eduLevels row must carry
+  // the national qualification code (e.g. "Jenjang 6") separately from its
+  // ISCED mapping.
+  it("seeds national education frameworks for ID/AU/GB/MY/IE/SG/ZA", async () => {
+    const { token } = await makeTenant("rd10", "RD10");
+    const countries = await request(app).get("/v1/reference-db/countries").set(authed(token));
+    const byCode = (code: string) => countries.body.data.find((c: { code: string }) => c.code === code);
+
+    const expected: Record<string, { framework: string; count: number }> = {
+      ID: { framework: "KKNI", count: 8 },
+      AU: { framework: "AQF", count: 10 },
+      GB: { framework: "RQF", count: 9 },
+      MY: { framework: "MQF", count: 8 },
+      IE: { framework: "NFQ", count: 10 },
+      SG: { framework: "SGUS", count: 7 },
+      ZA: { framework: "NQF", count: 10 },
+    };
+    for (const [code, { framework, count }] of Object.entries(expected)) {
+      const c = byCode(code);
+      expect(c.eduFramework).toBe(framework);
+      expect(c.eduLevels).toHaveLength(count);
+    }
+
+    const indonesia = byCode("ID");
+    expect(indonesia.eduLevels[4]).toMatchObject({ code: "Jenjang 6", label: "S1, D4", isced: "6", level: 6 });
+
+    // A country outside the 7-framework seed still gets the pre-existing empty defaults.
+    const germany = byCode("DE");
+    expect(germany.eduFramework).toBeNull();
+    expect(germany.eduLevels).toEqual([]);
+  });
 });

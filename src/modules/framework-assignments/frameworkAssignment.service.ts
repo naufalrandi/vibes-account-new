@@ -57,6 +57,17 @@ async function assertCanSeeOrg(auth: AuthContext, orgId: string): Promise<void> 
   if (ids !== null && !ids.includes(orgId)) throw new ForbiddenError();
 }
 
+/**
+ * OD governance contract (od-gap-analysis-2026-08-18 §2.5/B3, P0-5): framework
+ * assignments are SP-managed — OD renders the assignment table with
+ * editable=false for both partner and tenant views. Mutations are SO-only.
+ */
+function assertServiceOwner(auth: AuthContext): void {
+  if (auth.orgType !== "ServiceOwner") {
+    throw new ForbiddenError("Framework assignments are managed by the Service Provider; submit a request", "ASSIGNMENTS_SP_MANAGED");
+  }
+}
+
 async function nextCode(): Promise<string> {
   const rows = await FrameworkAssignment.findAll({ attributes: ["code"] });
   let max = 1000;
@@ -85,6 +96,7 @@ export async function listAssignments(
 }
 
 export async function createAssignment(auth: AuthContext, input: CreateAssignmentInput, ip: string | null): Promise<FrameworkAssignmentView> {
+  assertServiceOwner(auth);
   await assertCanSeeOrg(auth, input.orgId);
   const site = await Site.findOne({ where: { id: input.siteId, orgId: input.orgId } });
   if (!site) throw new BadRequestError("Site does not belong to this tenant", "SITE_NOT_FOUND");
@@ -109,6 +121,7 @@ async function requireAssignment(auth: AuthContext, id: string): Promise<Framewo
 }
 
 export async function updateAssignment(auth: AuthContext, id: string, input: UpdateAssignmentInput, ip: string | null): Promise<FrameworkAssignmentView> {
+  assertServiceOwner(auth);
   const fa = await requireAssignment(auth, id);
   if (input.status !== undefined) fa.status = input.status;
   if (input.assignedDate !== undefined) fa.assignedDate = input.assignedDate ?? null;
@@ -122,6 +135,7 @@ export async function updateAssignment(auth: AuthContext, id: string, input: Upd
 }
 
 export async function deleteAssignment(auth: AuthContext, id: string, ip: string | null): Promise<void> {
+  assertServiceOwner(auth);
   const fa = await requireAssignment(auth, id);
   const orgId = fa.orgId;
   await fa.destroy();

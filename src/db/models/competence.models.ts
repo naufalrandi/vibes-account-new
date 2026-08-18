@@ -36,6 +36,8 @@ CompetenceEducation.init(
 
 export class CompetenceSkill extends Model<InferAttributes<CompetenceSkill>, InferCreationAttributes<CompetenceSkill>> {
   declare id: CreationOptional<string>;
+  /** null → platform-global (SP) library skill; otherwise the owning tenant org. */
+  declare orgId: CreationOptional<string | null>;
   declare name: string;
   declare type: string;
   declare description: string | null;
@@ -46,6 +48,7 @@ export class CompetenceSkill extends Model<InferAttributes<CompetenceSkill>, Inf
 CompetenceSkill.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    orgId: { type: DataTypes.UUID, allowNull: true, field: "org_id" },
     name: { type: DataTypes.STRING, allowNull: false },
     type: { type: DataTypes.STRING, allowNull: false, defaultValue: "hard" },
     description: { type: DataTypes.TEXT, allowNull: true },
@@ -258,6 +261,8 @@ CompetenceGap.init(
 
 export const INSTRUMENT_STATUS = ["Draft", "Published"] as const;
 export const EXAM_QTYPES = ["single", "multi", "truefalse", "short"] as const;
+/** Exam-attempt lifecycle: short-answer exams wait for assessor grading before finalizing. */
+export const ATTEMPT_STATUS = ["PendingGrading", "Completed"] as const;
 
 export interface ExamOption { id: string; text: string; correct: boolean }
 export interface ExamQuestion { id: string; type: string; text: string; points: number; explanation?: string; ref?: string; options?: ExamOption[]; answerTrue?: boolean; model?: string }
@@ -265,6 +270,8 @@ export interface PracticalCriterion { id: string; text: string; points: number; 
 
 export class CompetenceExamInstrument extends Model<InferAttributes<CompetenceExamInstrument>, InferCreationAttributes<CompetenceExamInstrument>> {
   declare id: CreationOptional<string>;
+  /** null → platform-global (SP) instrument; otherwise the owning tenant org. */
+  declare orgId: CreationOptional<string | null>;
   declare skillId: string;
   declare level: number;
   declare name: string;
@@ -281,6 +288,7 @@ export class CompetenceExamInstrument extends Model<InferAttributes<CompetenceEx
 CompetenceExamInstrument.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    orgId: { type: DataTypes.UUID, allowNull: true, field: "org_id" },
     skillId: { type: DataTypes.UUID, allowNull: false, field: "skill_id" },
     level: { type: DataTypes.INTEGER, allowNull: false },
     name: { type: DataTypes.STRING, allowNull: false },
@@ -299,6 +307,8 @@ CompetenceExamInstrument.init(
 
 export class CompetencePracticalInstrument extends Model<InferAttributes<CompetencePracticalInstrument>, InferCreationAttributes<CompetencePracticalInstrument>> {
   declare id: CreationOptional<string>;
+  /** null → platform-global (SP) instrument; otherwise the owning tenant org. */
+  declare orgId: CreationOptional<string | null>;
   declare skillId: string;
   declare level: CreationOptional<number>;
   declare name: string;
@@ -311,6 +321,7 @@ export class CompetencePracticalInstrument extends Model<InferAttributes<Compete
 CompetencePracticalInstrument.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    orgId: { type: DataTypes.UUID, allowNull: true, field: "org_id" },
     skillId: { type: DataTypes.UUID, allowNull: false, field: "skill_id" },
     level: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 4 },
     name: { type: DataTypes.STRING, allowNull: false },
@@ -336,6 +347,12 @@ export class CompetenceExamAttempt extends Model<InferAttributes<CompetenceExamA
   declare total: number;
   declare passed: boolean;
   declare preview: CreationOptional<boolean>;
+  /** "PendingGrading" while short answers await the assessor; "Completed" once final. */
+  declare status: CreationOptional<string>;
+  /** The candidate's raw answers keyed by question id (kept for the grading view). */
+  declare answers: CreationOptional<Record<string, unknown>>;
+  /** Assessor-awarded points per short-answer question id. */
+  declare grades: CreationOptional<Record<string, number>>;
   declare takenAt: CreationOptional<Date>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -354,6 +371,9 @@ CompetenceExamAttempt.init(
     total: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
     passed: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     preview: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Completed" },
+    answers: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
+    grades: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
     takenAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: "taken_at" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,

@@ -9,6 +9,32 @@ export interface TenantAuditEntry {
   msg: string;
 }
 
+/** One Subscription Timeline event (OD `timelineHtml`, index.html:7481). */
+export interface TenantAgreementEvent {
+  date: string;
+  event: string;
+}
+
+/**
+ * The tenant's Subscription Agreement document (OD sp-tenant Billing tab,
+ * index.html:7436-7452). Stored as one JSONB column — strictly 1:1 with the
+ * profile and always read whole. "Billing Owner" is derived from `acquisition`
+ * at view time, never stored.
+ */
+export interface TenantAgreementInfo {
+  number: string;
+  name: string;
+  version: string;
+  status: string;
+  subscriptionType: string;
+  billingCycle: string;
+  effectiveDate: string | null;
+  expirationDate: string | null;
+  currency: string;
+  paymentDueDays: number | null;
+  history: TenantAgreementEvent[];
+}
+
 /** Commercial/onboarding extension of a Tenant organization (decision R2). 1:1 via orgId. */
 export class TenantProfile extends Model<
   InferAttributes<TenantProfile>,
@@ -21,6 +47,7 @@ export class TenantProfile extends Model<
   declare billingOwner: string | null;
   declare status: CreationOptional<TenantStatus>;
   declare subscriptionSummary: Record<string, unknown> | null;
+  declare agreement: CreationOptional<TenantAgreementInfo | null>;
   declare audit: CreationOptional<TenantAuditEntry[]>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -38,6 +65,7 @@ TenantProfile.init(
       allowNull: false, defaultValue: "Draft",
     },
     subscriptionSummary: { type: DataTypes.JSONB, allowNull: true, field: "subscription_summary" },
+    agreement: { type: DataTypes.JSONB, allowNull: true },
     audit: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,

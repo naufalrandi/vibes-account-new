@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Op } from "sequelize";
 import { MsScope, Organization } from "../../db/models";
 import {
@@ -79,6 +80,17 @@ async function generateStatement(orgId: string, dims: Record<string, ScopeDimRow
   return s;
 }
 
+/**
+ * OD `msGenStatement` (9986): the scope form's "Generate draft" button —
+ * compose a draft scope statement from the picked dimensions without
+ * persisting anything. The FE derives the limitations draft client-side from
+ * the noted rows, exactly like OD.
+ */
+export async function generateStatementPreview(auth: AuthContext, input: Record<string, unknown>, orgId?: string) {
+  const org = await targetOrg(auth, orgId);
+  return { statement: await generateStatement(org, dimsOf(input)) };
+}
+
 // --- CRUD ---------------------------------------------------------------
 export async function listScopes(auth: AuthContext) {
   const ids = await visibleTenantOrgIds(auth);
@@ -98,8 +110,12 @@ export async function createScope(auth: AuthContext, input: Record<string, unkno
   const dims = dimsOf(input);
   validateNotes(dims);
   const who = await actorName(auth);
+  // The scope's own id is its lineage root; every future spApprove clone of
+  // this scope carries the same lineageId so version history stays linkable
+  // once each clone gets its own new `code` (see migration 0041).
+  const id = randomUUID();
   const row = await MsScope.create({
-    orgId: org, code: await nextCode(), name, owner: str(input.owner) ?? "Tenant Administrator",
+    id, lineageId: id, orgId: org, code: await nextCode(), name, owner: str(input.owner) ?? "Tenant Administrator",
     effectiveDate: str(input.effectiveDate), reviewFreq: str(input.reviewFreq) || "Annually", status: "Draft",
     ...dims, statement: str(input.statement) ?? await generateStatement(org, dims), limitations: str(input.limitations),
     approvalNotes: str(input.approvalNotes), frameworkRelevance: frameworkRelevance(dims), version: 1,
@@ -131,7 +147,10 @@ export async function updateScope(auth: AuthContext, id: string, input: Record<s
     row.statement = str(input.statement) ?? await generateStatement(row.orgId, dims);
   } else if (input.statement !== undefined) row.statement = str(input.statement);
   const who = await actorName(auth);
-  row.activity = pushActivity(row.activity, who, "updated", "Scope updated");
+  // OD's msSave (10074) bumps `version` on every edit of an existing scope
+  // (`s.version=(s.version||1)+1`); mirror that here (S11).
+  row.version = (row.version ?? 1) + 1;
+  row.activity = pushActivity(row.activity, who, "updated", `Scope updated · v${row.version}`);
   await row.save();
   await audit(auth, row.orgId, "scope.updated", row.id, ip);
   return row.get({ plain: true });
@@ -225,10 +244,14 @@ export async function spApprove(auth: AuthContext, id: string, ip: string | null
   const snap = row.pendingChange.snapshot;
   const pv = row.baseline?.version ?? row.version ?? 1;
   const nv = pv + 1;
-  // Clone the prior version as a superseded record.
+  // Clone the prior version as a superseded record. It gets a brand-new
+  // `code` (nextCode) but keeps the same `lineageId` as the active scope it
+  // was cloned from, so the Versions tab can find it (S6 — see migration
+  // 0041; filtering on `code` equality can never work since the clone's code
+  // always differs).
   const plain = row.get({ plain: true });
   await MsScope.create({
-    orgId: row.orgId, code: await nextCode(), name: plain.name, owner: plain.owner, effectiveDate: plain.effectiveDate,
+    lineageId: row.lineageId, orgId: row.orgId, code: await nextCode(), name: plain.name, owner: plain.owner, effectiveDate: plain.effectiveDate,
     reviewFreq: plain.reviewFreq, status: "Superseded",
     frameworks: (row.baseline?.snapshot.frameworks ?? row.frameworks), sites: (row.baseline?.snapshot.sites ?? row.sites),
     processes: (row.baseline?.snapshot.processes ?? row.processes), envs: (row.baseline?.snapshot.envs ?? row.envs),

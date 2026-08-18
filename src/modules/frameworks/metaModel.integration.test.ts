@@ -186,4 +186,86 @@ describe("framework meta-model", () => {
     const res = await request(app).put(`/v1/assessment/elements/${el.body.data.id}/answers/${q1.body.data.id}`).set(authed(token)).send({ responseId: rOfQ2.body.data.id });
     expect(res.status).toBe(400);
   });
+
+  it("derives Header/Requirement + assessable from the code hierarchy (classifyReqArray)", async () => {
+    const { token, groupId } = await makeSo();
+    const fw = await request(app).post("/v1/frameworks").set(authed(token)).send({ groupId, name: "FW" });
+
+    // A lone clause is an assessable Requirement.
+    const parent = await request(app).post("/v1/requirements").set(authed(token))
+      .send({ frameworkId: fw.body.data.id, code: "9.2", subject: "Internal audit", description: "d" });
+    expect(parent.body.data).toMatchObject({ type: "Requirement", assessable: "Yes" });
+
+    // Adding a child clause converts the parent into a structural Header.
+    const child = await request(app).post("/v1/requirements").set(authed(token))
+      .send({ frameworkId: fw.body.data.id, code: "9.2.1", subject: "General", description: "d" });
+    expect(child.body.data).toMatchObject({ type: "Requirement", assessable: "Yes" });
+    const parentReload = await request(app).get(`/v1/requirements/${parent.body.data.id}`).set(authed(token));
+    expect(parentReload.body.data).toMatchObject({ type: "Header", assessable: "No" });
+
+    // Deleting the only child turns the Header back into a leaf Requirement.
+    await request(app).delete(`/v1/requirements/${child.body.data.id}`).set(authed(token));
+    const parentAgain = await request(app).get(`/v1/requirements/${parent.body.data.id}`).set(authed(token));
+    expect(parentAgain.body.data).toMatchObject({ type: "Requirement", assessable: "Yes" });
+  });
+
+  it("rejects a duplicate requirement code within the same framework (case-insensitive)", async () => {
+    const { token, groupId } = await makeSo();
+    const fw = await request(app).post("/v1/frameworks").set(authed(token)).send({ groupId, name: "FW" });
+    await request(app).post("/v1/requirements").set(authed(token)).send({ frameworkId: fw.body.data.id, code: "Clause 4.1", subject: "S", description: "d" });
+    const dup = await request(app).post("/v1/requirements").set(authed(token)).send({ frameworkId: fw.body.data.id, code: "clause 4.1", subject: "S2", description: "d2" });
+    expect(dup.status).toBe(409);
+  });
+
+  it("rejects a duplicate element name (case-insensitive) and accepts the Inactive status", async () => {
+    const { token } = await makeSo();
+    const el = await request(app).post("/v1/elements").set(authed(token)).send({ name: "Internal Audit" });
+    expect(el.status).toBe(201);
+    const dup = await request(app).post("/v1/elements").set(authed(token)).send({ name: "internal audit" });
+    expect(dup.status).toBe(409);
+
+    // OD's Activate/Deactivate row action stores Active/Inactive.
+    const off = await request(app).put(`/v1/elements/${el.body.data.id}`).set(authed(token)).send({ status: "Inactive" });
+    expect(off.status).toBe(200);
+    expect(off.body.data.status).toBe("Inactive");
+  });
+
+  it("rejects a duplicate framework name within a group and round-trips shortLabel + fweCount", async () => {
+    const { token, groupId } = await makeSo();
+    const fw = await request(app).post("/v1/frameworks").set(authed(token))
+      .send({ groupId, name: "ISO 9001:2015", shortLabel: "9001" });
+    expect(fw.status).toBe(201);
+    expect(fw.body.data.shortLabel).toBe("9001");
+    expect(fw.body.data.fweCount).toBe(0);
+
+    const dup = await request(app).post("/v1/frameworks").set(authed(token)).send({ groupId, name: "iso 9001:2015" });
+    expect(dup.status).toBe(409);
+
+    // Blank shortLabel is stored as null (FE auto-derives via fwAutoShort).
+    const cleared = await request(app).put(`/v1/frameworks/${fw.body.data.id}`).set(authed(token)).send({ shortLabel: "  " });
+    expect(cleared.body.data.shortLabel).toBeNull();
+  });
+
+  it("counts distinct elements per framework (fweCount) through the FWRC join", async () => {
+    const { token, groupId } = await makeSo();
+    const fw = await request(app).post("/v1/frameworks").set(authed(token)).send({ groupId, name: "FW" });
+    const el = await request(app).post("/v1/elements").set(authed(token)).send({ name: "Internal Audit" });
+    const rq = await request(app).post("/v1/requirements").set(authed(token)).send({ frameworkId: fw.body.data.id, code: "C1", subject: "S", description: "d" });
+    const q = await request(app).post("/v1/assessment/questions").set(authed(token)).send({ elementId: el.body.data.id, text: "Q" });
+    const r1 = await request(app).post("/v1/assessment/responses").set(authed(token)).send({ questionId: q.body.data.id, text: "R1" });
+    const r2 = await request(app).post("/v1/assessment/responses").set(authed(token)).send({ questionId: q.body.data.id, text: "R2" });
+    const link = await request(app).post("/v1/fwrc").set(authed(token)).send({ requirementId: rq.body.data.id, responseId: r1.body.data.id, statement: "S1" });
+    await request(app).post("/v1/fwrc").set(authed(token)).send({ requirementId: rq.body.data.id, responseId: r2.body.data.id, statement: "S2" });
+
+    // Two FWRC rows on the same element still count as one distinct FWE.
+    const view = await request(app).get(`/v1/frameworks/${fw.body.data.id}`).set(authed(token));
+    expect(view.body.data.fweCount).toBe(1);
+
+    // The extended FWRC view carries the codes the modals render.
+    expect(link.body.data).toMatchObject({ requirementSubject: "S", elementCode: el.body.data.code });
+    const filtered = await request(app).get(`/v1/fwrc?responseId=${r1.body.data.id}`).set(authed(token));
+    expect(filtered.body.data).toHaveLength(1);
+    const byFramework = await request(app).get(`/v1/fwrc?frameworkId=${fw.body.data.id}`).set(authed(token));
+    expect(byFramework.body.data).toHaveLength(2);
+  });
 });

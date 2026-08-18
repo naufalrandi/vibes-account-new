@@ -16,6 +16,7 @@ partnerRoutes.get("/:id/billing", requireAction(ACTIONS.PARTNER_READ), c.billing
 
 // Lifecycle transitions (gated by PARTNER_UPDATE; each validates the current
 // status server-side and rejects illegal transitions with 409).
+partnerRoutes.post("/:id/resend-activation", requireAction(ACTIONS.PARTNER_UPDATE), c.resendActivation);
 partnerRoutes.post("/:id/activate", requireAction(ACTIONS.PARTNER_UPDATE), c.activate);
 partnerRoutes.post("/:id/suspend", requireAction(ACTIONS.PARTNER_UPDATE), c.suspend);
 partnerRoutes.post("/:id/resume", requireAction(ACTIONS.PARTNER_UPDATE), c.resume);

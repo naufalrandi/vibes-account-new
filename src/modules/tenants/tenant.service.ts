@@ -1,17 +1,23 @@
 import { randomUUID } from "node:crypto";
-import { Op, type WhereOptions } from "sequelize";
+import { Op, type WhereOptions, type Transaction } from "sequelize";
 import { sequelize } from "../../db/sequelize";
 import {
-  Organization, User, TenantProfile, Site, FrameworkAssignment,
+  Organization, User, TenantProfile, Site, FrameworkAssignment, RegistrationRequest, Role,
 } from "../../db/models";
-import type { TenantAcquisition, TenantStatus, TenantAuditEntry } from "../../db/models/tenantProfile.model";
+import type { TenantAcquisition, TenantStatus, TenantAuditEntry, TenantAgreementInfo } from "../../db/models/tenantProfile.model";
 import type { SiteType } from "../../db/models/site.model";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { assignSubscription } from "../subscriptions/subscription.service";
 import { sendActivationInvite } from "../notifications/notification.service";
 import { writeAudit } from "../audit/audit.service";
-import { ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { grantEverythingExceptSpOnly } from "../iam/tenantGrants";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
+
+// belongsToMany generates a `setRoles` mixin at runtime; the User model does
+// not declare it, so reach it through a narrow association-only cast (mirrors
+// `src/db/seeders/seed.ts`'s `WithSetRoles`).
+type WithSetRoles = { setRoles: (roles: Role[], options?: { transaction?: Transaction }) => Promise<unknown> };
 
 export interface TenantView {
   id: string;
@@ -33,10 +39,23 @@ export interface TenantView {
   partnerName: string | null;
   primarySite: { id: string; code: string; name: string; type: string; status: string; isPrimary: boolean } | null;
   admin: { id: string; fullName: string; username: string; email: string | null; status: string } | null;
+  agreement: TenantAgreementInfo | null;
   siteCount: number;
   frameworkCount: number;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** OD `tenantEdit` (index.html:7594): SP-editable organization/contact fields. */
+export interface UpdateTenantInput {
+  name: string;
+  acquisitionSource: TenantAcquisition;
+  partnerOrgId?: string | null;
+  email: string;
+  phone?: string | null;
+  website?: string | null;
+  country?: string | null;
+  address?: string | null;
 }
 
 export interface ProvisionTenantInput {
@@ -52,9 +71,14 @@ export interface ProvisionTenantInput {
     address?: string | null;
     partnerOrgId?: string | null;
   };
-  primarySite: { name: string; type?: SiteType; country?: string | null; address?: string | null };
+  primarySite: {
+    name: string; type?: SiteType; country?: string | null; address?: string | null;
+    city?: string | null; state?: string | null; postalCode?: string | null;
+  };
   admin: { fullName: string; username: string; email: string };
   mode: "draft" | "activate";
+  /** Links the new tenant back to the Tenant Request it was provisioned from (0046). */
+  registrationRequestId?: string | null;
 }
 
 const ORG_STATUS_FOR: Record<TenantStatus, Organization["status"]> = {
@@ -101,7 +125,30 @@ async function buildView(org: Organization, profile: TenantProfile): Promise<Ten
     admin: admin
       ? { id: admin.id, fullName: admin.fullName, username: admin.username, email: admin.email, status: admin.status }
       : null,
+    agreement: profile.agreement ?? null,
     siteCount, frameworkCount, createdAt: org.createdAt, updatedAt: profile.updatedAt,
+  };
+}
+
+/**
+ * Minimal Draft agreement for a freshly provisioned tenant, mirroring the shape
+ * OD seeds (index.html:7224) so the Billing tab renders from day one. The
+ * commercial dates stay null until the subscription actually starts.
+ */
+function draftAgreement(code: string): TenantAgreementInfo {
+  const seq = code.replace(/\D/g, "").slice(-4).padStart(4, "0");
+  return {
+    number: `TA-${new Date().getFullYear()}-${seq}`,
+    name: "VIBES Subscription Agreement",
+    version: "1.0",
+    status: "Draft",
+    subscriptionType: "Professional",
+    billingCycle: "Monthly",
+    effectiveDate: null,
+    expirationDate: null,
+    currency: "IDR",
+    paymentDueDays: 14,
+    history: [{ date: new Date().toISOString().slice(0, 10), event: "Agreement Generated" }],
   };
 }
 
@@ -167,7 +214,8 @@ export async function provisionTenant(auth: AuthContext, input: ProvisionTenantI
 
     await TenantProfile.create({
       orgId: org.id, acquisition, partnerOrgId, billingOwner: input.admin.fullName,
-      status, subscriptionSummary: null, audit: [nowEntry("Tenant organization created")],
+      status, subscriptionSummary: null, agreement: draftAgreement(code),
+      audit: [nowEntry("Tenant organization created")],
     }, { transaction: tx });
 
     // Primary site.
@@ -176,17 +224,30 @@ export async function provisionTenant(auth: AuthContext, input: ProvisionTenantI
       orgId: org.id, code: `STE-${1001 + siteCount}`, name: input.primarySite.name,
       type: input.primarySite.type ?? "Head Office", country: input.primarySite.country ?? null,
       address: input.primarySite.address ?? null, status: "Active", isPrimary: true,
+      city: input.primarySite.city ?? null, state: input.primarySite.state ?? null,
+      postalCode: input.primarySite.postalCode ?? null,
       description: null, contactPerson: null, contactEmail: null, contactPhone: null,
     }, { transaction: tx });
 
+    // Administrator role for the new tenant org, granted the same curated
+    // non-SP action set the seeder gives its demo Distributor/Tenant admins
+    // (`grantEverythingExceptSpOnly`) — without this the admin user below has
+    // zero action grants and every authenticated request 403s.
+    const role = await Role.create(
+      { name: "Administrator", tierScope: "Tenant", orgId: org.id, isSuperAdmin: false, status: true },
+      { transaction: tx },
+    );
+    await grantEverythingExceptSpOnly(role.id, tx);
+
     // Admin user (invite when activating).
     const activationToken = randomUUID();
-    await User.create({
+    const admin = await User.create({
       orgId: org.id, tenantId: org.id, fullName: input.admin.fullName, username: input.admin.username,
       email: input.admin.email, passwordHash: null, status: "PendingActivation",
       position: "Tenant Administrator", workUnit: null, lastLogin: null,
       activationToken, resetToken: null, resetExpires: null,
     }, { transaction: tx });
+    await (admin as unknown as WithSetRoles).setRoles([role], { transaction: tx });
 
     await assignSubscription(org.id, "standard", tx);
     await writeAudit({
@@ -195,6 +256,17 @@ export async function provisionTenant(auth: AuthContext, input: ProvisionTenantI
       metadata: { code, mode: input.mode, acquisition },
     }, tx);
     if (activate) sendActivationInvite(input.admin.email, activationToken);
+
+    // Best-effort link back to the source Tenant Request (OD `treqProvision`,
+    // 7759 sets `TW.fromRequest`; `twFinish` at 7647 writes `rq.tenantId`).
+    // Non-fatal: a stale/foreign id must never abort tenant creation itself.
+    if (input.registrationRequestId) {
+      const reqRow = await RegistrationRequest.findByPk(input.registrationRequestId, { transaction: tx });
+      if (reqRow && reqRow.status === "Approved" && !reqRow.tenantId) {
+        reqRow.tenantId = org.id;
+        await reqRow.save({ transaction: tx });
+      }
+    }
     return org.id;
   });
   // Build the view AFTER commit so its queries (primary site, admin, counts) see
@@ -202,6 +274,49 @@ export async function provisionTenant(auth: AuthContext, input: ProvisionTenantI
   const org = await Organization.findByPk(newOrgId);
   const profile = await TenantProfile.findOne({ where: { orgId: newOrgId } });
   if (!org || !profile) throw new NotFoundError("Provisioned tenant could not be loaded", "TENANT_NOT_FOUND");
+  return buildView(org, profile);
+}
+
+/**
+ * OD `tenantEdit` (index.html:7594-7616): edit the tenant's organization and
+ * acquisition details from the SP tenant-detail header. SP-only, deliberately —
+ * partners see a strictly read-only tenant view (index.html:8000) and route
+ * changes through requests.
+ */
+export async function updateTenant(auth: AuthContext, orgId: string, input: UpdateTenantInput, ip: string | null): Promise<TenantView> {
+  if (auth.orgType !== "ServiceOwner") {
+    throw new ForbiddenError("Only the Service Provider can edit tenant details");
+  }
+  const { org, profile } = await resolveTenant(auth, orgId);
+
+  const partnerOrgId = input.acquisitionSource === "Partner" ? input.partnerOrgId ?? null : null;
+  if (input.acquisitionSource === "Partner") {
+    if (!partnerOrgId) {
+      throw new BadRequestError("Partner is required for partner-acquired tenants", "PARTNER_REQUIRED");
+    }
+    const partner = await Organization.findByPk(partnerOrgId);
+    if (!partner || partner.type !== "Distributor") {
+      throw new BadRequestError("Assigned partner must be an existing partner organization", "PARTNER_NOT_FOUND");
+    }
+  }
+
+  org.name = input.name;
+  org.email = input.email;
+  if (input.phone !== undefined) org.phone = input.phone ?? null;
+  if (input.website !== undefined) org.website = input.website ?? null;
+  if (input.country !== undefined) org.country = input.country ?? null;
+  if (input.address !== undefined) org.address = input.address ?? null;
+  await org.save();
+
+  profile.acquisition = input.acquisitionSource;
+  profile.partnerOrgId = partnerOrgId;
+  profile.audit = [nowEntry("Tenant details updated"), ...profile.audit];
+  await profile.save();
+
+  await writeAudit({
+    actorUserId: auth.userId, organizationId: org.id, tenantId: org.id,
+    action: "tenant.updated", entityType: "Tenant", entityId: org.id, sourceIp: ip, result: "Success",
+  });
   return buildView(org, profile);
 }
 
@@ -247,7 +362,9 @@ export const suspend = (a: AuthContext, id: string, ip: string | null) =>
   transition(a, id, { from: ["Active"], to: "Suspended", action: "suspended", msg: "Tenant suspended" }, ip);
 export const resume = (a: AuthContext, id: string, ip: string | null) =>
   transition(a, id, { from: ["Suspended"], to: "Active", action: "resumed", msg: "Tenant resumed" }, ip);
+// OD offers Deactivate from every status except Inactive (`tenantHeaderActions`,
+// index.html:7349) — including Draft and Pending Activation.
 export const deactivate = (a: AuthContext, id: string, ip: string | null) =>
-  transition(a, id, { from: ["Active", "Suspended"], to: "Inactive", action: "deactivated", msg: "Tenant deactivated" }, ip);
+  transition(a, id, { from: ["Draft", "Pending Activation", "Active", "Suspended"], to: "Inactive", action: "deactivated", msg: "Tenant deactivated" }, ip);
 export const reactivate = (a: AuthContext, id: string, ip: string | null) =>
   transition(a, id, { from: ["Inactive"], to: "Active", action: "reactivated", msg: "Tenant reactivated" }, ip);

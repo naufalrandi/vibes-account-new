@@ -45,7 +45,8 @@ describe("competence libraries", () => {
 
   it("tenants see global libraries + SP training and own their tenant training", async () => {
     const sp = await makeOrg("co-sp2", "COSP2", "ServiceOwner");
-    await request(app).post("/v1/competence/skills").set(authed(sp.token)).send({ name: "Risk Assessment", type: "hard" });
+    const spSkill = (await request(app).post("/v1/competence/skills").set(authed(sp.token)).send({ name: "Risk Assessment", type: "hard" })).body.data;
+    expect(spSkill.orgId).toBeNull();
     await request(app).post("/v1/competence/training").set(authed(sp.token)).send({ name: "Risk Fundamentals" });
 
     const a = await makeOrg("co-ta", "COTA", "Tenant");
@@ -53,6 +54,19 @@ describe("competence libraries", () => {
     // Global skill + SP training are visible to tenants.
     expect((await request(app).get("/v1/competence/skills").set(authed(a.token))).body.data).toHaveLength(1);
     expect((await request(app).get("/v1/competence/training").set(authed(a.token))).body.data).toHaveLength(1);
+
+    // A tenant's own skill is org-scoped: A sees global + own (2), B only global (1);
+    // B cannot mutate A's skill and no tenant can touch the global row.
+    const ownSkill = (await request(app).post("/v1/competence/skills").set(authed(a.token)).send({ name: "Site SOP", type: "hard" })).body.data;
+    expect(ownSkill.orgId).toBe(a.orgId);
+    expect((await request(app).get("/v1/competence/skills").set(authed(a.token))).body.data).toHaveLength(2);
+    expect((await request(app).get("/v1/competence/skills").set(authed(b.token))).body.data).toHaveLength(1);
+    expect((await request(app).put(`/v1/competence/skills/${ownSkill.id}`).set(authed(b.token)).send({ name: "x" })).status).toBe(403);
+    expect((await request(app).put(`/v1/competence/skills/${spSkill.id}`).set(authed(a.token)).send({ name: "x" })).status).toBe(403);
+    expect((await request(app).delete(`/v1/competence/skills/${spSkill.id}`).set(authed(a.token))).status).toBe(403);
+
+    // The ISCED education ladder is SP-managed reference data — tenant writes are rejected.
+    expect((await request(app).post("/v1/competence/education").set(authed(a.token)).send({ level: 6, label: "Bachelor's" })).status).toBe(403);
 
     // Tenant A creates its own training → source Tenant, org-scoped.
     const own = await request(app).post("/v1/competence/training").set(authed(a.token)).send({ name: "Internal SOP Training" });

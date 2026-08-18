@@ -22,6 +22,10 @@ export interface ScopeActivityEntry { ts: string; user: string; action: string; 
 
 export class MsScope extends Model<InferAttributes<MsScope>, InferCreationAttributes<MsScope>> {
   declare id: CreationOptional<string>;
+  /** Shared by the original scope and every clone `spApprove` supersedes it
+   * with, so version history can be traced across the `code` changes that
+   * each re-baseline clone gets. See migration 0041. */
+  declare lineageId: string;
   declare orgId: string;
   declare code: string;
   declare name: string;
@@ -56,6 +60,7 @@ export class MsScope extends Model<InferAttributes<MsScope>, InferCreationAttrib
 MsScope.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    lineageId: { type: DataTypes.UUID, allowNull: false, field: "lineage_id" },
     orgId: { type: DataTypes.UUID, allowNull: false, field: "org_id" },
     code: { type: DataTypes.STRING, allowNull: false, unique: true },
     name: { type: DataTypes.STRING, allowNull: false },

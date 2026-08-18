@@ -104,19 +104,25 @@ describe("ISO clause registers (implementation)", () => {
     expect((await request(app).post("/v1/implementation/risks").set(authed(readonly.token)).send({ title: "x" })).status).toBe(403);
   });
 
-  // OD `cdSave`: a published controlled document is never overwritten — editing
-  // it forks a new Draft at the next version and supersedes the original, so the
-  // approved text stays intact.
+  // Controlled-document form data satisfying the default cdSettings save gates.
+  const cdData = (extra: Record<string, unknown> = {}) => ({
+    type: "Procedure", approver: "Jennifer Walters", changeSummary: "Initial issue", ...extra,
+  });
+
+  // OD `cdSave` (12921–12925): a published controlled document is never
+  // overwritten — editing it forks a new Draft at the next version in the same
+  // lineage while the original STAYS Published (superseding happens only when
+  // the new version itself is published — see approval.integration.test.ts).
   it("forks a new draft version when a published document is edited", async () => {
     const { token } = await makeTenant("t1", "TEN1");
     const created = await request(app).post("/v1/implementation/documents").set(authed(token))
-      .send({ title: "Access Control Policy", status: "Draft", data: { version: "1.0", content: "v1 text" } });
+      .send({ title: "Access Control Policy", status: "Draft", owner: "IT Lead", data: cdData({ version: "1.0", content: "v1 text" }) });
     const id = created.body.data.id;
 
     // Publish it, then edit the published text.
     await request(app).put(`/v1/implementation/documents/${id}`).set(authed(token)).send({ status: "Published" });
     const edited = await request(app).put(`/v1/implementation/documents/${id}`).set(authed(token))
-      .send({ data: { content: "v2 text" } });
+      .send({ data: cdData({ content: "v2 text", changeSummary: "Clarify scope" }) });
 
     // The response is the NEW draft, not the original record.
     expect(edited.status).toBe(200);
@@ -124,25 +130,29 @@ describe("ISO clause registers (implementation)", () => {
     expect(edited.body.data.status).toBe("Draft");
     expect(edited.body.data.data.version).toBe("1.1");
     expect(edited.body.data.data.content).toBe("v2 text");
-    expect(edited.body.data.data.supersedes).toBe(id);
+    expect(edited.body.data.data.lineageId).toBe(id);
+    expect(edited.body.data.data.prevVersionId).toBe(id);
+    // The fresh draft carries no approval stamps of its own.
+    expect(edited.body.data.data.approvedBy).toBe("");
+    expect(edited.body.data.data.publishedBy).toBe("");
 
-    // The original is superseded and still carries its approved text.
+    // The original STAYS Published (live during the revision cycle) with its text intact.
     const list = await request(app).get("/v1/implementation/documents").set(authed(token));
     const original = list.body.data.find((r: { id: string }) => r.id === id);
-    expect(original.status).toBe("Superseded");
+    expect(original.status).toBe("Published");
     expect(original.data.content).toBe("v1 text");
-    expect(original.data.supersededBy).toBe(edited.body.data.id);
+    expect(original.data.supersededBy).toBeUndefined();
   });
 
-  it("does not fork on a pure status change, or while still a draft", async () => {
+  it("does not fork on a pure status change, while still a draft, or when allowEditPublished is on", async () => {
     const { token } = await makeTenant("t1", "TEN1");
     const created = await request(app).post("/v1/implementation/documents").set(authed(token))
-      .send({ title: "Backup Procedure", status: "Draft", data: { version: "1.0" } });
+      .send({ title: "Backup Procedure", status: "Draft", owner: "IT Lead", data: cdData({ version: "1.0" }) });
     const id = created.body.data.id;
 
     // Editing a Draft edits in place.
     const draftEdit = await request(app).put(`/v1/implementation/documents/${id}`).set(authed(token))
-      .send({ data: { version: "1.0", content: "still draft" } });
+      .send({ data: cdData({ version: "1.0", content: "still draft" }) });
     expect(draftEdit.body.data.id).toBe(id);
 
     // Archiving a published doc is a status transition, not an edit.
@@ -150,43 +160,196 @@ describe("ISO clause registers (implementation)", () => {
     const archived = await request(app).put(`/v1/implementation/documents/${id}`).set(authed(token)).send({ status: "Archived" });
     expect(archived.body.data.id).toBe(id);
     expect(archived.body.data.status).toBe("Archived");
+
+    // With allowEditPublished on (OD cdSettings), a published doc edits in place.
+    await request(app).put(`/v1/implementation/documents/${id}`).set(authed(token)).send({ status: "Published" });
+    await request(app).put("/v1/implementation/documents/settings").set(authed(token)).send({ allowEditPublished: true });
+    const inPlace = await request(app).put(`/v1/implementation/documents/${id}`).set(authed(token))
+      .send({ data: cdData({ version: "1.0", content: "edited in place" }) });
+    expect(inPlace.body.data.id).toBe(id);
+    expect(inPlace.body.data.data.content).toBe("edited in place");
   });
 
-  // OD `ncClose` blocks closure until the corrective action is verified effective.
-  it("refuses to close a nonconformity until effectiveness is verified", async () => {
+  // OD `cdNewId` (12730): TYPECODE[-FWCODE]-NNNN with one per-tenant number
+  // sequence across all document types; external documents are EXT-STD-NNNN.
+  it("assigns cdNewId-style codes, sequenced per organization", async () => {
+    const a = await makeTenant("t1", "TEN1");
+    const b = await makeTenant("t2", "TEN2");
+    const mk = (token: string, data: Record<string, unknown>, frameworks?: string[]) =>
+      request(app).post("/v1/implementation/documents").set(authed(token))
+        .send({ title: "Doc", status: "Draft", owner: "IT Lead", data: cdData(data), frameworks });
+
+    expect((await mk(a.token, { type: "Policy" }, ["ISO 9001:2015"])).body.data.code).toBe("POL-QMS-0001");
+    expect((await mk(a.token, { type: "Work Instruction" })).body.data.code).toBe("WI-0002");
+    expect((await mk(a.token, { type: "External Document" }, ["ISO/IEC 27001:2022"])).body.data.code).toBe("EXT-STD-0003");
+    // Unknown type falls back to DOC; another org starts its own sequence at 0001.
+    expect((await mk(a.token, { type: "Something Else" })).body.data.code).toBe("DOC-0004");
+    expect((await mk(b.token, { type: "Policy" })).body.data.code).toBe("POL-0001");
+  });
+
+  // OD `cdSave` gates (12905–12909): the org's cdSettings decide the mandatory metadata.
+  it("enforces the document-control save gates and exposes the settings endpoint", async () => {
+    const { token } = await makeTenant("t1", "TEN1");
+    // Defaults: owner + approver + change summary all required.
+    const missing = await request(app).post("/v1/implementation/documents").set(authed(token))
+      .send({ title: "No approver", status: "Draft", owner: "IT Lead", data: { type: "Procedure", changeSummary: "x" } });
+    expect(missing.status).toBe(400);
+    expect(missing.body.error.code).toBe("DOC_APPROVER_REQUIRED");
+
+    const settings = await request(app).get("/v1/implementation/documents/settings").set(authed(token));
+    expect(settings.body.data).toMatchObject({ requireApprover: true, requireChange: true, allowEditPublished: false });
+
+    await request(app).put("/v1/implementation/documents/settings").set(authed(token))
+      .send({ requireApprover: false, requireChange: false, requireOwner: false });
+    const relaxed = await request(app).post("/v1/implementation/documents").set(authed(token))
+      .send({ title: "No approver", status: "Draft", data: { type: "Procedure" } });
+    expect(relaxed.status).toBe(201);
+    // nextReview derives from effective date + review frequency on save.
+    const derived = await request(app).post("/v1/implementation/documents").set(authed(token))
+      .send({ title: "Derived", status: "Draft", data: { type: "Procedure", effectiveDate: "2026-06-01T00:00:00.000Z", reviewFreq: "Quarterly" } });
+    expect(derived.body.data.data.nextReview).toBe(new Date("2026-09-01T00:00:00.000Z").toISOString());
+  });
+
+  // A minimal CAP payload for the tests below — RCA/corrective action/PIC/due
+  // are what a real `capForm` submission always carries; each test overrides
+  // just the implementation/effectiveness fields it's exercising.
+  const capData = (extra: Record<string, unknown> = {}) => ({
+    rca: "Checklist did not require the field", correctiveAction: "Add the field to the checklist",
+    pic: "QA Lead", due: "2026-07-01", implementationStatus: "Pending Effectiveness Check", ...extra,
+  });
+
+  // OD `ncClose` (11460) blocks closure while the CAP's own effectiveness
+  // check is required and unresolved.
+  it("refuses to close a nonconformity while its CAP's effectiveness check is required and unresolved", async () => {
     const { token } = await makeTenant("t1", "TEN1");
     const created = await request(app).post("/v1/implementation/nonconformities").set(authed(token))
-      .send({ title: "Missing access review", status: "CAP Planned", data: { severity: "High" } });
+      .send({ title: "Missing access review", data: { severity: "High" } });
     const id = created.body.data.id;
+    const put = (data: Record<string, unknown>, status?: string) =>
+      request(app).put(`/v1/implementation/nonconformities/${id}`).set(authed(token)).send({ status, data });
 
-    const blocked = await request(app).put(`/v1/implementation/nonconformities/${id}`).set(authed(token))
-      .send({ status: "Closed" });
+    await put(capData({ effRequired: true, effResult: "Not Checked" }));
+    const blocked = await put(capData({ effRequired: true, effResult: "Not Checked" }), "Closed");
     expect(blocked.status).toBe(400);
     expect(blocked.body.error.code).toBe("EFFECTIVENESS_NOT_VERIFIED");
 
-    // "Not effective" is an assessment, but not a passing one.
-    const stillBlocked = await request(app).put(`/v1/implementation/nonconformities/${id}`).set(authed(token))
-      .send({ status: "Closed", data: { effectiveness: "Not effective" } });
+    // "Not Effective" is an assessment, but not a passing one.
+    const stillBlocked = await put(capData({ effRequired: true, effResult: "Not Effective" }), "Closed");
     expect(stillBlocked.status).toBe(400);
+    expect(stillBlocked.body.error.code).toBe("EFFECTIVENESS_NOT_VERIFIED");
 
     // Verified effective — closure now allowed.
-    const closed = await request(app).put(`/v1/implementation/nonconformities/${id}`).set(authed(token))
-      .send({ status: "Closed", data: { effectiveness: "Effective", effectivenessDate: "2026-07-30" } });
+    const closed = await put(capData({ effRequired: true, effResult: "Effective" }), "Closed");
     expect(closed.status).toBe(200);
     expect(closed.body.data.status).toBe("Closed");
   });
 
-  it("closes when effectiveness was verified in an earlier save", async () => {
+  it("closes when the CAP's effectiveness was verified in an earlier save", async () => {
     const { token } = await makeTenant("t1", "TEN1");
     const created = await request(app).post("/v1/implementation/nonconformities").set(authed(token))
-      .send({ title: "Late calibration", status: "CAP Planned" });
+      .send({ title: "Late calibration" });
     const id = created.body.data.id;
 
     await request(app).put(`/v1/implementation/nonconformities/${id}`).set(authed(token))
-      .send({ data: { effectiveness: "Effective" } });
+      .send({ data: capData({ effRequired: true, effResult: "Effective" }) });
+    // A later save with no `data` at all falls back to the stored CAP.
     const closed = await request(app).put(`/v1/implementation/nonconformities/${id}`).set(authed(token))
       .send({ status: "Closed" });
     expect(closed.status).toBe(200);
+  });
+
+  // The task's conditional-closure design: `effRequired: false` opts the CAP
+  // out of the effectiveness gate entirely.
+  it("allows closing when the CAP marks its effectiveness check as not required", async () => {
+    const { token } = await makeTenant("t1", "TEN1");
+    const created = await request(app).post("/v1/implementation/nonconformities").set(authed(token))
+      .send({ title: "Minor labeling gap" });
+    const id = created.body.data.id;
+
+    await request(app).put(`/v1/implementation/nonconformities/${id}`).set(authed(token))
+      .send({ data: capData({ implementationStatus: "Implemented", effRequired: false, effResult: "Not Checked" }) });
+    const closed = await request(app).put(`/v1/implementation/nonconformities/${id}`).set(authed(token))
+      .send({ status: "Closed" });
+    expect(closed.status).toBe(200);
+    expect(closed.body.data.status).toBe("Closed");
+  });
+
+  // OD `ncClose`: `n.cap && n.cap.effRequired && …` short-circuits when there
+  // is no CAP at all — nothing to gate on.
+  it("allows closing when there is no CAP yet to gate on", async () => {
+    const { token } = await makeTenant("t1", "TEN1");
+    const created = await request(app).post("/v1/implementation/nonconformities").set(authed(token))
+      .send({ title: "Trivial admin NC" });
+    const closed = await request(app).put(`/v1/implementation/nonconformities/${created.body.data.id}`)
+      .set(authed(token)).send({ status: "Closed" });
+    expect(closed.status).toBe(200);
+    expect(closed.body.data.status).toBe("Closed");
+  });
+
+  // OD `capSave` (11524): the CAP's own implementation status drives the NC's
+  // status and copies PIC/Due up — but only when the CAP status actually
+  // changes, and a CAP-driven Closed still has to pass the effectiveness
+  // gate so the two lifecycles can never contradict each other.
+  it("derives the NC status from the CAP's implementation status and copies PIC/Due", async () => {
+    const { token } = await makeTenant("t1", "TEN1");
+    const created = await request(app).post("/v1/implementation/nonconformities").set(authed(token))
+      .send({ title: "Undocumented change" });
+    const id = created.body.data.id;
+    const put = (data: Record<string, unknown>) =>
+      request(app).put(`/v1/implementation/nonconformities/${id}`).set(authed(token)).send({ data });
+
+    const planned = await put(capData({ pic: "Jane", due: "2026-08-01", implementationStatus: "Planned", effRequired: true, effResult: "Not Checked" }));
+    expect(planned.status).toBe(200);
+    expect(planned.body.data.status).toBe("CAP Planned");
+    expect(planned.body.data.data.pic).toBe("Jane");
+    expect(planned.body.data.data.due).toBe("2026-08-01");
+    expect(planned.body.data.data.capStatus).toBe("Planned");
+    const capCode = planned.body.data.data.cap.id;
+    expect(capCode).toMatch(/^CAP-\d{4}$/);
+
+    // Re-saving the CAP with the same implementation status is not a
+    // transition — the NC status is left exactly as a human set it.
+    const untouched = await put({ ...planned.body.data.data, cap: { ...planned.body.data.data.cap, resources: "Extra training" } });
+    expect(untouched.body.data.status).toBe("CAP Planned");
+
+    const inProgress = await put({ ...untouched.body.data.data, cap: { ...untouched.body.data.data.cap, implementationStatus: "In Progress" } });
+    expect(inProgress.body.data.status).toBe("In Progress");
+    expect(inProgress.body.data.data.cap.id).toBe(capCode); // the CAP keeps its own code across saves
+
+    const effective = await put({ ...inProgress.body.data.data, cap: { ...inProgress.body.data.data.cap, implementationStatus: "Effective", effResult: "Effective" } });
+    expect(effective.body.data.status).toBe("Pending Effectiveness Check");
+
+    // A CAP-driven close still has to pass the effectiveness gate.
+    const blockedClose = await put({ ...effective.body.data.data, cap: { ...effective.body.data.data.cap, implementationStatus: "Closed", effResult: "Not Effective" } });
+    expect(blockedClose.status).toBe(400);
+    expect(blockedClose.body.error.code).toBe("EFFECTIVENESS_NOT_VERIFIED");
+
+    const closed = await put({ ...effective.body.data.data, cap: { ...effective.body.data.data.cap, implementationStatus: "Closed", effResult: "Effective" } });
+    expect(closed.status).toBe(200);
+    expect(closed.body.data.status).toBe("Closed");
+  });
+
+  it("assigns CAP codes their own per-org sequence, independent of NC codes", async () => {
+    const { token } = await makeTenant("t1", "TEN1");
+    const a = await request(app).post("/v1/implementation/nonconformities").set(authed(token)).send({ title: "NC A" });
+    const b = await request(app).post("/v1/implementation/nonconformities").set(authed(token)).send({ title: "NC B" });
+
+    const capA = await request(app).put(`/v1/implementation/nonconformities/${a.body.data.id}`).set(authed(token))
+      .send({ data: capData() });
+    const capB = await request(app).put(`/v1/implementation/nonconformities/${b.body.data.id}`).set(authed(token))
+      .send({ data: capData() });
+    expect(capA.body.data.data.cap.id).toBe("CAP-0001");
+    expect(capB.body.data.data.cap.id).toBe("CAP-0002");
+  });
+
+  // OD `conForm`: the reporter is stamped from the actor who submitted the
+  // concern (`ocActor()`), not a typed field.
+  it("stamps a concern's reporter automatically at creation", async () => {
+    const { token } = await makeTenant("trep", "TREP");
+    const created = await request(app).post("/v1/implementation/concerns").set(authed(token))
+      .send({ title: "Unlabelled reagent on bench" });
+    expect(created.status).toBe(201);
+    expect(created.body.data.data.reportedBy).toBe("T"); // makeTenant seeds fullName "T"
   });
 
   // OD's Training Plan closes the loop back onto the competence gap that
@@ -203,7 +366,7 @@ describe("ISO clause registers (implementation)", () => {
       .send({ status: "Completed", data: { gapId: gap.id, outcome: "Meets Requirement" } });
 
     await gap.reload();
-    expect(gap.status).toBe("Closed");
+    expect(gap.status).toBe("Resolved");
     expect(gap.trainingDone).toBe(true);
     expect(gap.resolvedDate).toBeTruthy();
   });
@@ -223,20 +386,19 @@ describe("ISO clause registers (implementation)", () => {
     expect(gap.trainingDone).toBe(false);
   });
 
-  // Marking documents `approvable` on the client is only half the wiring — the
-  // backend has to list the module as governed, or the Approval button 400s.
-  it("routes a controlled document through the approval engine", async () => {
-    const { token, orgId } = await makeTenant("t1", "TEN1", [...MS, ACTIONS.APPROVAL_READ, ACTIONS.APPROVAL_MANAGE, ACTIONS.APPROVAL_APPROVE]);
-    const me = await User.findOne({ where: { orgId } });
-    await request(app).put(`/v1/approvals/pools/${me!.id}`).set(authed(token)).send({ isMST: true, isTM: true, tmFinal: true });
-
+  // Controlled documents use OD's bespoke 3-step flow (submit → review decision
+  // → explicit publish) rather than the multi-gate engine — no pool membership
+  // is needed to submit, only an assigned approver. The full flow is covered in
+  // approval.integration.test.ts ("controlled documents workflow").
+  it("submits a controlled document without requiring approval-pool membership", async () => {
+    const { token } = await makeTenant("t1", "TEN1", [...MS, ACTIONS.APPROVAL_READ, ACTIONS.APPROVAL_MANAGE, ACTIONS.APPROVAL_APPROVE]);
     const created = await request(app).post("/v1/implementation/documents").set(authed(token))
-      .send({ title: "Access Control Policy", status: "Draft", data: { version: "1.0" } });
+      .send({ title: "Access Control Policy", status: "Draft", owner: "IT Lead", data: cdData({ version: "1.0" }) });
     const id = created.body.data.id;
 
     const submitted = await request(app).post(`/v1/approvals/records/documents/${id}/submit`).set(authed(token)).send({});
     expect(submitted.status).toBe(200);
-    expect(submitted.body.data.status).not.toBe("Draft");
+    expect(submitted.body.data.status).toBe("Under Review");
   });
 
   // OD `conRoute`: classifying a concern *creates* the downstream record and
@@ -259,6 +421,13 @@ describe("ISO clause registers (implementation)", () => {
     expect(created.data.sourceConcernId).toBe(concern.id);
     expect(created.data.description).toBe("Found during walkthrough");
     expect(concern.data.routedRecordId).toBe(created.id);
+    // OD `conRoute` (11365): a concern routed to Nonconformity starts as a
+    // "Process Nonconformity" with no CAP yet — the reviewer sets the real
+    // category via `ncForm`, and PIC/Due come from the CAP once one exists.
+    expect(created.data.category).toBe("Process Nonconformity");
+    expect(created.data.cap).toBeNull();
+    expect(created.data.pic).toBe("");
+    expect(created.data.due).toBe("");
   });
 
   it("requires a closure reason when closing rather than routing, and refuses double review", async () => {
@@ -291,7 +460,7 @@ describe("ISO clause registers (implementation)", () => {
 
     await request(app).put(`/v1/implementation/training/${tr.body.data.id}`).set(authed(token)).send({ status: "Completed" });
     await gap.reload();
-    expect(gap.status).toBe("Closed");
+    expect(gap.status).toBe("Resolved");
     const firstResolved = gap.resolvedDate;
 
     // An unrelated edit while still Completed must not touch the gap again.
@@ -347,5 +516,32 @@ describe("ISO clause registers (implementation)", () => {
       .set(authed(token)).send({ status: "Archived", data: { raisedRiskId: risk.body.data.id, justification: "Risk now monitored" } });
     expect(done.status).toBe(200);
     expect(done.body.data.status).toBe("Archived");
+    expect(done.body.data.data.archiveJustification).toBe("Risk now monitored");
+    expect(done.body.data.data.archivedBy).toBeTruthy();
+    expect(done.body.data.data.archivedAt).toBeTruthy();
+  });
+
+  // OD `ocDismiss`: only an Open issue can be dismissed, and `ocArchiveDirect`:
+  // only a Monitored issue can be archived directly — mirrors the OD UI's own
+  // status-dependent action gating, enforced server-side.
+  it("gates Dismiss to Open issues and stamps the dismissal justification", async () => {
+    const { token } = await makeTenant("tocx2", "TOCX2");
+    const issue = await request(app).post("/v1/implementation/context").set(authed(token))
+      .send({ title: "Unclear escalation path", status: "Monitored" });
+
+    const wrongState = await request(app).put(`/v1/implementation/context/${issue.body.data.id}`)
+      .set(authed(token)).send({ status: "Dismissed", data: { dismissJustification: "Not needed" } });
+    expect(wrongState.status).toBe(400);
+    expect(wrongState.body.error.code).toBe("INVALID_TRANSITION");
+
+    const openIssue = await request(app).post("/v1/implementation/context").set(authed(token))
+      .send({ title: "Ambiguous ownership note" });
+    const dismissed = await request(app).put(`/v1/implementation/context/${openIssue.body.data.id}`)
+      .set(authed(token)).send({ status: "Dismissed", data: { dismissJustification: "Reviewed — no monitoring needed" } });
+    expect(dismissed.status).toBe(200);
+    expect(dismissed.body.data.status).toBe("Dismissed");
+    expect(dismissed.body.data.data.dismissJustification).toBe("Reviewed — no monitoring needed");
+    expect(dismissed.body.data.data.dismissedBy).toBeTruthy();
+    expect(dismissed.body.data.data.dismissedAt).toBeTruthy();
   });
 });

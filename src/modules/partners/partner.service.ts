@@ -349,6 +349,40 @@ async function transition(
   return toView(org, profile, await tenantCountFor(org.id), await adminOf(profile));
 }
 
+/**
+ * Resend (or send, if never sent) the activation invite email to the Partner
+ * Administrator. Only valid while the partner is Approved — i.e. the
+ * agreement is signed and awaiting the admin to activate their account.
+ * Mirrors tenant.service.resendActivation.
+ */
+export async function resendPartnerActivation(auth: AuthContext, orgId: string, ip: string | null): Promise<PartnerView> {
+  const { org, profile } = await resolvePartner(auth, orgId);
+  if (profile.status !== "Approved") {
+    throw new ConflictError(
+      `Cannot resend activation for a partner in status "${profile.status}"`,
+      "ILLEGAL_TRANSITION",
+    );
+  }
+  const admin = profile.adminUserId ? await User.findByPk(profile.adminUserId) : null;
+  if (!admin) throw new NotFoundError("Partner administrator missing", "PARTNER_ADMIN_NOT_FOUND");
+  const token = admin.activationToken ?? randomUUID();
+  admin.activationToken = token;
+  await admin.save();
+  sendActivationInvite(admin.email, token);
+  profile.audit = [nowEntry(`Activation email sent to ${admin.email}`), ...profile.audit];
+  await profile.save();
+  await writeAudit({
+    actorUserId: auth.userId,
+    organizationId: org.id,
+    action: "partner.activation-resent",
+    entityType: "Partner",
+    entityId: org.id,
+    sourceIp: ip,
+    result: "Success",
+  });
+  return toView(org, profile, await tenantCountFor(org.id), await adminOf(profile));
+}
+
 export const activatePartner = (auth: AuthContext, orgId: string, ip: string | null) =>
   transition(auth, orgId, { from: ["Approved"], to: "Active", action: "activated", msg: "Partner activated" }, ip);
 export const suspendPartner = (auth: AuthContext, orgId: string, ip: string | null) =>

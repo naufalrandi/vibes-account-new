@@ -17,14 +17,6 @@ import {
   Plan,
   Invoice,
   Ticket,
-  Framework,
-  FrameworkGroup,
-  FrameworkElement,
-  FrameworkRequirement,
-  RequirementCriterion,
-  ElementRequirementXref,
-  ConformanceQuestion,
-  ConformanceResponse,
   Assessment,
   AssessmentAnswer,
   Gap,
@@ -33,11 +25,17 @@ import {
   TestingService,
   KbArticle,
   Notification,
+  WorkUnit,
+  ApprovalPoolMember,
+  ScopeDataset,
 } from "../models";
 import { ACTIONS, MENU_SEED, type SeedMenu } from "../../modules/iam/actions.catalog";
+import { grantEverythingExceptSpOnly } from "../../modules/iam/tenantGrants";
+import { seedComplianceEngine } from "./complianceEngine";
 import type { AgreementBlock, AgreementTemplateStatus } from "../models/agreementTemplate.model";
 import { generateStatementForPartner } from "../../modules/billing/billing.service";
 import { hashPassword } from "../../lib/password";
+import { ensureGlobalSeed as ensureScopeDatasetSeed } from "../../modules/scope/scopeDataset.service";
 
 const DEFAULT_PASSWORD = "ChangeMe123";
 
@@ -74,7 +72,7 @@ async function seedMenuTree(nodes: SeedMenu[], parentId: string | null, baseSort
   }
 }
 
-/** Grant a role every menu + every action (full access, explicit grants). */
+/** Grant a role every menu + every action (full access, explicit grants). Service-Owner roles only. */
 async function grantEverything(roleId: string): Promise<void> {
   for (const menu of await Menu.findAll()) {
     await RoleMenuGrant.findOrCreate({ where: { roleId, menuId: menu.id }, defaults: { roleId, menuId: menu.id, granted: true } });
@@ -83,6 +81,12 @@ async function grantEverything(roleId: string): Promise<void> {
     await RoleActionGrant.findOrCreate({ where: { roleId, actionId: action.id }, defaults: { roleId, actionId: action.id, granted: true } });
   }
 }
+
+// SP_ONLY_ACTIONS + grantEverythingExceptSpOnly (B2/P0-6 curated grant set for
+// Distributor/Tenant admin roles) now live in `../../modules/iam/tenantGrants`
+// so the seeder and live BE tenant provisioning (`tenant.service.ts`
+// `provisionTenant`, `registration.service.ts` `approveRegistration`) share
+// one definition instead of drifting.
 
 /** Grant a role specific menus (by name) and specific action keys. */
 async function grantAccess(roleId: string, menuNames: string[], actionKeys: string[]): Promise<void> {
@@ -226,7 +230,7 @@ export async function seed(): Promise<void> {
     where: { name: "Administrator", orgId: distributor.id },
     defaults: { name: "Administrator", tierScope: "Distributor", orgId: distributor.id, isSuperAdmin: false, status: true },
   });
-  await grantEverything(distAdminRole.id);
+  await grantEverythingExceptSpOnly(distAdminRole.id);
   await ensureUser("partner", "Partner Admin", "admin@nusantara.id", distributor.id, distAdminRole);
 
   // Tenant acquired through the distributor (acquisition = Partner).
@@ -241,7 +245,7 @@ export async function seed(): Promise<void> {
     where: { name: "Administrator", orgId: tenant.id },
     defaults: { name: "Administrator", tierScope: "Tenant", orgId: tenant.id, isSuperAdmin: false, status: true },
   });
-  await grantEverything(tenantAdminRole.id);
+  await grantEverythingExceptSpOnly(tenantAdminRole.id);
   // Tenant users carry their own org id as the tenant scope on the JWT.
   await ensureUser("tenant", "Tenant Admin", "admin@garuda.id", tenant.id, tenantAdminRole, tenant.id);
 
@@ -312,7 +316,7 @@ export async function seed(): Promise<void> {
 
   // 9. Phase 4 — onboard the demo tenant (Garuda) as a fully provisioned tenant:
   //    a tenant_profile (acquired via the distributor) + a primary site.
-  await TenantProfile.findOrCreate({
+  const [garudaProfile] = await TenantProfile.findOrCreate({
     where: { orgId: tenant.id },
     defaults: {
       orgId: tenant.id,
@@ -324,12 +328,50 @@ export async function seed(): Promise<void> {
       audit: [{ ts: new Date().toISOString(), msg: "Tenant organization created" }],
     },
   });
-  await Site.findOrCreate({
+  // Subscription Agreement + timeline for the sp-tenant Billing tab (OD
+  // index.html:7224 seed shape). Idempotent: only set when still missing
+  // (migration 0045 backfills pre-existing rows the same way).
+  if (!garudaProfile.agreement) {
+    garudaProfile.agreement = {
+      number: "TA-2026-0001", name: "VIBES Subscription Agreement", version: "1.0", status: "Active",
+      subscriptionType: "Professional", billingCycle: "Monthly",
+      effectiveDate: "2026-01-01", expirationDate: "2026-12-31", currency: "IDR", paymentDueDays: 14,
+      history: [
+        { date: "2025-12-20", event: "Agreement Generated" },
+        { date: "2025-12-21", event: "Agreement Sent to Tenant" },
+        { date: "2025-12-23", event: "Agreement Approved by Tenant" },
+        { date: "2026-01-01", event: "Subscription Became Active" },
+        { date: "2026-02-01", event: "Billing Period Closed" },
+        { date: "2026-03-01", event: "Billing Period In Progress" },
+      ],
+    };
+    await garudaProfile.save();
+  }
+  const [siteHq] = await Site.findOrCreate({
     where: { code: "STE-1001" },
     defaults: {
       orgId: tenant.id, code: "STE-1001", name: "Garuda HQ", type: "Head Office",
       country: "ID", address: "Jl. Industri Raya No. 1, Bekasi", status: "Active", isPrimary: true,
       description: null, contactPerson: "Tenant Admin", contactEmail: "admin@garuda.id", contactPhone: null,
+    },
+  });
+  // Two more sites (OD PT Hammer Industries: Head Office/Factory A/Warehouse,
+  // index.html:7201-7204) so the Work Units seed below (`wuSeedIfNeeded`,
+  // 9132-9181) has somewhere to distribute its 3 site indices across.
+  const [siteFactory] = await Site.findOrCreate({
+    where: { code: "STE-1002" },
+    defaults: {
+      orgId: tenant.id, code: "STE-1002", name: "Garuda Factory A", type: "Factory",
+      country: "ID", address: "Kawasan Industri MM2100, Bekasi", status: "Active", isPrimary: false,
+      description: "Primary production facility — assembly and finishing lines.", contactPerson: "Tenant Admin", contactEmail: "admin@garuda.id", contactPhone: null,
+    },
+  });
+  const [siteWarehouse] = await Site.findOrCreate({
+    where: { code: "STE-1003" },
+    defaults: {
+      orgId: tenant.id, code: "STE-1003", name: "Garuda Warehouse", type: "Warehouse",
+      country: "ID", address: "Jl. Raya Cakung 88, Bekasi", status: "Active", isPrimary: false,
+      description: "Finished-goods storage and distribution hub.", contactPerson: "Tenant Admin", contactEmail: "admin@garuda.id", contactPhone: null,
     },
   });
 
@@ -368,139 +410,131 @@ export async function seed(): Promise<void> {
   );
   if (!existingStmt) await generateStatementForPartner(distributor.id, "January 2026");
 
-  // 11. Phase 6 — a demo support ticket raised by the tenant and answered by the
-  //     SP support desk (so the SLA panel shows a real first-response/Met state).
-  const created = "2026-03-01T09:00:00.000Z";
-  const answered = "2026-03-01T12:30:00.000Z"; // 3.5h later → within the High 8h SLA → Met
-  await Ticket.findOrCreate({
-    where: { code: "TKT-2026-0001" },
+  // 11. Phase 6 — OD's 8 seeded support tickets (`seedTickets`, index.html:15477-
+  //     15505), spanning all 5 statuses and 4 priorities across tenant + partner
+  //     scope. OD's four flavor orgs (PT Hammer Industries / PT Parker Industries
+  //     / PT Damage Control / PT Stark Industries) map onto our seeded orgs:
+  //     Hammer/Parker → the existing Garuda/Nusantara pair; Damage Control/Stark
+  //     are a second, independent partner+tenant pair created here solely to
+  //     reproduce OD's cross-partner ticket-isolation scenario (a partner must
+  //     never see another partner's managed-tenant tickets).
+  const [stark] = await Organization.findOrCreate({
+    where: { code: "STARKIND" },
     defaults: {
-      code: "TKT-2026-0001",
-      subject: "Cannot activate a new site",
-      description: "Our site activation link appears to have expired before we could use it.",
-      category: "Technical Support", priority: "High", status: "In Progress",
-      scope: "tenant", orgId: tenant.id, managedBy: "Nusantara Partners",
-      createdBy: { name: "Tenant Admin", email: "admin@garuda.id" }, assignedTo: "Support Desk",
-      messages: [
-        { author: { name: "Tenant Admin", kind: "user" }, text: "The activation link says expired.", ts: created },
-        { author: { name: "Support Desk", kind: "support" }, text: "We've reissued the activation — please retry.", ts: answered },
-      ],
-      activity: [
-        { event: "Ticket created", ts: created },
-        { event: "Assigned to Support Desk", ts: answered },
-        { event: "Status changed to In Progress", ts: answered },
-      ],
-      attachments: [],
+      name: "PT Stark Industries", code: "STARKIND", type: "Distributor", status: "Active",
+      parentOrgId: so.id, tenantId: null, email: "ops@starkindustries.com", phone: null, website: null, country: "US", address: null,
     },
   });
-
-  // 12. Phase 7 — framework meta-model: groups, frameworks, the 27 Framework
-  //     Elements (21 Core + 6 Extension), and a starter requirement/criteria/
-  //     question/response chain wired through the xref + rcmap so the Library,
-  //     Cross-References, and authoring pages show real, connected data.
-  const [standards] = await FrameworkGroup.findOrCreate({ where: { name: "Standards" }, defaults: { name: "Standards", sortOrder: 1 } });
-  const [regulations] = await FrameworkGroup.findOrCreate({ where: { name: "Regulations" }, defaults: { name: "Regulations", sortOrder: 2 } });
-
-  const [iso27001] = await Framework.findOrCreate({
-    where: { name: "ISO/IEC 27001:2022" },
-    defaults: { name: "ISO/IEC 27001:2022", groupId: standards.id, familyId: null, code: null, version: null, status: "Active", shortDescription: "Information security management system requirements.", fullDescription: null, jurisdictions: ["Global"], publishedDate: null },
+  const [damageControl] = await Organization.findOrCreate({
+    where: { code: "DMGCTRL" },
+    defaults: {
+      name: "PT Damage Control", code: "DMGCTRL", type: "Tenant", status: "Active",
+      parentOrgId: stark.id, tenantId: null, email: "ops@damagecontrol.co.id", phone: null, website: null, country: "ID", address: null,
+    },
   });
-  const [iso27002] = await Framework.findOrCreate({
-    where: { name: "ISO/IEC 27002:2022" },
-    defaults: { name: "ISO/IEC 27002:2022", groupId: standards.id, familyId: null, code: null, version: null, status: "Active", shortDescription: "Information security controls catalog.", fullDescription: null, jurisdictions: ["Global"], publishedDate: null },
-  });
-  await Framework.findOrCreate({
-    where: { name: "GDPR 2016/679" },
-    defaults: { name: "GDPR 2016/679", groupId: regulations.id, familyId: null, code: null, version: null, status: "Draft", shortDescription: "EU General Data Protection Regulation.", fullDescription: null, jurisdictions: ["European Union"], publishedDate: null },
-  });
-
-  // The 27 reusable Framework Elements (FWE-001..021 Core, FWE-022..027 Extension).
-  const CORE_ELEMENTS = [
-    "Organizational Context", "Interested Parties", "Scope Definition", "Leadership & Commitment",
-    "Policy Management", "Roles & Responsibilities", "Risk Assessment", "Risk Treatment",
-    "Objectives & Planning", "Resource Management", "Competence", "Awareness", "Communication",
-    "Documented Information", "Operational Planning & Control", "Performance Monitoring",
-    "Internal Audit", "Management Review", "Nonconformity & Corrective Action", "Continual Improvement",
-    "Change Management",
+  const TICKET_ORGS: Record<string, string> = { tenant: tenant.id, distributor: distributor.id, damageControl: damageControl.id, stark: stark.id };
+  const ticketSeed: {
+    code: string; subject: string; description: string; category: string; priority: string; status: string;
+    scope: "sp" | "partner" | "tenant"; orgTag: string; managedBy: string | null;
+    createdBy: { name: string; email: string }; assignedTo: string | null;
+    messages: { author: { name: string; kind: "user" | "support" }; text: string; ts: string }[];
+    activity: { event: string; ts: string }[];
+    attachments: { name: string; size: number; date: string }[];
+  }[] = [
+    {
+      code: "TKT-2026-0001", subject: "Cannot Activate Tenant Administrator", description: "The activation link for our administrator account returns an error when clicked. Please advise.",
+      category: "Technical Support", priority: "High", status: "In Progress",
+      scope: "tenant", orgTag: "tenant", managedBy: "Nusantara Partners",
+      createdBy: { name: "Jennifer Susan Walters", email: "nicole@hammerind.co.id" }, assignedTo: "Nicholas Joseph Fury",
+      messages: [{ author: { name: "Jennifer Susan Walters", kind: "user" }, text: "Hi, our admin can’t activate — the link errors out. Screenshot attached.", ts: "2026-06-02T09:00:00.000Z" }, { author: { name: "Nicholas Joseph Fury", kind: "support" }, text: "Thanks Maria, we’re looking into it. Could you confirm the email address the link was sent to?", ts: "2026-06-02T14:00:00.000Z" }, { author: { name: "Jennifer Susan Walters", kind: "user" }, text: "It was sent to maria@hammerind.co.id.", ts: "2026-06-02T16:00:00.000Z" }],
+      activity: [{ event: "Ticket created", ts: "2026-06-02T09:00:00.000Z" }, { event: "Assigned to Raka Pratama", ts: "2026-06-02T12:00:00.000Z" }, { event: "Status changed to In Progress", ts: "2026-06-02T12:00:00.000Z" }],
+      attachments: [{ name: "activation-error.png", size: 184320, date: "2026-06-02T09:00:00.000Z" }],
+    },
+    {
+      code: "TKT-2026-0002", subject: "Invoice Status Incorrect", description: "INV-2026-0007 shows as unpaid but we have completed the bank transfer.",
+      category: "Billing", priority: "Medium", status: "Waiting for Customer",
+      scope: "tenant", orgTag: "tenant", managedBy: "Nusantara Partners",
+      createdBy: { name: "Jennifer Susan Walters", email: "nicole@hammerind.co.id" }, assignedTo: "Natalia Alianovna Romanova",
+      messages: [{ author: { name: "Jennifer Susan Walters", kind: "user" }, text: "Our May invoice still shows unpaid after payment.", ts: "2026-06-05T10:00:00.000Z" }, { author: { name: "Natalia Alianovna Romanova", kind: "support" }, text: "Could you share the transfer reference number so we can match it?", ts: "2026-06-05T18:00:00.000Z" }],
+      activity: [{ event: "Ticket created", ts: "2026-06-05T10:00:00.000Z" }, { event: "Assigned to Dewi Lestari", ts: "2026-06-05T18:00:00.000Z" }, { event: "Status changed to Waiting for Customer", ts: "2026-06-05T18:00:00.000Z" }],
+      attachments: [],
+    },
+    {
+      code: "TKT-2026-0003", subject: "Need Assistance with Partner Onboarding", description: "We would like guidance on onboarding our first batch of tenants.",
+      category: "Commercial", priority: "Medium", status: "Open",
+      scope: "partner", orgTag: "distributor", managedBy: null,
+      createdBy: { name: "Anthony Edward Stark", email: "leonardo@starkindustries.com" }, assignedTo: null,
+      messages: [{ author: { name: "Anthony Edward Stark", kind: "user" }, text: "Hello, can someone walk us through onboarding tenants under our partnership?", ts: "2026-06-07T13:00:00.000Z" }],
+      activity: [{ event: "Ticket created", ts: "2026-06-07T13:00:00.000Z" }],
+      attachments: [],
+    },
+    {
+      code: "TKT-2026-0004", subject: "Document Upload Error", description: "Uploading a PDF over 5MB fails silently.",
+      category: "Bug Report", priority: "High", status: "Resolved",
+      scope: "tenant", orgTag: "tenant", managedBy: "Nusantara Partners",
+      createdBy: { name: "Jennifer Susan Walters", email: "nicole@hammerind.co.id" }, assignedTo: "Nicholas Joseph Fury",
+      messages: [{ author: { name: "Jennifer Susan Walters", kind: "user" }, text: "Large PDF uploads fail with no message.", ts: "2026-06-01T08:00:00.000Z" }, { author: { name: "Nicholas Joseph Fury", kind: "support" }, text: "Fixed in the latest release — please retry and confirm.", ts: "2026-06-01T20:00:00.000Z" }, { author: { name: "Jennifer Susan Walters", kind: "user" }, text: "Working now, thank you!", ts: "2026-06-02T09:00:00.000Z" }],
+      activity: [{ event: "Ticket created", ts: "2026-06-01T08:00:00.000Z" }, { event: "Status changed to In Progress", ts: "2026-06-01T20:00:00.000Z" }, { event: "Ticket resolved", ts: "2026-06-02T09:00:00.000Z" }],
+      attachments: [],
+    },
+    {
+      code: "TKT-2026-0005", subject: "Feature Request: Bulk Site Import", description: "Could we import sites via CSV for large tenants?",
+      category: "Feature Request", priority: "Low", status: "Open",
+      scope: "partner", orgTag: "distributor", managedBy: null,
+      createdBy: { name: "Anthony Edward Stark", email: "leonardo@starkindustries.com" }, assignedTo: null,
+      messages: [{ author: { name: "Anthony Edward Stark", kind: "user" }, text: "A CSV bulk site import would save us a lot of time.", ts: "2026-06-08T11:00:00.000Z" }],
+      activity: [{ event: "Ticket created", ts: "2026-06-08T11:00:00.000Z" }],
+      attachments: [],
+    },
+    {
+      code: "TKT-2026-0006", subject: "Need Help Assigning Framework", description: "How do we map ISO 9001 to a specific site?",
+      category: "General Inquiry", priority: "Medium", status: "Closed",
+      scope: "tenant", orgTag: "tenant", managedBy: "Nusantara Partners",
+      createdBy: { name: "Jennifer Susan Walters", email: "nicole@hammerind.co.id" }, assignedTo: "Matthew Michael Murdock",
+      messages: [{ author: { name: "Jennifer Susan Walters", kind: "user" }, text: "Where do I assign a framework to our factory site?", ts: "2026-06-01T09:00:00.000Z" }, { author: { name: "Matthew Michael Murdock", kind: "support" }, text: "Frameworks are assigned per site — this is coming soon to your workspace.", ts: "2026-06-01T13:00:00.000Z" }],
+      activity: [{ event: "Ticket created", ts: "2026-06-01T09:00:00.000Z" }, { event: "Ticket resolved", ts: "2026-06-01T18:00:00.000Z" }, { event: "Ticket closed", ts: "2026-06-02T12:00:00.000Z" }],
+      attachments: [],
+    },
+    {
+      code: "TKT-2026-0007", subject: "Critical: Tenant Cannot Sign In", description: "All users at PT Damage Control are locked out after the maintenance window.",
+      category: "Technical Support", priority: "Critical", status: "In Progress",
+      scope: "tenant", orgTag: "damageControl", managedBy: "PT Stark Industries",
+      createdBy: { name: "Janet van Dyne", email: "sandra@damagecontrol.co.id" }, assignedTo: "Nicholas Joseph Fury",
+      messages: [{ author: { name: "Janet van Dyne", kind: "user" }, text: "Nobody can sign in since this morning. This is urgent.", ts: "2026-06-09T08:00:00.000Z" }, { author: { name: "Nicholas Joseph Fury", kind: "support" }, text: "Escalated and investigating now — we’ll update within the hour.", ts: "2026-06-09T14:00:00.000Z" }],
+      activity: [{ event: "Ticket created", ts: "2026-06-09T08:00:00.000Z" }, { event: "Assigned to Raka Pratama", ts: "2026-06-09T09:00:00.000Z" }, { event: "Status changed to In Progress", ts: "2026-06-09T14:00:00.000Z" }],
+      attachments: [],
+    },
+    {
+      code: "TKT-2026-0008", subject: "Billing Inquiry — Revenue Share", description: "Requesting a breakdown of our Q2 revenue share statements.",
+      category: "Billing", priority: "Medium", status: "Resolved",
+      scope: "partner", orgTag: "distributor", managedBy: null,
+      createdBy: { name: "Anthony Edward Stark", email: "leonardo@starkindustries.com" }, assignedTo: "Natalia Alianovna Romanova",
+      messages: [{ author: { name: "Anthony Edward Stark", kind: "user" }, text: "Can we get a breakdown of our revenue share for Q2?", ts: "2026-06-04T10:00:00.000Z" }, { author: { name: "Natalia Alianovna Romanova", kind: "support" }, text: "Statement summary attached — let us know if you need more detail.", ts: "2026-06-04T15:00:00.000Z" }],
+      activity: [{ event: "Ticket created", ts: "2026-06-04T10:00:00.000Z" }, { event: "Ticket resolved", ts: "2026-06-06T15:00:00.000Z" }],
+      attachments: [{ name: "q2-revenue-share.xlsx", size: 48128, date: "2026-06-06T15:00:00.000Z" }],
+    },
   ];
-  const EXTENSION_ELEMENTS = [
-    "Information Security Controls", "Data Protection & Privacy", "Environmental Aspects",
-    "Occupational Health & Safety", "Business Continuity", "Supplier & Third-Party Management",
-  ];
-  const elementByName = new Map<string, FrameworkElement>();
-  let elIdx = 0;
-  for (const name of CORE_ELEMENTS) {
-    elIdx += 1;
-    const [el] = await FrameworkElement.findOrCreate({
-      where: { code: `FWE-${String(elIdx).padStart(3, "0")}` },
-      defaults: { code: `FWE-${String(elIdx).padStart(3, "0")}`, name, description: `${name} — reusable management-system capability.`, category: "Core", status: "Active" },
+  for (const t of ticketSeed) {
+    await Ticket.findOrCreate({
+      where: { code: t.code },
+      defaults: {
+        code: t.code, subject: t.subject, description: t.description,
+        category: t.category as never, priority: t.priority as never, status: t.status as never,
+        scope: t.scope, orgId: TICKET_ORGS[t.orgTag], managedBy: t.managedBy,
+        createdBy: t.createdBy, assignedTo: t.assignedTo,
+        messages: t.messages, activity: t.activity, attachments: t.attachments,
+      },
     });
-    elementByName.set(name, el);
-  }
-  for (const name of EXTENSION_ELEMENTS) {
-    elIdx += 1;
-    const [el] = await FrameworkElement.findOrCreate({
-      where: { code: `FWE-${String(elIdx).padStart(3, "0")}` },
-      defaults: { code: `FWE-${String(elIdx).padStart(3, "0")}`, name, description: `${name} — framework-specific extension capability.`, category: "Framework Extension", status: "Active" },
-    });
-    elementByName.set(name, el);
   }
 
-  // Starter requirements (one per element where the legacy catalog had clauses).
-  const [reqAudit] = await FrameworkRequirement.findOrCreate({
-    where: { frameworkId: iso27001.id, code: "Clause 9.2.1" },
-    defaults: { frameworkId: iso27001.id, code: "Clause 9.2.1", subject: "Internal Audit", description: "The organization shall conduct internal audits at planned intervals.", status: "Active" },
-  });
-  const [reqRisk] = await FrameworkRequirement.findOrCreate({
-    where: { frameworkId: iso27001.id, code: "Clause 6.1.2" },
-    defaults: { frameworkId: iso27001.id, code: "Clause 6.1.2", subject: "Risk Assessment", description: "Define and apply an information security risk assessment process.", status: "Active" },
-  });
-  await FrameworkRequirement.findOrCreate({
-    where: { frameworkId: iso27002.id, code: "Control 5.1" },
-    defaults: { frameworkId: iso27002.id, code: "Control 5.1", subject: "Policies", description: "Policies for information security shall be defined and approved.", status: "Active" },
-  });
-
-  // Maturity criteria for the Internal Audit requirement (score 0–9 rubric).
-  const [crit0] = await RequirementCriterion.findOrCreate({ where: { requirementId: reqAudit.id, score: 0 }, defaults: { requirementId: reqAudit.id, score: 0, description: "No internal audits are performed." } });
-  const [crit5] = await RequirementCriterion.findOrCreate({ where: { requirementId: reqAudit.id, score: 5 }, defaults: { requirementId: reqAudit.id, score: 5, description: "Audits are planned, documented and recurring." } });
-
-  // xref: link the reusable elements to their clauses.
-  const auditEl = elementByName.get("Internal Audit")!;
-  const riskEl = elementByName.get("Risk Assessment")!;
-  await ElementRequirementXref.findOrCreate({ where: { elementId: auditEl.id, requirementId: reqAudit.id }, defaults: { elementId: auditEl.id, requirementId: reqAudit.id } });
-  await ElementRequirementXref.findOrCreate({ where: { elementId: riskEl.id, requirementId: reqRisk.id }, defaults: { elementId: riskEl.id, requirementId: reqRisk.id } });
-
-  // Conformance question + graded responses on the Internal Audit element, with
-  // the rcmap wiring each response to a maturity criterion.
-  const [q1] = await ConformanceQuestion.findOrCreate({
-    where: { elementId: auditEl.id, text: "How is the internal audit process defined?" },
-    defaults: { elementId: auditEl.id, text: "How is the internal audit process defined?", sortOrder: 1, status: "Active" },
-  });
-  await ConformanceResponse.findOrCreate({
-    where: { questionId: q1.id, text: "No formal or standardized process exists." },
-    defaults: { questionId: q1.id, text: "No formal or standardized process exists.", sortOrder: 1, status: "Active", criterionId: crit0.id },
-  });
-  const [q1r5] = await ConformanceResponse.findOrCreate({
-    where: { questionId: q1.id, text: "A standardized, documented and recurring process exists." },
-    defaults: { questionId: q1.id, text: "A standardized, documented and recurring process exists.", sortOrder: 2, status: "Active", criterionId: crit5.id },
-  });
-
-  // Second element (Risk Assessment) so an assessment run spans multiple
-  // elements and can surface a gap on one while another passes.
-  const [critR0] = await RequirementCriterion.findOrCreate({ where: { requirementId: reqRisk.id, score: 0 }, defaults: { requirementId: reqRisk.id, score: 0, description: "No risk assessment process exists." } });
-  await RequirementCriterion.findOrCreate({ where: { requirementId: reqRisk.id, score: 5 }, defaults: { requirementId: reqRisk.id, score: 5, description: "A repeatable, documented risk assessment process is applied." } });
-  const [qRisk] = await ConformanceQuestion.findOrCreate({
-    where: { elementId: riskEl.id, text: "How mature is the information security risk assessment process?" },
-    defaults: { elementId: riskEl.id, text: "How mature is the information security risk assessment process?", sortOrder: 1, status: "Active" },
-  });
-  const [qRiskR0] = await ConformanceResponse.findOrCreate({
-    where: { questionId: qRisk.id, text: "Risks are handled ad hoc, with no defined process." },
-    defaults: { questionId: qRisk.id, text: "Risks are handled ad hoc, with no defined process.", sortOrder: 1, status: "Active", criterionId: critR0.id },
-  });
-  await ConformanceResponse.findOrCreate({
-    where: { questionId: qRisk.id, text: "A documented, repeatable risk assessment process is applied." },
-    defaults: { questionId: qRisk.id, text: "A documented, repeatable risk assessment process is applied.", sortOrder: 2, status: "Active", criterionId: (await RequirementCriterion.findOne({ where: { requirementId: reqRisk.id, score: 5 } }))!.id },
-  });
+  // 12. Phase 7 — framework meta-model: the OD compliance-engine seed content —
+  //     framework groups, the 9 OD frameworks, the full requirement catalogues
+  //     with clause text, the 27 canonical FWEs (21 Core + 6 Extension), the
+  //     CQ/CQR library, requirement criteria, and the FWRC statement rows
+  //     (see src/db/seeders/complianceEngine.ts and the generated
+  //     complianceEngine.*.data.ts modules). Returns the handles the Phase 8
+  //     demo assessment below wires against.
+  const { iso27001, auditEl, riskEl, q1, q1r5, qRisk, qRiskR0, crit5, critR0 } = await seedComplianceEngine();
 
   // 13. Phase 8 — a finalized demo assessment for the tenant against ISO 27001.
   //     Internal Audit answered "mature" (score 5, no gap); Risk Assessment
@@ -526,7 +560,7 @@ export async function seed(): Promise<void> {
     await AssessmentAnswer.create({ assessmentId: demoAssessment.id, questionId: q1.id, responseId: q1r5.id, criterionId: crit5.id, score: 5 });
     await AssessmentAnswer.create({ assessmentId: demoAssessment.id, questionId: qRisk.id, responseId: qRiskR0.id, criterionId: critR0.id, score: 0 });
     await Gap.create({
-      assessmentId: demoAssessment.id, elementId: riskEl.id, elementName: "Risk Assessment", score: 0, severity: "High",
+      assessmentId: demoAssessment.id, elementId: riskEl.id, elementName: riskEl.name, score: 0, severity: "High",
       recommendedModuleKey: "risk-management", recommendedModuleLabel: "Risk Management", recommendedRoute: "/implementation/risks",
     });
   }
@@ -537,8 +571,11 @@ export async function seed(): Promise<void> {
     { module: "context", code: "OCX-0001", title: "New data-protection regulation in target market", status: "Monitored", owner: "MS Team", data: { domain: "Regulatory", type: "External", impact: "May require additional privacy controls." } },
     { module: "risks", code: "RSK-0001", title: "Phishing attack on staff", status: "Under Review", owner: "Security Lead", data: { category: "Operational", likelihood: 4, impact: 4, treatment: "Mitigate", riskScore: 16, riskLevel: "Major" }, elementId: riskEl.id },
     { module: "policies", code: "POL-0001", title: "Information Security Policy", status: "Published", owner: "CISO", data: { category: "High-Level", statement: "Protect the confidentiality, integrity and availability of information.", reviewFreq: "Annually" }, elementId: auditEl?.id ?? null },
-    { module: "documents", code: "DOC-0001", title: "Access Control Procedure", status: "Active", owner: "IT Lead", data: { type: "Procedure", version: "v1.2", confidentiality: "Internal", reviewDate: "2026-12-31" } },
-    { module: "audits", code: "AUD-0001", title: "ISMS Internal Audit Q3", status: "Planned", owner: "Internal Auditor", data: { scope: "Head Office ISMS", auditor: "Jane Auditor", plannedDate: "2026-08-15", findings: 0 }, elementId: auditEl?.id ?? null },
+    // Controlled document in the OD `cdocs` shape (type/category/access/reviewFreq + derived nextReview).
+    { module: "documents", code: "PROC-ISMS-0001", title: "Access Control Procedure", status: "Published", owner: "IT Lead", data: { type: "Procedure", category: "Information Security", version: "1.2", access: "Public within tenant", approver: "Tenant Administrator", reviewFreq: "Annually", effectiveDate: "2026-06-17T00:00:00.000Z", nextReview: "2027-06-17T00:00:00.000Z", changeSummary: "Initial issue", content: "This procedure defines how access to information systems is requested, approved, provisioned, reviewed, and revoked.", publishedBy: "Tenant Administrator", publishedDate: "2026-06-17T00:00:00.000Z", approvedBy: "Tenant Administrator", approvedDate: "2026-06-17T00:00:00.000Z" } },
+    // NOTE: no `audits` clause-register seed row — the real Internal Audit
+    // module is the dedicated `/internal-audit` surface, not this register
+    // (the orphan `audits` register was removed; see registry.ts).
     { module: "nonconformities", code: "NCR-0001", title: "Backup restore test not performed", status: "Corrective Action", owner: "IT Lead", data: { source: "Internal Audit", severity: "Medium", rootCause: "No scheduled restore test.", correctiveAction: "Add quarterly restore test to the calendar." } },
   ];
   for (const m of msSeed) {
@@ -548,11 +585,126 @@ export async function seed(): Promise<void> {
     });
   }
 
+  // 14b. Phase 9b — Work Units & Business Processes (ISO 5.3, OD
+  //      `wuEnsureBps`/`wuSeedIfNeeded`, index.html:9077-9181): the 32
+  //      globally seeded Business Processes as `processes` register entries
+  //      (global to the platform in OD; scoped to the demo tenant here since
+  //      BE's `processes` module is org-scoped, not platform-shared) and PT
+  //      Hammer Industries' 12 seeded Work Units, wired to their process
+  //      links, sites, and — where OD's names match BE's already-ported
+  //      Scope Dataset catalog (scopeDatasets.data.ts) — virtual environments
+  //      and external dependencies.
+  const BP_NAMES: string[] = [
+    "Front End Development", "Back End Development", "Business Process Analyst", "Database Administrator",
+    "Quality Assurance", "Vulnerability Assessment", "Product Management", "Project Management",
+    "Mobile Development", "Solution Architecture", "Systems Administration", "Network Administration",
+    "Software Testing", "Release Management", "Security Operations", "Incident Response",
+    "Access Management", "Requirements Management", "Change Management", "Configuration Management",
+    "Technical Support", "Customer Support", "Service Desk", "Procurement",
+    "Vendor Management", "Human Resources", "Recruitment", "Training & Competence",
+    "Finance & Accounting", "Internal Audit", "Document Control", "Management Review",
+  ];
+  const bpIdByName = new Map<string, string>();
+  for (let i = 0; i < BP_NAMES.length; i++) {
+    const name = BP_NAMES[i];
+    const [rec] = await ImplementationRecord.findOrCreate({
+      where: { orgId: tenant.id, module: "processes", title: name },
+      defaults: {
+        orgId: tenant.id, module: "processes", code: `PRC-${String(i + 1).padStart(4, "0")}`,
+        title: name, status: "Active", owner: null,
+        // `sourceType` mirrors OD's seeded-record marker (`bizProcesses[].sourceType`,
+        // index.html:9081) so a future edit-protection feature has something to
+        // key off; the `processes` module itself has no BE edit/archive
+        // protection for seeded rows yet (OD 12998/13000 has no BE equivalent).
+        data: { sourceType: "Seeded" },
+      },
+    });
+    bpIdByName.set(name, rec.id);
+  }
+
+  await ensureScopeDatasetSeed();
+  const envIdByName = new Map((await ScopeDataset.findAll({ where: { kind: "env", orgId: null } })).map((d) => [d.name, d.id]));
+  const depIdByName = new Map((await ScopeDataset.findAll({ where: { kind: "dep", orgId: null } })).map((d) => [d.name, d.id]));
+  const wuSiteIds = [siteHq.id, siteFactory.id, siteWarehouse.id];
+  const daysAgo = (n: number): Date => new Date(Date.now() - n * 86400000);
+  const wuSeed: { name: string; site: number; desc: string; bps: string[]; envs: string[]; deps: string[]; status: string; by: string; ago: number }[] = [
+    { name: "Software Development", site: 0, desc: "Responsible for software product development, application features, technical implementation, and development delivery.", bps: ["Front End Development","Back End Development","Business Process Analyst","Quality Assurance","Product Management","Project Management"], envs: ["Production Environment","Development Environment","Source Code Repository","CI/CD Pipeline"], deps: ["SaaS Application Provider","Source Code Repository Provider","CI/CD Platform Provider"], status: "Applicable", by: "Jennifer Susan Walters", ago: 4 },
+    { name: "IT Infrastructure", site: 0, desc: "Responsible for infrastructure, systems availability, database administration, security support, and technical operations.", bps: ["Database Administrator","Systems Administration","Network Administration","Vulnerability Assessment","Project Management"], envs: ["Production Environment","Cloud Infrastructure","Backup Environment","Monitoring Platform"], deps: ["Cloud Hosting Provider","Data Center Provider","Backup Service Provider"], status: "Applicable", by: "Peter Benjamin Parker", ago: 8 },
+    { name: "Quality Assurance", site: 1, desc: "Responsible for testing, verification, quality control, and release support.", bps: ["Quality Assurance","Software Testing","Project Management"], envs: ["Testing / Staging Environment","User Acceptance Testing Environment"], deps: ["Penetration Testing Provider"], status: "Applicable", by: "Wanda Maximoff", ago: 12 },
+    { name: "Production Operations", site: 1, desc: "Runs the assembly and finishing lines, production scheduling, and output quality at the factory.", bps: ["Configuration Management","Change Management","Quality Assurance"], envs: ["Production Environment"], deps: ["Equipment Supplier","Maintenance Service Provider"], status: "Applicable", by: "Scott Edward Harris Lang", ago: 10 },
+    { name: "Maintenance & Engineering", site: 1, desc: "Preventive and corrective maintenance of production equipment and facilities.", bps: ["Configuration Management","Incident Response"], envs: ["Production Environment"], deps: ["Maintenance Service Provider","Calibration Service Provider"], status: "Applicable", by: "Scott Edward Harris Lang", ago: 9 },
+    { name: "Warehouse Operations", site: 2, desc: "Receiving, storage, inventory control, and dispatch of finished goods.", bps: ["Configuration Management","Vendor Management"], envs: ["Production Environment"], deps: ["Courier / Logistics Provider"], status: "Applicable", by: "Gwendolyne Maxine Stacy", ago: 7 },
+    { name: "Logistics & Distribution", site: 2, desc: "Outbound logistics, carrier coordination, and distribution to customers.", bps: ["Vendor Management","Customer Support"], envs: [], deps: ["Courier / Logistics Provider","Transportation Provider"], status: "Applicable", by: "Gwendolyne Maxine Stacy", ago: 6 },
+    { name: "Procurement", site: 0, desc: "Sourcing, supplier evaluation, purchasing, and contract management.", bps: ["Procurement","Vendor Management"], envs: ["SaaS Applications"], deps: ["Office Supplier","Equipment Supplier"], status: "Applicable", by: "Jennifer Susan Walters", ago: 11 },
+    { name: "Human Resources", site: 0, desc: "Recruitment, onboarding, competence development, and personnel administration.", bps: ["Human Resources","Recruitment","Training & Competence"], envs: ["SaaS Applications","Identity Provider"], deps: ["Recruitment Provider","Training Provider"], status: "Applicable", by: "Jennifer Susan Walters", ago: 13 },
+    { name: "Finance & Administration", site: 0, desc: "Financial management, accounting, and administrative support.", bps: ["Finance & Accounting","Internal Audit"], envs: ["SaaS Applications"], deps: ["Banking Provider","External Auditor"], status: "Applicable", by: "Jennifer Susan Walters", ago: 14 },
+    { name: "Customer Service", site: 0, desc: "Customer support, complaint handling, and service-delivery coordination.", bps: ["Customer Support","Service Desk","Technical Support"], envs: ["Customer Portal","Ticketing System"], deps: ["CRM Provider","Call Center Provider"], status: "Applicable", by: "Jennifer Susan Walters", ago: 5 },
+    { name: "Information Security", site: 0, desc: "Security operations, access management, incident response, and risk monitoring.", bps: ["Security Operations","Access Management","Incident Response","Vulnerability Assessment"], envs: ["Identity Provider","Monitoring Platform","Logging Platform"], deps: ["Security Monitoring Provider","SOC Provider","IAM / SSO Provider"], status: "Applicable", by: "Peter Benjamin Parker", ago: 3 },
+  ];
+  for (let i = 0; i < wuSeed.length; i++) {
+    const w = wuSeed[i];
+    const createdAt = daysAgo(w.ago);
+    await WorkUnit.findOrCreate({
+      where: { orgId: tenant.id, name: w.name },
+      defaults: {
+        orgId: tenant.id, code: `WU-${String(i + 1).padStart(4, "0")}`, name: w.name,
+        siteId: wuSiteIds[w.site] ?? wuSiteIds[0], status: w.status, description: w.desc,
+        processIds: w.bps.map((n) => bpIdByName.get(n)).filter((x): x is string => Boolean(x)),
+        envIds: w.envs.map((n) => envIdByName.get(n)).filter((x): x is string => Boolean(x)),
+        depIds: w.deps.map((n) => depIdByName.get(n)).filter((x): x is string => Boolean(x)),
+        createdBy: w.by, createdAt, updatedAt: createdAt,
+      },
+    });
+  }
+
+  // 14c. Phase 9c — Approval pools (OD's team-seed + `apMigrateFlags`
+  //      invariant, index.html:4530-4536, 7207-7210, 10144-10160): guarantee
+  //      the demo tenant ships with a non-empty approval pool instead of
+  //      relying solely on the runtime auto-derive fallback in
+  //      approval.service.ts. Two more tenant users (mirroring OD's Monica
+  //      Rambeau / Maria Rambeau) plus the existing Tenant Admin (mirroring
+  //      Jennifer Susan Walters) give ≥1 MS Team member and exactly one
+  //      final-say Top Management member.
+  await ensureUser("siti.rahayu", "Siti Rahayu", "siti@garuda.id", tenant.id, tenantAdminRole, tenant.id);
+  await ensureUser("dewi.anggraini", "Dewi Anggraini", "dewi@garuda.id", tenant.id, tenantAdminRole, tenant.id);
+  const tenantAdminUser = await User.findOne({ where: { username: "tenant" } });
+  const sitiUser = await User.findOne({ where: { username: "siti.rahayu" } });
+  const dewiUser = await User.findOne({ where: { username: "dewi.anggraini" } });
+  const poolSeed: { user: typeof tenantAdminUser; isTM: boolean; tmFinal: boolean; isMST: boolean; mstPriority: string }[] = [
+    // Tenant Admin — sole final-say Top Management (mirrors Jennifer Susan
+    // Walters `isTM:true, tmFinal:true`, index.html:7207).
+    { user: tenantAdminUser, isTM: true, tmFinal: true, isMST: false, mstPriority: "required" },
+    // Siti Rahayu — required MS Team reviewer (mirrors Monica Rambeau, 7210).
+    { user: sitiUser, isTM: false, tmFinal: false, isMST: true, mstPriority: "required" },
+    // Dewi Anggraini — optional MS Team reviewer (mirrors Maria Rambeau, 10158).
+    { user: dewiUser, isTM: false, tmFinal: false, isMST: true, mstPriority: "optional" },
+  ];
+  for (const p of poolSeed) {
+    if (!p.user) continue;
+    await ApprovalPoolMember.findOrCreate({
+      where: { orgId: tenant.id, userId: p.user.id },
+      defaults: { orgId: tenant.id, userId: p.user.id, isTM: p.isTM, tmFinal: p.tmFinal, isMST: p.isMST, mstPriority: p.mstPriority },
+    });
+  }
+
   // 15. Phase 10 — LIMS: the 9 seeded testing services with their exact stage
   //     configs (order: planning, sampling, cert, retention, disposal).
   type Lss = "Mandatory" | "Optional" | "Not Applicable";
   const st = (planning: Lss, sampling: Lss, cert: Lss, retention: Lss, disposal: Lss): Record<string, Lss> => ({ planning, sampling, cert, retention, disposal });
   const M: Lss = "Mandatory", O: Lss = "Optional", N: Lss = "Not Applicable";
+  // OD `seedTestingServices` per-service descriptions (index.html:16046-16054)
+  // — replaces the generic "<name> service line." placeholder.
+  const LIMS_DESC: Record<string, string> = {
+    "Environmental Testing": "Air, water, soil and emissions testing for environmental compliance.",
+    "Material Testing": "Mechanical and structural testing of materials and components.",
+    "Food Testing": "Nutritional, contaminant and quality testing of food products.",
+    "Microbiology Testing": "Microbial identification and contamination analysis.",
+    "Electronic Product Testing": "Safety, EMC and performance testing of electronic products.",
+    "Chemical Testing": "Composition and chemical property analysis.",
+    "Water Testing": "Potable, waste and process water quality testing.",
+    "Air Testing": "Ambient, indoor and stack air quality testing.",
+    "Soil Testing": "Soil composition, contamination and geotechnical testing.",
+  };
   const limsServices: { code: string; name: string; stages: Record<string, Lss> }[] = [
     { code: "TS-1001", name: "Environmental Testing", stages: st(M, M, N, M, M) },
     { code: "TS-1002", name: "Material Testing", stages: st(O, O, O, M, M) },
@@ -567,23 +719,47 @@ export async function seed(): Promise<void> {
   for (const svc of limsServices) {
     await TestingService.findOrCreate({
       where: { orgId: tenant.id, code: svc.code },
-      defaults: { orgId: tenant.id, code: svc.code, name: svc.name, description: `${svc.name} service line.`, status: "Active", stages: svc.stages },
+      defaults: { orgId: tenant.id, code: svc.code, name: svc.name, description: LIMS_DESC[svc.name] ?? `${svc.name} service line.`, status: "Active", stages: svc.stages },
     });
   }
 
-  // 16. Phase 11 — knowledge base (global SO articles) + a couple of demo
+  // 16. Phase 11 — knowledge base: OD's 18 seeded articles (`seedKB`,
+  //     index.html:15698-15723) verbatim (title/category/summary/keywords/
+  //     content/featured/status/views/helpful), plus a couple of demo
   //     notifications for the tenant org bell.
-  const kb: { code: string; title: string; category: string; status: "Draft" | "Published" | "Archived"; summary: string; content: string; featured: boolean }[] = [
-    { code: "KB-2026-0001", title: "How to Create a Tenant", category: "platform", status: "Published", summary: "Provision a new customer organization and its primary site.", content: "# Creating a Tenant\nTenants are created by the Service Owner from **Tenant Management**.\n\n1. Open Tenant Management → New Tenant.\n2. Choose the acquisition source.\n3. Enter the organization details and the primary site.", featured: true },
-    { code: "KB-2026-0002", title: "How to Assign Frameworks", category: "framework", status: "Published", summary: "Assign frameworks to tenant sites.", content: "# Assigning Frameworks\nFramework assignments pair a **site** with a **framework**.", featured: true },
-    { code: "KB-2026-0003", title: "How Subscription Billing Works", category: "billing", status: "Published", summary: "How AXIA bills tenants and issues invoices.", content: "# Subscription Billing\nAll revenue is collected by **AXIA**.", featured: false },
-    { code: "KB-2026-0004", title: "Cannot Activate Account", category: "troubleshooting", status: "Published", summary: "Resolve activation link issues.", content: "# Cannot Activate Account\nActivation links expire for security. Use **Resend Activation**.", featured: false },
-    { code: "KB-2026-0005", title: "Tenant Onboarding Checklist (Draft)", category: "platform", status: "Draft", summary: "Internal draft checklist.", content: "# Onboarding Checklist\n- Create tenant\n- Create primary site", featured: false },
+  const kb: {
+    code: string; title: string; category: string; status: "Draft" | "Published" | "Archived";
+    summary: string; content: string; keywords: string[]; featured: boolean;
+    views: number; uniqueViews: number; helpful: number; notHelpful: number; publishedAt: string | null;
+  }[] = [
+    { code: "KB-2026-0001", title: "How to Create a Tenant", category: "platform", status: "Published", summary: "Provision a new customer organization and its primary site.", content: "# Creating a Tenant\nTenants are created by the Service Provider from **Tenant Management**.\n\n1. Open Tenant Management and click New Tenant.\n2. Choose the Acquisition Source (Direct or Partner).\n3. Enter the organization details and the Primary Site.\n4. Create the initial Tenant Administrator.\n5. Send the activation email.\n\n> Every tenant must have exactly one Primary Site, created during onboarding.", keywords: ["tenant","create tenant","onboarding","provisioning"], featured: true, views: 842, uniqueViews: 606, helpful: 96, notHelpful: 6, publishedAt: "2026-05-12T10:00:00.000Z" },
+    { code: "KB-2026-0002", title: "How to Create a Site", category: "platform", status: "Published", summary: "Add implementation scopes (sites) to a tenant.", content: "# Creating a Site\nSites are managed inside a tenant’s **Sites** tab.\n\n1. Open the tenant and go to the Sites tab.\n2. Click Add Site and choose a Site Type.\n3. Set whether it is the Primary Site.\n4. Save.\n\n> Frameworks are assigned to sites, not directly to the tenant.", keywords: ["site","primary site","head office","factory"], featured: false, views: 531, uniqueViews: 382, helpful: 60, notHelpful: 4, publishedAt: "2026-05-13T10:00:00.000Z" },
+    { code: "KB-2026-0003", title: "How to Add Team Members", category: "platform", status: "Published", summary: "Invite internal Service Provider users and assign role groups.", content: "# Adding Team Members\nUse **Team Management** to add internal users.\n\n1. Click Add User and choose a Role Group.\n2. For Administrators, set Full or Custom access.\n3. Submit — an activation email is sent automatically.\n\nRole groups: Administrator, Billing Manager, Technical Support.", keywords: ["team","users","roles","invite","activation"], featured: false, views: 418, uniqueViews: 301, helpful: 44, notHelpful: 3, publishedAt: "2026-05-10T10:00:00.000Z" },
+    { code: "KB-2026-0004", title: "How to Assign Frameworks", category: "framework", status: "Published", summary: "Understand how frameworks map to sites and requirements.", content: "# Assigning Frameworks\nFrameworks belong to **sites**. A framework contains requirements; framework elements map many-to-many to those requirements.\n\n- Head Office → ISO 9001\n- Factory → ISO 45001\n- Data Center → ISO/IEC 27001\n\n> Framework assignment to sites is rolling out progressively.", keywords: ["framework","assignment","requirements","iso"], featured: true, views: 766, uniqueViews: 552, helpful: 80, notHelpful: 9, publishedAt: "2026-05-14T10:00:00.000Z" },
+    { code: "KB-2026-0005", title: "Understanding Framework Elements", category: "framework", status: "Published", summary: "Framework elements are the primary cross-reference object.", content: "# Framework Elements\nA framework element (e.g. Internal Audit) can satisfy requirements across multiple frameworks.\n\n> One element ↔ many requirements, and one requirement ↔ many elements.", keywords: ["framework element","cross-reference","mapping","requirement"], featured: false, views: 389, uniqueViews: 280, helpful: 41, notHelpful: 5, publishedAt: "2026-05-09T10:00:00.000Z" },
+    { code: "KB-2026-0006", title: "How Subscription Billing Works", category: "billing", status: "Published", summary: "How AXIA bills tenants and issues invoices.", content: "# Subscription Billing\nAll revenue is collected by **AXIA**. Tenants always pay AXIA directly — partners never invoice tenants.\n\n| Frequency | Notes |\n| --- | --- |\n| Monthly | Billed each period |\n| Annual | May include a discount |\n\n> Receipts are issued only after a payment is verified.", keywords: ["billing","subscription","invoice","currency"], featured: true, views: 611, uniqueViews: 440, helpful: 70, notHelpful: 8, publishedAt: "2026-05-15T10:00:00.000Z" },
+    { code: "KB-2026-0007", title: "How to View Invoices", category: "billing", status: "Published", summary: "Find invoices, payments, and receipts for a tenant.", content: "# Viewing Invoices\nOpen a tenant and go to the **Billing** tab to see the subscription, invoices, payments, and receipts. Service Providers can also see all invoices under Billing Management → Invoices.", keywords: ["invoice","payment","receipt","view"], featured: false, views: 298, uniqueViews: 215, helpful: 30, notHelpful: 2, publishedAt: "2026-05-11T10:00:00.000Z" },
+    { code: "KB-2026-0008", title: "How Receipts Work", category: "billing", status: "Published", summary: "When and how receipts are generated.", content: "# Receipts\nA receipt is issued automatically once a payment is **verified**. Receipts reference the invoice and payment, and remain available for history.", keywords: ["receipt","payment verification"], featured: false, views: 176, uniqueViews: 127, helpful: 18, notHelpful: 1, publishedAt: "2026-05-08T10:00:00.000Z" },
+    { code: "KB-2026-0009", title: "How Partner Revenue Share Works", category: "partner", status: "Published", summary: "How partners earn revenue share on tenant invoices.", content: "# Partner Revenue Share\nOnly **partner-acquired** tenants generate revenue share. AXIA pays the partner a percentage of each tenant invoice based on the Partner Agreement.\n\n> Direct-acquired tenants do not generate partner revenue share.", keywords: ["partner","revenue share","payout","commission"], featured: true, views: 524, uniqueViews: 377, helpful: 58, notHelpful: 7, publishedAt: "2026-05-14T10:00:00.000Z" },
+    { code: "KB-2026-0010", title: "How Partner Tiers Work", category: "partner", status: "Published", summary: "Bronze, Silver, and Gold tiers and their share ranges.", content: "# Partner Tiers\n| Tier | Base | Maximum |\n| --- | --- | --- |\n| Bronze | 15% | 20% |\n| Silver | 20% | 30% |\n| Gold | 30% | 35% |\n\nCurrent share may vary within the approved tier range.", keywords: ["partner tier","bronze","silver","gold"], featured: false, views: 347, uniqueViews: 250, helpful: 38, notHelpful: 4, publishedAt: "2026-05-07T10:00:00.000Z" },
+    { code: "KB-2026-0011", title: "Cannot Activate Account", category: "troubleshooting", status: "Published", summary: "Steps to resolve activation link issues.", content: "# Cannot Activate Account\nActivation links expire for security.\n\n1. Check the email address the link was sent to.\n2. Use the Resend Activation option.\n3. Open the new link within the validity window.\n\n> If it still fails, create a ticket from Ticket Management.", keywords: ["activation","cannot activate","link expired","password"], featured: false, views: 903, uniqueViews: 650, helpful: 88, notHelpful: 21, publishedAt: "2026-05-16T10:00:00.000Z" },
+    { code: "KB-2026-0012", title: "Cannot Upload Files", category: "troubleshooting", status: "Published", summary: "Fixes for failed file uploads.", content: "# Cannot Upload Files\nSupported formats: PDF, DOCX, XLSX, PNG, JPG.\n\n- Confirm the file type is supported.\n- Large files may take longer — wait for the upload to finish.\n- Retry after refreshing if the upload stalls.", keywords: ["upload","file","attachment","error"], featured: false, views: 472, uniqueViews: 340, helpful: 40, notHelpful: 12, publishedAt: "2026-05-06T10:00:00.000Z" },
+    { code: "KB-2026-0013", title: "Cannot Access Framework", category: "troubleshooting", status: "Published", summary: "Why a framework may not be visible.", content: "# Cannot Access Framework\nFrameworks are assigned per site. Confirm the framework is assigned to the relevant site and that your account has access to that site.", keywords: ["framework access","permission","visibility"], featured: false, views: 213, uniqueViews: 153, helpful: 19, notHelpful: 6, publishedAt: "2026-05-05T10:00:00.000Z" },
+    { code: "KB-2026-0014", title: "Can One Tenant Have Multiple Sites?", category: "faq", status: "Published", summary: "Yes — tenants can have many sites.", content: "# Multiple Sites\nYes. A tenant can have many sites (Head Office, Factory, Warehouse, …) but exactly **one Primary Site**.", keywords: ["tenant","sites","multiple"], featured: false, views: 355, uniqueViews: 256, helpful: 48, notHelpful: 1, publishedAt: "2026-05-04T10:00:00.000Z" },
+    { code: "KB-2026-0015", title: "Can One Site Have Multiple Frameworks?", category: "faq", status: "Published", summary: "Yes — sites can carry several frameworks.", content: "# Multiple Frameworks per Site\nYes. A single site can implement several frameworks (e.g. a Factory running ISO 9001 and ISO 45001).", keywords: ["site","frameworks","multiple"], featured: false, views: 281, uniqueViews: 202, helpful: 34, notHelpful: 2, publishedAt: "2026-05-04T10:00:00.000Z" },
+    { code: "KB-2026-0016", title: "How Do I Reset My Password?", category: "faq", status: "Published", summary: "Reset your password from the Security tab.", content: "# Resetting Your Password\nOpen the account menu → **Security** → Change Password. New passwords must be at least 8 characters with an uppercase letter, a lowercase letter, and a number.", keywords: ["password","reset","security"], featured: false, views: 688, uniqueViews: 495, helpful: 74, notHelpful: 5, publishedAt: "2026-05-10T10:00:00.000Z" },
+    { code: "KB-2026-0017", title: "Version 1.0.0 Release Notes", category: "release", status: "Published", summary: "Initial VIBES platform release.", content: "# Version 1.0.0\nThe first VIBES release.\n\n- Organization, Team, Partner, Tenant, and Framework management\n- Partnership Agreements with a block editor\n- Billing Management with revenue share\n- Ticket Management with SLA tracking\n- Knowledge Base", keywords: ["release","changelog","1.0.0"], featured: false, views: 402, uniqueViews: 289, helpful: 36, notHelpful: 2, publishedAt: "2026-05-02T10:00:00.000Z" },
+    { code: "KB-2026-0018", title: "Tenant Onboarding Checklist (Draft)", category: "platform", status: "Draft", summary: "Internal draft checklist for tenant onboarding.", content: "# Onboarding Checklist (Draft)\n- Create tenant\n- Create primary site\n- Create administrator\n- Confirm activation\n\n> Draft — pending review before publishing.", keywords: ["onboarding","checklist","internal"], featured: false, views: 0, uniqueViews: 0, helpful: 0, notHelpful: 0, publishedAt: null },
   ];
   for (const a of kb) {
     await KbArticle.findOrCreate({
       where: { code: a.code },
-      defaults: { orgId: null, code: a.code, title: a.title, category: a.category, status: a.status, author: "AXIA Support", summary: a.summary, content: a.content, keywords: [], featured: a.featured, publishedAt: a.status === "Published" ? new Date() : null },
+      defaults: {
+        orgId: null, code: a.code, title: a.title, category: a.category, status: a.status, author: "AXIA Support",
+        summary: a.summary, content: a.content, keywords: a.keywords, featured: a.featured,
+        views: a.views, uniqueViews: a.uniqueViews, helpful: a.helpful, notHelpful: a.notHelpful,
+        publishedAt: a.publishedAt ? new Date(a.publishedAt) : null,
+      },
     });
   }
   const notifCount = await Notification.count({ where: { orgId: tenant.id } });
@@ -601,6 +777,7 @@ export async function seed(): Promise<void> {
       "Seed complete.",
       "  Org: AXIA (ServiceOwner)",
       "  Orgs: AXIA (ServiceOwner) → Nusantara Partners (Distributor) → Garuda Manufacturing (Tenant)",
+      "  Orgs: AXIA (ServiceOwner) → PT Stark Industries (Distributor) → PT Damage Control (Tenant) [ticket cross-partner isolation pair]",
       "  Roles: Super Admin (bypass), Administrator (full CRUD grants), User (read-only)",
       `  Users (password ${DEFAULT_PASSWORD}): soadmin / admin / user / partner / tenant`,
     ].join("\n"),

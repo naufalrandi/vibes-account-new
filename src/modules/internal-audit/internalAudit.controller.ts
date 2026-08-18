@@ -16,6 +16,13 @@ const reviewSchema = z.object({
   reviewNotes: z.string().max(4000).nullish(),
 });
 const routeSchema = z.object({ target: z.enum(["nc", "imp"]) });
+const moveSchema = z.object({
+  toPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "toPeriod must be YYYY-MM"),
+  toProcess: z.string().min(1).max(300).optional(),
+  toWorkUnit: z.string().max(300).nullish(),
+  mergeTargetId: z.string().min(1).max(80).optional(),
+  overrideReason: z.string().max(4000).optional(),
+});
 
 function guard(req: Request): AuthContext {
   if (!req.auth) throw new UnauthorizedError();
@@ -52,6 +59,7 @@ export const listSessions = wrap(async (req, res) => ok(res, await service.listS
 export const createSession = wrap(async (req, res) => ok(res, await service.createSession(guard(req), body.parse(req.body), orgOf(req), ip(req)), 201));
 export const updateSession = wrap(async (req, res) => ok(res, await service.updateSession(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
 export const setSessionStatus = wrap(async (req, res) => ok(res, await service.setSessionStatus(guard(req), req.params.id as string, statusSchema.parse(req.body).status, ip(req))));
+export const moveSession = wrap(async (req, res) => ok(res, await service.moveSession(guard(req), req.params.id as string, moveSchema.parse(req.body), ip(req))));
 export const addSessionComment = wrap(async (req, res) => ok(res, await service.addSessionComment(guard(req), req.params.id as string, commentSchema.parse(req.body).text, ip(req)), 201));
 
 // Findings

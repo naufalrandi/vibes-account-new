@@ -39,6 +39,9 @@ import { Notification } from "./notification.model";
 import { IaProgram, IaPlan, IaSession, IaFinding, IaReport, IaSettings } from "./internalAudit.models";
 import { CompetenceEducation, CompetenceSkill, CompetenceTraining, CompetenceRole, CompetenceAssignment, CompetenceAssessment, CompetenceGap, CompetenceExamInstrument, CompetencePracticalInstrument, CompetenceExamAttempt, CompetencePracticalAttempt } from "./competence.models";
 import { ApprovalScheme, ApprovalModuleMap, ApprovalPoolMember, ApprovalRecord, ApprovalSettings } from "./approval.models";
+import { DocumentSettings } from "./documentSettings.model";
+import { AwarenessSettings } from "./awarenessSettings.model";
+import { CompetenceSettings } from "./competenceSettings.model";
 import { ScopeDataset, MsScope } from "./scope.models";
 import { IpParty, IpRequirement } from "./interestedParty.models";
 import { DemoTenant } from "./demoTenant.model";
@@ -347,6 +350,9 @@ export {
   ApprovalPoolMember,
   ApprovalRecord,
   ApprovalSettings,
+  DocumentSettings,
+  AwarenessSettings,
+  CompetenceSettings,
   ScopeDataset,
   MsScope,
   IpParty,

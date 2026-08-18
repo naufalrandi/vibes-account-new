@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
-import { initModels, Organization, User, Role } from "../../db/models";
+import { initModels, Organization, User, Role, Site } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
@@ -291,6 +291,53 @@ describe("users", () => {
     expect(res.body.data.permissionMode).toBe("Custom Access");
     expect(res.body.data.permissions).toEqual(["team", "tenant"]);
     expect(res.body.data).not.toHaveProperty("passwordHash");
+  });
+
+  // OD tn-team member fields (migration 0047): Site / Type columns and the
+  // per-member business-process assignment behind `tmBpForm` / BP Count.
+  it("edits team-member fields (siteId, personnelType, processIds) via PATCH", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const site = await Site.create({
+      orgId: tenantOrgId, code: "SIT-0001", name: "HQ", type: "Head Office", country: null, address: null,
+      city: null, state: null, postalCode: null, status: "Active", isPrimary: true, description: null,
+      contactPerson: null, contactEmail: null, contactPhone: null,
+    });
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Peggy", username: "peggy", email: "peggy@acme.com" });
+    const id = created.body.data.id as string;
+
+    const res = await request(app).patch(`/v1/users/${id}`).set("authorization", `Bearer ${token}`)
+      .send({ siteId: site.id, personnelType: "Employee (Permanent Contract)", processIds: ["p1", "p2"] });
+    expect(res.status).toBe(200);
+    expect(res.body.data.siteId).toBe(site.id);
+    expect(res.body.data.personnelType).toBe("Employee (Permanent Contract)");
+    expect(res.body.data.processIds).toEqual(["p1", "p2"]);
+
+    // Clearing works, and the fields survive an unrelated PATCH untouched.
+    const cleared = await request(app).patch(`/v1/users/${id}`).set("authorization", `Bearer ${token}`)
+      .send({ siteId: null, processIds: [] });
+    expect(cleared.body.data.siteId).toBeNull();
+    expect(cleared.body.data.processIds).toEqual([]);
+    expect(cleared.body.data.personnelType).toBe("Employee (Permanent Contract)");
+  });
+
+  it("rejects a siteId belonging to another organization", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const other = await Organization.create({
+      name: "Other", code: "OTH", type: "Tenant", status: "Active",
+      parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null,
+    });
+    const foreign = await Site.create({
+      orgId: other.id, code: "SIT-0002", name: "Elsewhere", type: "Branch", country: null, address: null,
+      city: null, state: null, postalCode: null, status: "Active", isPrimary: false, description: null,
+      contactPerson: null, contactEmail: null, contactPhone: null,
+    });
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Bobby", username: "bobby", email: "bobby@acme.com" });
+    const res = await request(app).patch(`/v1/users/${created.body.data.id}`).set("authorization", `Bearer ${token}`)
+      .send({ siteId: foreign.id });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("SITE_NOT_FOUND");
   });
 
   it("rejects a duplicate email on edit", async () => {
