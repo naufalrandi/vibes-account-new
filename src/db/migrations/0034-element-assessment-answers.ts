@@ -19,7 +19,7 @@ export const up: Migration = async ({ context: q }) => {
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
   });
-  await q.addIndex("element_assessment_answers", ["element_id"]);
+  await q.sequelize.query('CREATE INDEX IF NOT EXISTS "element_assessment_answers_element_id" ON "element_assessment_answers" ("element_id")');
 };
 
 export const down: Migration = async ({ context: q }) => {

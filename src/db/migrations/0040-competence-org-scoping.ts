@@ -25,9 +25,9 @@ export const up: Migration = async ({ context: q }) => {
   await q.addColumn("competence_skills", "org_id", orgCol());
   await q.addColumn("competence_exam_instruments", "org_id", orgCol());
   await q.addColumn("competence_practical_instruments", "org_id", orgCol());
-  await q.addIndex("competence_skills", ["org_id"]);
-  await q.addIndex("competence_exam_instruments", ["org_id"]);
-  await q.addIndex("competence_practical_instruments", ["org_id"]);
+  await q.sequelize.query('CREATE INDEX IF NOT EXISTS "competence_skills_org_id" ON "competence_skills" ("org_id")');
+  await q.sequelize.query('CREATE INDEX IF NOT EXISTS "competence_exam_instruments_org_id" ON "competence_exam_instruments" ("org_id")');
+  await q.sequelize.query('CREATE INDEX IF NOT EXISTS "competence_practical_instruments_org_id" ON "competence_practical_instruments" ("org_id")');
 
   await q.addColumn("competence_exam_attempts", "status", { type: DataTypes.STRING, allowNull: false, defaultValue: "Completed" });
   await q.addColumn("competence_exam_attempts", "answers", { type: DataTypes.JSONB, allowNull: false, defaultValue: {} });

@@ -21,7 +21,7 @@ export const up: Migration = async ({ context: q }) => {
   await q.addColumn("ms_scopes", "lineage_id", { type: DataTypes.UUID, allowNull: true });
   await q.sequelize.query(`UPDATE "ms_scopes" SET "lineage_id" = "id" WHERE "lineage_id" IS NULL`);
   await q.changeColumn("ms_scopes", "lineage_id", { type: DataTypes.UUID, allowNull: false });
-  await q.addIndex("ms_scopes", ["lineage_id"]);
+  await q.sequelize.query('CREATE INDEX IF NOT EXISTS "ms_scopes_lineage_id" ON "ms_scopes" ("lineage_id")');
 };
 
 export const down: Migration = async ({ context: q }) => {

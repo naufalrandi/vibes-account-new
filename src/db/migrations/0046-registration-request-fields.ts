@@ -42,7 +42,7 @@ export const up: Migration = async ({ context: q }) => {
     });
   }
   await q.changeColumn("registration_requests", "code", { type: DataTypes.STRING, allowNull: false });
-  await q.addIndex("registration_requests", ["code"], { unique: true, name: "registration_requests_code_unique" });
+  await q.sequelize.query('CREATE UNIQUE INDEX IF NOT EXISTS "registration_requests_code_unique" ON "registration_requests" ("code")');
 };
 
 export const down: Migration = async ({ context: q }) => {

@@ -18,7 +18,7 @@ export const up: Migration = async ({ context: q }) => {
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
   });
-  await q.addIndex("record_events", ["org_id", "module", "record_id"]);
+  await q.sequelize.query('CREATE INDEX IF NOT EXISTS "record_events_org_id_module_record_id" ON "record_events" ("org_id", "module", "record_id")');
 };
 
 export const down: Migration = async ({ context: q }) => {

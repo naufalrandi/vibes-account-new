@@ -25,7 +25,7 @@ export const up: Migration = async ({ context: q }) => {
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
   });
-  await q.addIndex("role_templates", ["org_id"]);
+  await q.sequelize.query('CREATE INDEX IF NOT EXISTS "role_templates_org_id" ON "role_templates" ("org_id")');
 
   await q.createTable("role_assignments", {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
@@ -50,8 +50,8 @@ export const up: Migration = async ({ context: q }) => {
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
   });
-  await q.addIndex("role_assignments", ["org_id"]);
-  await q.addIndex("role_assignments", ["role_id"]);
+  await q.sequelize.query('CREATE INDEX IF NOT EXISTS "role_assignments_org_id" ON "role_assignments" ("org_id")');
+  await q.sequelize.query('CREATE INDEX IF NOT EXISTS "role_assignments_role_id" ON "role_assignments" ("role_id")');
 };
 
 export const down: Migration = async ({ context: q }) => {
