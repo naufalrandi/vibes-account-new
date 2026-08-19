@@ -4,6 +4,23 @@ import { sequelize } from "./sequelize";
 
 const migrationExtension = __filename.endsWith(".ts") ? "ts" : "js";
 
+class NormalizedSequelizeStorage extends SequelizeStorage {
+  override async executed(): Promise<string[]> {
+    const executed = await super.executed();
+    return Array.from(new Set(executed.map((name) => name.replace(/\.(ts|js)$/, ""))));
+  }
+
+  override async logMigration(params: { name: string }): Promise<void> {
+    const normalizedName = params.name.replace(/\.(ts|js)$/, "");
+    await super.logMigration({ name: normalizedName });
+  }
+
+  override async unlogMigration(params: { name: string }): Promise<void> {
+    const normalizedName = params.name.replace(/\.(ts|js)$/, "");
+    await super.unlogMigration({ name: normalizedName });
+  }
+}
+
 export const migrator = new Umzug({
   migrations: {
     glob: [`migrations/*.${migrationExtension}`, { cwd: __dirname }],
@@ -13,15 +30,16 @@ export const migrator = new Umzug({
       if (!path) {
         throw new Error(`Migration ${name} is missing a file path`);
       }
+      const normalizedName = name.replace(/\.(ts|js)$/, "");
       return {
-        name,
+        name: normalizedName,
         up: async () => (await import(path)).up({ context }),
         down: async () => (await import(path)).down({ context }),
       };
     },
   },
   context: sequelize.getQueryInterface(),
-  storage: new SequelizeStorage({ sequelize }),
+  storage: new NormalizedSequelizeStorage({ sequelize }),
   logger: console,
 });
 

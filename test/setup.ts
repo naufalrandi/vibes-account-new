@@ -36,20 +36,9 @@ beforeAll(async () => {
   // ON DELETE CASCADE constraints that production enforces. Running the actual
   // migration guarantees the test schema mirrors production exactly.
   const { migrator } = await import("../src/db/migrate");
-  // Drop everything (including the SequelizeMeta tracking table) so each run
-  // rebuilds a clean schema and the migrator replays from scratch.
-  await sequelize.getQueryInterface().dropAllTables();
-  await sequelize.query('DROP TABLE IF EXISTS "SequelizeMeta" CASCADE');
-  // Postgres ENUM types created by Sequelize survive dropAllTables(); drop them
-  // too, otherwise the migration fails with "type already exists" on re-runs.
-  await sequelize.query(
-    `DO $$ DECLARE r record; BEGIN
-       FOR r IN (SELECT t.typname FROM pg_type t
-                 JOIN pg_namespace n ON n.oid = t.typnamespace
-                 WHERE t.typtype = 'e' AND n.nspname = 'public')
-       LOOP EXECUTE 'DROP TYPE IF EXISTS "' || r.typname || '" CASCADE'; END LOOP;
-     END $$;`,
-  );
+  await sequelize.query('DROP SCHEMA IF EXISTS public CASCADE');
+  await sequelize.query('CREATE SCHEMA public');
+  await sequelize.query('GRANT ALL ON SCHEMA public TO public');
   await migrator.up();
 });
 
