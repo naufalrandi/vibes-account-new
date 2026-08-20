@@ -247,10 +247,16 @@ describe("ISO clause registers (implementation)", () => {
 
   // A minimal CAP payload for the tests below — RCA/corrective action/PIC/due
   // are what a real `capForm` submission always carries; each test overrides
-  // just the implementation/effectiveness fields it's exercising.
+  // just the implementation/effectiveness fields it's exercising. Mirrors the
+  // real client (`CapEditorModal.tsx`'s `submit`): the CAP fields are nested
+  // under `data.cap`, not flattened onto `data` — `applyCapSideEffects`
+  // (implementation.service.ts) reads `data.cap` and early-returns when it's
+  // absent, and itself derives the top-level `pic`/`due`/`capStatus`.
   const capData = (extra: Record<string, unknown> = {}) => ({
-    rca: "Checklist did not require the field", correctiveAction: "Add the field to the checklist",
-    pic: "QA Lead", due: "2026-07-01", implementationStatus: "Pending Effectiveness Check", ...extra,
+    cap: {
+      rca: "Checklist did not require the field", correctiveAction: "Add the field to the checklist",
+      pic: "QA Lead", due: "2026-07-01", implementationStatus: "Pending Effectiveness Check", ...extra,
+    },
   });
 
   // OD `ncClose` (11460) blocks closure while the CAP's own effectiveness

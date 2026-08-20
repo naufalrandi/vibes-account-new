@@ -20,9 +20,11 @@ import { ACTIONS } from "../iam/actions.catalog";
  * `id` — so a role's `expReqs[].sector` / `eduFields[]` entries are compared
  * against `code` below, the same way `referenceDb.service.ts` now cascades.
  *
- * Education levels are exercised here against the now-DEPRECATED/ORPHANED
- * `ReferenceEducationLevel` table only, to prove its own (unused) cascade
- * logic still behaves internally consistently pending removal. The LIVE
+ * The deprecated/orphaned `ReferenceEducationLevel` table's own delete
+ * cascade is NOT exercised here: `competence_roles.edu_min_level_id` carries
+ * a foreign key onto `CompetenceEducation`, so a role can never actually
+ * point at a `ReferenceEducationLevel` row — asserting that cascade would
+ * test behavior the schema makes physically impossible. The LIVE
  * education-level cascade that role profiles actually hit lives on the
  * unified `CompetenceEducation` store — see
  * `competence.integration.test.ts`'s "education level delete cascade" test.
@@ -55,33 +57,6 @@ function makeRole(orgId: string, overrides: Partial<Parameters<typeof Competence
 describe("reference database delete cascades (G-05)", () => {
   beforeAll(() => initModels());
   afterEach(() => resetDb());
-
-  // Exercises the deprecated/orphaned `ReferenceEducationLevel` table (see
-  // referenceDb.service.ts) — nothing in production sets a role's
-  // `eduMinLevelId` to one of these rows' ids anymore, so this only proves
-  // the DB-level cascade still behaves pending removal, not that it fires
-  // in practice. See `competence.integration.test.ts` for the live cascade.
-  it("clears eduMinLevelId on referencing roles when an education level is deleted", async () => {
-    const { token, orgId } = await makeTenant("casc1", "CASC1");
-    const list = await request(app).get("/v1/reference-db/education-levels").set(authed(token));
-    const level8 = list.body.data.find((l: { level: number }) => l.level === 8);
-
-    const referencing = await makeRole(orgId, { eduMinLevelId: level8.id });
-    const untouched = await makeRole(orgId, { name: "Other Role", eduMinLevelId: null });
-
-    const del = await request(app).delete(`/v1/reference-db/education-levels/${level8.id}`).set(authed(token));
-    expect(del.status).toBe(200);
-    expect(del.body.data.affectedRoles).toBe(1);
-
-    await referencing.reload();
-    await untouched.reload();
-    expect(referencing.eduMinLevelId).toBeNull();
-    expect(untouched.eduMinLevelId).toBeNull();
-
-    // The level itself is gone.
-    const after = await request(app).get("/v1/reference-db/education-levels").set(authed(token));
-    expect(after.body.data.find((l: { id: string }) => l.id === level8.id)).toBeUndefined();
-  });
 
   it("clears matching expReqs[].sector entries (by code) on referencing roles when an industry sector is deleted, leaving other entries intact", async () => {
     const { token, orgId } = await makeTenant("casc2", "CASC2");

@@ -27,10 +27,17 @@ describe("competence libraries", () => {
 
   it("SP manages global skills, education and SP-training", async () => {
     const sp = await makeOrg("co-sp", "COSP", "ServiceOwner");
-    const skill = await request(app).post("/v1/competence/skills").set(authed(sp.token)).send({ name: "Internal Auditing", type: "hard", methods: ["Written exam", "Practical assessment"] });
+    // "Internal Auditing" collides with one of the 8 base-seeded Competence
+    // Library skills (`BASE_SKILLS`, skillLibrary.ts) — use a name that can't
+    // collide so the created row is unambiguously identifiable below. The
+    // library is now globally seeded (290 rows), so assertions here check the
+    // created/visible row itself rather than an exact global count.
+    const skill = await request(app).post("/v1/competence/skills").set(authed(sp.token)).send({ name: "SP Bespoke Hard Skill", type: "hard", methods: ["Written exam", "Practical assessment"] });
     expect(skill.status).toBe(201);
-    expect(skill.body.data).toMatchObject({ name: "Internal Auditing", type: "hard" });
-    expect((await request(app).get("/v1/competence/skills").set(authed(sp.token))).body.data).toHaveLength(1);
+    expect(skill.body.data).toMatchObject({ name: "SP Bespoke Hard Skill", type: "hard", orgId: null });
+    const skillsList = (await request(app).get("/v1/competence/skills").set(authed(sp.token))).body.data;
+    const foundSkill = skillsList.find((s: { id: string }) => s.id === skill.body.data.id);
+    expect(foundSkill).toMatchObject({ name: "SP Bespoke Hard Skill", type: "hard", orgId: null });
     // Invalid type rejected.
     expect((await request(app).post("/v1/competence/skills").set(authed(sp.token)).send({ name: "X", type: "bogus" })).status).toBe(400);
 
@@ -39,28 +46,39 @@ describe("competence libraries", () => {
     // Duplicate level rejected.
     expect((await request(app).post("/v1/competence/education").set(authed(sp.token)).send({ level: 6, label: "dup" })).status).toBe(400);
 
-    const tr = await request(app).post("/v1/competence/training").set(authed(sp.token)).send({ name: "ISO 9001 Lead Auditor" });
+    // "ISO 9001 Lead Auditor" collides with a seeded Training Catalog course
+    // (`TRAINING_LIBRARY`) — use a bespoke name for the same reason as above.
+    const tr = await request(app).post("/v1/competence/training").set(authed(sp.token)).send({ name: "SP Bespoke Training Course" });
     expect(tr.body.data).toMatchObject({ source: "SP", orgId: null });
   });
 
   it("tenants see global libraries + SP training and own their tenant training", async () => {
     const sp = await makeOrg("co-sp2", "COSP2", "ServiceOwner");
-    const spSkill = (await request(app).post("/v1/competence/skills").set(authed(sp.token)).send({ name: "Risk Assessment", type: "hard" })).body.data;
+    // "Risk Assessment" collides with a base-seeded skill — see the note in
+    // the previous test.
+    const spSkill = (await request(app).post("/v1/competence/skills").set(authed(sp.token)).send({ name: "Test SP Global Skill", type: "hard" })).body.data;
     expect(spSkill.orgId).toBeNull();
-    await request(app).post("/v1/competence/training").set(authed(sp.token)).send({ name: "Risk Fundamentals" });
+    const spTraining = (await request(app).post("/v1/competence/training").set(authed(sp.token)).send({ name: "Risk Fundamentals" })).body.data;
 
     const a = await makeOrg("co-ta", "COTA", "Tenant");
     const b = await makeOrg("co-tb", "COTB", "Tenant");
-    // Global skill + SP training are visible to tenants.
-    expect((await request(app).get("/v1/competence/skills").set(authed(a.token))).body.data).toHaveLength(1);
-    expect((await request(app).get("/v1/competence/training").set(authed(a.token))).body.data).toHaveLength(1);
+    // Global skill + SP training are visible to tenants — checked by presence,
+    // not exact list length, since the library now ships 290 seeded rows.
+    const aSkillsInitial = (await request(app).get("/v1/competence/skills").set(authed(a.token))).body.data;
+    expect(aSkillsInitial.find((s: { id: string }) => s.id === spSkill.id)).toMatchObject({ name: "Test SP Global Skill", orgId: null });
+    const aTrainingInitial = (await request(app).get("/v1/competence/training").set(authed(a.token))).body.data;
+    expect(aTrainingInitial.find((t: { id: string }) => t.id === spTraining.id)).toMatchObject({ name: "Risk Fundamentals", source: "SP" });
 
-    // A tenant's own skill is org-scoped: A sees global + own (2), B only global (1);
+    // A tenant's own skill is org-scoped: A sees global + own, B only global;
     // B cannot mutate A's skill and no tenant can touch the global row.
     const ownSkill = (await request(app).post("/v1/competence/skills").set(authed(a.token)).send({ name: "Site SOP", type: "hard" })).body.data;
     expect(ownSkill.orgId).toBe(a.orgId);
-    expect((await request(app).get("/v1/competence/skills").set(authed(a.token))).body.data).toHaveLength(2);
-    expect((await request(app).get("/v1/competence/skills").set(authed(b.token))).body.data).toHaveLength(1);
+    const aSkills = (await request(app).get("/v1/competence/skills").set(authed(a.token))).body.data;
+    expect(aSkills.some((s: { id: string }) => s.id === spSkill.id)).toBe(true);
+    expect(aSkills.some((s: { id: string }) => s.id === ownSkill.id)).toBe(true);
+    const bSkills = (await request(app).get("/v1/competence/skills").set(authed(b.token))).body.data;
+    expect(bSkills.some((s: { id: string }) => s.id === spSkill.id)).toBe(true);
+    expect(bSkills.some((s: { id: string }) => s.id === ownSkill.id)).toBe(false);
     expect((await request(app).put(`/v1/competence/skills/${ownSkill.id}`).set(authed(b.token)).send({ name: "x" })).status).toBe(403);
     expect((await request(app).put(`/v1/competence/skills/${spSkill.id}`).set(authed(a.token)).send({ name: "x" })).status).toBe(403);
     expect((await request(app).delete(`/v1/competence/skills/${spSkill.id}`).set(authed(a.token))).status).toBe(403);
@@ -71,9 +89,13 @@ describe("competence libraries", () => {
     // Tenant A creates its own training → source Tenant, org-scoped.
     const own = await request(app).post("/v1/competence/training").set(authed(a.token)).send({ name: "Internal SOP Training" });
     expect(own.body.data).toMatchObject({ source: "Tenant", orgId: a.orgId });
-    // A sees SP + own (2); B sees only SP (1) — not A's tenant course.
-    expect((await request(app).get("/v1/competence/training").set(authed(a.token))).body.data).toHaveLength(2);
-    expect((await request(app).get("/v1/competence/training").set(authed(b.token))).body.data).toHaveLength(1);
+    // A sees SP + own; B sees only SP — not A's tenant course.
+    const aTraining = (await request(app).get("/v1/competence/training").set(authed(a.token))).body.data;
+    expect(aTraining.some((t: { id: string }) => t.id === spTraining.id)).toBe(true);
+    expect(aTraining.some((t: { id: string }) => t.id === own.body.data.id)).toBe(true);
+    const bTraining = (await request(app).get("/v1/competence/training").set(authed(b.token))).body.data;
+    expect(bTraining.some((t: { id: string }) => t.id === spTraining.id)).toBe(true);
+    expect(bTraining.some((t: { id: string }) => t.id === own.body.data.id)).toBe(false);
     // B cannot edit A's training.
     expect((await request(app).put(`/v1/competence/training/${own.body.data.id}`).set(authed(b.token)).send({ name: "x" })).status).toBe(403);
   });

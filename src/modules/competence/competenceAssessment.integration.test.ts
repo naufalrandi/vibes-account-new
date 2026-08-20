@@ -27,9 +27,9 @@ async function makeTenant(username: string, code: string, actions: string[] = CO
 async function scaffold(token: string) {
   // The ISCED ladder is SP-managed reference data (tenant writes 403) — seed it directly.
   const edu = (await CompetenceEducation.create({ level: 6, label: "Bachelor's", description: null })).get({ plain: true });
-  const hard = (await request(app).post("/v1/competence/skills").set(authed(token)).send({ name: "Internal Auditing", type: "hard", methods: ["Written exam"] })).body.data;
-  const soft = (await request(app).post("/v1/competence/skills").set(authed(token)).send({ name: "Communication", type: "soft" })).body.data;
-  const tr = (await request(app).post("/v1/competence/training").set(authed(token)).send({ name: "ISO 9001 Lead Auditor" })).body.data;
+  const hard = (await request(app).post("/v1/competence/skills").set(authed(token)).send({ name: "CA Bespoke Hard Skill", type: "hard", methods: ["Written exam"] })).body.data;
+  const soft = (await request(app).post("/v1/competence/skills").set(authed(token)).send({ name: "CA Bespoke Soft Skill", type: "soft" })).body.data;
+  const tr = (await request(app).post("/v1/competence/training").set(authed(token)).send({ name: "CA Bespoke Training Course" })).body.data;
   const role = (await request(app).post("/v1/competence/roles").set(authed(token)).send({
     name: "Quality Manager", reviewFreq: "12", eduMinLevelId: edu.id,
     responsibilities: [{ id: "r1", text: "Lead audits", comps: [{ kind: "hard", refId: hard.id, necessity: "Required", level: 3, reviewFreq: "6" }, { kind: "training", refId: tr.id, necessity: "Required" }] }],
