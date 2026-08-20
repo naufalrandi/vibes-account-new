@@ -35,18 +35,16 @@ describe("business unit registers", () => {
   });
 
   // OD numbers the Sales entities from their own bases with fixed stems
-  // (`leadNextId` index.html:29329, `propNextId` :30236, `prjNextId` :30389).
-  // The derived abbreviation would give "LEA", and would collide "PRO" for both
-  // proposals and projects.
-  it("uses OD's own code stems for the Sales modules", async () => {
+  // (`leadNextId` index.html:29329, `inqNextId` :29903, `propNextId` :30236, `prjNextId` :30389, `plNextId` :30513).
+  it("uses OD's own code stems and numeric bases for the Sales modules", async () => {
     const a = await actor("SP", "sp1", ALL);
     const mk = (mod: string, title: string) =>
       request(app).post(`/v1/business/enterprise/${mod}`).set(authed(a.token)).send({ title });
-    expect((await mk("ent-leads", "PT Sinar Jaya")).body.data.code).toBe("LD-0001");
-    expect((await mk("ent-inq", "Website enquiry")).body.data.code).toBe("INQ-0001");
-    expect((await mk("ent-proposals", "ISO 9001 implementation")).body.data.code).toBe("PRO-0001");
-    expect((await mk("ent-projects", "ISO 9001 rollout")).body.data.code).toBe("PRJ-0001");
-    expect((await mk("ent-leads-people", "Andi Wijaya")).body.data.code).toBe("PL-0001");
+    expect((await mk("ent-leads", "PT Sinar Jaya")).body.data.code).toBe("LD-2001");
+    expect((await mk("ent-inq", "Website enquiry")).body.data.code).toBe("INQ-3001");
+    expect((await mk("ent-proposals", "ISO 9001 implementation")).body.data.code).toBe("PRO-4001");
+    expect((await mk("ent-projects", "ISO 9001 rollout")).body.data.code).toBe("PRJ-6001");
+    expect((await mk("ent-leads-people", "Andi Wijaya")).body.data.code).toBe("PL-001");
   });
 
   // OD `PLATFORM` (index.html:5848-5874) carries five areas, not four —
@@ -99,5 +97,40 @@ describe("business unit registers", () => {
     expect((await request(app).get("/v1/business/enterprise/ent-leads").set(authed(a.token))).body.data).toHaveLength(1);
     expect((await request(app).get("/v1/business/enterprise/ent-inq").set(authed(a.token))).body.data).toHaveLength(1);
     expect((await request(app).get("/v1/business/enterprise/ent-leads").set(authed(b.token))).body.data).toHaveLength(0);
+  });
+
+  // Wave C: Operating company scoping (AXIA vs Exelera)
+  it("scopes records by company (Wave C)", async () => {
+    const a = await actor("SP", "sp1", ALL);
+    await request(app).post("/v1/business/enterprise/ent-leads").set(authed(a.token)).send({ title: "AXIA Lead", company: "axia" });
+    await request(app).post("/v1/business/enterprise/ent-leads").set(authed(a.token)).send({ title: "Exelera Lead", company: "exelera" });
+
+    const axiaList = await request(app).get("/v1/business/enterprise/ent-leads?company=axia").set(authed(a.token));
+    expect(axiaList.body.data).toHaveLength(1);
+    expect(axiaList.body.data[0].title).toBe("AXIA Lead");
+
+    const exeleraList = await request(app).get("/v1/business/enterprise/ent-leads?company=exelera").set(authed(a.token));
+    expect(exeleraList.body.data).toHaveLength(1);
+    expect(exeleraList.body.data[0].title).toBe("Exelera Lead");
+  });
+
+  // Wave B-2: Server-side referential guards on lead delete
+  it("blocks deleting a lead with downstream dependents (B-2)", async () => {
+    const a = await actor("SP", "sp1", ALL);
+    const lead = (await request(app).post("/v1/business/enterprise/ent-leads").set(authed(a.token)).send({ title: "Acme Corp" })).body.data;
+    await request(app).post("/v1/business/enterprise/ent-inq").set(authed(a.token)).send({ title: "Inquiry 1", data: { leadId: lead.code } });
+
+    const del = await request(app).delete(`/v1/business/enterprise/ent-leads/${lead.id}`).set(authed(a.token));
+    expect(del.status).toBe(400);
+    expect(del.body.error.message).toMatch(/Has 1 inquiry\(s\) and 0 project\(s\) — cannot delete/);
+  });
+
+  it("blocks deleting a tenant-linked lead (B-2)", async () => {
+    const a = await actor("SP", "sp1", ALL);
+    const lead = (await request(app).post("/v1/business/enterprise/ent-leads").set(authed(a.token)).send({ title: "Tenant Lead", data: { tenantId: "tn-123" } })).body.data;
+
+    const del = await request(app).delete(`/v1/business/enterprise/ent-leads/${lead.id}`).set(authed(a.token));
+    expect(del.status).toBe(400);
+    expect(del.body.error.message).toBe("Tenant-linked lead — remove the tenant instead");
   });
 });

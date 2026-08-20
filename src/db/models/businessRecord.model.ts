@@ -2,6 +2,7 @@ import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, t
 import { sequelize } from "../sequelize";
 
 export type BusinessArea = "enterprise" | "datana" | "motoran" | "exelera";
+export type OperatingCompany = "axia" | "exelera";
 
 /**
  * A row in any Business Unit register (Enterprise ERP, Datana, Motoran,
@@ -22,6 +23,7 @@ export class BusinessRecord extends Model<
   declare title: string;
   declare status: string;
   declare owner: string | null;
+  declare company: CreationOptional<string>;
   declare data: CreationOptional<Record<string, unknown>>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -37,6 +39,7 @@ BusinessRecord.init(
     title: { type: DataTypes.STRING, allowNull: false },
     status: { type: DataTypes.STRING, allowNull: false },
     owner: { type: DataTypes.STRING, allowNull: true },
+    company: { type: DataTypes.STRING, allowNull: false, defaultValue: "axia" },
     data: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,

@@ -9,6 +9,7 @@ const inputSchema = z.object({
   title: z.string().optional(),
   status: z.string().optional(),
   owner: z.string().nullish(),
+  company: z.string().optional(),
   data: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -19,7 +20,8 @@ const guard = (req: Request): AuthContext => {
 
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
-    const rows = await service.listBusiness(guard(req), req.params.area as string, req.params.module as string);
+    const company = (req.query.company as string) || (req.headers["x-company"] as string);
+    const rows = await service.listBusiness(guard(req), req.params.area as string, req.params.module as string, company);
     sendOk(res, rows, 200, { page: 1, limit: rows.length, total: rows.length });
   } catch (e) { next(e); }
 }

@@ -156,6 +156,14 @@ export const MS_MODULES: Record<string, RegisterModule> = {
   psr: { prefix: "PSR", statuses: ["Draft", "Reviewed", "Approved", "Archived"] },
   design: { prefix: "DSG", statuses: ["Planning", "In Progress", "Verification", "Validation", "Complete"] },
   provision: { prefix: "PRV", statuses: ["Draft", "Active", "Controlled", "Archived"] },
+
+  // --- Business unit registers & frameworks (ISO 17021, ISO 17024, ISO 17025, ISO 27001, ISO 45001) ---
+  "cab-clients": { prefix: "CB", statuses: ["Applicant", "Certified", "Surveillance Due", "Suspended", "Withdrawn"] },
+  "pcb-persons": { prefix: "PC", statuses: ["Applicant", "Exam Scheduled", "Certified", "Recertification Due", "Suspended", "Withdrawn"] },
+  "lab-scope": { prefix: "LSC", statuses: ["Draft", "Accredited", "Pending", "Suspended", "Withdrawn", "Archived"] },
+  isra: { prefix: "RSC", statuses: ["Suggested", "Confirmed", "Needs Review", "Treated", "Monitored", "Archived"] },
+  soa: { prefix: "SOA", statuses: ["Draft", "Applicable", "Not Applicable", "Implemented", "Archived"] },
+  hira: { prefix: "HIR", statuses: ["Identified", "Assessed", "Treated", "Monitored", "Archived"] },
 };
 
 export type MsModuleKey = keyof typeof MS_MODULES;
