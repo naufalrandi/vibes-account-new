@@ -298,7 +298,7 @@ describe("Awareness acknowledgment/evaluation stack", () => {
     expect(res.status).toBe(201);
     const training = res.body.data.training;
     expect(training.module).toBe("training");
-    expect(training.code).toBe("TRN-0001");
+    expect(training.code).toBe("TP-0001");
     expect(training.status).toBe("Planned");
     expect(training.title).toContain("Awareness re-training");
     expect(training.data).toMatchObject({
@@ -306,12 +306,12 @@ describe("Awareness acknowledgment/evaluation stack", () => {
       awTopicId: topic.id, awEvalId: ev.id,
     });
     const updated = (res.body.data.campaign.data.evals as EvalRow[]).find((e) => e.id === ev.id)!;
-    expect(updated.followupActionId).toBe("TRN-0001");
+    expect(updated.followupActionId).toBe("TP-0001");
     expect(updated.trainingPlanId).toBe(training.id);
 
     // It lands in the training register.
     const list = await request(app).get("/v1/implementation/training").set(authed(token));
-    expect(list.body.data.map((r: { code: string }) => r.code)).toContain("TRN-0001");
+    expect(list.body.data.map((r: { code: string }) => r.code)).toContain("TP-0001");
   });
 
   // --- Derived roll-ups + statuses -------------------------------------------

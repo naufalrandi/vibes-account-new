@@ -50,6 +50,9 @@ competenceRoutes.post("/assessments/:id/approve", manage, c.approveAssessment);
 // Development gaps
 competenceRoutes.get("/gaps", read, c.listGaps);
 competenceRoutes.put("/gaps/:id", manage, c.updateGap);
+// Disposition actions (OD `compGapLinkTraining` / `compGapNoTraining`)
+competenceRoutes.post("/gaps/:id/link-training-plan", manage, c.linkGapTrainingPlan);
+competenceRoutes.post("/gaps/:id/no-training", manage, c.markGapNoTrainingRequired);
 
 // Assessment instruments — exam ladder (L1–L3)
 competenceRoutes.get("/instruments/exams", read, c.listExams);

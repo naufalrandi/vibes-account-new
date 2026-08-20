@@ -45,3 +45,7 @@ export function roleSuggestions(req: Request, res: Response) {
   cacheable(res);
   sendOk(res, service.roleSuggestions(str(req.query.q)));
 }
+export function skillTopics(_req: Request, res: Response) {
+  cacheable(res);
+  sendOk(res, service.skillTopics());
+}

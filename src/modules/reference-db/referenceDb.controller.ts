@@ -18,23 +18,23 @@ const ok = (res: Response, data: unknown, code = 200) =>
 const wrap = (fn: (req: Request, res: Response) => Promise<void>) =>
   async (req: Request, res: Response, next: NextFunction) => { try { await fn(req, res); } catch (e) { next(e); } };
 
-// Education Levels
+// Education Levels [DEPRECATED / ORPHANED — see referenceDb.service.ts]
 export const listEducationLevels = wrap(async (req, res) => ok(res, await service.listEducationLevels(guard(req))));
 export const createEducationLevel = wrap(async (req, res) => ok(res, await service.createEducationLevel(guard(req), body.parse(req.body), ip(req)), 201));
 export const updateEducationLevel = wrap(async (req, res) => ok(res, await service.updateEducationLevel(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
-export const deleteEducationLevel = wrap(async (req, res) => { await service.deleteEducationLevel(guard(req), req.params.id as string, ip(req)); ok(res, { id: req.params.id }); });
+export const deleteEducationLevel = wrap(async (req, res) => { const r = await service.deleteEducationLevel(guard(req), req.params.id as string, ip(req)); ok(res, { id: req.params.id, ...r }); });
 
 // Industry Sectors
 export const listIndustrySectors = wrap(async (req, res) => ok(res, await service.listIndustrySectors(guard(req))));
 export const createIndustrySector = wrap(async (req, res) => ok(res, await service.createIndustrySector(guard(req), body.parse(req.body), ip(req)), 201));
 export const updateIndustrySector = wrap(async (req, res) => ok(res, await service.updateIndustrySector(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
-export const deleteIndustrySector = wrap(async (req, res) => { await service.deleteIndustrySector(guard(req), req.params.id as string, ip(req)); ok(res, { id: req.params.id }); });
+export const deleteIndustrySector = wrap(async (req, res) => { const r = await service.deleteIndustrySector(guard(req), req.params.id as string, ip(req)); ok(res, { id: req.params.id, ...r }); });
 
 // Fields of Education
 export const listEducationFields = wrap(async (req, res) => ok(res, await service.listEducationFields(guard(req))));
 export const createEducationField = wrap(async (req, res) => ok(res, await service.createEducationField(guard(req), body.parse(req.body), ip(req)), 201));
 export const updateEducationField = wrap(async (req, res) => ok(res, await service.updateEducationField(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
-export const deleteEducationField = wrap(async (req, res) => { await service.deleteEducationField(guard(req), req.params.id as string, ip(req)); ok(res, { id: req.params.id }); });
+export const deleteEducationField = wrap(async (req, res) => { const r = await service.deleteEducationField(guard(req), req.params.id as string, ip(req)); ok(res, { id: req.params.id, ...r }); });
 
 // Sector Frameworks
 export const listSectorFrameworks = wrap(async (req, res) => ok(res, await service.listSectorFrameworks(guard(req))));

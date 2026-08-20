@@ -11,6 +11,10 @@ const manage = requireAction(ACTIONS.BUSINESS_MANAGE);
 
 export const referenceDbRoutes = Router();
 
+// [DEPRECATED / ORPHANED — see referenceDb.service.ts "Education Levels"
+// section] the Enterprise Education Levels page now reads/writes
+// `/v1/competence/education` instead (the store roles actually reference).
+// Kept live only for schema stability; slated for removal in a follow-up.
 referenceDbRoutes.get("/education-levels", read, c.listEducationLevels);
 referenceDbRoutes.post("/education-levels", manage, c.createEducationLevel);
 referenceDbRoutes.put("/education-levels/:id", manage, c.updateEducationLevel);

@@ -21,6 +21,11 @@ implementationRoutes.post("/awareness-campaigns/:id/acks/:ackId/waive", requireA
 implementationRoutes.post("/awareness-campaigns/:id/evals/:evalId/result", requireAction(ACTIONS.MS_MANAGE), c.recordAwarenessEvaluation);
 implementationRoutes.post("/awareness-campaigns/:id/evals/:evalId/followup", requireAction(ACTIONS.MS_MANAGE), c.createAwarenessFollowup);
 implementationRoutes.post("/awareness-campaigns/:id/evals/:evalId/training-plan", requireAction(ACTIONS.MS_MANAGE), c.awarenessEvalToTraining);
+// Training Plan lifecycle (OD `tpComplete` / `tpReassess` / `tpSet`) —
+// registered before the generic routes for the same reason as the blocks above.
+implementationRoutes.post("/training/:id/complete", requireAction(ACTIONS.MS_MANAGE), c.completeTraining);
+implementationRoutes.post("/training/:id/reassess", requireAction(ACTIONS.MS_MANAGE), c.reassessTraining);
+implementationRoutes.post("/training/:id/set-status", requireAction(ACTIONS.MS_MANAGE), c.setTrainingStatus);
 implementationRoutes.get("/:module", requireAction(ACTIONS.MS_READ), c.list);
 implementationRoutes.post("/:module", requireAction(ACTIONS.MS_MANAGE), c.create);
 implementationRoutes.post("/concerns/:id/route", requireAction(ACTIONS.MS_MANAGE), c.routeConcern);

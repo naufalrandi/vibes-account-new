@@ -1,5 +1,6 @@
 import {
   ISIC, ISIC_NOTES, NACE, NACE_NOTES, KBLI, KBLI_NOTES, ISCEDF, EXAM_BANK, ROLE_SUGGESTIONS, ROLE_SUGGEST_COMMON,
+  SKILL_TOPICS,
   type HierNode, type ExamQuestion, type RoleSuggestion,
 } from "./reference.data";
 
@@ -53,4 +54,12 @@ export function roleSuggestions(q?: string): RoleSuggestionsResult {
     return { r, score };
   }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
   return { roles: scored.map((x) => x.r), common: ROLE_SUGGEST_COMMON };
+}
+
+/** OD `SKILL_TOPICS` (index.html:17834) — the canonical, ordered topic list
+ * the Competence Library groups skills under (OD `clibSkills()`, 17862-17868).
+ * Each skill's own topic is served pre-computed on `GET /competence/skills`
+ * (via `skillTopic`) so the frontend doesn't re-implement the classifier. */
+export function skillTopics(): readonly string[] {
+  return SKILL_TOPICS;
 }

@@ -22,6 +22,12 @@ import {
   Gap,
   FrameworkAssignment,
   ImplementationRecord,
+  RecordEvent,
+  IaProgram,
+  IaPlan,
+  IaSession,
+  IaFinding,
+  IaReport,
   TestingService,
   KbArticle,
   Notification,
@@ -567,21 +573,466 @@ export async function seed(): Promise<void> {
 
   // 14. Phase 9 — a few ISO clause-register entries for the tenant so the
   //     Management-System registers render real data on first load.
-  const msSeed: { module: string; code: string; title: string; status: string; owner: string | null; data: Record<string, unknown>; elementId?: string | null }[] = [
-    { module: "context", code: "OCX-0001", title: "New data-protection regulation in target market", status: "Monitored", owner: "MS Team", data: { domain: "Regulatory", type: "External", impact: "May require additional privacy controls." } },
-    { module: "risks", code: "RSK-0001", title: "Phishing attack on staff", status: "Under Review", owner: "Security Lead", data: { category: "Operational", likelihood: 4, impact: 4, treatment: "Mitigate", riskScore: 16, riskLevel: "Major" }, elementId: riskEl.id },
+  const msSeed: { module: string; code: string; title: string; status: string; owner: string | null; data: Record<string, unknown>; elementId?: string | null; frameworks?: string[] }[] = [
+    { module: "context", code: "FWE-001-1", title: "New data-protection regulation in target market", status: "Monitored", owner: "MS Team", data: { domain: "Regulatory", type: "External", impact: "May require additional privacy controls." } },
+    { module: "risks", code: "RISK-0001", title: "Phishing attack on staff", status: "Under Review", owner: "Security Lead", data: { category: "Operational", likelihood: 4, impact: 4, treatment: "Mitigate", riskScore: 16, riskLevel: "Major" }, elementId: riskEl.id },
     { module: "policies", code: "POL-0001", title: "Information Security Policy", status: "Published", owner: "CISO", data: { category: "High-Level", statement: "Protect the confidentiality, integrity and availability of information.", reviewFreq: "Annually" }, elementId: auditEl?.id ?? null },
+    // OD `polSeedInflightIfNeeded` (index.html:8663-8697) — three in-flight
+    // specific policies at different approval stages, each stamped with its
+    // own owner/approver/statement/commitments/scope/roles.
+    { module: "policies", code: "POL-0002", title: "Change Management Policy", status: "Under Review", owner: "Scott Edward Harris Lang", frameworks: ["ISO 9001:2015"], data: {
+      category: "Specific Policy", approver: "Jennifer Susan Walters", reviewFreq: "Annually", version: "1",
+      statement: "Changes to processes, systems, and documented information shall be planned, assessed for risk, approved, and verified before implementation.",
+      commitments: "PT Hammer Industries commits to controlling change so that quality, information security, and operational continuity are preserved.",
+      scope: "Applies to changes affecting management-system processes, infrastructure, and documented information within the approved scope.",
+      roles: "Process owners raise change requests. The MS Team reviews. Top Management authorizes significant changes.",
+    } },
+    { module: "policies", code: "POL-0003", title: "Information Classification Policy", status: "Pending Final Approval", owner: "Gwendolyne Maxine Stacy", frameworks: ["ISO/IEC 27001:2022"], data: {
+      category: "Specific Policy", approver: "Jennifer Susan Walters", reviewFreq: "Annually", version: "1",
+      statement: "Information shall be classified according to its sensitivity, value, and legal or contractual requirements, and handled, labelled, and protected accordingly.",
+      commitments: "PT Hammer Industries commits to consistent information classification and handling to preserve confidentiality, integrity, and availability.",
+      scope: "Applies to all information assets, documents, and records created, processed, or stored within the approved management-system scope.",
+      roles: "Information owners assign classifications. The MS Team reviews. Top Management gives final approval.",
+    } },
+    { module: "policies", code: "POL-0004", title: "Acceptable Use Policy", status: "Under Review", owner: "Scott Edward Harris Lang", frameworks: ["ISO/IEC 27001:2022"], data: {
+      category: "Specific Policy", approver: "Jennifer Susan Walters", reviewFreq: "Annually", version: "1",
+      statement: "Information systems, devices, and services shall be used only for authorized purposes and in line with the organization's security and conduct requirements.",
+      commitments: "PT Hammer Industries commits to clear acceptable-use expectations so that personnel handle systems and information responsibly.",
+      scope: "Applies to all personnel and contractors using the organization's information systems, devices, accounts, and services.",
+      roles: "Personnel follow acceptable-use rules. The MS Team reviews. Top Management gives final approval.",
+    } },
     // Controlled document in the OD `cdocs` shape (type/category/access/reviewFreq + derived nextReview).
     { module: "documents", code: "PROC-ISMS-0001", title: "Access Control Procedure", status: "Published", owner: "IT Lead", data: { type: "Procedure", category: "Information Security", version: "1.2", access: "Public within tenant", approver: "Tenant Administrator", reviewFreq: "Annually", effectiveDate: "2026-06-17T00:00:00.000Z", nextReview: "2027-06-17T00:00:00.000Z", changeSummary: "Initial issue", content: "This procedure defines how access to information systems is requested, approved, provisioned, reviewed, and revoked.", publishedBy: "Tenant Administrator", publishedDate: "2026-06-17T00:00:00.000Z", approvedBy: "Tenant Administrator", approvedDate: "2026-06-17T00:00:00.000Z" } },
     // NOTE: no `audits` clause-register seed row — the real Internal Audit
     // module is the dedicated `/internal-audit` surface, not this register
     // (the orphan `audits` register was removed; see registry.ts).
-    { module: "nonconformities", code: "NCR-0001", title: "Backup restore test not performed", status: "Corrective Action", owner: "IT Lead", data: { source: "Internal Audit", severity: "Medium", rootCause: "No scheduled restore test.", correctiveAction: "Add quarterly restore test to the calendar." } },
+    { module: "nonconformities", code: "NC-0002", title: "Backup restore test not performed", status: "Corrective Action", owner: "IT Lead", data: { source: "Internal Audit", severity: "Medium", rootCause: "No scheduled restore test.", correctiveAction: "Add quarterly restore test to the calendar." } },
+    // OD `ipSeedIfNeeded` obligation-register seed (index.html:8683-8685) —
+    // the compliance-obligations link targets used by Interested Parties
+    // requirements. `compliance` is the `registry.ts` module for OD's
+    // `db.obligations` (`coNewId` → `COBL-`).
+    { module: "compliance", code: "COBL-0001", title: "Information Security & Privacy Obligations", status: "Active", owner: "Jennifer Susan Walters", frameworks: ["ISO/IEC 27001:2022", "ISO/IEC 27701:2025"], data: { source: "Compliance Obligations" } },
+    { module: "compliance", code: "COBL-0002", title: "Quality & Customer Obligations", status: "Active", owner: "Jennifer Susan Walters", frameworks: ["ISO 9001:2015"], data: { source: "Compliance Obligations" } },
+    { module: "compliance", code: "COBL-0003", title: "Environmental Compliance Obligations", status: "Active", owner: "Jennifer Susan Walters", frameworks: ["ISO 14001:2015"], data: { source: "Compliance Obligations" } },
   ];
   for (const m of msSeed) {
     await ImplementationRecord.findOrCreate({
       where: { module: m.module, code: m.code },
-      defaults: { orgId: tenant.id, module: m.module, code: m.code, title: m.title, status: m.status, owner: m.owner, data: m.data, elementId: m.elementId ?? null, frameworks: ["ISO/IEC 27001:2022"] },
+      defaults: { orgId: tenant.id, module: m.module, code: m.code, title: m.title, status: m.status, owner: m.owner, data: m.data, elementId: m.elementId ?? null, frameworks: m.frameworks ?? ["ISO/IEC 27001:2022"] },
+    });
+  }
+
+  // 14a. Phase 9a — Concerns → Nonconformity/Incident/Improvement routing
+  //      chain (OD `concernSeedIfNeeded`, index.html:11217-11244): four
+  //      concerns covering every OD routing outcome — one to a Nonconformity
+  //      with a CAP, one to an Incident, one to an Improvement Opportunity,
+  //      and one closed as a duplicate of the first — with the created
+  //      records cross-linked both ways (`sourceConcernId` / `routedRecordId`)
+  //      exactly as OD's `conRoute` stamps them, plus each record's OD
+  //      `activity` timeline ported as `RecordEvent` rows.
+  const concernsSeeded = await ImplementationRecord.findOne({ where: { orgId: tenant.id, module: "concerns", code: "CON-0001" } });
+  if (!concernsSeeded) {
+    const relDate = (n: number): Date => new Date(Date.now() - n * 86400000);
+    const relIso = (n: number): string => relDate(n).toISOString();
+    const jen = "Jennifer Susan Walters", tenantAdmin = "Tenant Administrator";
+    const dupReporter = "Process Owner – IT Infrastructure";
+
+    const con1 = await ImplementationRecord.create({
+      orgId: tenant.id, module: "concerns", code: "CON-0001",
+      title: "Document owner missing for access control procedure", status: "Routed", owner: null,
+      elementId: null, frameworks: ["ISO/IEC 27001:2022"],
+      data: {
+        category: "Document issue", process: "Documented Information Management", site: "", workUnit: "",
+        description: "The access control procedure has been uploaded, but no document owner is assigned and the review frequency is not defined.",
+        reportedBy: jen, evidence: "", reviewer: tenantAdmin, reviewDate: relIso(6),
+        reviewNotes: "Confirmed missing document control attributes.",
+        classification: "Nonconformity", routingDecision: "Create Nonconformity", routingNotes: "",
+        routedTo: "nonconformities", routedRecordId: "", routedRecordCode: "",
+      },
+      createdAt: relDate(8), updatedAt: relDate(6),
+    });
+    const nc1 = await ImplementationRecord.create({
+      orgId: tenant.id, module: "nonconformities", code: "NC-0001",
+      title: "Document owner missing for access control procedure", status: "In Progress", owner: jen,
+      elementId: null, frameworks: ["ISO/IEC 27001:2022"],
+      data: {
+        sourceConcernId: con1.id, sourceConcernCode: con1.code,
+        category: "Documented Information Nonconformity", process: "Documented Information Management", site: "", workUnit: "",
+        description: "The access control procedure has no assigned document owner and no defined review frequency.",
+        evidence: "", confirmedBy: tenantAdmin, confirmedDate: relIso(6), pic: jen, due: "2026-07-15",
+        cap: {
+          id: "CAP-0001", rcaMethod: "5 Whys",
+          rca: "Document ownership was not checked during document upload because the document registration checklist does not require owner and review frequency verification.",
+          correction: "Assign a document owner and review frequency to the affected access control procedure.",
+          correctiveAction: "Update the document registration checklist to require owner assignment, review frequency, and approval verification before documents can be published.",
+          pic: jen, due: "2026-07-15", priority: "Medium", resources: "",
+          implementationStatus: "In Progress", effRequired: true, effMethod: "", effDue: "2026-07-31", effBy: "",
+          effResult: "Not Checked", closureNotes: "",
+        },
+      },
+      createdAt: relDate(6), updatedAt: relDate(5),
+    });
+    await con1.update({ data: { ...con1.data, routedRecordId: nc1.id, routedRecordCode: nc1.code } });
+
+    const con2 = await ImplementationRecord.create({
+      orgId: tenant.id, module: "concerns", code: "CON-0002",
+      title: "Unusual login activity detected in admin portal", status: "Routed", owner: null,
+      elementId: null, frameworks: [],
+      data: {
+        category: "Security issue", process: "", site: "", workUnit: "",
+        description: "Several failed login attempts were detected for an administrator account outside normal working hours.",
+        reportedBy: tenantAdmin, evidence: "", reviewer: tenantAdmin, reviewDate: relIso(6),
+        reviewNotes: "Potential security event, route to incident handling.",
+        classification: "Incident", routingDecision: "Create Incident", routingNotes: "",
+        routedTo: "incidents", routedRecordId: "", routedRecordCode: "",
+      },
+      createdAt: relDate(7), updatedAt: relDate(6),
+    });
+    const inc1 = await ImplementationRecord.create({
+      orgId: tenant.id, module: "incidents", code: "INC-0001",
+      title: "Unusual login activity detected in admin portal", status: "Under Investigation", owner: tenantAdmin,
+      elementId: null, frameworks: [],
+      data: {
+        sourceConcernId: con2.id, sourceConcernCode: con2.code,
+        type: "Information Security Incident",
+        description: "Several failed login attempts were detected for an administrator account outside normal working hours.",
+        incidentDate: relIso(7), site: "", process: "", workUnit: "", system: "Admin Portal",
+        affected: "Administrator account", immediate: "Administrator password was reset and MFA status was verified.",
+        reportedBy: tenantAdmin, handler: "Tenant Administrator", investigation: "", rootCause: "", followups: "", evidence: "",
+      },
+      createdAt: relDate(6), updatedAt: relDate(5),
+    });
+    await con2.update({ data: { ...con2.data, routedRecordId: inc1.id, routedRecordCode: inc1.code } });
+
+    const con3 = await ImplementationRecord.create({
+      orgId: tenant.id, module: "concerns", code: "CON-0003",
+      title: "Improve onboarding checklist for contractors", status: "Routed", owner: null,
+      elementId: null, frameworks: [],
+      data: {
+        category: "Process issue", process: "", site: "", workUnit: "",
+        description: "Contractor onboarding currently relies on manual email confirmation and may benefit from a clearer checklist.",
+        reportedBy: jen, evidence: "", reviewer: tenantAdmin, reviewDate: relIso(5),
+        reviewNotes: "Not a nonconformity; route as improvement.",
+        classification: "Observation / Improvement", routingDecision: "Create Improvement Opportunity", routingNotes: "",
+        routedTo: "improvements", routedRecordId: "", routedRecordCode: "",
+      },
+      createdAt: relDate(6), updatedAt: relDate(5),
+    });
+    const imp1 = await ImplementationRecord.create({
+      orgId: tenant.id, module: "improvements", code: "IMP-0001",
+      title: "Improve onboarding checklist for contractors", status: "Planned", owner: tenantAdmin,
+      elementId: null, frameworks: [],
+      data: {
+        sourceConcernId: con3.id, sourceConcernCode: con3.code,
+        category: "Process Improvement", process: "", site: "", workUnit: "",
+        description: "Contractor onboarding currently relies on manual email confirmation and may benefit from a clearer checklist.",
+        suggestedAction: "Create a standard contractor onboarding checklist covering access, confidentiality, awareness, and equipment return requirements.",
+        owner: tenantAdmin, due: "2026-07-30", priority: "Medium", evidence: "",
+      },
+      createdAt: relDate(5), updatedAt: relDate(5),
+    });
+    await con3.update({ data: { ...con3.data, routedRecordId: imp1.id, routedRecordCode: imp1.code } });
+
+    const con4 = await ImplementationRecord.create({
+      orgId: tenant.id, module: "concerns", code: "CON-0004",
+      title: "Duplicate report for access control document owner", status: "Closed", owner: null,
+      elementId: null, frameworks: [],
+      data: {
+        category: "Document issue", process: "", site: "", workUnit: "",
+        description: "Another user reported that the access control procedure has no assigned owner.",
+        reportedBy: dupReporter, evidence: "", reviewer: tenantAdmin, reviewDate: relIso(5),
+        reviewNotes: "Same as CON-0001.", classification: "Duplicate", routingDecision: "Close as Duplicate",
+        routingNotes: "", relatedExisting: con1.code, closureReason: `Duplicate of ${con1.code}.`,
+      },
+      createdAt: relDate(5), updatedAt: relDate(5),
+    });
+
+    const activitySeed: { module: string; recordId: string; entries: { ts: Date; user: string; text: string }[] }[] = [
+      { module: "concerns", recordId: con1.id, entries: [
+        { ts: relDate(8), user: jen, text: "submitted this concern — Concern submitted" },
+        { ts: relDate(6), user: tenantAdmin, text: "classified the concern — Nonconformity" },
+        { ts: relDate(6), user: tenantAdmin, text: "routed the concern — Routed to NC-0001" },
+      ] },
+      { module: "nonconformities", recordId: nc1.id, entries: [
+        { ts: relDate(6), user: tenantAdmin, text: "created this nonconformity — From concern CON-0001" },
+        { ts: relDate(5), user: jen, text: "created CAP — CAP-0001 · 5 Whys" },
+      ] },
+      { module: "concerns", recordId: con2.id, entries: [
+        { ts: relDate(7), user: tenantAdmin, text: "submitted this concern — Concern submitted" },
+        { ts: relDate(6), user: tenantAdmin, text: "classified the concern — Incident" },
+        { ts: relDate(6), user: tenantAdmin, text: "routed the concern — Routed to INC-0001" },
+      ] },
+      { module: "incidents", recordId: inc1.id, entries: [
+        { ts: relDate(6), user: tenantAdmin, text: "created this incident — From concern CON-0002" },
+        { ts: relDate(6), user: tenantAdmin, text: "assigned a handler — Tenant Administrator" },
+      ] },
+      { module: "concerns", recordId: con3.id, entries: [
+        { ts: relDate(6), user: jen, text: "submitted this concern — Concern submitted" },
+        { ts: relDate(5), user: tenantAdmin, text: "classified the concern — Observation / Improvement" },
+        { ts: relDate(5), user: tenantAdmin, text: "routed the concern — Routed to IMP-0001" },
+      ] },
+      { module: "improvements", recordId: imp1.id, entries: [
+        { ts: relDate(5), user: tenantAdmin, text: "created this improvement opportunity — From concern CON-0003" },
+      ] },
+      { module: "concerns", recordId: con4.id, entries: [
+        { ts: relDate(5), user: dupReporter, text: "submitted this concern — Concern submitted" },
+        { ts: relDate(5), user: tenantAdmin, text: `closed the concern — Duplicate of ${con1.code}` },
+      ] },
+    ];
+    for (const a of activitySeed) {
+      for (const e of a.entries) {
+        await RecordEvent.create({ orgId: tenant.id, module: a.module, recordId: a.recordId, type: "activity", actor: e.user, text: e.text, createdAt: e.ts });
+      }
+    }
+  }
+
+  // 14a2. Phase 9a2 — Internal Audit programme/plan/session/finding/report
+  //      content (OD `iauditSeedIfNeeded` + `iauditSeedExtra`,
+  //      index.html:11780-11860): 6 audit programs spanning Q1–Q4 2026, their
+  //      6 plans, 19 sessions, 7 findings (IAF-0001/0002 plus the 5 from
+  //      `iauditSeedExtra`), the IMP-0002 improvement routed from IAF-0002,
+  //      and 2 generated reports (IAR-0001/0002), ported with OD's exact
+  //      titles / dates-relative-to-now / statuses / criteria. Unlike the
+  //      reference-db registers, the dedicated `/internal-audit` surface has
+  //      no lazy first-read seed, so demo data only exists if a seeder writes
+  //      it.
+  const iaSeeded = await IaProgram.findOne({ where: { orgId: tenant.id, code: "IAP-0001" } });
+  if (!iaSeeded) {
+    const iaDate = (n: number): Date => new Date(Date.now() - n * 86400000);
+    const iaIso = (n: number): string => iaDate(n).toISOString();
+    const jen = "Jennifer Susan Walters", tenantAdmin = "Tenant Administrator";
+    const scott = "Scott Edward Harris Lang", gwen = "Gwendolyne Maxine Stacy";
+    const Q = "ISO 9001:2015", S = "ISO/IEC 27001:2022";
+    const SD = "Software Development", IT = "IT Infrastructure";
+    const iaMethods = ["Document review", "Interview", "Evidence review", "System walkthrough"];
+    const iaScope = "This audit covers the selected processes within the approved management system scope.";
+    const iaObjective = "To determine whether the selected processes conform to applicable framework criteria and are effectively implemented and maintained.";
+
+    type ProgSeed = {
+      code: string; name: string; period: string; processes: string[]; workUnits: string[]; criteria: string[];
+      leadAuditor: string; status: string; createdAgo: number; updatedAgo: number;
+      extraActivity?: { ts: number; user: string; action: string; summary: string };
+    };
+    const progSeeds: ProgSeed[] = [
+      { code: "IAP-0001", name: "June 2026 Integrated Internal Audit Program", period: "2026-06",
+        processes: ["Front End Development", "Back End Development", "Quality Assurance", "Database Administrator"],
+        workUnits: [SD, IT], criteria: [Q, S], leadAuditor: jen, status: "In Progress", createdAgo: 10, updatedAgo: 3,
+        extraActivity: { ts: 9, user: tenantAdmin, action: "approved the program", summary: "Approved" } },
+      { code: "IAP-0002", name: "Q1 2026 Software Development Internal Audit", period: "2026-02",
+        processes: ["Front End Development", "Back End Development", "Business Process Analyst", "Quality Assurance"],
+        workUnits: [SD], criteria: [Q], leadAuditor: jen, status: "Completed", createdAgo: 150, updatedAgo: 120 },
+      { code: "IAP-0003", name: "Q1 2026 IT Infrastructure & Information Security Audit", period: "2026-03",
+        processes: ["Database Administrator", "Vulnerability Assessment"],
+        workUnits: [IT], criteria: [S], leadAuditor: tenantAdmin, status: "Report Generated", createdAgo: 120, updatedAgo: 95 },
+      { code: "IAP-0004", name: "Q2 2026 Management & Delivery Processes Audit", period: "2026-05",
+        processes: ["Product Management", "Project Management"],
+        workUnits: [SD], criteria: [Q], leadAuditor: scott, status: "Completed", createdAgo: 75, updatedAgo: 40 },
+      { code: "IAP-0005", name: "Q3 2026 Software Development Surveillance Audit", period: "2026-09",
+        processes: ["Front End Development", "Back End Development", "Quality Assurance"],
+        workUnits: [SD], criteria: [Q], leadAuditor: jen, status: "Approved", createdAgo: 20, updatedAgo: 10 },
+      { code: "IAP-0006", name: "Q4 2026 Annual Integrated Internal Audit", period: "2026-11",
+        processes: ["Front End Development", "Back End Development", "Business Process Analyst", "Database Administrator", "Quality Assurance", "Vulnerability Assessment", "Product Management", "Project Management"],
+        workUnits: [SD, IT, "Quality Assurance"], criteria: [Q, S], leadAuditor: jen, status: "Draft", createdAgo: 8, updatedAgo: 3 },
+    ];
+    const iaProgramIdByCode = new Map<string, string>();
+    for (const p of progSeeds) {
+      const activity = [{ ts: iaIso(p.createdAgo), user: p.leadAuditor, action: "created this audit program", summary: p.name }];
+      if (p.extraActivity) {
+        activity.push({ ts: iaIso(p.extraActivity.ts), user: p.extraActivity.user, action: p.extraActivity.action, summary: p.extraActivity.summary });
+      }
+      const row = await IaProgram.create({
+        orgId: tenant.id, code: p.code, name: p.name, period: p.period, processes: p.processes, workUnits: p.workUnits,
+        methods: iaMethods, criteria: p.criteria, scope: iaScope, objective: iaObjective,
+        leadAuditor: p.leadAuditor, auditors: [p.leadAuditor, tenantAdmin], independence: "Checked", overrideJust: null,
+        duration: "2 days", status: p.status, notes: null, createdBy: p.leadAuditor, lastUpdatedBy: p.leadAuditor,
+        activity, createdAt: iaDate(p.createdAgo), updatedAt: iaDate(p.updatedAgo),
+      });
+      iaProgramIdByCode.set(p.code, row.id);
+    }
+
+    type PlanSeed = { code: string; programCode: string; name: string; processes: string[]; criteria: string[]; leadAuditor: string; status: string; createdAgo: number; updatedAgo: number };
+    const planSeeds: PlanSeed[] = [
+      { code: "IAPL-0001", programCode: "IAP-0001", name: "June 2026 Software Development and IT Infrastructure Audit Plan", processes: ["Front End Development", "Back End Development", "Quality Assurance", "Database Administrator"], criteria: [Q, S], leadAuditor: jen, status: "Scheduled", createdAgo: 9, updatedAgo: 4 },
+      { code: "IAPL-0002", programCode: "IAP-0002", name: "Q1 2026 Software Development Audit Plan", processes: ["Front End Development", "Back End Development", "Business Process Analyst", "Quality Assurance"], criteria: [Q], leadAuditor: jen, status: "Completed", createdAgo: 148, updatedAgo: 118 },
+      { code: "IAPL-0003", programCode: "IAP-0003", name: "Q1 2026 IT Infrastructure Audit Plan", processes: ["Database Administrator", "Vulnerability Assessment"], criteria: [S], leadAuditor: tenantAdmin, status: "Completed", createdAgo: 118, updatedAgo: 93 },
+      { code: "IAPL-0004", programCode: "IAP-0004", name: "Q2 2026 Management Processes Audit Plan", processes: ["Product Management", "Project Management"], criteria: [Q], leadAuditor: scott, status: "Completed", createdAgo: 73, updatedAgo: 38 },
+      { code: "IAPL-0005", programCode: "IAP-0005", name: "Q3 2026 Surveillance Audit Plan", processes: ["Front End Development", "Back End Development", "Quality Assurance"], criteria: [Q], leadAuditor: jen, status: "Scheduled", createdAgo: 18, updatedAgo: 8 },
+      { code: "IAPL-0006", programCode: "IAP-0006", name: "Q4 2026 Annual Audit Plan", processes: ["Front End Development", "Database Administrator", "Vulnerability Assessment", "Project Management", "Product Management"], criteria: [Q, S], leadAuditor: jen, status: "Draft", createdAgo: 6, updatedAgo: 2 },
+    ];
+    const iaPlanIdByCode = new Map<string, string>();
+    const planProgramCode = new Map<string, string>();
+    for (const p of planSeeds) {
+      const row = await IaPlan.create({
+        orgId: tenant.id, code: p.code, programId: iaProgramIdByCode.get(p.programCode)!, name: p.name,
+        processes: p.processes, criteria: p.criteria, leadAuditor: p.leadAuditor, auditors: [p.leadAuditor, tenantAdmin],
+        notes: null, status: p.status, createdBy: p.leadAuditor, lastUpdatedBy: p.leadAuditor,
+        activity: [{ ts: iaIso(p.createdAgo), user: p.leadAuditor, action: "created this audit plan", summary: p.name }],
+        createdAt: iaDate(p.createdAgo), updatedAt: iaDate(p.updatedAgo),
+      });
+      iaPlanIdByCode.set(p.code, row.id);
+      planProgramCode.set(p.code, p.programCode);
+    }
+
+    type SessSeed = { code: string; planCode: string; title: string; date: string; start: string; end: string; auditor: string; criteria: string[]; process: string; workUnit: string; methods?: string[]; status: string; createdAgo: number; updatedAgo: number };
+    const sessSeeds: SessSeed[] = [
+      { code: "IAS-0001", planCode: "IAPL-0001", title: "Software Development Process Audit", date: "2026-06-18", start: "09:00", end: "11:00", auditor: jen, criteria: [Q, S], process: "Front End Development", workUnit: SD, methods: ["Interview", "Evidence review"], status: "Completed", createdAgo: 9, updatedAgo: 3 },
+      { code: "IAS-0002", planCode: "IAPL-0001", title: "IT Infrastructure and Access Control Audit", date: "2026-06-21", start: "10:00", end: "12:00", auditor: tenantAdmin, criteria: [S], process: "Database Administrator", workUnit: IT, methods: ["System walkthrough", "Evidence review"], status: "Scheduled", createdAgo: 9, updatedAgo: 3 },
+      { code: "IAS-0010", planCode: "IAPL-0002", title: "Front End Development Process Audit", date: "2026-02-10", start: "09:00", end: "11:00", auditor: jen, criteria: [Q], process: "Front End Development", workUnit: SD, status: "Completed", createdAgo: 148, updatedAgo: 148 },
+      { code: "IAS-0011", planCode: "IAPL-0002", title: "Back End Development Process Audit", date: "2026-02-12", start: "09:00", end: "11:00", auditor: scott, criteria: [Q], process: "Back End Development", workUnit: SD, status: "Completed", createdAgo: 146, updatedAgo: 146 },
+      { code: "IAS-0012", planCode: "IAPL-0002", title: "Business Process Analysis Audit", date: "2026-02-17", start: "13:00", end: "14:30", auditor: jen, criteria: [Q], process: "Business Process Analyst", workUnit: SD, status: "Completed", createdAgo: 141, updatedAgo: 141 },
+      { code: "IAS-0013", planCode: "IAPL-0002", title: "Quality Assurance Process Audit", date: "2026-02-19", start: "09:00", end: "11:00", auditor: gwen, criteria: [Q], process: "Quality Assurance", workUnit: SD, status: "Completed", createdAgo: 139, updatedAgo: 139 },
+      { code: "IAS-0014", planCode: "IAPL-0003", title: "Database Administration & Backup Audit", date: "2026-03-11", start: "10:00", end: "12:00", auditor: tenantAdmin, criteria: [S], process: "Database Administrator", workUnit: IT, status: "Completed", createdAgo: 118, updatedAgo: 118 },
+      { code: "IAS-0015", planCode: "IAPL-0003", title: "Vulnerability Management Audit", date: "2026-03-13", start: "10:00", end: "12:30", auditor: tenantAdmin, criteria: [S], process: "Vulnerability Assessment", workUnit: IT, status: "Completed", createdAgo: 116, updatedAgo: 116 },
+      { code: "IAS-0016", planCode: "IAPL-0004", title: "Product Management Process Audit", date: "2026-05-13", start: "09:00", end: "11:00", auditor: scott, criteria: [Q], process: "Product Management", workUnit: SD, status: "Completed", createdAgo: 73, updatedAgo: 73 },
+      { code: "IAS-0017", planCode: "IAPL-0004", title: "Project Management Process Audit", date: "2026-05-15", start: "09:00", end: "10:30", auditor: scott, criteria: [Q], process: "Project Management", workUnit: SD, status: "Completed", createdAgo: 71, updatedAgo: 71 },
+      { code: "IAS-0018", planCode: "IAPL-0001", title: "Quality Assurance Follow-up Audit", date: "2026-06-24", start: "09:00", end: "11:00", auditor: gwen, criteria: [Q], process: "Quality Assurance", workUnit: SD, status: "Scheduled", createdAgo: 5, updatedAgo: 5 },
+      { code: "IAS-0019", planCode: "IAPL-0001", title: "Back End Development Process Audit", date: "2026-06-26", start: "13:00", end: "15:00", auditor: jen, criteria: [Q], process: "Back End Development", workUnit: SD, status: "In Progress", createdAgo: 3, updatedAgo: 3 },
+      { code: "IAS-0020", planCode: "IAPL-0005", title: "Front End Development Surveillance Audit", date: "2026-09-15", start: "09:00", end: "11:00", auditor: jen, criteria: [Q], process: "Front End Development", workUnit: SD, status: "Scheduled", createdAgo: 18, updatedAgo: 18 },
+      { code: "IAS-0021", planCode: "IAPL-0005", title: "Back End Development Surveillance Audit", date: "2026-09-16", start: "09:00", end: "11:00", auditor: scott, criteria: [Q], process: "Back End Development", workUnit: SD, status: "Scheduled", createdAgo: 18, updatedAgo: 18 },
+      { code: "IAS-0022", planCode: "IAPL-0005", title: "Quality Assurance Surveillance Audit", date: "2026-09-18", start: "09:00", end: "11:00", auditor: gwen, criteria: [Q], process: "Quality Assurance", workUnit: SD, status: "Scheduled", createdAgo: 18, updatedAgo: 18 },
+      { code: "IAS-0023", planCode: "IAPL-0006", title: "Database Administration Audit", date: "2026-11-10", start: "10:00", end: "12:00", auditor: tenantAdmin, criteria: [S], process: "Database Administrator", workUnit: IT, status: "Scheduled", createdAgo: 6, updatedAgo: 6 },
+      { code: "IAS-0024", planCode: "IAPL-0006", title: "Vulnerability Management Audit", date: "2026-11-11", start: "10:00", end: "12:00", auditor: tenantAdmin, criteria: [S], process: "Vulnerability Assessment", workUnit: IT, status: "Scheduled", createdAgo: 6, updatedAgo: 6 },
+      { code: "IAS-0025", planCode: "IAPL-0006", title: "Project Management Audit", date: "2026-11-12", start: "09:00", end: "10:30", auditor: scott, criteria: [Q], process: "Project Management", workUnit: SD, status: "Scheduled", createdAgo: 6, updatedAgo: 6 },
+      { code: "IAS-0026", planCode: "IAPL-0006", title: "Product Management Audit", date: "2026-11-13", start: "09:00", end: "11:00", auditor: jen, criteria: [Q], process: "Product Management", workUnit: SD, status: "Scheduled", createdAgo: 6, updatedAgo: 6 },
+    ];
+    const iaSessionIdByCode = new Map<string, string>();
+    for (const s of sessSeeds) {
+      const programCode = planProgramCode.get(s.planCode)!;
+      const row = await IaSession.create({
+        orgId: tenant.id, code: s.code, planId: iaPlanIdByCode.get(s.planCode)!, programId: iaProgramIdByCode.get(programCode)!,
+        title: s.title, date: s.date, start: s.start, end: s.end, tz: "Asia/Jakarta", auditor: s.auditor, auditee: null,
+        criteria: s.criteria, process: s.process, workUnit: s.workUnit, methods: s.methods ?? ["Interview", "Evidence review"],
+        location: null, link: null, notes: null, status: s.status, createdBy: s.auditor, lastUpdatedBy: s.auditor,
+        activity: [], createdAt: iaDate(s.createdAgo), updatedAt: iaDate(s.updatedAgo),
+      });
+      iaSessionIdByCode.set(s.code, row.id);
+    }
+
+    // Audit findings — OD's exact 5 findings from `iauditSeedExtra`
+    // (index.html:11841-11845). The two June-program findings from
+    // `iauditSeedIfNeeded` (IAF-0001/IAF-0002) are ported separately below,
+    // after this loop, since they carry OD-specific review/issue states that
+    // don't fit the uniform shape here.
+    type FindSeed = { code: string; programCode: string; planCode: string; sessionCode: string; title: string; type: string; description: string; frameworks: string[]; process: string; workUnit: string; auditor: string; pic: string; issueStatus: string; createdAgo: number };
+    const findSeeds: FindSeed[] = [
+      { code: "IAF-0010", programCode: "IAP-0002", planCode: "IAPL-0002", sessionCode: "IAS-0013", title: "QA test evidence retention period not defined", type: "Opportunity for Improvement", description: "QA testing evidence is retained, but the retention period is not formally defined.", frameworks: [Q], process: "Quality Assurance", workUnit: SD, auditor: gwen, pic: jen, issueStatus: "Closed", createdAgo: 139 },
+      { code: "IAF-0013", programCode: "IAP-0002", planCode: "IAPL-0002", sessionCode: "IAS-0010", title: "Branch naming convention applied inconsistently", type: "Observation", description: "Front-end repositories follow the branch naming convention inconsistently across teams.", frameworks: [Q], process: "Front End Development", workUnit: SD, auditor: jen, pic: jen, issueStatus: "Closed", createdAgo: 148 },
+      { code: "IAF-0011", programCode: "IAP-0003", planCode: "IAPL-0003", sessionCode: "IAS-0014", title: "Database backup restore test not evidenced", type: "Nonconformity", description: "Backups are performed, but periodic restore tests are not evidenced for the audited period.", frameworks: [S], process: "Database Administrator", workUnit: IT, auditor: tenantAdmin, pic: tenantAdmin, issueStatus: "Closed", createdAgo: 118 },
+      { code: "IAF-0012", programCode: "IAP-0003", planCode: "IAPL-0003", sessionCode: "IAS-0015", title: "Vulnerability remediation SLA exceeded for medium findings", type: "Nonconformity", description: "Several medium-severity vulnerabilities exceeded the defined remediation SLA.", frameworks: [S], process: "Vulnerability Assessment", workUnit: IT, auditor: tenantAdmin, pic: tenantAdmin, issueStatus: "Issued", createdAgo: 116 },
+      { code: "IAF-0014", programCode: "IAP-0004", planCode: "IAPL-0004", sessionCode: "IAS-0016", title: "Product backlog prioritization not documented", type: "Opportunity for Improvement", description: "Backlog prioritization decisions are made in meetings but are not documented for traceability.", frameworks: [Q], process: "Product Management", workUnit: SD, auditor: scott, pic: scott, issueStatus: "Issued", createdAgo: 73 },
+    ];
+    for (const f of findSeeds) {
+      await IaFinding.create({
+        orgId: tenant.id, code: f.code, programId: iaProgramIdByCode.get(f.programCode)!, planId: iaPlanIdByCode.get(f.planCode)!,
+        sessionId: iaSessionIdByCode.get(f.sessionCode)!, title: f.title, type: f.type, description: f.description,
+        evidence: "Reviewed during the audit session.", frameworks: f.frameworks, criteria: null,
+        process: f.process, workUnit: f.workUnit, site: "", auditor: f.auditor, pic: f.pic, due: null,
+        reviewRequired: true, reviewStatus: "Approved", reviewDecision: "Approve Finding", reviewNotes: null,
+        issueStatus: f.issueStatus, issuedTo: f.issueStatus === "Issued" ? f.pic : null, issuedDate: f.issueStatus === "Issued" ? iaIso(f.createdAgo) : null,
+        linkedNC: null, linkedImp: null, createdBy: f.auditor, lastUpdatedBy: f.auditor,
+        activity: [{ ts: iaIso(f.createdAgo), user: f.auditor, action: "submitted this finding", summary: f.type }],
+        createdAt: iaDate(f.createdAgo), updatedAt: iaDate(f.createdAgo),
+      });
+    }
+
+    // Audit findings — OD's original two June-program findings from
+    // `iauditSeedIfNeeded` (index.html:11791-11792), deliberately created
+    // with their own fields (not the uniform `findSeeds` shape above) because
+    // OD gives them distinct review/issue states: IAF-0001 is still
+    // "Pending Lead Auditor Review" and IAF-0002 is issued and routed to an
+    // improvement opportunity.
+    const iaf1 = await IaFinding.create({
+      orgId: tenant.id, code: "IAF-0001", programId: iaProgramIdByCode.get("IAP-0001")!, planId: iaPlanIdByCode.get("IAPL-0001")!,
+      sessionId: iaSessionIdByCode.get("IAS-0002")!, title: "Access control procedure missing document owner", type: "Nonconformity",
+      description: "The access control procedure exists, but document owner and review frequency are not defined.",
+      evidence: "Access control procedure record reviewed during audit session IAS-0002.",
+      frameworks: [S], criteria: "Documented information control", process: "Database Administrator", workUnit: IT, site: "",
+      auditor: tenantAdmin, pic: jen, due: null,
+      reviewRequired: true, reviewStatus: "Pending Lead Auditor Review", reviewDecision: null, reviewNotes: null,
+      issueStatus: "Pending Lead Auditor Review", issuedTo: null, issuedDate: null, linkedNC: null, linkedImp: null,
+      createdBy: tenantAdmin, lastUpdatedBy: tenantAdmin,
+      activity: [{ ts: iaIso(3), user: tenantAdmin, action: "submitted this finding", summary: "Pending lead auditor review" }],
+      createdAt: iaDate(3), updatedAt: iaDate(3),
+    });
+    const iaf2 = await IaFinding.create({
+      orgId: tenant.id, code: "IAF-0002", programId: iaProgramIdByCode.get("IAP-0001")!, planId: iaPlanIdByCode.get("IAPL-0001")!,
+      sessionId: iaSessionIdByCode.get("IAS-0001")!, title: "Improve QA evidence traceability", type: "Opportunity for Improvement",
+      description: "QA testing evidence exists, but test result traceability to release approval can be improved.",
+      evidence: "Sampled QA records from June release cycle.",
+      frameworks: [Q], criteria: "", process: "Quality Assurance", workUnit: SD, site: "",
+      auditor: jen, pic: jen, due: null,
+      reviewRequired: true, reviewStatus: "Approved", reviewDecision: "Approve Finding", reviewNotes: "Valid improvement opportunity.",
+      issueStatus: "Issued", issuedTo: jen, issuedDate: iaIso(3), linkedNC: null, linkedImp: "IMP-0002",
+      createdBy: jen, lastUpdatedBy: jen,
+      activity: [
+        { ts: iaIso(4), user: jen, action: "submitted this finding", summary: "OFI" },
+        { ts: iaIso(3), user: jen, action: "approved the finding", summary: "Approved" },
+        { ts: iaIso(3), user: jen, action: "issued the finding", summary: `Issued to ${jen}` },
+      ],
+      createdAt: iaDate(4), updatedAt: iaDate(3),
+    });
+
+    // Ensure IMP-0002 exists for the linked improvement (OD's
+    // `iauditSeedIfNeeded`, index.html:11793: "ensure IMP-0002 exists for
+    // the linked improvement"). Represented the same way seed.ts already
+    // represents IMP-0001's concern origin (`sourceConcernId`/
+    // `sourceConcernCode`, see the Phase 9a concern chain above) but for a
+    // finding origin instead, so both improvements carry their source via
+    // the same `sourceXId` + `sourceXCode` (UUID + code) shape.
+    const imp2Seeded = await ImplementationRecord.findOne({ where: { module: "improvements", code: "IMP-0002" } });
+    if (!imp2Seeded) {
+      const imp2 = await ImplementationRecord.create({
+        orgId: tenant.id, module: "improvements", code: "IMP-0002",
+        title: "Improve QA evidence traceability", status: "Open", owner: jen,
+        elementId: null, frameworks: [Q],
+        data: {
+          // `routeFinding` (internalAudit.service.ts:603/619) stores the finding's CODE in
+          // `sourceFindingId`, and the frontend's crossLinks.ts renders that value directly as
+          // the link label. Seeding a UUID here would show a raw UUID in the Links column, so the
+          // seed matches what the live service actually writes rather than the tidier shape used
+          // for concern links. (The service-level inconsistency with `sourceConcernId` is a
+          // separate pre-existing issue.)
+          sourceFindingId: iaf2.code,
+          category: "Process Improvement", process: "Quality Assurance", site: "", workUnit: SD,
+          description: "QA testing evidence exists, but test result traceability to release approval can be improved.",
+          suggestedAction: "Link QA test results to release approval records.",
+          owner: jen, due: "", priority: "Medium", evidence: "",
+        },
+        createdAt: iaDate(3), updatedAt: iaDate(3),
+      });
+      await RecordEvent.create({
+        orgId: tenant.id, module: "improvements", recordId: imp2.id, type: "activity", actor: jen,
+        text: "created this improvement opportunity — From audit finding IAF-0002", createdAt: iaDate(3),
+      });
+    }
+
+    // Audit reports — OD's `iauditSeedIfNeeded` (index.html:11796) and
+    // `iauditSeedExtra` (index.html:11852) reports. `IaReport.plans` /
+    // `.sessions` / `.findings` are arrays of CODE strings, matching how
+    // `generateReport` (internalAudit.service.ts) populates them from
+    // `IaPlan`/`IaSession`/`IaFinding` `.code` columns — not UUIDs.
+    await IaReport.create({
+      orgId: tenant.id, code: "IAR-0001", programId: iaProgramIdByCode.get("IAP-0001")!, period: "2026-06",
+      plans: ["IAPL-0001"], sessions: ["IAS-0001", "IAS-0002"], findings: [iaf1.code, iaf2.code],
+      evidenceSummary: true, followupIncluded: true, summary: null,
+      conclusion: "The internal audit determined that the audited processes are generally implemented and maintained. Several findings were identified requiring correction, corrective action, or improvement follow-up.",
+      preparedBy: jen, approvedBy: null, reportDate: iaIso(2), status: "Draft",
+      createdBy: jen, lastUpdatedBy: jen,
+      activity: [{ ts: iaIso(2), user: jen, action: "generated the report", summary: "Draft report" }],
+      createdAt: iaDate(2), updatedAt: iaDate(2),
+    });
+    await IaReport.create({
+      orgId: tenant.id, code: "IAR-0002", programId: iaProgramIdByCode.get("IAP-0003")!, period: "2026-03",
+      plans: ["IAPL-0003"], sessions: ["IAS-0014", "IAS-0015"], findings: ["IAF-0011", "IAF-0012"],
+      evidenceSummary: true, followupIncluded: true, summary: null,
+      conclusion: "The IT infrastructure and information security processes are generally implemented. One nonconformity was corrected and one remains under follow-up.",
+      preparedBy: tenantAdmin, approvedBy: jen, reportDate: iaIso(110), status: "Issued",
+      createdBy: tenantAdmin, lastUpdatedBy: tenantAdmin,
+      activity: [
+        { ts: iaIso(112), user: tenantAdmin, action: "generated the report", summary: "Q1 IT audit report" },
+        { ts: iaIso(108), user: jen, action: "issued the report", summary: "Issued" },
+      ],
+      createdAt: iaDate(112), updatedAt: iaDate(108),
     });
   }
 

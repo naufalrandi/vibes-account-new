@@ -7,6 +7,7 @@ import { writeAudit } from "../audit/audit.service";
 import { createNotification } from "../notifications/notification.service";
 import { logActivity, actorName } from "../record-events/recordEvent.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { MS_MODULES } from "./registry";
 
 /**
  * Awareness acknowledgment / evaluation stack — the server-side half of OD's
@@ -584,16 +585,18 @@ export async function evalToTrainingPlan(
     const topic = e.topicId
       ? await ImplementationRecord.findOne({ where: { id: e.topicId, module: "awareness-topics", orgId: rec.orgId }, transaction: tx })
       : null;
-    // TRN sequence — same per-org scheme as the register's nextCode.
+    // Training code sequence — same per-org, prefix-driven scheme as the
+    // register's own `nextCode` (registry.ts `training.prefix`, "TP").
+    const trainingPrefix = MS_MODULES.training.prefix;
     const rows = await ImplementationRecord.findAll({ where: { module: "training", orgId: rec.orgId }, attributes: ["code"], transaction: tx });
     let max = 0;
     for (const row of rows) {
-      const n = Number.parseInt(row.code.replace(/^TRN-/, ""), 10);
+      const n = Number.parseInt(row.code.replace(new RegExp(`^${trainingPrefix}-`), ""), 10);
       if (Number.isFinite(n) && n > max) max = n;
     }
     const title = `Awareness re-training: ${topic?.title ?? rec.title}`;
     training = await ImplementationRecord.create({
-      orgId: rec.orgId, module: "training", code: `TRN-${pad(max + 1)}`,
+      orgId: rec.orgId, module: "training", code: `${trainingPrefix}-${pad(max + 1)}`,
       title, status: "Planned", owner: null, elementId: null, frameworks: rec.frameworks ?? [],
       data: {
         source: "Awareness Follow-up", sourceRecordId: evalId,

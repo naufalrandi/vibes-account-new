@@ -19,7 +19,7 @@ const wrap = (fn: (req: Request, res: Response) => Promise<void>) =>
 export const listEducation = wrap(async (_req, res) => { const d = await service.listEducation(); sendOk(res, d, 200, listMeta(d)); });
 export const createEducation = wrap(async (req, res) => sendOk(res, await service.createEducation(guard(req), body.parse(req.body), ip(req)), 201));
 export const updateEducation = wrap(async (req, res) => sendOk(res, await service.updateEducation(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
-export const deleteEducation = wrap(async (req, res) => { await service.deleteEducation(guard(req), req.params.id as string, ip(req)); sendOk(res, { id: req.params.id }); });
+export const deleteEducation = wrap(async (req, res) => { const r = await service.deleteEducation(guard(req), req.params.id as string, ip(req)); sendOk(res, { id: req.params.id, ...r }); });
 
 // Skills
 export const listSkills = wrap(async (req, res) => { const d = await service.listSkills(guard(req), { type: typeof req.query.type === "string" ? req.query.type : undefined }); sendOk(res, d, 200, listMeta(d)); });
@@ -60,6 +60,11 @@ export const reassessQueue = wrap(async (req, res) => sendOk(res, await assess.r
 // Gaps
 export const listGaps = wrap(async (req, res) => { const d = await assess.listGaps(guard(req), req.query.scope === "enterprise" ? "enterprise" : undefined); sendOk(res, d, 200, listMeta(d)); });
 export const updateGap = wrap(async (req, res) => sendOk(res, await assess.updateGap(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
+// Disposition actions (OD `compGapLinkTraining` / `compGapNoTraining`, index.html:14217-14226)
+const linkTrainingSchema = z.object({ trainingPlanId: z.string().min(1) });
+const noTrainingSchema = z.object({ reason: z.string() });
+export const linkGapTrainingPlan = wrap(async (req, res) => sendOk(res, await assess.linkGapTrainingPlan(guard(req), req.params.id as string, linkTrainingSchema.parse(req.body).trainingPlanId, ip(req))));
+export const markGapNoTrainingRequired = wrap(async (req, res) => sendOk(res, await assess.markGapNoTrainingRequired(guard(req), req.params.id as string, noTrainingSchema.parse(req.body).reason, ip(req))));
 
 // Exam instruments (L1–L3)
 const skillFilter = (req: Request) => ({ skillId: typeof req.query.skillId === "string" ? req.query.skillId : undefined });

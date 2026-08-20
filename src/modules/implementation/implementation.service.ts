@@ -1,5 +1,5 @@
 import { Op, type WhereOptions } from "sequelize";
-import { CompetenceGap, ImplementationRecord } from "../../db/models";
+import { CompetenceGap, FrameworkElement, ImplementationRecord } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
@@ -14,6 +14,7 @@ import { assertDocumentSaveGates, deriveDocumentData, documentCode, getDocSettin
 import { extDocCode, folderDocumentCount, seedExternalDocsIfNeeded } from "./externalDocs";
 import { decorateCampaignView, getAwSettings, topicHasMaterial } from "./awarenessControl";
 import { derivePolicyData, policyCode, polNextVersion } from "./policyControl";
+import { assertTrainingVocab, bindTrainingRecordToGap, decorateTrainingView } from "./trainingLifecycle";
 
 export interface RecordView {
   id: string;
@@ -63,6 +64,18 @@ function view(r: ImplementationRecord): RecordView {
   };
 }
 
+/**
+ * Read-time view decoration that depends on the whole (status + data) shape,
+ * not just `data` (unlike `enrichData`) — awareness-campaigns' ackRate/evalRate
+ * roll-ups and training's derived Overdue status both need `status` alongside
+ * the JSONB payload.
+ */
+function decorateForModule(module: string, v: RecordView): RecordView {
+  if (module === "awareness-campaigns") return decorateCampaignView(v);
+  if (module === "training") return decorateTrainingView(v);
+  return v;
+}
+
 function requireModule(module: string) {
   if (!isMsModule(module)) throw new NotFoundError("Unknown register module", "MODULE_NOT_FOUND");
   return MS_MODULES[module];
@@ -93,6 +106,43 @@ async function nextCode(module: string, orgId: string): Promise<string> {
   return `${prefix}-${String(max + 1).padStart(4, "0")}`;
 }
 
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * OD `ocFweCode`/`ocNewId` (index.html:8119–8120): the `context` register's
+ * code prefix is the code of the "Organizational Context" FWE element itself
+ * (falling back to "FWE-001" if that element hasn't been seeded), and — unlike
+ * every other register — the numeric suffix is NOT zero-padded (`pre+'-'+(mx+1)`).
+ * Bypasses `nextCode()` entirely, the same way documents/policies bypass it
+ * for their own dynamic codes.
+ *
+ * Deliberately NOT org-scoped, unlike `nextCode()`: `implementation_records`
+ * carries a UNIQUE constraint on `(module, code)` alone (migration 0015,
+ * `implementation_module_code_unique`) — no `org_id` in it — so two different
+ * orgs' independently-numbered first context entries would both mint
+ * "FWE-001-1" and the second insert would fail the constraint. Counting
+ * globally per module sidesteps that (and happens to match OD's own
+ * `ocNewId`, which scans a single un-tenanted `db.ocIssues` array). The other
+ * registers' per-org `nextCode()` carries the same latent collision risk
+ * across tenants; fixing that broadly is outside this task's scope.
+ */
+async function contextCode(): Promise<string> {
+  const fwe = await FrameworkElement.findOne({ where: { name: "Organizational Context" } });
+  const prefix = fwe?.code ?? "FWE-001";
+  const rows = await ImplementationRecord.findAll({ where: { module: "context" }, attributes: ["code"] });
+  const re = new RegExp(`^${escapeRegExp(prefix)}-(\\d+)$`);
+  let max = 0;
+  for (const r of rows) {
+    const m = r.code.match(re);
+    if (!m) continue;
+    const n = Number.parseInt(m[1], 10);
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return `${prefix}-${max + 1}`;
+}
+
 export async function listRecords(auth: AuthContext, module: string, filters: { orgId?: string } = {}): Promise<RecordView[]> {
   requireModule(module);
   const where: WhereOptions = { module };
@@ -110,13 +160,12 @@ export async function listRecords(auth: AuthContext, module: string, filters: { 
     await seedExternalDocsIfNeeded(filters.orgId ?? auth.orgId);
   }
   const rows = await ImplementationRecord.findAll({ where, order: [["createdAt", "DESC"]] });
-  const views = rows.map(view);
   // Awareness campaigns are always served with fresh ackRate/evalRate roll-ups
   // and the time-derived Overdue / Partially Completed / Completed status
-  // (awarenessControl.decorateCampaignView) — stored status is only the
-  // mutation-time snapshot.
-  if (module === "awareness-campaigns") return views.map(decorateCampaignView);
-  return views;
+  // (awarenessControl.decorateCampaignView); training items get OD's derived
+  // Overdue status the same way (decorateTrainingView) — stored status is
+  // only the mutation-time snapshot for both.
+  return rows.map((r) => decorateForModule(module, view(r)));
 }
 
 async function requireRecord(auth: AuthContext, module: string, id: string): Promise<ImplementationRecord> {
@@ -152,8 +201,12 @@ export async function createRecord(auth: AuthContext, module: string, input: Rec
   if (module === "concerns" && !data.reportedBy) {
     data = { ...data, reportedBy: (await actorName(auth)) ?? "" };
   }
+  // OD `tpSave`: source/type/delivery must come from the Training Plan vocabulary.
+  if (module === "training") assertTrainingVocab(data);
   let code: string;
-  if (module === "documents") {
+  if (module === "context") {
+    code = await contextCode();
+  } else if (module === "documents") {
     // OD `cdSave`: the org's document-control settings gate every content save,
     // the ID follows `TYPECODE[-FWCODE]-NNNN` (`cdNewId`), a new document starts
     // at v0.1, and `nextReview` is derived from effective date + frequency.
@@ -193,7 +246,15 @@ export async function createRecord(auth: AuthContext, module: string, input: Rec
     action: `ms.${module}.created`, entityType: "ImplementationRecord", entityId: r.id, sourceIp: ip, result: "Success",
   });
   await logActivity(auth, targetOrg, module, r.id, "Record created");
-  return module === "awareness-campaigns" ? decorateCampaignView(view(r)) : view(r);
+  // OD `tpSave` create path (14150): `gp` is only resolved when the form's
+  // source is literally "Competence Gap" — a manually-entered gapId on a
+  // Manual-sourced item is never bound. Matches OD's `src==='Competence
+  // Gap'?ngById(...):null` gate exactly (the later complete/reassess/close
+  // cascades, unlike this one, key off `gapId` alone — see trainingLifecycle.ts).
+  if (module === "training" && data.source === "Competence Gap" && typeof data.gapId === "string" && data.gapId) {
+    await bindTrainingRecordToGap(auth, data.gapId, r.code, ip);
+  }
+  return decorateForModule(module, view(r));
 }
 
 /** Bump a dotted document version the way OD does: 1.0 → 1.1, blank → 1.0. */
@@ -478,6 +539,23 @@ async function assertArchivable(
     : { dismissJustification: justification.trim(), dismissedBy: who, dismissedAt: now };
 }
 
+/**
+ * OD `riskArchive` (index.html:8135–8137): a risk can only be archived once
+ * it has reached "Monitored" — every other status must run its assessment /
+ * treatment through first. Re-archiving an already-archived risk is refused
+ * too, exactly as OD's own guard does (it checks `r.status==='Archived'`
+ * unconditionally, before checking whether anything would actually change).
+ */
+function assertRiskArchivable(module: string, r: ImplementationRecord, nextStatus: string | undefined): void {
+  if (module !== "risks" || nextStatus !== "Archived") return;
+  if (r.status === "Archived") {
+    throw new BadRequestError("Risk already archived", "RISK_ALREADY_ARCHIVED");
+  }
+  if (r.status !== "Monitored") {
+    throw new BadRequestError('Risk must reach "Monitored" before it can be archived.', "INVALID_TRANSITION");
+  }
+}
+
 export async function updateRecord(auth: AuthContext, module: string, id: string, input: RecordInput, ip: string | null): Promise<RecordView> {
   const r = await requireRecord(auth, module, id);
   // External documents/folders: the bespoke flows (edit metadata, upload new
@@ -498,7 +576,15 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
   await applyCapSideEffects(module, r.orgId, r, input);
   assertClosable(module, r, input.status, input);
   await assertActivatable(module, r.orgId, (r.data ?? {}) as Record<string, unknown>, input.status, input);
+  assertRiskArchivable(module, r, input.status);
   const archiveStamp = await assertArchivable(auth, module, r, input.status, input);
+  // OD `tpSave`: source/type/delivery must come from the Training Plan
+  // vocabulary — validated against the merged (existing + incoming) shape so
+  // a partial edit that doesn't touch these fields can't be tripped up by
+  // stale data written before the vocabulary existed.
+  if (module === "training" && input.data !== undefined) {
+    assertTrainingVocab({ ...(r.data ?? {}), ...input.data });
+  }
 
   // Controlled documents: settings-gated saves, derived next review, and
   // version-forking instead of overwriting once published (OD `cdSave`).
@@ -593,7 +679,7 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
   // while already Completed would re-stamp the gap's resolution dates to today
   // and duplicate its audit trail on any unrelated field edit.
   if (module === "training" && statusChanged && r.status === "Completed") await closeLinkedGap(auth, r, ip);
-  return module === "awareness-campaigns" ? decorateCampaignView(view(r)) : view(r);
+  return decorateForModule(module, view(r));
 }
 
 export async function deleteRecord(auth: AuthContext, module: string, id: string, ip: string | null): Promise<void> {

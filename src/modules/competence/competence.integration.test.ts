@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
-import { initModels, Organization, User, Role } from "../../db/models";
+import { initModels, Organization, User, Role, CompetenceRole } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
@@ -84,5 +84,56 @@ describe("competence libraries", () => {
     const readonly = await makeOrg("co-r", "COR", "Tenant", [ACTIONS.COMPETENCE_READ]);
     expect((await request(app).get("/v1/competence/skills").set(authed(readonly.token))).status).toBe(200);
     expect((await request(app).post("/v1/competence/skills").set(authed(readonly.token)).send({ name: "x" })).status).toBe(403);
+  });
+
+  it("updateEducation persists a changed ISCED level number and rejects a duplicate", async () => {
+    // OD `eduSave` (index.html:18400-18406) writes the ISCED number on
+    // update, not just create — the level is editable on an existing row.
+    const sp = await makeOrg("co-edu-upd", "COEDUUPD", "ServiceOwner");
+    const a = (await request(app).post("/v1/competence/education").set(authed(sp.token)).send({ level: 3, label: "Upper secondary" })).body.data;
+    await request(app).post("/v1/competence/education").set(authed(sp.token)).send({ level: 4, label: "Post-secondary non-tertiary" });
+
+    const dup = await request(app).put(`/v1/competence/education/${a.id}`).set(authed(sp.token)).send({ level: 4 });
+    expect(dup.status).toBe(400);
+
+    const upd = await request(app).put(`/v1/competence/education/${a.id}`).set(authed(sp.token)).send({ level: 5, label: "Renamed" });
+    expect(upd.status).toBe(200);
+    expect(upd.body.data).toMatchObject({ level: 5, label: "Renamed" });
+  });
+
+  /**
+   * G-05 (education levels) — the LIVE cascade. `CompetenceEducation` is the
+   * store the Enterprise "Education Levels" page, the role editor's "Minimum
+   * education (ISCED)" field, and the Competence Library all now share (OD
+   * `db.compEdu`, `eduDel` index.html:18417). Unlike the org-scoped sector/
+   * field cascades in `referenceDb.service.ts`, this table is global
+   * (org_id NULL — matching OD's single shared store), so deleting a level
+   * has to clear `eduMinLevelId` on every referencing role across every org,
+   * exactly like OD's flat, unscoped `db.roles` sweep.
+   */
+  it("education level delete cascade clears eduMinLevelId on referencing roles across every org", async () => {
+    const sp = await makeOrg("co-edu-del", "COEDUDEL", "ServiceOwner");
+    const level = (await request(app).post("/v1/competence/education").set(authed(sp.token)).send({ level: 7, label: "Master's or equivalent" })).body.data;
+
+    const tenantA = await makeOrg("co-edu-a", "COEDUA", "Tenant");
+    const tenantB = await makeOrg("co-edu-b", "COEDUB", "Tenant");
+    const roleFields = { description: null, status: "Active" as const, reviewFreq: "12", eduFields: [], eduCountry: null, expReqs: [], responsibilities: [], authorities: [] };
+    const roleA = await CompetenceRole.create({ orgId: tenantA.orgId, name: "Role A", eduMinLevelId: level.id, ...roleFields });
+    const roleB = await CompetenceRole.create({ orgId: tenantB.orgId, name: "Role B", eduMinLevelId: level.id, ...roleFields });
+    const untouched = await CompetenceRole.create({ orgId: tenantA.orgId, name: "Other Role", eduMinLevelId: null, ...roleFields });
+
+    const del = await request(app).delete(`/v1/competence/education/${level.id}`).set(authed(sp.token));
+    expect(del.status).toBe(200);
+    expect(del.body.data.affectedRoles).toBe(2);
+
+    await roleA.reload();
+    await roleB.reload();
+    await untouched.reload();
+    expect(roleA.eduMinLevelId).toBeNull();
+    expect(roleB.eduMinLevelId).toBeNull();
+    expect(untouched.eduMinLevelId).toBeNull();
+
+    const after = await request(app).get("/v1/competence/education").set(authed(sp.token));
+    expect(after.body.data.find((l: { id: string }) => l.id === level.id)).toBeUndefined();
   });
 });

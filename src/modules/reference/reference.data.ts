@@ -16,6 +16,13 @@ import { NACE_NOTES as NACE_NOTES_RAW } from "./data/naceNotes";
 import { KBLI_NOTES as KBLI_NOTES_RAW } from "./data/kbliNotes";
 import { EXAM_BANK as EXAM_BANK_RAW, type ExamBankQuestion, type ExamBankSkill } from "./data/examBank";
 import { ROLE_SUGGESTIONS as ROLE_SUGGESTIONS_RAW, ROLE_SUGGEST_COMMON as ROLE_SUGGEST_COMMON_RAW, type RoleSuggestionEntry } from "./data/roleSuggestions";
+import {
+  BASE_SKILLS as BASE_SKILLS_RAW, SKILL_LIBRARY_HARD as SKILL_LIBRARY_HARD_RAW, SKILL_LIBRARY_SOFT as SKILL_LIBRARY_SOFT_RAW,
+  DEFAULT_HARD_METHODS as DEFAULT_HARD_METHODS_RAW, DEFAULT_SOFT_METHODS as DEFAULT_SOFT_METHODS_RAW,
+  TRAINING_LIBRARY as TRAINING_LIBRARY_RAW, SKILL_TOPICS as SKILL_TOPICS_RAW,
+  skillTopic as skillTopicRaw, skillDescription as skillDescriptionRaw, trainingDescription as trainingDescriptionRaw,
+  type BaseSkillSeed, type TrainingCourseSeed, type SkillTopic,
+} from "./data/skillLibrary";
 
 export interface HierNode { code: string; label: string; level: number; parent: string | null; isic?: string }
 export interface Note { i?: string; e?: string } // includes / excludes (either may be absent)
@@ -44,3 +51,19 @@ export const EXAM_BANK: Record<string, ExamBankSkill> = EXAM_BANK_RAW;
 export type RoleSuggestion = RoleSuggestionEntry;
 export const ROLE_SUGGESTIONS: RoleSuggestion[] = ROLE_SUGGESTIONS_RAW;
 export const ROLE_SUGGEST_COMMON: { responsibilities: string[]; authorities: string[] } = ROLE_SUGGEST_COMMON_RAW;
+
+// --- Competence skill library / training catalog / topic classifier ---------
+// OD `compSkillLib()` + the live `rolesInit()` seed path (see ./data/skillLibrary.ts
+// header) + `SKILL_TOPICS`/`skillTopic`. 172 unique hard + 116 unique soft skill
+// names, 8 base skills, 21 training courses, 12 topics.
+export type { BaseSkillSeed, TrainingCourseSeed, SkillTopic };
+export const BASE_SKILLS: readonly BaseSkillSeed[] = BASE_SKILLS_RAW;
+export const SKILL_LIBRARY_HARD: readonly string[] = SKILL_LIBRARY_HARD_RAW;
+export const SKILL_LIBRARY_SOFT: readonly string[] = SKILL_LIBRARY_SOFT_RAW;
+export const DEFAULT_HARD_METHODS: readonly string[] = DEFAULT_HARD_METHODS_RAW;
+export const DEFAULT_SOFT_METHODS: readonly string[] = DEFAULT_SOFT_METHODS_RAW;
+export const TRAINING_LIBRARY: readonly TrainingCourseSeed[] = TRAINING_LIBRARY_RAW;
+export const SKILL_TOPICS: readonly string[] = SKILL_TOPICS_RAW;
+export const skillTopic = skillTopicRaw;
+export const skillDescription = skillDescriptionRaw;
+export const trainingDescription = trainingDescriptionRaw;

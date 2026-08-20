@@ -12,3 +12,4 @@ referenceRoutes.get("/kbli/:code/notes", c.kbliNotes);
 referenceRoutes.get("/iscedf", c.iscedf);
 referenceRoutes.get("/exam-bank", c.examBank);
 referenceRoutes.get("/role-suggestions", c.roleSuggestions);
+referenceRoutes.get("/skill-topics", c.skillTopics);

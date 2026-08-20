@@ -3,6 +3,7 @@ import { z } from "zod";
 import * as service from "./implementation.service";
 import * as docControl from "./documentControl";
 import * as awControl from "./awarenessControl";
+import * as trainingLifecycle from "./trainingLifecycle";
 import { sendOk } from "../../lib/apiResponse";
 import { UnauthorizedError } from "../../lib/errors";
 
@@ -200,6 +201,53 @@ export async function routeConcern(req: Request, res: Response, next: NextFuncti
     if (!req.auth) throw new UnauthorizedError();
     const input = routeSchema.parse(req.body);
     sendOk(res, await service.routeConcern(req.auth, req.params.id as string, input, req.ip ?? null), 201);
+  } catch (e) {
+    next(e);
+  }
+}
+
+// --- Training Plan lifecycle (OD `tpComplete` / `tpReassess` / `tpSet`) -----
+
+const trainingCompleteSchema = z.object({
+  completionDate: z.string().max(40).optional(),
+  completionResult: z.string().max(80).optional(),
+  completedBy: z.union([z.array(z.string().max(200)), z.string().max(2000)]).optional(),
+  evidence: z.string().max(500).optional(),
+  notes: z.string().max(4000).optional(),
+});
+
+export async function completeTraining(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const input = trainingCompleteSchema.parse(req.body);
+    sendOk(res, await trainingLifecycle.completeTraining(req.auth, req.params.id as string, input, req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
+
+const trainingReassessSchema = z.object({
+  result: z.string().min(1).max(80),
+  notes: z.string().max(4000).optional(),
+});
+
+export async function reassessTraining(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const input = trainingReassessSchema.parse(req.body);
+    sendOk(res, await trainingLifecycle.reassessTraining(req.auth, req.params.id as string, input, req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
+
+const trainingSetStatusSchema = z.object({ status: z.enum(["Closed", "Cancelled"]) });
+
+export async function setTrainingStatus(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const { status } = trainingSetStatusSchema.parse(req.body);
+    sendOk(res, await trainingLifecycle.setTrainingStatus(req.auth, req.params.id as string, status, req.ip ?? null));
   } catch (e) {
     next(e);
   }

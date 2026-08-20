@@ -51,14 +51,18 @@ describe("ISO clause registers (implementation)", () => {
     const created = await request(app).post("/v1/implementation/context").set(authed(token))
       .send({ title: "New privacy regulation", status: "Monitored", owner: "MS Team", data: { domain: "Regulatory" } });
     expect(created.status).toBe(201);
-    expect(created.body.data).toMatchObject({ module: "context", code: "OCX-0001", title: "New privacy regulation", status: "Monitored" });
+    // OD `ocFweCode`/`ocNewId` (index.html:8119–8120): the context register's
+    // prefix is the "Organizational Context" FWE element's own code — no
+    // element is seeded in this test's org, so it falls back to "FWE-001" —
+    // and the numeric suffix is NOT zero-padded, unlike every other register.
+    expect(created.body.data).toMatchObject({ module: "context", code: "FWE-001-1", title: "New privacy regulation", status: "Monitored" });
 
     const list = await request(app).get("/v1/implementation/context").set(authed(token));
     expect(list.body.data).toHaveLength(1);
-    expect(list.body.data[0].code).toBe("OCX-0001");
+    expect(list.body.data[0].code).toBe("FWE-001-1");
     // Second entry auto-increments the code.
     const second = await request(app).post("/v1/implementation/context").set(authed(token)).send({ title: "Second" });
-    expect(second.body.data.code).toBe("OCX-0002");
+    expect(second.body.data.code).toBe("FWE-001-2");
     expect(second.body.data.status).toBe("Open"); // default = first status in the set
   });
 
@@ -66,10 +70,41 @@ describe("ISO clause registers (implementation)", () => {
     const { token } = await makeTenant("t1", "TEN1");
     const created = await request(app).post("/v1/implementation/risks").set(authed(token))
       .send({ title: "Phishing", data: { likelihood: 4, impact: 4, treatment: "Mitigate" } });
+    expect(created.body.data.code).toMatch(/^RISK-/);
     expect(created.body.data.data).toMatchObject({ riskScore: 16, riskLevel: "Major" });
     const updated = await request(app).put(`/v1/implementation/risks/${created.body.data.id}`).set(authed(token))
       .send({ data: { likelihood: 1, impact: 2 } });
     expect(updated.body.data.data).toMatchObject({ riskScore: 2, riskLevel: "Negligible" });
+  });
+
+  // OD `riskArchive` (index.html:8135–8137): a risk must reach "Monitored"
+  // before it can be archived, and an already-archived risk refuses a second
+  // archive rather than silently no-op-ing.
+  it("only allows archiving a risk once it reaches Monitored, and refuses to re-archive", async () => {
+    const { token } = await makeTenant("t1", "TEN1");
+    const created = await request(app).post("/v1/implementation/risks").set(authed(token))
+      .send({ title: "Unpatched server", status: "Pending Assessment", data: { likelihood: 3, impact: 3 } });
+    const id = created.body.data.id;
+
+    const tooEarly = await request(app).put(`/v1/implementation/risks/${id}`).set(authed(token))
+      .send({ status: "Archived" });
+    expect(tooEarly.status).toBe(400);
+    expect(tooEarly.body.error.message).toBe('Risk must reach "Monitored" before it can be archived.');
+
+    await request(app).put(`/v1/implementation/risks/${id}`).set(authed(token)).send({ status: "Assessed" });
+    await request(app).put(`/v1/implementation/risks/${id}`).set(authed(token)).send({ status: "Treated" });
+    await request(app).put(`/v1/implementation/risks/${id}`).set(authed(token)).send({ status: "Monitored" });
+
+    const archived = await request(app).put(`/v1/implementation/risks/${id}`).set(authed(token))
+      .send({ status: "Archived" });
+    expect(archived.status).toBe(200);
+    expect(archived.body.data.status).toBe("Archived");
+
+    const again = await request(app).put(`/v1/implementation/risks/${id}`).set(authed(token))
+      .send({ status: "Archived" });
+    expect(again.status).toBe(400);
+    expect(again.body.error.code).toBe("RISK_ALREADY_ARCHIVED");
+    expect(again.body.error.message).toBe("Risk already archived");
   });
 
   it("rejects an unknown module and an invalid status", async () => {
@@ -416,7 +451,7 @@ describe("ISO clause registers (implementation)", () => {
     const { concern, created } = routed.body.data;
     expect(concern.status).toBe("Routed");
     expect(created.module).toBe("nonconformities");
-    expect(created.code).toMatch(/^NCR-/);
+    expect(created.code).toMatch(/^NC-/);
     expect(created.title).toBe("Unlabelled reagent on bench");
     expect(created.data.sourceConcernId).toBe(concern.id);
     expect(created.data.description).toBe("Found during walkthrough");

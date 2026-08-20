@@ -88,7 +88,7 @@ describe("internal audit", () => {
     // Route to NC → creates an NCR register record + links back.
     const routed = await request(app).post(`/v1/internal-audit/findings/${findingId}/route`).set(authed(token)).send({ target: "nc" });
     expect(routed.body.data.issueStatus).toBe("Follow-up Created");
-    expect(routed.body.data.linkedNC).toBe("NCR-0001");
+    expect(routed.body.data.linkedNC).toBe("NC-0001");
     const ncs = await request(app).get("/v1/implementation/nonconformities").set(authed(token));
     expect(ncs.body.data).toHaveLength(1);
     expect(ncs.body.data[0].data).toMatchObject({ category: "Audit Finding", sourceFindingId: "IAF-0001" });

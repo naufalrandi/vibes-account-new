@@ -131,10 +131,10 @@ export async function createProgram(auth: AuthContext, input: Record<string, unk
   const auditors = arr(input.auditors);
   if (!name) throw new BadRequestError("Program name is required", "NAME_REQUIRED");
   if (!period) throw new BadRequestError("Audit period is required", "PERIOD_REQUIRED");
-  if (processes.length === 0) throw new BadRequestError("At least one process is required", "PROCESS_REQUIRED");
-  if (criteria.length === 0) throw new BadRequestError("At least one criterion (framework) is required", "CRITERIA_REQUIRED");
+  if (processes.length === 0) throw new BadRequestError("Select at least one business process", "PROCESS_REQUIRED");
+  if (criteria.length === 0) throw new BadRequestError("Select at least one audit criterion", "CRITERIA_REQUIRED");
   if (!leadAuditor) throw new BadRequestError("Lead auditor is required", "LEAD_REQUIRED");
-  if (auditors.length === 0) throw new BadRequestError("At least one auditor is required", "AUDITORS_REQUIRED");
+  if (auditors.length === 0) throw new BadRequestError("Select at least one auditor", "AUDITORS_REQUIRED");
   const who = await actorName(auth);
   const row = await IaProgram.create({
     orgId: org, code: await nextCode(IaProgram, "IAP"), name, period, processes,
@@ -264,7 +264,7 @@ export async function createSession(auth: AuthContext, input: Record<string, unk
   if (!title) throw new BadRequestError("Session title is required", "TITLE_REQUIRED");
   if (!date) throw new BadRequestError("Session date is required", "DATE_REQUIRED");
   if (!start || !end) throw new BadRequestError("Start and end time are required", "TIME_REQUIRED");
-  if (!process) throw new BadRequestError("Process is required", "PROCESS_REQUIRED");
+  if (!process) throw new BadRequestError("Business process is required", "PROCESS_REQUIRED");
   if (!auditor) throw new BadRequestError("Auditor is required", "AUDITOR_REQUIRED");
   const plan = await IaPlan.findOne({ where: { id: planId, orgId: org } });
   if (!plan) throw new NotFoundError("Plan not found", "PLAN_NOT_FOUND");
@@ -492,13 +492,13 @@ export async function createFinding(auth: AuthContext, input: Record<string, unk
   const process = str(input.process);
   if (!programId) throw new BadRequestError("Program is required", "PROGRAM_REQUIRED");
   if (!title) throw new BadRequestError("Finding title is required", "TITLE_REQUIRED");
-  if (!description) throw new BadRequestError("Description is required", "DESC_REQUIRED");
-  if (!process) throw new BadRequestError("Process is required", "PROCESS_REQUIRED");
+  if (!description) throw new BadRequestError("Finding description is required", "DESC_REQUIRED");
+  if (!process) throw new BadRequestError("Business process is required", "PROCESS_REQUIRED");
   const program = await IaProgram.findOne({ where: { id: programId, orgId: org } });
   if (!program) throw new NotFoundError("Program not found", "PROGRAM_NOT_FOUND");
   const settings = await settingsFor(auth, org);
   const evidence = str(input.evidence);
-  if (settings.requireEvidence && !evidence) throw new BadRequestError("Evidence is required", "EVIDENCE_REQUIRED");
+  if (settings.requireEvidence && !evidence) throw new BadRequestError("Audit evidence is required", "EVIDENCE_REQUIRED");
   const type = str(input.type) ?? "Nonconformity";
   if (!IA_FIND_TYPES.includes(type as never)) throw new BadRequestError(`Invalid finding type "${type}"`, "INVALID_TYPE");
   const submit = input.submit === true;
@@ -533,7 +533,7 @@ export async function updateFinding(auth: AuthContext, id: string, input: Record
   }
   if (input.frameworks !== undefined) row.frameworks = arr(input.frameworks);
   const submit = input.submit === true;
-  if (submit && settings.requireEvidence && !str(row.evidence)) throw new BadRequestError("Evidence is required", "EVIDENCE_REQUIRED");
+  if (submit && settings.requireEvidence && !str(row.evidence)) throw new BadRequestError("Audit evidence is required", "EVIDENCE_REQUIRED");
   const who = await actorName(auth);
   if (submit) applyFindingSubmit(row, true, settings.mandatoryReview);
   row.lastUpdatedBy = who;
@@ -571,8 +571,8 @@ export async function issueFinding(auth: AuthContext, id: string, ip: string | n
   const settings = await settingsFor(auth, row.orgId);
   const canIssue = row.issueStatus === "Ready to Issue" || (!settings.mandatoryReview && row.issueStatus === "Draft");
   if (!canIssue) throw new ConflictError("Finding is not ready to issue", "NOT_READY");
-  if (settings.requirePIC && !str(row.pic)) throw new BadRequestError("PIC is required before issuing", "PIC_REQUIRED");
-  if (settings.requireDue && !str(row.due)) throw new BadRequestError("Due date is required before issuing", "DUE_REQUIRED");
+  if (settings.requirePIC && !str(row.pic)) throw new BadRequestError("A PIC is required before issuing", "PIC_REQUIRED");
+  if (settings.requireDue && !str(row.due)) throw new BadRequestError("A due date is required before issuing", "DUE_REQUIRED");
   const who = await actorName(auth);
   row.issueStatus = "Issued";
   row.issuedTo = row.pic;
@@ -592,7 +592,7 @@ export async function routeFinding(auth: AuthContext, id: string, target: "nc" |
   const who = await actorName(auth);
   if (target === "nc") {
     if (row.type !== "Nonconformity") throw new BadRequestError("Only nonconformity findings route to an NC", "NOT_NC_TYPE");
-    if (row.linkedNC) throw new ConflictError("Finding is already linked to an NC", "ALREADY_LINKED");
+    if (row.linkedNC) throw new ConflictError(`Already linked to ${row.linkedNC}`, "ALREADY_LINKED");
     // OD `iafRoute` (index.html:12626–12630) carries the finding's process,
     // work unit, PIC, due date and framework relevance across to the NC it
     // creates — routing used to drop all of that context.
@@ -608,7 +608,7 @@ export async function routeFinding(auth: AuthContext, id: string, target: "nc" |
     row.linkedNC = nc.code;
   } else {
     if (row.type !== "Observation" && row.type !== "Opportunity for Improvement") throw new BadRequestError("Only observations / OFIs route to an improvement", "NOT_IMP_TYPE");
-    if (row.linkedImp) throw new ConflictError("Finding is already linked to an improvement", "ALREADY_LINKED");
+    if (row.linkedImp) throw new ConflictError(`Already linked to ${row.linkedImp}`, "ALREADY_LINKED");
     // OD's improvement carries the same context, plus `evidence` (owner is the
     // finding's PIC, matching OD `owner:f.pic`).
     const imp = await createRecord(auth, "improvements", {
@@ -665,6 +665,44 @@ export async function generateReport(auth: AuthContext, input: Record<string, un
     await program.save();
   }
   await logAudit(auth, org, "ia.report.generated", "IaReport", row.id, ip);
+  return row.get({ plain: true });
+}
+
+/**
+ * OD `iarSave(id)` (index.html:12669) — the report form is create-OR-edit. In edit
+ * mode OD reassigns every generated field from the form, re-derives the plan /
+ * session / finding code lists from the (possibly changed) program, logs
+ * "edited the report" and toasts "Report saved". Unlike generate, editing never
+ * re-stamps the code, preparedBy, reportDate or status, and never re-promotes the
+ * program — OD only does that on the create branch.
+ */
+export async function updateReport(auth: AuthContext, id: string, input: Record<string, unknown>, ip: string | null) {
+  const row = await IaReport.findByPk(id);
+  if (!row) throw new NotFoundError("Report not found", "REPORT_NOT_FOUND");
+  const org = await targetOrg(auth, row.orgId);
+  const programId = str(input.programId) ?? row.programId;
+  const program = await IaProgram.findOne({ where: { id: programId, orgId: org } });
+  if (!program) throw new NotFoundError("Program not found", "PROGRAM_NOT_FOUND");
+  const [plans, sessions, findings] = await Promise.all([
+    IaPlan.findAll({ where: { orgId: org, programId }, attributes: ["code"] }),
+    IaSession.findAll({ where: { orgId: org, programId }, attributes: ["code"] }),
+    IaFinding.findAll({ where: { orgId: org, programId }, attributes: ["code"] }),
+  ]);
+  const who = await actorName(auth);
+  row.programId = programId;
+  row.period = program.period;
+  row.plans = plans.map((p) => p.code);
+  row.sessions = sessions.map((s) => s.code);
+  row.findings = findings.map((f) => f.code);
+  if (input.evidenceSummary !== undefined) row.evidenceSummary = input.evidenceSummary !== false;
+  if (input.followupIncluded !== undefined) row.followupIncluded = input.followupIncluded !== false;
+  if (input.summary !== undefined) row.summary = str(input.summary);
+  if (input.conclusion !== undefined) row.conclusion = str(input.conclusion);
+  if (input.approvedBy !== undefined) row.approvedBy = str(input.approvedBy);
+  row.lastUpdatedBy = who;
+  row.activity = pushActivity(row.activity, who, "edited the report", "Report updated");
+  await row.save();
+  await logAudit(auth, org, "ia.report.updated", "IaReport", row.id, ip);
   return row.get({ plain: true });
 }
 

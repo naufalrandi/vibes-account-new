@@ -77,5 +77,6 @@ export const addFindingComment = wrap(async (req, res) => ok(res, await service.
 // Reports
 export const listReports = wrap(async (req, res) => ok(res, await service.listReports(guard(req), orgOf(req))));
 export const generateReport = wrap(async (req, res) => ok(res, await service.generateReport(guard(req), body.parse(req.body), orgOf(req), ip(req)), 201));
+export const updateReport = wrap(async (req, res) => ok(res, await service.updateReport(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
 export const setReportStatus = wrap(async (req, res) => ok(res, await service.setReportStatus(guard(req), req.params.id as string, statusSchema.parse(req.body).status, ip(req))));
 export const addReportComment = wrap(async (req, res) => ok(res, await service.addReportComment(guard(req), req.params.id as string, commentSchema.parse(req.body).text, ip(req)), 201));

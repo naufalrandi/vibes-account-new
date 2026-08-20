@@ -1,10 +1,13 @@
 import { Op } from "sequelize";
-import { CompetenceEducation, CompetenceSkill, CompetenceTraining, CompetenceSettings } from "../../db/models";
+import { CompetenceEducation, CompetenceRole, CompetenceSkill, CompetenceTraining, CompetenceSettings } from "../../db/models";
 import { SKILL_TYPES } from "../../db/models/competence.models";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
+import { sequelize } from "../../db/sequelize";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { ensureSkillLibrarySeed, ensureTrainingCatalogSeed } from "./competence.skillLibrarySeed";
+import { skillTopic } from "../reference/reference.data";
 
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : v == null || v === "" ? null : String(v));
 const arr = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
@@ -45,6 +48,17 @@ export async function updateEducation(auth: AuthContext, id: string, input: Reco
   assertServiceOwner(auth);
   const row = await CompetenceEducation.findByPk(id);
   if (!row) throw new NotFoundError("Education level not found", "EDU_NOT_FOUND");
+  // OD `eduSave` (index.html:18400-18406) writes the ISCED number on update,
+  // not just on create — the level is editable on an existing row, not locked
+  // after creation.
+  if (input.level !== undefined) {
+    const level = Number(input.level);
+    if (!Number.isInteger(level)) throw new BadRequestError("Level must be an integer", "LEVEL_REQUIRED");
+    if (level !== row.level && (await CompetenceEducation.findOne({ where: { level } }))) {
+      throw new BadRequestError("That ISCED level already exists", "LEVEL_EXISTS");
+    }
+    row.level = level;
+  }
   if (input.label !== undefined) row.label = str(input.label) ?? row.label;
   if (input.description !== undefined) row.description = str(input.description);
   await row.save();
@@ -55,17 +69,37 @@ export async function deleteEducation(auth: AuthContext, id: string, ip: string 
   assertServiceOwner(auth);
   const row = await CompetenceEducation.findByPk(id);
   if (!row) throw new NotFoundError("Education level not found", "EDU_NOT_FOUND");
-  await row.destroy();
+  // OD `eduDel` (index.html:18417): deleting a level falls every role that
+  // used it as eligibility back to "no minimum" instead of leaving a dangling
+  // id. `CompetenceEducation` is global (org_id NULL, matching OD's shared
+  // `db.compEdu`), so — like OD's flat `db.roles` — the cascade is NOT scoped
+  // to the deleting admin's org: it clears `eduMinLevelId` on every role that
+  // referenced this level, across every org, in the same transaction as the
+  // delete so a failure can't half-clear.
+  const affectedRoles = await sequelize.transaction(async (transaction) => {
+    const [count] = await CompetenceRole.update(
+      { eduMinLevelId: null },
+      { where: { eduMinLevelId: id }, transaction },
+    );
+    await row.destroy({ transaction });
+    return count;
+  });
   await audit(auth, "competence.education.deleted", "CompetenceEducation", id, ip);
+  return { affectedRoles };
 }
 
 // --- Skill library -------------------------------------------------------
 // OD's dual model (global enterprise library + tenant-scoped db.skills):
 // SP rows are global (org_id NULL); a tenant's own rows sit beside them.
 export async function listSkills(auth: AuthContext, filters: { type?: string } = {}) {
+  await ensureSkillLibrarySeed();
   const scope = await orgClause(auth);
   const where = filters.type ? { ...scope, type: filters.type } : scope;
-  return (await CompetenceSkill.findAll({ where, order: [["name", "ASC"]] })).map((r) => r.get({ plain: true }));
+  const rows = (await CompetenceSkill.findAll({ where, order: [["name", "ASC"]] })).map((r) => r.get({ plain: true }));
+  // OD `skillTopic(s)` (index.html:17835) pre-computed server-side so the
+  // Competence Library grouping (`clibSkills`, 17862) doesn't need a
+  // client-side re-implementation of the keyword classifier.
+  return rows.map((r) => ({ ...r, topic: skillTopic(r) }));
 }
 export async function createSkill(auth: AuthContext, input: Record<string, unknown>, ip: string | null) {
   const name = str(input.name);
@@ -111,6 +145,7 @@ export async function deleteSkill(auth: AuthContext, id: string, ip: string | nu
 // SP-global courses (org_id NULL) are visible to everyone; tenant courses are
 // visible to (and manageable by) the owning tenant.
 export async function listTraining(auth: AuthContext) {
+  await ensureTrainingCatalogSeed();
   const ids = await visibleTenantOrgIds(auth);
   const orgClause = ids === null ? {} : { [Op.or]: [{ orgId: null }, { orgId: { [Op.in]: ids } }] };
   return (await CompetenceTraining.findAll({ where: orgClause, order: [["name", "ASC"]] })).map((r) => r.get({ plain: true }));

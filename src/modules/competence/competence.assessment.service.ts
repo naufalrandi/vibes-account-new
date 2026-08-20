@@ -44,9 +44,18 @@ async function nextCode(model: ModelStatic<Model>, prefix: string): Promise<stri
   for (const r of rows) { const n = Number.parseInt(String(r.get("code")).slice(prefix.length + 1), 10); if (Number.isFinite(n) && n > max) max = n; }
   return `${prefix}-${String(max + 1).padStart(4, "0")}`;
 }
-async function audit(auth: AuthContext, orgId: string, action: string, entityType: string, entityId: string, ip: string | null) {
-  await writeAudit({ actorUserId: auth.userId, organizationId: orgId, action, entityType, entityId, sourceIp: ip, result: "Success" });
+async function audit(auth: AuthContext, orgId: string, action: string, entityType: string, entityId: string, ip: string | null, metadata?: Record<string, unknown>) {
+  await writeAudit({ actorUserId: auth.userId, organizationId: orgId, action, entityType, entityId, sourceIp: ip, result: "Success", metadata: metadata ?? null });
 }
+/** OD `ocLogAdd(record, action, summary, who, now)` equivalent: this codebase
+ * has no per-record activity array, so a gap's human-readable activity line
+ * (matching OD's exact wording) rides on the system audit log's `metadata`
+ * instead of a new column. `activity` carries OD's `action` text verbatim;
+ * `detail` carries OD's `summary` argument. */
+async function gapActivity(auth: AuthContext, orgId: string, action: string, gapId: string, ip: string | null, activity: string, detail: string) {
+  await audit(auth, orgId, action, "CompetenceGap", gapId, ip, { activity, detail });
+}
+const ocTrunc = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 // ============================ ROLES (competence profiles) ============================
 // OD `compScopeRoles()`: strict scope match — a tenant only ever sees its own
@@ -378,13 +387,43 @@ export async function reassessQueue(auth: AuthContext, scope?: "enterprise") {
 }
 
 // ============================ GAPS ============================
-export async function listGaps(auth: AuthContext, scope?: "enterprise") {
-  return (await CompetenceGap.findAll({ where: await orgWhere(auth, scope), order: [["createdAt", "DESC"]] })).map((r) => r.get({ plain: true }));
-}
-export async function updateGap(auth: AuthContext, id: string, input: Record<string, unknown>, ip: string | null) {
+async function requireGap(auth: AuthContext, id: string): Promise<CompetenceGap> {
   const row = await CompetenceGap.findByPk(id);
   if (!row) throw new NotFoundError("Gap not found", "GAP_NOT_FOUND");
   await targetOrg(auth, row.orgId);
+  return row;
+}
+
+/** OD `compGapTpBadge` (index.html:14215), ported onto this backend's single
+ * `CompetenceGap` model. OD checks `gap.status==='Closed'` for the terminal
+ * "Gap Closed" state; this ported gap vocabulary's terminal state is
+ * `'Resolved'` (`GAP_STATUS = ["Open","Planned","Resolved"]`), so `'Resolved'`
+ * is treated as OD's `'Closed'` equivalent here.
+ *
+ * `linkedPlanStatus` is the linked Training Plan's own `status` (owned by the
+ * implementation module) — pass it when known so a plan in
+ * 'Pending Reassessment' surfaces as such; omitted/unknown falls through to
+ * the generic 'Training Plan Created' bucket, matching OD's final branch. */
+export function computeGapDisposition(
+  gap: { status: string; noTraining: boolean; trainingPlanId: string | null },
+  linkedPlanStatus?: string | null,
+): string {
+  if (gap.status === "Resolved") return "Gap Closed";
+  if (gap.noTraining) return "No Training Required";
+  if (!gap.trainingPlanId) return "Training Plan Required";
+  if (linkedPlanStatus === "Pending Reassessment") return "Pending Reassessment";
+  return "Training Plan Created";
+}
+function withDisposition<T extends { status: string; noTraining: boolean; trainingPlanId: string | null }>(gap: T): T & { disposition: string } {
+  return { ...gap, disposition: computeGapDisposition(gap) };
+}
+
+export async function listGaps(auth: AuthContext, scope?: "enterprise") {
+  const rows = (await CompetenceGap.findAll({ where: await orgWhere(auth, scope), order: [["createdAt", "DESC"]] })).map((r) => r.get({ plain: true }));
+  return rows.map(withDisposition);
+}
+export async function updateGap(auth: AuthContext, id: string, input: Record<string, unknown>, ip: string | null) {
+  const row = await requireGap(auth, id);
   const rec = row as unknown as Record<string, unknown>;
   for (const k of ["action", "owner", "due", "training"] as const) if (input[k] !== undefined) rec[k] = str(input[k]);
   if (typeof input.trainingDone === "boolean") {
@@ -397,5 +436,86 @@ export async function updateGap(auth: AuthContext, id: string, input: Record<str
   }
   await row.save();
   await audit(auth, row.orgId, "competence.gap.updated", "CompetenceGap", row.id, ip);
-  return row.get({ plain: true });
+  return withDisposition(row.get({ plain: true }));
+}
+
+/** OD `compGapLinkTraining` (index.html:14217-14221) — bind an EXISTING
+ * training plan to the gap. No status transition (unlike the "create a new
+ * plan" path below); clears `noTraining` since the gap now has a plan. */
+export async function linkGapTrainingPlan(auth: AuthContext, id: string, trainingPlanId: string, ip: string | null) {
+  const row = await requireGap(auth, id);
+  const tp = str(trainingPlanId);
+  if (!tp) throw new BadRequestError("Select a training plan", "TRAINING_PLAN_REQUIRED");
+  row.trainingPlanId = tp;
+  row.noTraining = false;
+  await row.save();
+  await gapActivity(auth, row.orgId, "competence.gap.trainingLinked", row.id, ip, "linked a training plan", tp);
+  return withDisposition(row.get({ plain: true }));
+}
+
+/** OD `compGapNoTraining` (index.html:14222-14226) — justification is
+ * mandatory server-side, matching OD's `if(!r){toast('Justification is
+ * required');return;}` guard (OD only enforces this client-side). */
+export async function markGapNoTrainingRequired(auth: AuthContext, id: string, reason: string, ip: string | null) {
+  const row = await requireGap(auth, id);
+  const trimmed = (reason ?? "").trim();
+  if (!trimmed) throw new BadRequestError("Justification is required", "REASON_REQUIRED");
+  row.noTraining = true;
+  row.noTrainingReason = trimmed;
+  await row.save();
+  await gapActivity(auth, row.orgId, "competence.gap.noTrainingRequired", row.id, ip, "marked no training required", ocTrunc(trimmed, 50));
+  return withDisposition(row.get({ plain: true }));
+}
+
+/** OD `tpSave` create-path (index.html:14157) — when a NEW training plan is
+ * created bound to this gap (source='Competence Gap'), the gap's
+ * `trainingPlanId` is set and an Open gap moves to Planned. Exported for the
+ * implementation module to call right after it creates the training-plan
+ * row — see this task's final report for the exact contract. */
+export async function bindGapToNewTrainingPlan(auth: AuthContext, gapId: string, trainingPlanId: string, ip: string | null) {
+  const row = await requireGap(auth, gapId);
+  row.trainingPlanId = trainingPlanId;
+  if (row.status === "Open") row.status = "Planned";
+  await row.save();
+  await gapActivity(auth, row.orgId, "competence.gap.trainingLinked", row.id, ip, "linked a training plan", trainingPlanId);
+  return withDisposition(row.get({ plain: true }));
+}
+
+const GAP_REASSESS_MEETS = "Meets Requirement";
+
+/** OD `tpReassessSave` (index.html:14184-14192) — record a reassessment
+ * result the linked training plan captured against this gap. "Meets
+ * Requirement" resolves the gap; anything else reopens it as Open with the
+ * result recorded. Exported for the implementation module's training-plan
+ * reassessment flow to call. */
+export async function recordGapReassessment(auth: AuthContext, gapId: string, result: string, trainingPlanId: string, ip: string | null) {
+  const row = await requireGap(auth, gapId);
+  row.reassessResult = result;
+  if (result === GAP_REASSESS_MEETS) {
+    row.status = "Resolved";
+    row.resolvedDate = new Date().toISOString().slice(0, 10);
+    row.resolvedBy = trainingPlanId;
+    await row.save();
+    await gapActivity(auth, row.orgId, "competence.gap.reassessResolved", row.id, ip, "competence gap resolved", "Reassessment met requirement");
+  } else {
+    row.status = "Open";
+    await row.save();
+    await gapActivity(auth, row.orgId, "competence.gap.reassessRecorded", row.id, ip, "reassessment recorded", `${result} — gap remains open`);
+  }
+  return withDisposition(row.get({ plain: true }));
+}
+
+/** OD `tpSet(id,'Closed')` (index.html:14090-14091) — when the linked
+ * training plan is closed directly (no reassessment result recorded), the
+ * bound gap resolves too, but only once (`gp.status!=='Resolved'` guard).
+ * Exported for the implementation module's training-plan close flow. */
+export async function resolveGapFromTrainingPlanClosed(auth: AuthContext, gapId: string, trainingPlanId: string, ip: string | null) {
+  const row = await requireGap(auth, gapId);
+  if (row.status === "Resolved") return withDisposition(row.get({ plain: true }));
+  row.status = "Resolved";
+  row.resolvedDate = new Date().toISOString().slice(0, 10);
+  row.resolvedBy = trainingPlanId;
+  await row.save();
+  await gapActivity(auth, row.orgId, "competence.gap.trainingPlanClosed", row.id, ip, "training plan closed", `Linked training ${trainingPlanId} closed`);
+  return withDisposition(row.get({ plain: true }));
 }

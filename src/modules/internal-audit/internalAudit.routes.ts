@@ -48,5 +48,6 @@ internalAuditRoutes.post("/findings/:id/comments", manage, c.addFindingComment);
 // Reports
 internalAuditRoutes.get("/reports", read, c.listReports);
 internalAuditRoutes.post("/reports", manage, c.generateReport);
+internalAuditRoutes.put("/reports/:id", manage, c.updateReport);
 internalAuditRoutes.post("/reports/:id/status", manage, c.setReportStatus);
 internalAuditRoutes.post("/reports/:id/comments", manage, c.addReportComment);

@@ -60,7 +60,7 @@ describe("interested parties + requirements", () => {
 
     // Raise a risk → creates a linked record in the risks register + flags the requirement.
     const raised = await request(app).post(`/v1/interested-parties/requirements/${rid}/raise-risk`).set(authed(token)).send({ description: "Delivery interruption risk" });
-    expect(raised.body.data).toMatchObject({ raisedAsRisk: true, linkedRisk: "RSK-0001" });
+    expect(raised.body.data).toMatchObject({ raisedAsRisk: true, linkedRisk: "RISK-0001" });
     const risks = await request(app).get("/v1/implementation/risks").set(authed(token));
     expect(risks.body.data[0].data).toMatchObject({ category: "Quality Risks", source: "Interested Party", sourceReqId: "IP-REQ-0001" });
     // The requirement now reports a linked risk.

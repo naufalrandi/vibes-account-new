@@ -2,6 +2,8 @@ import { randomUUID } from "crypto";
 import type { AuthContext } from "../../lib/scope";
 import { BadRequestError, NotFoundError } from "../../lib/errors";
 import { writeAudit } from "../audit/audit.service";
+import { sequelize } from "../../db/sequelize";
+import { CompetenceRole } from "../../db/models/competence.models";
 import {
   ReferenceSectorFramework, ReferenceIndustrySector, ReferenceEducationField, ReferenceEducationLevel, ReferenceCountry,
 } from "../../db/models/referenceDb.models";
@@ -94,7 +96,28 @@ async function logAudit(auth: AuthContext, action: string, entityType: string, e
 
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
 
-// --- Education Levels --------------------------------------------------------
+// --- Education Levels [DEPRECATED / ORPHANED] --------------------------------
+// `ReferenceEducationLevel` has no consumer besides its own CRUD below. OD
+// keeps a single `db.compEdu` store shared by the Enterprise admin page, the
+// role editor, and the Competence Library. This port originally split that
+// into two stores keyed differently: this org-scoped `ReferenceEducationLevel`
+// table (below) for the Enterprise page, and the global `CompetenceEducation`
+// table (`competence.service.ts`, `competence_education`) for the role editor
+// and Competence Library. As of the reference-db/competence unification, the
+// Enterprise "Education Levels" page (`EducationLevelsPage.tsx`) has been
+// repointed at `CompetenceEducation` via `/v1/competence/education`
+// (`listCompEducation`/`createCompEducation`/`updateCompEducation`/
+// `deleteCompEducation`) — the same store roles actually reference — so this
+// table and its `/v1/reference-db/education-levels` endpoints below are now
+// dead weight: nothing reads or writes them, and `deleteEducationLevel`'s
+// cascade can never fire since no `CompetenceRole.eduMinLevelId` was ever set
+// to one of *these* rows' ids.
+//
+// Left in place deliberately (not dropped): a migration for this table is
+// potentially in flight elsewhere and dropping it here would race with that.
+// Follow-up: once no other in-flight work depends on it, remove
+// `ReferenceEducationLevel` (model, migration, seed, these 4 functions, the
+// 4 controller actions, and the 4 routes in `referenceDb.routes.ts`).
 export async function listEducationLevels(auth: AuthContext) {
   await ensureEducationLevelsSeeded(auth.orgId);
   return (await ReferenceEducationLevel.findAll({ where: { orgId: auth.orgId }, order: [["level", "ASC"]] })).map((r) => r.get({ plain: true }));
@@ -131,8 +154,19 @@ export async function updateEducationLevel(auth: AuthContext, id: string, input:
 export async function deleteEducationLevel(auth: AuthContext, id: string, ip: string | null) {
   const row = await ReferenceEducationLevel.findOne({ where: { id, orgId: auth.orgId } });
   if (!row) throw new NotFoundError("Education level not found", "LEVEL_NOT_FOUND");
-  await row.destroy();
+  // OD `eduDel` (index.html:18417): deleting a level falls every role that used
+  // it as eligibility back to "no minimum" instead of leaving a dangling id —
+  // done in the same transaction as the delete so a failure can't half-clear.
+  const affectedRoles = await sequelize.transaction(async (transaction) => {
+    const [count] = await CompetenceRole.update(
+      { eduMinLevelId: null },
+      { where: { orgId: auth.orgId, eduMinLevelId: id }, transaction },
+    );
+    await row.destroy({ transaction });
+    return count;
+  });
   await logAudit(auth, "referencedb.edulevel.deleted", "ReferenceEducationLevel", id, ip);
+  return { affectedRoles };
 }
 
 // --- Industry Sectors (ISIC tree) --------------------------------------------
@@ -168,8 +202,35 @@ export async function updateIndustrySector(auth: AuthContext, id: string, input:
 export async function deleteIndustrySector(auth: AuthContext, id: string, ip: string | null) {
   const row = await ReferenceIndustrySector.findOne({ where: { id, orgId: auth.orgId } });
   if (!row) throw new NotFoundError("Industry sector not found", "SECTOR_NOT_FOUND");
-  await row.destroy();
+  // OD `sectorDel` (index.html:18506): deleting a sector clears every role's
+  // `expReqs[].sector` entries that pointed at it instead of leaving a dangling
+  // reference — `expReqs` is JSONB so each matching role is rewritten
+  // individually, all inside the delete's transaction.
+  //
+  // Matched by `code`, not `id`: OD keeps a single `db.sectors` store, so a
+  // role's `expReqs[].sector` and the sector's own id are the same value.
+  // This port seeds `ReferenceIndustrySector` per-org from the same ISIC
+  // dataset `/v1/reference` serves (`ensureIndustrySectorsSeeded` above), and
+  // the role editor's "Industrial sector" picker persists that static-dataset
+  // `code` (e.g. "A", "01"), not this row's own UUID `id` — so the cascade has
+  // to compare against `row.code` to ever match. `code` is stable and unique
+  // within an org's seeded tree, so this is lossless and behaviourally
+  // identical to OD's single-store id match.
+  const affectedRoles = await sequelize.transaction(async (transaction) => {
+    const roles = await CompetenceRole.findAll({ where: { orgId: auth.orgId }, transaction });
+    let count = 0;
+    for (const role of roles) {
+      const reqs = role.expReqs ?? [];
+      if (!reqs.some((r) => r.sector === row.code)) continue;
+      role.expReqs = reqs.map((r) => (r.sector === row.code ? { ...r, sector: "" } : r));
+      await role.save({ transaction });
+      count += 1;
+    }
+    await row.destroy({ transaction });
+    return count;
+  });
   await logAudit(auth, "referencedb.sector.deleted", "ReferenceIndustrySector", id, ip);
+  return { affectedRoles };
 }
 
 // --- Fields of Education (ISCED-F tree, + platform "Extension" tier) --------
@@ -210,8 +271,34 @@ export async function updateEducationField(auth: AuthContext, id: string, input:
 export async function deleteEducationField(auth: AuthContext, id: string, ip: string | null) {
   const row = await ReferenceEducationField.findOne({ where: { id, orgId: auth.orgId } });
   if (!row) throw new NotFoundError("Field of education not found", "FIELD_NOT_FOUND");
-  await row.destroy();
+  // Deliberately improves on OD rather than porting it literally: OD's
+  // `efDel`/`efUseCount` (index.html:18560/18511) check the LEGACY SINGULAR
+  // `r.eduField`, which is `''` in every OD seed — the field this port (and
+  // OD's own role editor, `efToggleField`) actually writes to is the PLURAL
+  // `r.eduFields[]` array. OD's cascade is therefore vestigial dead code in
+  // the prototype; we cascade against the live plural array instead.
+  //
+  // Matched by `code`, not `id`: like sectors above, `ReferenceEducationField`
+  // is seeded per-org from the same ISCED-F dataset `/v1/reference` serves
+  // (`ensureEducationFieldsSeeded`), and the role editor's "Field of study"
+  // checklist persists that static-dataset `code`, not this row's own UUID
+  // `id` — `eduFields` is a JSONB array, so each matching role is rewritten
+  // individually, all inside the delete's transaction.
+  const affectedRoles = await sequelize.transaction(async (transaction) => {
+    const roles = await CompetenceRole.findAll({ where: { orgId: auth.orgId }, transaction });
+    let count = 0;
+    for (const role of roles) {
+      const fields = role.eduFields ?? [];
+      if (!fields.includes(row.code)) continue;
+      role.eduFields = fields.filter((f) => f !== row.code);
+      await role.save({ transaction });
+      count += 1;
+    }
+    await row.destroy({ transaction });
+    return count;
+  });
   await logAudit(auth, "referencedb.edufield.deleted", "ReferenceEducationField", id, ip);
+  return { affectedRoles };
 }
 
 // --- Sector Frameworks (shared national/regional classification catalogs) ---

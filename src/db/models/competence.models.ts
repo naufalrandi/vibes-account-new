@@ -224,6 +224,16 @@ export class CompetenceGap extends Model<InferAttributes<CompetenceGap>, InferCr
   declare resolvedDate: string | null;
   declare resolvedBy: string | null;
   declare createdDate: string | null;
+  /** OD `gap.trainingPlanId` (index.html:14215-14226) — the linked Training
+   * Plan's id. String, not a FK: the Training Plan record lives in the
+   * implementation module. */
+  declare trainingPlanId: string | null;
+  /** OD `gap.noTraining` / `gap.noTrainingReason` (`compGapNoTraining`,
+   * index.html:14222-14226) — the "No Training Required" disposition. */
+  declare noTraining: CreationOptional<boolean>;
+  declare noTrainingReason: string | null;
+  /** OD `gap.reassessResult` (`tpReassessSave`, index.html:14184-14192). */
+  declare reassessResult: string | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -253,6 +263,10 @@ CompetenceGap.init(
     resolvedDate: { type: DataTypes.DATEONLY, allowNull: true, field: "resolved_date" },
     resolvedBy: { type: DataTypes.STRING, allowNull: true, field: "resolved_by" },
     createdDate: { type: DataTypes.DATEONLY, allowNull: true, field: "created_date" },
+    trainingPlanId: { type: DataTypes.STRING, allowNull: true, field: "training_plan_id" },
+    noTraining: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: "no_training" },
+    noTrainingReason: { type: DataTypes.TEXT, allowNull: true, field: "no_training_reason" },
+    reassessResult: { type: DataTypes.STRING, allowNull: true, field: "reassess_result" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },
