@@ -4,7 +4,7 @@ import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError, NotFoundError } from "../../lib/errors";
 
-export const BUSINESS_AREAS: BusinessArea[] = ["enterprise", "datana", "motoran"];
+export const BUSINESS_AREAS: BusinessArea[] = ["enterprise", "datana", "motoran", "exelera"];
 
 export interface BusinessRecordView {
   id: string;
@@ -37,8 +37,25 @@ function assertArea(area: string): asserts area is BusinessArea {
   if (!BUSINESS_AREAS.includes(area as BusinessArea)) throw new NotFoundError("Unknown business area", "AREA_NOT_FOUND");
 }
 
+/**
+ * Modules whose codes OD fixes explicitly rather than abbreviating. The Sales
+ * entities all number from their own bases in OD (`leadNextId` index.html:29329,
+ * `inqNextId` :29903, `propNextId` :30236, `prjNextId` :30389, `plNextId` :30513),
+ * and the derived abbreviation would give the wrong stem for every one of them
+ * (`ent-leads` → "LEA", `ent-proposals`/`ent-projects` → both "PRO").
+ */
+const BIZ_PREFIX_OVERRIDE: Record<string, string> = {
+  "ent-leads": "LD",
+  "ent-leads-people": "PL",
+  "ent-inq": "INQ",
+  "ent-proposals": "PRO",
+  "ent-projects": "PRJ",
+};
+
 /** Abbreviated code prefix from the module key (matches the design: `ent-personnel` → `PER`). */
 function bizPrefix(module: string): string {
+  const override = BIZ_PREFIX_OVERRIDE[module];
+  if (override) return override;
   const seg = module.includes("-") ? module.slice(module.indexOf("-") + 1) : module;
   return seg.replace(/[^a-z]/gi, "").toUpperCase().slice(0, 3) || "REC";
 }

@@ -3,7 +3,7 @@ import request from "supertest";
 import { createApp } from "../../app";
 import { initModels, Organization, User, Role, RoleActionGrant, Action, AgreementTemplate, PartnerProfile } from "../../db/models";
 import { hashPassword } from "../../lib/password";
-import { resetDb, grantActions } from "../../../test/helpers";
+import { resetDb, grantActions, seedActionCatalog } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
 
 const app = createApp();
@@ -174,6 +174,11 @@ describe("partners", () => {
    * tenant.service.ts's `provisionTenant`.
    */
   it("createPartner provisions the new admin with a real Role + the curated non-SP grant set", async () => {
+    // `grantEverythingExceptSpOnly` iterates the Action table, so the assertions
+    // below need the real catalog present — `grantActions` only creates the keys
+    // it is explicitly asked for. Without this the granted set is empty and the
+    // test fails even though the product code is correct.
+    await seedActionCatalog();
     const { token: soToken } = await makeSo();
     const res = await request(app).post("/v1/partners").set(authed(soToken)).send({
       name: "Borneo Digital", admin: { fullName: "Budi Santoso", username: "budi.admin", email: "budi@borneo.io" },

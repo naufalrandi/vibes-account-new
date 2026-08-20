@@ -34,6 +34,33 @@ describe("business unit registers", () => {
     expect((await request(app).get("/v1/business/nope/x").set(authed(a.token))).status).toBe(404);
   });
 
+  // OD numbers the Sales entities from their own bases with fixed stems
+  // (`leadNextId` index.html:29329, `propNextId` :30236, `prjNextId` :30389).
+  // The derived abbreviation would give "LEA", and would collide "PRO" for both
+  // proposals and projects.
+  it("uses OD's own code stems for the Sales modules", async () => {
+    const a = await actor("SP", "sp1", ALL);
+    const mk = (mod: string, title: string) =>
+      request(app).post(`/v1/business/enterprise/${mod}`).set(authed(a.token)).send({ title });
+    expect((await mk("ent-leads", "PT Sinar Jaya")).body.data.code).toBe("LD-0001");
+    expect((await mk("ent-inq", "Website enquiry")).body.data.code).toBe("INQ-0001");
+    expect((await mk("ent-proposals", "ISO 9001 implementation")).body.data.code).toBe("PRO-0001");
+    expect((await mk("ent-projects", "ISO 9001 rollout")).body.data.code).toBe("PRJ-0001");
+    expect((await mk("ent-leads-people", "Andi Wijaya")).body.data.code).toBe("PL-0001");
+  });
+
+  // OD `PLATFORM` (index.html:5848-5874) carries five areas, not four —
+  // `exelera` is a sister operating company with its own live modules.
+  it("accepts the exelera business area", async () => {
+    const a = await actor("SP", "sp1", ALL);
+    const res = await request(app).post("/v1/business/exelera/ex-cab").set(authed(a.token))
+      .send({ title: "PT Sinar Jaya — ISO 9001", status: "Application", data: { scheme: "ISO 9001:2015" } });
+    expect(res.status).toBe(201);
+    expect(res.body.data.area).toBe("exelera");
+    const list = await request(app).get("/v1/business/exelera/ex-cab").set(authed(a.token));
+    expect(list.body.data).toHaveLength(1);
+  });
+
   it("creates a record with an abbreviated code and lists it", async () => {
     const a = await actor("SP", "sp1", ALL);
     const res = await request(app).post("/v1/business/enterprise/ent-personnel").set(authed(a.token))
