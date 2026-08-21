@@ -38,6 +38,7 @@ import {
 import { ACTIONS, MENU_SEED, type SeedMenu } from "../../modules/iam/actions.catalog";
 import { grantEverythingExceptSpOnly } from "../../modules/iam/tenantGrants";
 import { seedComplianceEngine } from "./complianceEngine";
+import { seedIsraLibrary } from "./isra";
 import type { AgreementBlock, AgreementTemplateStatus } from "../models/agreementTemplate.model";
 import { generateStatementForPartner } from "../../modules/billing/billing.service";
 import { hashPassword } from "../../lib/password";
@@ -541,6 +542,13 @@ export async function seed(): Promise<void> {
   //     complianceEngine.*.data.ts modules). Returns the handles the Phase 8
   //     demo assessment below wires against.
   const { iso27001, auditEl, riskEl, q1, q1r5, qRisk, qRiskR0, crit5, critR0 } = await seedComplianceEngine();
+
+  // 12b. ISRA + SoA (F-2b) — global reference-library seed: the 93-row Annex A
+  //      master, Threat/Vuln libraries, the re-derived V2 knowledge maps, the
+  //      269-row Vuln→Annex A map, RTP treatment templates, and the KM
+  //      publish-state singleton (see src/db/seeders/isra.ts). Global (no
+  //      org_id) — no tenant/demo wiring needed here.
+  await seedIsraLibrary();
 
   // 13. Phase 8 — a finalized demo assessment for the tenant against ISO 27001.
   //     Internal Audit answered "mature" (score 5, no gap); Risk Assessment

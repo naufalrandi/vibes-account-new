@@ -111,6 +111,21 @@ export const ACTIONS = {
   LIMS_MANAGE: "lims.manage",
   KB_READ: "kb.read",
   KB_MANAGE: "kb.manage",
+  // ISRA + SoA (F-2b) — global Threat/Vuln/Annex A reference-library reads +
+  // platform-curation writes (isra.library.manage is Service-Owner-only, see
+  // tenantGrants.ts SP_ONLY_ACTIONS) plus org-scoped control customization /
+  // maturity baselines / vuln-control overlay (schema-level scaffolding for
+  // the F-5d Controls tab).
+  ISRA_LIBRARY_READ: "isra.library.read",
+  ISRA_LIBRARY_MANAGE: "isra.library.manage",
+  // ISRA taxonomy + asset library + Lt override/archive/audit system (F-2a).
+  // Shares ISRA_LIBRARY_READ with F-2b's threat/vuln/Annex-A libraries (both
+  // are "read the ISRA reference libraries" in spirit); ADMIN is its own key
+  // since taxonomy approval-status transitions and asset-library writes are a
+  // distinct, narrower capability than F-2b's platform-curation MANAGE.
+  ISRA_LIBRARY_ADMIN: "isra.library.admin",
+  ISRA_ORG_CONTROL_READ: "isra.orgControl.read",
+  ISRA_ORG_CONTROL_MANAGE: "isra.orgControl.manage",
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS];
@@ -580,6 +595,40 @@ export const MENU_SEED: SeedMenu[] = [
         actions: [
           { key: ACTIONS.BUSINESS_READ, name: "View business unit registers" },
           { key: ACTIONS.BUSINESS_MANAGE, name: "Manage business unit records" },
+        ],
+      },
+    ],
+  },
+  {
+    // Standalone group for now (design doc §4 F-2a/F-2b) — the unified ISRA
+    // toolbar (Assessments / Mapping / Register / Controls / SoA / these two
+    // libraries) lands in a much later batch (F-4c).
+    name: "Risk Assessment (ISRA)",
+    heading: "Risk Assessment (ISRA)",
+    icon: "shield-alert",
+    children: [
+      {
+        name: "Threat & Vulnerability Library",
+        route: "/isra-threat-vuln-library",
+        routeSeo: "isra-threat-vuln-library",
+        icon: "shield-alert",
+        actions: [
+          { key: ACTIONS.ISRA_LIBRARY_READ, name: "View Threat/Vulnerability/Annex A libraries + knowledge maps" },
+          { key: ACTIONS.ISRA_LIBRARY_MANAGE, name: "Manage the platform Threat/Vulnerability/Annex A libraries" },
+          { key: ACTIONS.ISRA_ORG_CONTROL_READ, name: "View org control customizations, maturity baselines & vuln-control overlay" },
+          { key: ACTIONS.ISRA_ORG_CONTROL_MANAGE, name: "Manage org control customizations, maturity baselines & vuln-control overlay" },
+        ],
+      },
+      {
+        // F-2a — PA/SA taxonomy, primary/secondary asset library, and the Lt
+        // (library/tenant) override/archive/audit system, design doc §2.4.
+        name: "Asset Library",
+        route: "/isra-asset-library",
+        routeSeo: "isra-asset-library",
+        icon: "shield-alert",
+        actions: [
+          { key: ACTIONS.ISRA_LIBRARY_READ, name: "View asset taxonomy, primary/secondary asset libraries & tenant overrides" },
+          { key: ACTIONS.ISRA_LIBRARY_ADMIN, name: "Manage asset taxonomy, SA-subgroup approvals, asset libraries & tenant overrides" },
         ],
       },
     ],

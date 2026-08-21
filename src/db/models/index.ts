@@ -51,6 +51,15 @@ import { WorkUnit } from "./workUnit.model";
 import { RoleTemplate, RoleAssignment } from "./roleRegister.models";
 import { RecordEvent } from "./recordEvent.model";
 import { Fwrc } from "./fwrc.model";
+import { IsraAnnexAControl, IsraThreatLibrary, IsraVulnLibrary, IsraPaGroup, IsraPaSubgroup, IsraSaGroup, IsraSaSubgroup } from "./israLibrary.models";
+import { IsraPrimaryAssetLibrary, IsraSecondaryAssetLibrary, IsraKmSaThreat, IsraKmThreatVuln, IsraKmVulnControl, IsraKmMeta, IsraTreatTemplate } from "./israAssetLibrary.models";
+import { IsraLibraryOverride, IsraLibraryItem, IsraLibraryArchive, IsraLibraryAudit } from "./israLibraryOverride.models";
+import { IsraOrgControl, IsraControlMaturityBaseline, IsraVulnControlOverlay } from "./israOrgControl.models";
+import { IsraAssetMap, IsraAssetMapUsage, IsraAssetMapSecondary, IsraAssetMapThreat, IsraAssetMapVuln } from "./israAssetMap.models";
+import { IsraScenario, IsraScenarioVuln, IsraScenarioPotentialImpact, IsraExistingControl, IsraExistingControlAnnexRef, IsraScenarioCurrentRisk } from "./israScenario.models";
+import { IsraScenarioTreatmentDecision, IsraScenarioRecommendationSnapshot, IsraScenarioRecommendationDisposition, IsraScenarioAddedControl, IsraRtp, IsraRtpAction, IsraRtpActionControl } from "./israTreatmentRtp.models";
+import { IsraScenarioProjectedResidual, IsraScenarioActualResidual, IsraScenarioResidual, IsraScenarioClosure, IsraScenarioCycle, IsraInitiative, IsraInitiativeScenario, IsraAppetiteLog } from "./israResidualCycle.models";
+import { IsraEvidence, IsraAudit, IsraScenarioTemplate, IsraSoaJustification, IsraOrgSettings } from "./israSupport.models";
 
 let initialized = false;
 
@@ -275,6 +284,188 @@ export function initModels(): void {
   DemoTenant.belongsTo(Organization, { foreignKey: "provisionedOrgId", as: "provisionedOrg" });
   DemoTenant.belongsTo(User, { foreignKey: "provisionedUserId", as: "provisionedUser" });
 
+  // ISRA + SoA (F-1-impl) — Group A: global taxonomy + library associations.
+  IsraPaGroup.hasMany(IsraPaSubgroup, { foreignKey: "groupId" });
+  IsraPaSubgroup.belongsTo(IsraPaGroup, { foreignKey: "groupId" });
+  IsraSaGroup.hasMany(IsraSaSubgroup, { foreignKey: "groupId" });
+  IsraSaSubgroup.belongsTo(IsraSaGroup, { foreignKey: "groupId" });
+  IsraPaGroup.hasMany(IsraPrimaryAssetLibrary, { foreignKey: "groupId" });
+  IsraPrimaryAssetLibrary.belongsTo(IsraPaGroup, { foreignKey: "groupId" });
+  IsraPaSubgroup.hasMany(IsraPrimaryAssetLibrary, { foreignKey: "subgroupId" });
+  IsraPrimaryAssetLibrary.belongsTo(IsraPaSubgroup, { foreignKey: "subgroupId" });
+  IsraSaGroup.hasMany(IsraSecondaryAssetLibrary, { foreignKey: "groupId" });
+  IsraSecondaryAssetLibrary.belongsTo(IsraSaGroup, { foreignKey: "groupId" });
+  IsraSaSubgroup.hasMany(IsraSecondaryAssetLibrary, { foreignKey: "subgroupId" });
+  IsraSecondaryAssetLibrary.belongsTo(IsraSaSubgroup, { foreignKey: "subgroupId" });
+  // V2 knowledge maps (design doc §1.2) — SA-subgroup→Threat, Threat→Vuln.
+  IsraSaSubgroup.hasMany(IsraKmSaThreat, { foreignKey: "subgroupId" });
+  IsraKmSaThreat.belongsTo(IsraSaSubgroup, { foreignKey: "subgroupId" });
+  IsraSaGroup.hasMany(IsraKmSaThreat, { foreignKey: "groupId" });
+  IsraKmSaThreat.belongsTo(IsraSaGroup, { foreignKey: "groupId" });
+  IsraThreatLibrary.hasMany(IsraKmSaThreat, { foreignKey: "threatId" });
+  IsraKmSaThreat.belongsTo(IsraThreatLibrary, { foreignKey: "threatId" });
+  IsraSaSubgroup.hasMany(IsraKmThreatVuln, { foreignKey: "subgroupId" });
+  IsraKmThreatVuln.belongsTo(IsraSaSubgroup, { foreignKey: "subgroupId" });
+  IsraSaGroup.hasMany(IsraKmThreatVuln, { foreignKey: "groupId" });
+  IsraKmThreatVuln.belongsTo(IsraSaGroup, { foreignKey: "groupId" });
+  IsraThreatLibrary.hasMany(IsraKmThreatVuln, { foreignKey: "threatId" });
+  IsraKmThreatVuln.belongsTo(IsraThreatLibrary, { foreignKey: "threatId" });
+  IsraVulnLibrary.hasMany(IsraKmThreatVuln, { foreignKey: "vulnId" });
+  IsraKmThreatVuln.belongsTo(IsraVulnLibrary, { foreignKey: "vulnId" });
+  // Vuln→Annex A base map (design doc §1.3 — platform base, tenant overlay below).
+  IsraVulnLibrary.hasMany(IsraKmVulnControl, { foreignKey: "vulnId" });
+  IsraKmVulnControl.belongsTo(IsraVulnLibrary, { foreignKey: "vulnId" });
+  IsraAnnexAControl.hasMany(IsraKmVulnControl, { foreignKey: "annexRef" });
+  IsraKmVulnControl.belongsTo(IsraAnnexAControl, { foreignKey: "annexRef" });
+  IsraVulnLibrary.hasMany(IsraTreatTemplate, { foreignKey: "vulnId" });
+  IsraTreatTemplate.belongsTo(IsraVulnLibrary, { foreignKey: "vulnId" });
+  IsraAnnexAControl.hasMany(IsraTreatTemplate, { foreignKey: "annexRef" });
+  IsraTreatTemplate.belongsTo(IsraAnnexAControl, { foreignKey: "annexRef" });
+
+  // ISRA — Group B: org-level library customization (the "Lt" system).
+  Organization.hasMany(IsraLibraryOverride, { foreignKey: "orgId" });
+  IsraLibraryOverride.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasMany(IsraLibraryItem, { foreignKey: "orgId" });
+  IsraLibraryItem.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasMany(IsraLibraryArchive, { foreignKey: "orgId" });
+  IsraLibraryArchive.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasMany(IsraLibraryAudit, { foreignKey: "orgId" });
+  IsraLibraryAudit.belongsTo(Organization, { foreignKey: "orgId" });
+
+  // ISRA — Group C: org control customization + maturity baselines + the
+  // Vuln→Annex A tenant overlay (design doc §1.3).
+  Organization.hasMany(IsraOrgControl, { foreignKey: "orgId" });
+  IsraOrgControl.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasMany(IsraControlMaturityBaseline, { foreignKey: "orgId" });
+  IsraControlMaturityBaseline.belongsTo(Organization, { foreignKey: "orgId" });
+  IsraAnnexAControl.hasMany(IsraControlMaturityBaseline, { foreignKey: "annexRef" });
+  IsraControlMaturityBaseline.belongsTo(IsraAnnexAControl, { foreignKey: "annexRef" });
+  Organization.hasMany(IsraVulnControlOverlay, { foreignKey: "orgId" });
+  IsraVulnControlOverlay.belongsTo(Organization, { foreignKey: "orgId" });
+  IsraKmVulnControl.hasMany(IsraVulnControlOverlay, { foreignKey: "edgeId" });
+  IsraVulnControlOverlay.belongsTo(IsraKmVulnControl, { foreignKey: "edgeId" });
+  IsraVulnLibrary.hasMany(IsraVulnControlOverlay, { foreignKey: "vulnId" });
+  IsraVulnControlOverlay.belongsTo(IsraVulnLibrary, { foreignKey: "vulnId" });
+  IsraAnnexAControl.hasMany(IsraVulnControlOverlay, { foreignKey: "annexRef" });
+  IsraVulnControlOverlay.belongsTo(IsraAnnexAControl, { foreignKey: "annexRef" });
+
+  // ISRA — Group D: the Asset Risk Mapping tree (design doc §2.6).
+  Organization.hasMany(IsraAssetMap, { foreignKey: "orgId" });
+  IsraAssetMap.belongsTo(Organization, { foreignKey: "orgId" });
+  IsraAssetMap.hasMany(IsraAssetMapUsage, { foreignKey: "assetMapId" });
+  IsraAssetMapUsage.belongsTo(IsraAssetMap, { foreignKey: "assetMapId" });
+  IsraAssetMapUsage.hasMany(IsraAssetMapSecondary, { foreignKey: "usageId" });
+  IsraAssetMapSecondary.belongsTo(IsraAssetMapUsage, { foreignKey: "usageId" });
+  IsraAssetMapSecondary.hasMany(IsraAssetMapThreat, { foreignKey: "secondaryId" });
+  IsraAssetMapThreat.belongsTo(IsraAssetMapSecondary, { foreignKey: "secondaryId" });
+  IsraThreatLibrary.hasMany(IsraAssetMapThreat, { foreignKey: "threatId" });
+  IsraAssetMapThreat.belongsTo(IsraThreatLibrary, { foreignKey: "threatId" });
+  IsraAssetMapThreat.hasMany(IsraAssetMapVuln, { foreignKey: "threatRowId" });
+  IsraAssetMapVuln.belongsTo(IsraAssetMapThreat, { foreignKey: "threatRowId" });
+  IsraVulnLibrary.hasMany(IsraAssetMapVuln, { foreignKey: "vulnId" });
+  IsraAssetMapVuln.belongsTo(IsraVulnLibrary, { foreignKey: "vulnId" });
+
+  // ISRA — Group E: Risk Register core (design doc §2.7). IsraScenario is the
+  // anchor entity every later group hangs off.
+  Organization.hasMany(IsraScenario, { foreignKey: "orgId" });
+  IsraScenario.belongsTo(Organization, { foreignKey: "orgId" });
+  IsraThreatLibrary.hasMany(IsraScenario, { foreignKey: "threatId" });
+  IsraScenario.belongsTo(IsraThreatLibrary, { foreignKey: "threatId" });
+  // includedVulns[] — junction with direct row access + belongsToMany convenience.
+  IsraScenario.hasMany(IsraScenarioVuln, { foreignKey: "scenarioId" });
+  IsraScenarioVuln.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+  IsraVulnLibrary.hasMany(IsraScenarioVuln, { foreignKey: "vulnId" });
+  IsraScenarioVuln.belongsTo(IsraVulnLibrary, { foreignKey: "vulnId" });
+  IsraScenario.belongsToMany(IsraVulnLibrary, { through: IsraScenarioVuln, foreignKey: "scenarioId", otherKey: "vulnId" });
+  IsraVulnLibrary.belongsToMany(IsraScenario, { through: IsraScenarioVuln, foreignKey: "vulnId", otherKey: "scenarioId" });
+  IsraScenario.hasMany(IsraScenarioPotentialImpact, { foreignKey: "scenarioId" });
+  IsraScenarioPotentialImpact.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+  Organization.hasMany(IsraExistingControl, { foreignKey: "orgId" });
+  IsraExistingControl.belongsTo(Organization, { foreignKey: "orgId" });
+  IsraScenario.hasMany(IsraExistingControl, { foreignKey: "scenarioId" });
+  IsraExistingControl.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+  // Existing Control ⇄ Annex A — M:N (design doc §2.1, feeds SoA).
+  IsraExistingControl.hasMany(IsraExistingControlAnnexRef, { foreignKey: "existingControlId" });
+  IsraExistingControlAnnexRef.belongsTo(IsraExistingControl, { foreignKey: "existingControlId" });
+  IsraAnnexAControl.hasMany(IsraExistingControlAnnexRef, { foreignKey: "annexRef" });
+  IsraExistingControlAnnexRef.belongsTo(IsraAnnexAControl, { foreignKey: "annexRef" });
+  IsraExistingControl.belongsToMany(IsraAnnexAControl, { through: IsraExistingControlAnnexRef, foreignKey: "existingControlId", otherKey: "annexRef" });
+  IsraAnnexAControl.belongsToMany(IsraExistingControl, { through: IsraExistingControlAnnexRef, foreignKey: "annexRef", otherKey: "existingControlId" });
+  IsraScenario.hasOne(IsraScenarioCurrentRisk, { foreignKey: "scenarioId" });
+  IsraScenarioCurrentRisk.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+
+  // ISRA — Group F part 1: Treatment, recommendations, added controls, RTP
+  // (design doc §2.8 rows 1–7).
+  IsraScenario.hasMany(IsraScenarioTreatmentDecision, { foreignKey: "scenarioId" });
+  IsraScenarioTreatmentDecision.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+  IsraScenario.hasMany(IsraScenarioRecommendationSnapshot, { foreignKey: "scenarioId" });
+  IsraScenarioRecommendationSnapshot.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+  IsraScenario.hasMany(IsraScenarioRecommendationDisposition, { foreignKey: "scenarioId" });
+  IsraScenarioRecommendationDisposition.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+  IsraAnnexAControl.hasMany(IsraScenarioRecommendationDisposition, { foreignKey: "annexRef" });
+  IsraScenarioRecommendationDisposition.belongsTo(IsraAnnexAControl, { foreignKey: "annexRef" });
+  IsraExistingControl.hasMany(IsraScenarioRecommendationDisposition, { foreignKey: "existingControlId" });
+  IsraScenarioRecommendationDisposition.belongsTo(IsraExistingControl, { foreignKey: "existingControlId" });
+  IsraScenario.hasMany(IsraScenarioAddedControl, { foreignKey: "scenarioId" });
+  IsraScenarioAddedControl.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+  IsraAnnexAControl.hasMany(IsraScenarioAddedControl, { foreignKey: "annexRef" });
+  IsraScenarioAddedControl.belongsTo(IsraAnnexAControl, { foreignKey: "annexRef" });
+  IsraScenario.hasMany(IsraRtp, { foreignKey: "scenarioId" });
+  IsraRtp.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+  IsraRtp.hasMany(IsraRtpAction, { foreignKey: "rtpId" });
+  IsraRtpAction.belongsTo(IsraRtp, { foreignKey: "rtpId" });
+  // RTP Action ⇄ Annex A — M:N (design doc §2.1, SoA's third union term).
+  IsraRtpAction.hasMany(IsraRtpActionControl, { foreignKey: "rtpActionId" });
+  IsraRtpActionControl.belongsTo(IsraRtpAction, { foreignKey: "rtpActionId" });
+  IsraAnnexAControl.hasMany(IsraRtpActionControl, { foreignKey: "annexRef" });
+  IsraRtpActionControl.belongsTo(IsraAnnexAControl, { foreignKey: "annexRef" });
+  IsraRtpAction.belongsToMany(IsraAnnexAControl, { through: IsraRtpActionControl, foreignKey: "rtpActionId", otherKey: "annexRef" });
+  IsraAnnexAControl.belongsToMany(IsraRtpAction, { through: IsraRtpActionControl, foreignKey: "annexRef", otherKey: "rtpActionId" });
+
+  // ISRA — Group F part 2: Projected/Actual/rolling Residual + Closure (all
+  // 1:1), Cycles, Initiatives, Appetite log (design doc §2.8 rows 8–15).
+  IsraScenario.hasOne(IsraScenarioProjectedResidual, { foreignKey: "scenarioId" });
+  IsraScenarioProjectedResidual.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+  IsraScenario.hasOne(IsraScenarioActualResidual, { foreignKey: "scenarioId" });
+  IsraScenarioActualResidual.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+  IsraScenario.hasOne(IsraScenarioResidual, { foreignKey: "scenarioId" });
+  IsraScenarioResidual.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+  IsraScenario.hasOne(IsraScenarioClosure, { foreignKey: "scenarioId" });
+  IsraScenarioClosure.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+  IsraScenario.hasMany(IsraScenarioCycle, { foreignKey: "scenarioId" });
+  IsraScenarioCycle.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+  Organization.hasMany(IsraInitiative, { foreignKey: "orgId" });
+  IsraInitiative.belongsTo(Organization, { foreignKey: "orgId" });
+  IsraInitiative.hasMany(IsraInitiativeScenario, { foreignKey: "initiativeId" });
+  IsraInitiativeScenario.belongsTo(IsraInitiative, { foreignKey: "initiativeId" });
+  IsraScenario.hasMany(IsraInitiativeScenario, { foreignKey: "scenarioId" });
+  IsraInitiativeScenario.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+  IsraInitiative.belongsToMany(IsraScenario, { through: IsraInitiativeScenario, foreignKey: "initiativeId", otherKey: "scenarioId" });
+  IsraScenario.belongsToMany(IsraInitiative, { through: IsraInitiativeScenario, foreignKey: "scenarioId", otherKey: "initiativeId" });
+  Organization.hasMany(IsraAppetiteLog, { foreignKey: "orgId" });
+  IsraAppetiteLog.belongsTo(Organization, { foreignKey: "orgId" });
+
+  // ISRA — Group G: Evidence, general audit trail, scenario templates, SoA
+  // justifications, consolidated org settings (design doc §2.9).
+  Organization.hasMany(IsraEvidence, { foreignKey: "orgId" });
+  IsraEvidence.belongsTo(Organization, { foreignKey: "orgId" });
+  IsraScenario.hasMany(IsraEvidence, { foreignKey: "scenarioId" });
+  IsraEvidence.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+  Organization.hasMany(IsraAudit, { foreignKey: "orgId" });
+  IsraAudit.belongsTo(Organization, { foreignKey: "orgId" });
+  IsraScenario.hasMany(IsraAudit, { foreignKey: "scenarioId" });
+  IsraAudit.belongsTo(IsraScenario, { foreignKey: "scenarioId" });
+  Organization.hasMany(IsraScenarioTemplate, { foreignKey: "orgId" });
+  IsraScenarioTemplate.belongsTo(Organization, { foreignKey: "orgId" });
+  IsraThreatLibrary.hasMany(IsraScenarioTemplate, { foreignKey: "threatId" });
+  IsraScenarioTemplate.belongsTo(IsraThreatLibrary, { foreignKey: "threatId" });
+  Organization.hasMany(IsraSoaJustification, { foreignKey: "orgId" });
+  IsraSoaJustification.belongsTo(Organization, { foreignKey: "orgId" });
+  IsraAnnexAControl.hasMany(IsraSoaJustification, { foreignKey: "annexRef" });
+  IsraSoaJustification.belongsTo(IsraAnnexAControl, { foreignKey: "annexRef" });
+  Organization.hasOne(IsraOrgSettings, { foreignKey: "orgId" });
+  IsraOrgSettings.belongsTo(Organization, { foreignKey: "orgId" });
+
   initialized = true;
 }
 
@@ -369,4 +560,56 @@ export {
   ReferenceEducationField,
   ReferenceEducationLevel,
   ReferenceCountry,
+  IsraAnnexAControl,
+  IsraThreatLibrary,
+  IsraVulnLibrary,
+  IsraPaGroup,
+  IsraPaSubgroup,
+  IsraSaGroup,
+  IsraSaSubgroup,
+  IsraPrimaryAssetLibrary,
+  IsraSecondaryAssetLibrary,
+  IsraKmSaThreat,
+  IsraKmThreatVuln,
+  IsraKmVulnControl,
+  IsraKmMeta,
+  IsraTreatTemplate,
+  IsraLibraryOverride,
+  IsraLibraryItem,
+  IsraLibraryArchive,
+  IsraLibraryAudit,
+  IsraOrgControl,
+  IsraControlMaturityBaseline,
+  IsraVulnControlOverlay,
+  IsraAssetMap,
+  IsraAssetMapUsage,
+  IsraAssetMapSecondary,
+  IsraAssetMapThreat,
+  IsraAssetMapVuln,
+  IsraScenario,
+  IsraScenarioVuln,
+  IsraScenarioPotentialImpact,
+  IsraExistingControl,
+  IsraExistingControlAnnexRef,
+  IsraScenarioCurrentRisk,
+  IsraScenarioTreatmentDecision,
+  IsraScenarioRecommendationSnapshot,
+  IsraScenarioRecommendationDisposition,
+  IsraScenarioAddedControl,
+  IsraRtp,
+  IsraRtpAction,
+  IsraRtpActionControl,
+  IsraScenarioProjectedResidual,
+  IsraScenarioActualResidual,
+  IsraScenarioResidual,
+  IsraScenarioClosure,
+  IsraScenarioCycle,
+  IsraInitiative,
+  IsraInitiativeScenario,
+  IsraAppetiteLog,
+  IsraEvidence,
+  IsraAudit,
+  IsraScenarioTemplate,
+  IsraSoaJustification,
+  IsraOrgSettings,
 };

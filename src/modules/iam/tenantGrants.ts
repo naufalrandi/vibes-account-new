@@ -84,6 +84,16 @@ export const SP_ONLY_ACTIONS: readonly string[] = [
   ACTIONS.AGREEMENT_UPDATE,
   ACTIONS.AGREEMENT_DELETE,
   ACTIONS.TENANT_CREATE,
+  // isra.library.manage: editing the platform Annex A/Threat/Vuln libraries
+  // and the derived knowledge maps is platform curation, analogous to
+  // element.manage/framework.create above — org-level customization uses
+  // isra.orgControl.manage instead, which stays granted.
+  ACTIONS.ISRA_LIBRARY_MANAGE,
+  // isra.library.admin: PA/SA taxonomy edits (incl. SA-subgroup approval
+  // transitions, which downstream knowledge-map baseline application gates
+  // on) and platform asset-library writes are the same class of platform
+  // curation as isra.library.manage above.
+  ACTIONS.ISRA_LIBRARY_ADMIN,
 ];
 
 /**

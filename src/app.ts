@@ -52,11 +52,15 @@ import { interestedPartyRoutes } from "./modules/interested-parties/ip.routes";
 import { demoRoutes } from "./modules/demo/demo.routes";
 import { demoPublicRoutes } from "./modules/demo/demoPublic.routes";
 import { businessRoutes } from "./modules/business/business.routes";
+import { businessDaysRoutes } from "./modules/business-days/businessDays.routes";
 import { limsRoutes } from "./modules/lims/lims.routes";
 import { kbRoutes } from "./modules/knowledge-base/kb.routes";
 import { notificationRoutes } from "./modules/notifications/notification.routes";
 import { referenceRoutes } from "./modules/reference/reference.routes";
 import { referenceDbRoutes } from "./modules/reference-db/referenceDb.routes";
+import { israLibraryRoutes as israThreatVulnLibraryRoutes } from "./modules/isra-threat-vuln-library/israLibrary.routes";
+import { israOrgControlRoutes } from "./modules/isra-threat-vuln-library/israOrgControl.routes";
+import { israLibraryRoutes as israAssetLibraryRoutes } from "./modules/isra/isra.routes";
 
 export function createApp() {
   const app = express();
@@ -124,11 +128,22 @@ export function createApp() {
   // per-IP rate limiter lives on the router (demoPublic.routes.ts).
   app.use("/v1/demo-requests", demoPublicRoutes);
   app.use("/v1/business", authenticate, tenantScope, businessRoutes);
+  app.use("/v1/business-days", authenticate, tenantScope, businessDaysRoutes);
   app.use("/v1/lims", authenticate, tenantScope, limsRoutes);
   app.use("/v1/kb-articles", authenticate, tenantScope, kbRoutes);
   app.use("/v1/notifications", authenticate, tenantScope, notificationRoutes);
   app.use("/v1/reference", authenticate, tenantScope, referenceRoutes);
   app.use("/v1/reference-db", authenticate, tenantScope, referenceDbRoutes);
+  app.use("/v1/isra-library", authenticate, tenantScope, israThreatVulnLibraryRoutes);
+  app.use("/v1/isra-org-controls", authenticate, tenantScope, israOrgControlRoutes);
+  // F-2a — taxonomy/asset-library/Lt-override system. Distinct mount path
+  // from F-2b's /v1/isra-library above: both agents independently named
+  // their router export `israLibraryRoutes` and both initially targeted the
+  // same path, reconciled here since they cover different data (this is
+  // asset taxonomy + libraries + tenant overrides, not the threat/vuln/
+  // Annex-A reference libraries + knowledge maps).
+  app.use("/v1/isra-asset-library", authenticate, tenantScope, israAssetLibraryRoutes);
+  app.use("/v1/isra", authenticate, tenantScope, israAssetLibraryRoutes);
 
   app.use(errorHandler);
   return app;
