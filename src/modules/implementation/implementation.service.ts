@@ -83,7 +83,7 @@ function requireModule(module: string) {
 
 function assertStatus(module: string, status: string) {
   const def = MS_MODULES[module];
-  if (!def.statuses.includes(status)) {
+  if (!def.statuses.includes(status) && status !== "Archived") {
     throw new BadRequestError(`Invalid status "${status}" for ${module}`, "INVALID_STATUS");
   }
 }
@@ -111,27 +111,19 @@ function escapeRegExp(s: string): string {
 }
 
 /**
- * OD `ocFweCode`/`ocNewId` (index.html:8119–8120): the `context` register's
+ * OD `ocFweCode`/`ocNewId` (app.html:8119–8120): the `context` register's
  * code prefix is the code of the "Organizational Context" FWE element itself
  * (falling back to "FWE-001" if that element hasn't been seeded), and — unlike
  * every other register — the numeric suffix is NOT zero-padded (`pre+'-'+(mx+1)`).
  * Bypasses `nextCode()` entirely, the same way documents/policies bypass it
  * for their own dynamic codes.
  *
- * Deliberately NOT org-scoped, unlike `nextCode()`: `implementation_records`
- * carries a UNIQUE constraint on `(module, code)` alone (migration 0015,
- * `implementation_module_code_unique`) — no `org_id` in it — so two different
- * orgs' independently-numbered first context entries would both mint
- * "FWE-001-1" and the second insert would fail the constraint. Counting
- * globally per module sidesteps that (and happens to match OD's own
- * `ocNewId`, which scans a single un-tenanted `db.ocIssues` array). The other
- * registers' per-org `nextCode()` carries the same latent collision risk
- * across tenants; fixing that broadly is outside this task's scope.
+ * Scoped per organization (migration 0069), matching OD's per-tenant `ocNewId`.
  */
-async function contextCode(): Promise<string> {
+async function contextCode(orgId: string): Promise<string> {
   const fwe = await FrameworkElement.findOne({ where: { name: "Organizational Context" } });
   const prefix = fwe?.code ?? "FWE-001";
-  const rows = await ImplementationRecord.findAll({ where: { module: "context" }, attributes: ["code"] });
+  const rows = await ImplementationRecord.findAll({ where: { module: "context", orgId }, attributes: ["code"] });
   const re = new RegExp(`^${escapeRegExp(prefix)}-(\\d+)$`);
   let max = 0;
   for (const r of rows) {
@@ -205,7 +197,7 @@ export async function createRecord(auth: AuthContext, module: string, input: Rec
   if (module === "training") assertTrainingVocab(data);
   let code: string;
   if (module === "context") {
-    code = await contextCode();
+    code = await contextCode(targetOrg);
   } else if (module === "documents") {
     // OD `cdSave`: the org's document-control settings gate every content save,
     // the ID follows `TYPECODE[-FWCODE]-NNNN` (`cdNewId`), a new document starts
@@ -522,7 +514,7 @@ async function assertArchivable(
   if (nextStatus === "Archived") {
     const riskId = existing.raisedRiskId as string | undefined;
     if (riskId) {
-      const risk = await ImplementationRecord.findByPk(riskId);
+      const risk = await ImplementationRecord.findOne({ where: { id: riskId, orgId: r.orgId } });
       if (risk && risk.module === "risks" && !["Monitored", "Archived"].includes(risk.status)) {
         throw new BadRequestError(
           `Cannot archive: linked risk ${risk.code} still has an open treatment`,

@@ -61,6 +61,7 @@ import { referenceDbRoutes } from "./modules/reference-db/referenceDb.routes";
 import { israLibraryRoutes as israThreatVulnLibraryRoutes } from "./modules/isra-threat-vuln-library/israLibrary.routes";
 import { israOrgControlRoutes } from "./modules/isra-threat-vuln-library/israOrgControl.routes";
 import { israLibraryRoutes as israAssetLibraryRoutes } from "./modules/isra/isra.routes";
+import { riskRoutes } from "./modules/risks/risk.routes";
 
 export function createApp() {
   const app = express();
@@ -115,6 +116,7 @@ export function createApp() {
   app.use("/v1/tickets", authenticate, tenantScope, ticketRoutes);
   app.use("/v1/assessments", authenticate, tenantScope, assessmentRunRoutes);
   app.use("/v1/implementation", authenticate, tenantScope, implementationRoutes);
+  app.use("/v1/risks", authenticate, tenantScope, riskRoutes);
   app.use("/v1/internal-audit", authenticate, tenantScope, internalAuditRoutes);
   app.use("/v1/competence", authenticate, tenantScope, competenceRoutes);
   app.use("/v1/approvals", authenticate, tenantScope, approvalRoutes);

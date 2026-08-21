@@ -6,11 +6,14 @@ export default defineConfig({
     globals: true,
     include: ["test/**/*.test.ts", "src/**/*.test.ts"],
     fileParallelism: false,
+    pool: "forks",
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
     setupFiles: ["./test/setup.ts"],
     testTimeout: 20000,
-    // The setup hook runs the full migration chain on a cold database, which
-    // routinely exceeds Vitest's 10s hook default and surfaced as spurious
-    // "Hook timed out" suite failures that passed on a plain retry.
     hookTimeout: 60000,
   },
 });

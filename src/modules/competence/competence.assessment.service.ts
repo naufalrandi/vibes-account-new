@@ -333,7 +333,7 @@ export async function createAssessment(auth: AuthContext, input: Record<string, 
   return row.get({ plain: true });
 }
 
-async function generateGaps(org: string, assessment: CompetenceAssessment, role: CompetenceRole, requirements: AssessReqResult[], date: string, who: string) {
+async function generateGaps(org: string, assessment: CompetenceAssessment, _role: CompetenceRole, requirements: AssessReqResult[], date: string, who: string) {
   for (const r of requirements) {
     const met = assessLineMet(r);
     const open = await CompetenceGap.findOne({ where: { assignmentId: assessment.assignmentId, reqKey: r.key, status: { [Op.ne]: "Resolved" } } });

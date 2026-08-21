@@ -91,7 +91,7 @@ export async function getAppetiteLog(auth: AuthContext) {
   return logs.map((l) => l.get({ plain: true }));
 }
 
-export async function logAppetite(auth: AuthContext, input: Record<string, unknown>, ip: string | null) {
+export async function logAppetite(auth: AuthContext, input: Record<string, unknown>, _ip: string | null) {
   const count = await IsraAppetiteLog.count({ where: { orgId: auth.orgId } });
   const row = await IsraAppetiteLog.create({
     orgId: auth.orgId,

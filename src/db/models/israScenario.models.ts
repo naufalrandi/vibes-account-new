@@ -69,7 +69,7 @@ IsraScenario.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     orgId: { type: DataTypes.UUID, allowNull: false, field: "org_id" },
-    code: { type: DataTypes.STRING, allowNull: false, unique: true },
+    code: { type: DataTypes.STRING, allowNull: false },
     primaryAssetRef: { type: DataTypes.STRING, allowNull: false, field: "primary_asset_ref" },
     primaryAssetSource: { type: DataTypes.STRING, allowNull: false, field: "primary_asset_source" },
     processRef: { type: DataTypes.STRING, allowNull: true, field: "process_ref" },

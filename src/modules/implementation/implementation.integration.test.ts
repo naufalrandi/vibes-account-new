@@ -69,12 +69,12 @@ describe("ISO clause registers (implementation)", () => {
   it("derives riskScore/riskLevel for the risks module", async () => {
     const { token } = await makeTenant("t1", "TEN1");
     const created = await request(app).post("/v1/implementation/risks").set(authed(token))
-      .send({ title: "Phishing", data: { likelihood: 4, impact: 4, treatment: "Mitigate" } });
+      .send({ title: "Phishing", data: { likelihood: 4, impact: 4 } });
     expect(created.body.data.code).toMatch(/^RISK-/);
-    expect(created.body.data.data).toMatchObject({ riskScore: 16, riskLevel: "Major" });
+    expect(created.body.data.data).toMatchObject({ riskScore: 16, riskLevel: "Critical", level: 16, band: "Critical" });
     const updated = await request(app).put(`/v1/implementation/risks/${created.body.data.id}`).set(authed(token))
       .send({ data: { likelihood: 1, impact: 2 } });
-    expect(updated.body.data.data).toMatchObject({ riskScore: 2, riskLevel: "Negligible" });
+    expect(updated.body.data.data).toMatchObject({ riskScore: 2, riskLevel: "Low", level: 2, band: "Low" });
   });
 
   // OD `riskArchive` (index.html:8135–8137): a risk must reach "Monitored"
@@ -83,7 +83,7 @@ describe("ISO clause registers (implementation)", () => {
   it("only allows archiving a risk once it reaches Monitored, and refuses to re-archive", async () => {
     const { token } = await makeTenant("t1", "TEN1");
     const created = await request(app).post("/v1/implementation/risks").set(authed(token))
-      .send({ title: "Unpatched server", status: "Pending Assessment", data: { likelihood: 3, impact: 3 } });
+      .send({ title: "Unpatched server", status: "Assigned", data: { likelihood: 3, impact: 3 } });
     const id = created.body.data.id;
 
     const tooEarly = await request(app).put(`/v1/implementation/risks/${id}`).set(authed(token))

@@ -84,13 +84,24 @@ export const MS_MODULES: Record<string, RegisterModule> = {
   // 6-dimension document module (src/modules/scope), not a clause register.
   // The old duplicate register (S12) was removed; /implementation/scope now
   // falls through the unknown-module handling.
-  processes: { prefix: "PRC", statuses: ["Draft", "Active", "Archived"] },
+  processes: { prefix: "BP", statuses: ["Active", "Inactive", "Archived"] },
   "work-units": { prefix: "WU", statuses: ["Applicable", "Inapplicable", "Archived"] },
-  // Risk lifecycle mirrors the OD prototype (renderTnRisk): raised risks land at
-  // "Pending Assessment", then assess → Assessed/Treated/Monitored, and archive.
-  // OD `riskNewId` (index.html:8121): codes are "RISK-nnnn", not "RSK-nnnn".
-  risks: { prefix: "RISK", statuses: ["Pending Assessment", "Assessed", "Treated", "Monitored", "Archived"] },
-  objectives: { prefix: "OBJ", statuses: ["Draft", "Active", "Achieved", "On Hold", "Closed"] },
+  // OD `renderTnRisk`: 9 workflow statuses, 4-digit RISK-nnnn id.
+  risks: {
+    prefix: "RISK",
+    statuses: [
+      "Unassigned",
+      "Assigned",
+      "RTP Draft",
+      "Pending Approval",
+      "Pending TM Approval",
+      "In Treatment",
+      "Assessed",
+      "Treated",
+      "Monitored",
+    ],
+  },
+  objectives: { prefix: "OBJ", statuses: ["Open", "Achieved", "Cancelled"] },
   // OD `renderTnObligations` (index.html:9035): Active/Under Review/Archived —
   // legacy "COM-" codes already issued under the old prefix keep resolving
   // (codes are never renamed retroactively); only new records get "COBL-".
@@ -98,72 +109,41 @@ export const MS_MODULES: Record<string, RegisterModule> = {
 
   // --- Leadership & support (clause 5, 7) ---
   policies: { prefix: "POL", deep: true, statuses: ["Draft", "Under Review", "Pending Final Approval", "Approved", "Published", "Needs Revision", "Superseded", "Archived"] },
-  // OD `tpForm`/`compNewId` (Training Plan region, ~index.html:14103–14155):
-  // codes are "TP-nnnn". TP_STATUS is OD's exact 8-value vocabulary
-  // (index.html:13936) — "Overdue" is NOT a stored status: it's derived
-  // (`tpOverdue`/`tpEffStatus`) from `due` vs today whenever the current
-  // status isn't already terminal (Completed/Closed/Cancelled). See
-  // trainingLifecycle.ts for the derivation and the three lifecycle actions
-  // (`tpComplete`, `tpReassess`, `tpSet(id,'Closed')`).
+  // OD `tpForm`/`compNewId` (Training Plan region):
+  // codes are "TP-nnnn". TP_STATUS is OD's exact 8-value vocabulary.
   training: { prefix: "TP", statuses: [...TP_STATUS] },
-  // OD models awareness as three tiers (db.awPrograms / awTopics / awCampaigns).
-  // Each tier gets its own register entry so it inherits the same code
-  // sequence, activity log and permission gating as every other module.
-  // OD `awNewId(db.awPrograms,'AWP-')` (index.html:14365): the program tier's
-  // prefix is "AWP", not "AWR".
   awareness: { prefix: "AWP", statuses: ["Draft", "Planned", "Active", "Completed", "Under Review", "Archived"] },
   "awareness-topics": { prefix: "AWT", statuses: ["Draft", "Active", "Inactive", "Archived"] },
   "awareness-campaigns": { prefix: "AWC", statuses: ["Draft", "Scheduled", "Active", "Completed", "Partially Completed", "Overdue", "Archived"] },
-  // NOTE: no `competence` register here — OD has no such register (its
-  // `'tn-m-competence'` route redirects to the real Competence/Assessments
-  // area, index.html:8079); the duplicate orphan register was removed and
-  // `/implementation/competence` now falls through the unknown-module handling.
-  // CD_STATUS (10, exact order) plus "Active": OD stores External Documents at
-  // status "Active" (cdocSeedIfNeeded, cdBadge/cdCards treat it as published-
-  // grade) even though it is not part of the CD_STATUS dropdown vocabulary.
-  documents: { prefix: "DOC", statuses: ["Draft", "Under Review", "Revision Requested", "Approved", "Published", "Review Due", "Superseded", "Obsolete", "Archived", "Rejected", "Active"] },
-  // External documents carry OD's own status vocabulary (ED_STATUS) — they are
-  // externally issued, so "Draft" never applies to them.
+  // CD_STATUS (10 values, exact OD order).
+  documents: { prefix: "DOC", statuses: ["Draft", "Under Review", "Revision Requested", "Approved", "Published", "Review Due", "Superseded", "Obsolete", "Archived", "Rejected"] },
   records: { prefix: "EXT", statuses: ["Active", "Under Review", "Updated Version Available", "Superseded", "Obsolete", "Archived"] },
-  // Folders for the external-document explorer (OD `db.edFolders`) — folder
-  // statuses include "Inactive" (OD ED_FOLDER_STATUS, 13008).
   "record-folders": { prefix: "EDF", statuses: ["Active", "Inactive", "Archived"] },
 
   // --- Operation (clause 8) ---
   controls: { prefix: "CTL", statuses: ["Draft", "Active", "Retired"] },
-  suppliers: { prefix: "SUP", statuses: ["Active", "Under Review", "Suspended", "Archived"] },
+  suppliers: { prefix: "SUP", statuses: ["Pending Qualification", "Approved", "Suspended", "Rejected"] },
 
   // --- Performance & improvement (clause 9, 10) ---
-  performance: { prefix: "PRF", statuses: ["Draft", "Active", "Achieved", "At Risk", "Closed"] },
-  // NOTE: no `audits` register here — the real Internal Audit module is the
-  // dedicated `/internal-audit` surface (src/modules/internal-audit), not a
-  // clause register; the duplicate orphan register was removed and
-  // `/implementation/audits` now falls through the unknown-module handling.
-  // OD `mrSave`: a review is born Draft or Scheduled; every later status is a
-  // lifecycle transition enforced through MR_TRANSITIONS.
-  // OD `mrNewId` (index.html:10882): codes are "MR-nnnn", not "MRV-nnnn".
+  performance: { prefix: "PEV", statuses: ["Draft", "Active", "Achieved", "At Risk", "Closed"] },
   reviews: { prefix: "MR", deep: true, transitions: MR_TRANSITIONS, createStatuses: ["Draft", "Scheduled"], statuses: ["Draft", "Scheduled", "In Progress", "Pending Outputs", "Completed", "Finalized", "Cancelled", "Archived"] },
-  // OD `ipPad(db.ncs,'NC-')` (index.html:11364): codes are "NC-nnnn", not "NCR-nnnn".
   nonconformities: { prefix: "NC", statuses: ["Open", "CAP Required", "CAP Planned", "In Progress", "Pending Effectiveness Check", "Closed", "Cancelled", "Archived"] },
   improvements: { prefix: "IMP", statuses: ["Open", "Under Review", "Planned", "In Progress", "Implemented", "Completed", "Deferred", "Cancelled", "Archived"] },
-  // OD `ipPad(db.concerns,'CON-')` (index.html:11336): codes are "CON-nnnn", not "CNC-nnnn".
   concerns: { prefix: "CON", statuses: ["Draft", "Submitted", "Under Review", "Routed", "Closed", "Cancelled", "Archived"] },
   incidents: { prefix: "INC", statuses: ["Open", "Under Investigation", "Contained", "Action Required", "In Progress", "Resolved", "Closed", "Cancelled", "Archived"] },
 
-  // --- ISO 9001 extensions (gated in the UI behind an ISO 9001 assignment) ---
+  // --- ISO 9001 extensions ---
   "customer-focus": { prefix: "CFO", statuses: ["Open", "In Progress", "Closed"] },
-  "customer-satisfaction": { prefix: "CST", statuses: ["Planned", "Collecting", "Analyzed", "Closed"] },
-  psr: { prefix: "PSR", statuses: ["Draft", "Reviewed", "Approved", "Archived"] },
-  design: { prefix: "DSG", statuses: ["Planning", "In Progress", "Verification", "Validation", "Complete"] },
-  provision: { prefix: "PRV", statuses: ["Draft", "Active", "Controlled", "Archived"] },
+  "customer-satisfaction": { prefix: "CSAT", statuses: ["New", "Reviewed", "Action Required", "Closed"] },
+  psr: { prefix: "PSR", statuses: ["Draft", "Active", "Retired"] },
+  design: { prefix: "DSG", statuses: ["Concept", "In Design", "Design Review", "Verification", "Validation", "Released"] },
+  provision: { prefix: "CP", statuses: ["Draft", "Under review", "Approved"] },
 
-  // --- Business unit registers & frameworks (ISO 17021, ISO 17024, ISO 17025, ISO 27001, ISO 45001) ---
-  "cab-clients": { prefix: "CB", statuses: ["Applicant", "Certified", "Surveillance Due", "Suspended", "Withdrawn"] },
-  "pcb-persons": { prefix: "PC", statuses: ["Applicant", "Exam Scheduled", "Certified", "Recertification Due", "Suspended", "Withdrawn"] },
-  "lab-scope": { prefix: "LSC", statuses: ["Draft", "Accredited", "Pending", "Suspended", "Withdrawn", "Archived"] },
-  isra: { prefix: "RSC", statuses: ["Suggested", "Confirmed", "Needs Review", "Treated", "Monitored", "Archived"] },
-  soa: { prefix: "SOA", statuses: ["Draft", "Applicable", "Not Applicable", "Implemented", "Archived"] },
-  hira: { prefix: "HIR", statuses: ["Identified", "Assessed", "Treated", "Monitored", "Archived"] },
+  // --- Business unit registers & frameworks ---
+  "cab-clients": { prefix: "CERT", statuses: ["Applicant", "Certified", "Surveillance Due", "Suspended", "Withdrawn"] },
+  "pcb-persons": { prefix: "PC", statuses: ["Certified", "Recert Due", "Suspended", "Expired", "Revoked"] },
+  "lab-scope": { prefix: "SCOPE", statuses: ["Accredited", "Pending", "Withdrawn"] },
+  // Note: isra, soa, and hira are bespoke modules with their own schemas/routes and are not generic implementation records.
 };
 
 export type MsModuleKey = keyof typeof MS_MODULES;
@@ -172,17 +152,30 @@ export function isMsModule(key: string): key is MsModuleKey {
   return Object.prototype.hasOwnProperty.call(MS_MODULES, key);
 }
 
-const RISK_BANDS: { max: number; level: string }[] = [
-  { max: 3, level: "Negligible" }, { max: 6, level: "Minor" }, { max: 12, level: "Moderate" }, { max: 18, level: "Major" }, { max: 25, level: "Critical" },
+export const RISK_BANDS_DEFAULT: { max: number; level: string }[] = [
+  { max: 4, level: "Low" },
+  { max: 9, level: "Medium" },
+  { max: 15, level: "High" },
+  { max: 25, level: "Critical" },
 ];
+
+export function riskBand(level: number, scheme = RISK_BANDS_DEFAULT): string {
+  if (level <= 0) return "";
+  for (const b of scheme) {
+    if (level <= b.max) return b.level;
+  }
+  return scheme[scheme.length - 1]?.level ?? "Critical";
+}
 
 /** Module-specific derived fields (mirrors the frontend's `enrichImpl`). */
 export function enrichData(module: string, data: Record<string, unknown>): Record<string, unknown> {
   if (module === "reviews") return enrichReviewData(data);
   if (module !== "risks") return data;
-  const score = (Number(data.likelihood) || 0) * (Number(data.impact) || 0);
-  const level = score === 0 ? "" : (RISK_BANDS.find((b) => score <= b.max)?.level ?? "Critical");
-  return { ...data, riskScore: score, riskLevel: level };
+  const l = Number(data.likelihood) || 0;
+  const i = Number(data.impact) || 0;
+  const rawLevel = l * i;
+  const band = riskBand(rawLevel);
+  return { ...data, level: rawLevel || null, band: band || "", riskScore: rawLevel, riskLevel: band };
 }
 
 /**

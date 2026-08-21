@@ -83,7 +83,7 @@ async function assertNameUniqueInGroup(groupId: string | null, name: string, exc
 // Read (list/get/listGroups): catalog data, no orgId — any authenticated org
 // may read (e.g. a tenant following `/my-frameworks` → `/frameworks/:id`).
 // Mutations below stay Service-Owner-only via `assertServiceOwner`.
-export async function listFrameworks(auth: AuthContext, filters: ListFrameworkFilters = {}): Promise<Record<string, unknown>[]> {
+export async function listFrameworks(_auth: AuthContext, filters: ListFrameworkFilters = {}): Promise<Record<string, unknown>[]> {
   const where: Record<string, unknown> = {};
   if (filters.familyId) where.familyId = filters.familyId;
   if (filters.groupId) where.groupId = filters.groupId;
@@ -95,7 +95,7 @@ export async function listFrameworks(auth: AuthContext, filters: ListFrameworkFi
   return Promise.all(rows.map(toView));
 }
 
-export async function getFramework(auth: AuthContext, id: string): Promise<Record<string, unknown>> {
+export async function getFramework(_auth: AuthContext, id: string): Promise<Record<string, unknown>> {
   const f = await Framework.findByPk(id, { include: INCLUDES });
   if (!f) throw new NotFoundError("Framework does not exist", "FRAMEWORK_NOT_FOUND");
   return toView(f);
@@ -112,7 +112,7 @@ async function ensureGroups(): Promise<void> {
   await FrameworkGroup.findOrCreate({ where: { name: "Regulations" }, defaults: { name: "Regulations", sortOrder: 2 } });
 }
 
-export async function listGroups(auth: AuthContext): Promise<{ id: string; name: string }[]> {
+export async function listGroups(_auth: AuthContext): Promise<{ id: string; name: string }[]> {
   await ensureGroups();
   const groups = await FrameworkGroup.findAll({ order: [["sortOrder", "ASC"], ["name", "ASC"]] });
   return groups.map((g) => ({ id: g.id, name: g.name }));

@@ -41,7 +41,7 @@ IsraEvidence.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     orgId: { type: DataTypes.UUID, allowNull: false, field: "org_id" },
-    code: { type: DataTypes.STRING, allowNull: false, unique: true },
+    code: { type: DataTypes.STRING, allowNull: false },
     scenarioId: { type: DataTypes.UUID, allowNull: true, field: "scenario_id" },
     type: { type: DataTypes.STRING, allowNull: true },
     title: { type: DataTypes.STRING, allowNull: false },
@@ -57,7 +57,7 @@ IsraEvidence.init(
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },
-  { sequelize, tableName: "isra_evidence", underscored: true },
+  { sequelize, tableName: "isra_evidence", underscored: true, indexes: [{ unique: true, fields: ["org_id", "code"] }] },
 );
 
 /** `israAudit` (`isra2Audit`) — general ISRA audit trail, append-only. `prev`/
@@ -108,7 +108,7 @@ IsraScenarioTemplate.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     orgId: { type: DataTypes.UUID, allowNull: false, field: "org_id" },
-    code: { type: DataTypes.STRING, allowNull: false, unique: true },
+    code: { type: DataTypes.STRING, allowNull: false },
     name: { type: DataTypes.STRING, allowNull: false },
     threatId: { type: DataTypes.STRING, allowNull: false, field: "threat_id" },
     vulns: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
@@ -119,7 +119,7 @@ IsraScenarioTemplate.init(
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },
-  { sequelize, tableName: "isra_scenario_templates", underscored: true },
+  { sequelize, tableName: "isra_scenario_templates", underscored: true, indexes: [{ unique: true, fields: ["org_id", "code"] }] },
 );
 
 /** `db.soaJustify` — SoA's per-control justification free text. Not in OD's

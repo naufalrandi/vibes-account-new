@@ -162,7 +162,7 @@ export async function listLibraryOverrides(auth: AuthContext, libType: string, o
  * fields that actually differ from the master are stored in the diff, and
  * each save unshifts the prior `fields` snapshot into `history`. */
 export async function saveLibraryOverride(
-  auth: AuthContext, libType: string, platformItemId: string, fields: Record<string, unknown>, orgId: string | undefined, ip: string | null,
+  auth: AuthContext, libType: string, platformItemId: string, fields: Record<string, unknown>, orgId: string | undefined, _ip: string | null,
 ): Promise<Record<string, unknown>> {
   assertLibType(libType);
   const org = await targetOrg(auth, orgId);
@@ -195,7 +195,7 @@ export async function saveLibraryOverride(
 
 /** OD `israLtRestore`: drop the tenant override — the platform default
  * reappears. Never touches committed snapshots elsewhere in the system. */
-export async function restoreLibraryOverride(auth: AuthContext, libType: string, platformItemId: string, orgId: string | undefined, ip: string | null) {
+export async function restoreLibraryOverride(auth: AuthContext, libType: string, platformItemId: string, orgId: string | undefined, _ip: string | null) {
   assertLibType(libType);
   const org = await targetOrg(auth, orgId);
   const ov = await IsraLibraryOverride.findOne({ where: { orgId: org, libType, platformItemId } });
@@ -227,7 +227,7 @@ async function nextTenantItemId(org: string, libType: IsraLibType): Promise<stri
 
 /** Plain create of an org's own wholly-custom library row — the CRUD "create"
  * half of `IsraLibraryItem`, complementing OD's copy-only `israLtCustomCopy`. */
-export async function createLibraryItem(auth: AuthContext, libType: string, input: Record<string, unknown>, orgId: string | undefined, ip: string | null) {
+export async function createLibraryItem(auth: AuthContext, libType: string, input: Record<string, unknown>, orgId: string | undefined, _ip: string | null) {
   assertLibType(libType);
   const org = await targetOrg(auth, orgId);
   const name = str(input.name);
@@ -244,7 +244,7 @@ export async function createLibraryItem(auth: AuthContext, libType: string, inpu
 /** OD `israLtCustomCopy` (`app.html:20392`): clone an existing effective
  * record (platform or tenant) into a NEW, wholly independent tenant item —
  * no mapping copy, no link back for resolution. */
-export async function copyLibraryItem(auth: AuthContext, libType: string, sourceKey: string, orgId: string | undefined, ip: string | null) {
+export async function copyLibraryItem(auth: AuthContext, libType: string, sourceKey: string, orgId: string | undefined, _ip: string | null) {
   assertLibType(libType);
   const org = await targetOrg(auth, orgId);
   const source = await effectiveRecordByKey(auth, libType, sourceKey, org);
@@ -263,7 +263,7 @@ export async function copyLibraryItem(auth: AuthContext, libType: string, source
 /** OD `israLtUpdateTenantItem`. The frozen schema does not carry a per-field
  * `history` column on `isra_library_items` (unlike overrides, which do) — the
  * edit is still fully traceable via `isra_library_audit`'s append-only trail. */
-export async function updateLibraryItem(auth: AuthContext, libType: string, tenantItemId: string, input: Record<string, unknown>, orgId: string | undefined, ip: string | null) {
+export async function updateLibraryItem(auth: AuthContext, libType: string, tenantItemId: string, input: Record<string, unknown>, orgId: string | undefined, _ip: string | null) {
   assertLibType(libType);
   const org = await targetOrg(auth, orgId);
   const row = await IsraLibraryItem.findOne({ where: { orgId: org, libType, tenantItemId } });
@@ -291,7 +291,7 @@ export async function listArchivedItems(auth: AuthContext, libType: string, orgI
 
 /** OD `israLtArchive`: suppress an item (platform or tenant) for this org —
  * excluded from new selection, still reference-resolvable. Never a delete. */
-export async function archiveLibraryItem(auth: AuthContext, libType: string, itemKey: string, orgId: string | undefined, ip: string | null) {
+export async function archiveLibraryItem(auth: AuthContext, libType: string, itemKey: string, orgId: string | undefined, _ip: string | null) {
   assertLibType(libType);
   const org = await targetOrg(auth, orgId);
   const exists = await IsraLibraryArchive.findOne({ where: { orgId: org, libType, itemKey } });
@@ -301,7 +301,7 @@ export async function archiveLibraryItem(auth: AuthContext, libType: string, ite
   return row.get({ plain: true });
 }
 
-export async function unarchiveLibraryItem(auth: AuthContext, libType: string, itemKey: string, orgId: string | undefined, ip: string | null) {
+export async function unarchiveLibraryItem(auth: AuthContext, libType: string, itemKey: string, orgId: string | undefined, _ip: string | null) {
   assertLibType(libType);
   const org = await targetOrg(auth, orgId);
   const row = await IsraLibraryArchive.findOne({ where: { orgId: org, libType, itemKey } });

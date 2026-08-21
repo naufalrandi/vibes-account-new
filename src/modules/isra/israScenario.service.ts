@@ -21,6 +21,7 @@ import {
   IsraControlMaturityBaseline,
   IsraKmVulnControl,
   IsraVulnControlOverlay,
+  IsraAppetiteLog,
 } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
@@ -63,8 +64,8 @@ export function getRiskBand(score: number): string {
 export function calculateWeightedSeverity(
   potentialImpacts: { area: string; severity: number }[],
   override?: { severity: number; justification?: string } | null
-): { sev: number; exposure: number; wavg: number; dominant: boolean } {
-  if (override && override.justification && override.severity >= 1 && override.severity <= 5) {
+): { sev: number; exposure: number; wavg: number; dominant: boolean; maxArea?: string; maxSev?: number } {
+  if (override && typeof override.severity === "number" && override.severity >= 1 && override.severity <= 5) {
     return {
       sev: override.severity,
       exposure: Math.round(((override.severity - 1) / 4) * 100),
@@ -73,17 +74,23 @@ export function calculateWeightedSeverity(
     };
   }
 
-  const rated = potentialImpacts.filter((p) => p.severity > 0);
+  const rated = potentialImpacts.filter((p) => typeof p.severity === "number" && p.severity > 0);
   if (rated.length === 0) {
     return { sev: 0, exposure: 0, wavg: 0, dominant: false };
   }
 
   let wsum = 0;
   let acc = 0;
+  let maxSev = 0;
+  let maxArea = "";
   for (const p of rated) {
     const weight = ISRA_CONSEQ_WEIGHT[p.area] ?? 1;
     wsum += weight;
     acc += weight * p.severity;
+    if (p.severity > maxSev) {
+      maxSev = p.severity;
+      maxArea = p.area;
+    }
   }
 
   const wavg = wsum > 0 ? acc / wsum : 0;
@@ -92,10 +99,10 @@ export function calculateWeightedSeverity(
   const sev = Math.min(5, Math.max(1, Math.max(Math.round(wavg), floor)));
   const exposure = Math.min(100, Math.max(0, Math.round(((wavg - 1) / 4) * 100)));
 
-  return { sev, exposure, wavg, dominant: hasDominant };
+  return { sev, exposure, wavg, dominant: hasDominant, maxArea, maxSev };
 }
 
-export async function recalculateScenarioScores(scenarioId: string, orgId: string) {
+export async function recalculateScenarioScores(scenarioId: string, orgId: string, markReview = false) {
   const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId } });
   if (!scenario) return null;
 
@@ -105,10 +112,10 @@ export async function recalculateScenarioScores(scenarioId: string, orgId: strin
     scenario.impactOverride
   );
 
-  const inherentImpact = impactResult.sev || 1;
-  const inherentL = scenario.inherentL || 1;
-  const inherentScore = inherentL * inherentImpact;
-  const inherentBand = getRiskBand(inherentScore);
+  const inherentImpact = impactResult.sev || 0;
+  const inherentL = scenario.inherentL || 0;
+  const inherentScore = inherentL > 0 && inherentImpact > 0 ? inherentL * inherentImpact : 0;
+  const inherentBand = inherentScore > 0 ? getRiskBand(inherentScore) : "";
 
   // Load existing controls
   const controls = await IsraExistingControl.findAll({ where: { scenarioId, orgId } });
@@ -136,10 +143,14 @@ export async function recalculateScenarioScores(scenarioId: string, orgId: strin
     controlProfileMap.set(o.ref, { fnP: o.fnP, fnD: o.fnD, fnC: o.fnC, dedL: o.dedL, dedC: o.dedC });
   }
 
+  // All 5 dimensions required > 0 for valid baseline maturity
   const baselineMaturityMap = new Map<string, number>();
   for (const b of baselines) {
-    const avg = ((b.gov ?? 0) + (b.doc ?? 0) + (b.impl ?? 0) + (b.mon ?? 0) + (b.comp ?? 0)) / 5;
-    baselineMaturityMap.set(b.annexRef, avg);
+    const g = b.gov ?? 0, d = b.doc ?? 0, i = b.impl ?? 0, m = b.mon ?? 0, c = b.comp ?? 0;
+    if (g > 0 && d > 0 && i > 0 && m > 0 && c > 0) {
+      const avg = (g + d + i + m + c) / 5;
+      baselineMaturityMap.set(b.annexRef, avg);
+    }
   }
 
   // Calculate Method C Current Risk (§3.4)
@@ -157,25 +168,32 @@ export async function recalculateScenarioScores(scenarioId: string, orgId: strin
     let bestMat = 0;
 
     for (const ref of refs) {
-      const prof = controlProfileMap.get(ref) || { fnP: true, fnD: false, fnC: false, dedL: true, dedC: false };
+      const prof = controlProfileMap.get(ref);
+      if (!prof) continue; // unknown ref yields cap 0 / ineligibility
       const applies = axis === "L" ? prof.dedL : prof.dedC;
       if (!applies) continue;
 
       const cap = Math.min(1, (prof.fnP ? 0.6 : 0) + (prof.fnD ? 0.3 : 0) + (prof.fnC ? 0.1 : 0));
 
-      // Maturity factor
-      let matLevel = 0;
-      if (c.maturityByRef && typeof c.maturityByRef[ref] === "number") {
-        matLevel = c.maturityByRef[ref];
+      // Maturity factor: all 5 dimensions required > 0
+      let matFactor = 0;
+      if (c.maturityByRef && typeof c.maturityByRef[ref] === "number" && c.maturityByRef[ref] > 0) {
+        matFactor = c.maturityByRef[ref] / 5;
       } else if (baselineMaturityMap.has(ref)) {
-        matLevel = baselineMaturityMap.get(ref)!;
+        matFactor = baselineMaturityMap.get(ref)! / 5;
       } else if (c.maturity) {
         const m = c.maturity;
-        const vals = [m.gov, m.doc, m.impl, m.mon, m.comp].filter((x) => typeof x === "number") as number[];
-        matLevel = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+        if (
+          typeof m.gov === "number" && m.gov > 0 &&
+          typeof m.doc === "number" && m.doc > 0 &&
+          typeof m.impl === "number" && m.impl > 0 &&
+          typeof m.mon === "number" && m.mon > 0 &&
+          typeof m.comp === "number" && m.comp > 0
+        ) {
+          matFactor = (m.gov + m.doc + m.impl + m.mon + m.comp) / 25;
+        }
       }
 
-      const matFactor = matLevel > 0 ? matLevel / 5 : 0;
       const power = cap * matFactor;
       if (power > bestPower) {
         bestPower = power;
@@ -188,11 +206,18 @@ export async function recalculateScenarioScores(scenarioId: string, orgId: strin
   };
 
   const poolAxis = (axis: "L" | "C", currentBasis: number, verifiedOnly = false) => {
+    if (currentBasis <= 0) return 0;
     const list = verifiedOnly ? eligibleControls.filter((c) => c.verified || c.verifiedEffectiveness != null) : eligibleControls;
+
+    // Strong evaluated across all controls in the list before grouping
+    let isStrong = false;
     const groupPowers = new Map<string, { power: number; cap: number; matFactor: number }>();
     for (const c of list) {
-      const key = c.objective?.trim() || c.id;
       const p = getPower(c, axis);
+      if (p.cap >= 0.6 && p.matFactor >= 0.8) {
+        isStrong = true;
+      }
+      const key = c.objective?.trim() || c.id;
       const existing = groupPowers.get(key);
       if (!existing || p.power > existing.power) {
         groupPowers.set(key, p);
@@ -200,12 +225,8 @@ export async function recalculateScenarioScores(scenarioId: string, orgId: strin
     }
 
     let pool = 0;
-    let isStrong = false;
     for (const g of groupPowers.values()) {
       pool += g.power;
-      if (g.cap >= 0.6 && g.matFactor >= 0.8) {
-        isStrong = true;
-      }
     }
 
     const range = Math.max(0, currentBasis - 1);
@@ -217,10 +238,10 @@ export async function recalculateScenarioScores(scenarioId: string, orgId: strin
   const dropL = poolAxis("L", inherentL);
   const dropC = poolAxis("C", inherentImpact);
 
-  const suggestedL = Math.max(1, inherentL - dropL);
-  const suggestedImpact = Math.max(1, inherentImpact - dropC);
-  const suggestedScore = suggestedL * suggestedImpact;
-  const suggestedBand = getRiskBand(suggestedScore);
+  const suggestedL = inherentL > 0 ? Math.max(1, inherentL - dropL) : 0;
+  const suggestedImpact = inherentImpact > 0 ? Math.max(1, inherentImpact - dropC) : 0;
+  const suggestedScore = suggestedL > 0 && suggestedImpact > 0 ? suggestedL * suggestedImpact : 0;
+  const suggestedBand = suggestedScore > 0 ? getRiskBand(suggestedScore) : "";
 
   // Auto-adopt Current Risk
   let currentRisk = await IsraScenarioCurrentRisk.findOne({ where: { scenarioId } });
@@ -242,7 +263,7 @@ export async function recalculateScenarioScores(scenarioId: string, orgId: strin
       confirmedBand: suggestedBand,
       confirmedAt: new Date(),
       confirmedBy: "System (Auto-adopt)",
-      needsReview: false,
+      needsReview: markReview,
       eligibleControlIds: eligibleControls.map((c) => c.id),
     });
   } else {
@@ -256,18 +277,21 @@ export async function recalculateScenarioScores(scenarioId: string, orgId: strin
     currentRisk.confirmedImpact = suggestedImpact;
     currentRisk.confirmedScore = suggestedScore;
     currentRisk.confirmedBand = suggestedBand;
+    currentRisk.confirmedAt = new Date();
     currentRisk.calcAt = new Date();
+    currentRisk.needsReview = markReview ? true : (currentRisk.needsReview ?? false);
     currentRisk.eligibleControlIds = eligibleControls.map((c) => c.id);
     await currentRisk.save();
   }
 
   // Actual Residual calculation
+  const verifiedControls = eligibleControls.filter((c) => c.verified || c.verifiedEffectiveness != null);
   const actDropL = poolAxis("L", inherentL, true);
   const actDropC = poolAxis("C", inherentImpact, true);
-  const actL = Math.max(1, inherentL - actDropL);
-  const actImpact = Math.max(1, inherentImpact - actDropC);
-  const actScore = actL * actImpact;
-  const actBand = getRiskBand(actScore);
+  const actL = inherentL > 0 ? Math.max(1, inherentL - actDropL) : 0;
+  const actImpact = inherentImpact > 0 ? Math.max(1, inherentImpact - actDropC) : 0;
+  const actScore = actL > 0 && actImpact > 0 ? actL * actImpact : 0;
+  const actBand = actScore > 0 ? getRiskBand(actScore) : "";
 
   let actualRes = await IsraScenarioActualResidual.findOne({ where: { scenarioId } });
   if (!actualRes) {
@@ -281,8 +305,9 @@ export async function recalculateScenarioScores(scenarioId: string, orgId: strin
       confirmedImpact: actImpact,
       confirmedScore: actScore,
       confirmedBand: actBand,
-      verifiedControlIds: eligibleControls.filter((c) => c.verified).map((c) => c.id),
-      needsReview: false,
+      confirmedAt: new Date(),
+      confirmedBy: "System (Actual Residual)",
+      verifiedControlIds: verifiedControls.map((c) => c.id),
     });
   } else {
     actualRes.suggestedL = actL;
@@ -293,7 +318,8 @@ export async function recalculateScenarioScores(scenarioId: string, orgId: strin
     actualRes.confirmedImpact = actImpact;
     actualRes.confirmedScore = actScore;
     actualRes.confirmedBand = actBand;
-    actualRes.verifiedControlIds = eligibleControls.filter((c) => c.verified).map((c) => c.id);
+    actualRes.confirmedAt = new Date();
+    actualRes.verifiedControlIds = verifiedControls.map((c) => c.id);
     await actualRes.save();
   }
 
@@ -418,6 +444,22 @@ export async function getScenarioById(auth: AuthContext, id: string) {
   return plain;
 }
 
+async function nextScenarioCode(orgId: string): Promise<string> {
+  const rows = await IsraScenario.findAll({
+    where: { orgId },
+    attributes: ["code"],
+  });
+  let max = 0;
+  for (const r of rows) {
+    const m = (r.code || "").match(/^RSC-(\d+)$/);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n > max) max = n;
+    }
+  }
+  return `RSC-${String(max + 1).padStart(4, "0")}`;
+}
+
 export async function createScenario(auth: AuthContext, input: Record<string, unknown>, ip: string | null) {
   const primaryAssetRef = str(input.primaryAssetRef);
   const primaryAssetSource = str(input.primaryAssetSource) || "platform";
@@ -430,9 +472,8 @@ export async function createScenario(auth: AuthContext, input: Record<string, un
     throw new BadRequestError("Primary asset, secondary asset, threat, and title are required", "MISSING_REQUIRED_FIELDS");
   }
 
-  // Generate next RSC- code
-  const count = await IsraScenario.count({ where: { orgId: auth.orgId } });
-  const code = `RSC-${String(count + 1).padStart(4, "0")}`;
+  // Generate next RSC- code per tenant
+  const code = await nextScenarioCode(auth.orgId);
 
   const row = await IsraScenario.create({
     orgId: auth.orgId,
@@ -497,7 +538,16 @@ export async function updateScenario(auth: AuthContext, id: string, input: Recor
 
   if (input.title !== undefined) scenario.title = str(input.title) || scenario.title;
   if (input.processRef !== undefined) scenario.processRef = str(input.processRef);
-  if (input.status !== undefined) scenario.status = str(input.status) || scenario.status;
+  if (input.status !== undefined) {
+    const nextStatus = str(input.status) || scenario.status;
+    if (nextStatus === "Closed" && scenario.status !== "Closed") {
+      const check = await canCloseScenario(id, auth.orgId);
+      if (!check.canClose) {
+        throw new BadRequestError(`Cannot close scenario: ${check.reasons.join("; ")}`, "SCENARIO_CANNOT_CLOSE");
+      }
+    }
+    scenario.status = nextStatus;
+  }
   if (input.cia !== undefined) scenario.cia = (input.cia as any) || scenario.cia;
   if (input.inherentL !== undefined && typeof input.inherentL === "number") scenario.inherentL = input.inherentL;
   if (input.reviewDue !== undefined) scenario.reviewDue = str(input.reviewDue);
@@ -562,7 +612,7 @@ export async function deleteScenario(auth: AuthContext, id: string, ip: string |
 
 // ============================ Existing Controls ============================
 
-export async function createExistingControl(auth: AuthContext, scenarioId: string, input: Record<string, unknown>, ip: string | null) {
+export async function createExistingControl(auth: AuthContext, scenarioId: string, input: Record<string, unknown>, _ip: string | null) {
   const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId: auth.orgId } });
   if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
 
@@ -597,7 +647,7 @@ export async function createExistingControl(auth: AuthContext, scenarioId: strin
   return row.get({ plain: true });
 }
 
-export async function updateExistingControl(auth: AuthContext, controlId: string, input: Record<string, unknown>, ip: string | null) {
+export async function updateExistingControl(auth: AuthContext, controlId: string, input: Record<string, unknown>, _ip: string | null) {
   const control = await IsraExistingControl.findOne({ where: { id: controlId, orgId: auth.orgId } });
   if (!control) throw new NotFoundError("Control not found", "CONTROL_NOT_FOUND");
 
@@ -627,7 +677,7 @@ export async function updateExistingControl(auth: AuthContext, controlId: string
   return control.get({ plain: true });
 }
 
-export async function deleteExistingControl(auth: AuthContext, controlId: string, ip: string | null) {
+export async function deleteExistingControl(auth: AuthContext, controlId: string, _ip: string | null) {
   const control = await IsraExistingControl.findOne({ where: { id: controlId, orgId: auth.orgId } });
   if (!control) throw new NotFoundError("Control not found", "CONTROL_NOT_FOUND");
 
@@ -638,7 +688,7 @@ export async function deleteExistingControl(auth: AuthContext, controlId: string
 
 // ======================= Treatment, RTP, Residuals =========================
 
-export async function saveTreatmentDecision(auth: AuthContext, scenarioId: string, input: Record<string, unknown>, ip: string | null) {
+export async function saveTreatmentDecision(auth: AuthContext, scenarioId: string, input: Record<string, unknown>, _ip: string | null) {
   const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId: auth.orgId } });
   if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
 
@@ -714,7 +764,7 @@ export async function generateRecommendations(auth: AuthContext, scenarioId: str
   return snapshot.get({ plain: true });
 }
 
-export async function saveRtp(auth: AuthContext, scenarioId: string, input: Record<string, unknown>, ip: string | null) {
+export async function saveRtp(auth: AuthContext, scenarioId: string, input: Record<string, unknown>, _ip: string | null) {
   const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId: auth.orgId } });
   if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
 
@@ -762,7 +812,10 @@ export async function saveRtp(auth: AuthContext, scenarioId: string, input: Reco
   return rtp.get({ plain: true });
 }
 
-export async function approveRtp(auth: AuthContext, scenarioId: string, ip: string | null) {
+export async function approveRtp(auth: AuthContext, scenarioId: string, _ip: string | null) {
+  const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId: auth.orgId } });
+  if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
+
   const rtp = await IsraRtp.findOne({ where: { scenarioId, isCurrent: true } });
   if (!rtp) throw new NotFoundError("RTP not found", "RTP_NOT_FOUND");
 
@@ -774,7 +827,7 @@ export async function approveRtp(auth: AuthContext, scenarioId: string, ip: stri
   return rtp.get({ plain: true });
 }
 
-export async function saveResidual(auth: AuthContext, scenarioId: string, input: Record<string, unknown>, ip: string | null) {
+export async function saveResidual(auth: AuthContext, scenarioId: string, input: Record<string, unknown>, _ip: string | null) {
   const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId: auth.orgId } });
   if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
 
@@ -805,25 +858,136 @@ export async function saveResidual(auth: AuthContext, scenarioId: string, input:
   return residual.get({ plain: true });
 }
 
-export async function promoteResidual(auth: AuthContext, scenarioId: string, ip: string | null) {
+export async function canCloseScenario(scenarioId: string, orgId: string): Promise<{ canClose: boolean; reasons: string[] }> {
+  const reasons: string[] = [];
+  const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId } });
+  if (!scenario) return { canClose: false, reasons: ["Scenario not found"] };
+
+  const current = await IsraScenarioCurrentRisk.findOne({ where: { scenarioId } });
+  if (!current || !current.confirmedScore) {
+    reasons.push("Current risk score has not been evaluated/confirmed");
+  }
+
+  const appetiteLog = await IsraAppetiteLog.findOne({ where: { orgId }, order: [["version", "DESC"]] });
+  const appetite = appetiteLog?.threshold ?? 9;
+
+  const currentScore = current?.confirmedScore ?? 0;
+  if (current && currentScore > appetite) {
+    const residual = await IsraScenarioResidual.findOne({ where: { scenarioId } });
+    const resScore = residual?.score ?? currentScore;
+    if (!residual || resScore > appetite) {
+      reasons.push(`Risk score (${resScore}) exceeds appetite threshold (${appetite})`);
+    }
+  }
+
+  const rtp = await IsraRtp.findOne({ where: { scenarioId, isCurrent: true } });
+  if (rtp && rtp.status !== "Approved") {
+    reasons.push("Risk Treatment Plan is not approved");
+  }
+  if (rtp) {
+    const actions = await IsraRtpAction.findAll({ where: { rtpId: rtp.id } });
+    const pending = actions.filter((a) => a.status !== "Completed" && a.status !== "Verified");
+    if (pending.length > 0) {
+      reasons.push(`${pending.length} RTP action(s) are not verified/completed`);
+    }
+  }
+
+  return { canClose: reasons.length === 0, reasons };
+}
+
+export async function promoteResidual(auth: AuthContext, scenarioId: string, _ip: string | null) {
   const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId: auth.orgId } });
   if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
 
   const residual = await IsraScenarioResidual.findOne({ where: { scenarioId } });
   if (!residual) throw new BadRequestError("No residual risk recorded to promote", "NO_RESIDUAL");
 
-  // Promote residual score to current risk confirmed score
-  const current = await IsraScenarioCurrentRisk.findOne({ where: { scenarioId } });
-  if (current) {
-    current.confirmedScore = residual.score;
-    current.confirmedBand = residual.band;
+  let current = await IsraScenarioCurrentRisk.findOne({ where: { scenarioId } });
+  const treatment = await IsraScenarioTreatmentDecision.findOne({ where: { scenarioId, isCurrent: true } });
+  const rtp = await IsraRtp.findOne({ where: { scenarioId, isCurrent: true } });
+  const actualRes = await IsraScenarioActualResidual.findOne({ where: { scenarioId } });
+
+  // 1. Archive cycle history snapshot
+  const currentCycle = scenario.evalCycle || 1;
+  await IsraScenarioCycle.create({
+    scenarioId,
+    cycleNumber: currentCycle,
+    snapshot: {
+      cycle: currentCycle,
+      currentRisk: current ? current.get({ plain: true }) : null,
+      treatmentDecision: treatment ? treatment.get({ plain: true }) : null,
+      rtp: rtp ? rtp.get({ plain: true }) : null,
+      actualResidual: actualRes ? actualRes.get({ plain: true }) : null,
+      residual: residual.get({ plain: true }),
+    },
+    archivedAt: new Date(),
+  });
+
+  // 2. Advance evaluation cycle
+  scenario.evalCycle = currentCycle + 1;
+
+  // 3. Promote residual to current risk confirmed score
+  const promotedScore = residual.score ?? 4;
+  const promotedBand = residual.band ?? getRiskBand(promotedScore);
+  if (!current) {
+    current = await IsraScenarioCurrentRisk.create({
+      scenarioId,
+      method: "C-capped-quality-gated",
+      methodVer: 1,
+      calcAt: new Date(),
+      iL: scenario.inherentL || 1,
+      iImpact: 1,
+      suggestedL: 1,
+      suggestedImpact: 1,
+      suggestedScore: promotedScore,
+      suggestedBand: promotedBand,
+      confirmedL: 1,
+      confirmedImpact: 1,
+      confirmedScore: promotedScore,
+      confirmedBand: promotedBand,
+      confirmedAt: new Date(),
+      confirmedBy: `${auth.userId} (Promoted Residual)`,
+      needsReview: false,
+      eligibleControlIds: [],
+    });
+  } else {
+    current.confirmedScore = promotedScore;
+    current.confirmedBand = promotedBand;
     current.confirmedAt = new Date();
     current.confirmedBy = `${auth.userId} (Promoted Residual)`;
     await current.save();
   }
 
-  // Clear residual slot for next cycle
+  // 4. Check appetite threshold and calculate review due date
+  const appetiteLog = await IsraAppetiteLog.findOne({ where: { orgId: auth.orgId }, order: [["version", "DESC"]] });
+  const appetiteThreshold = appetiteLog?.threshold ?? 9;
+
+  const reviewMonths = promotedScore <= 4 ? 12 : promotedScore <= 9 ? 6 : promotedScore <= 15 ? 3 : 1;
+  const nextReview = new Date();
+  nextReview.setMonth(nextReview.getMonth() + reviewMonths);
+  scenario.reviewDue = nextReview.toISOString().slice(0, 10);
+
+  if (promotedScore <= appetiteThreshold) {
+    if (treatment && treatment.status === "Active") {
+      treatment.status = "Accepted";
+      await treatment.save();
+    }
+  }
+
+  await scenario.save();
+
+  // 5. Clear residual slot for next cycle
   await residual.destroy();
 
-  return { promoted: true };
+  await writeAudit({
+    actorUserId: auth.userId,
+    organizationId: auth.orgId,
+    action: "isra.residual.promoted",
+    entityType: "IsraScenario",
+    entityId: scenarioId,
+    sourceIp: _ip,
+    result: "Success",
+  });
+
+  return { promoted: true, cycle: scenario.evalCycle, reviewDue: scenario.reviewDue };
 }

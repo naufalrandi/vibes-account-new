@@ -42,6 +42,10 @@ export class Organization extends Model<InferAttributes<Organization>, InferCrea
   declare branding: OrgBranding | null;
   declare systemDefaults: OrgSystemDefaults | null;
   declare defaults: CreationOptional<OrgSystemDefaults | null>;
+  declare riskMethod: CreationOptional<string>;
+  declare riskLevels: CreationOptional<{ names: string[]; bounds: number[] }>;
+  declare riskAppetite: CreationOptional<number>;
+  declare riskAppetiteVer: CreationOptional<number>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -80,6 +84,30 @@ Organization.init(
       set(value: OrgSystemDefaults | null) {
         this.setDataValue("systemDefaults", value);
       },
+    },
+    riskMethod: {
+      type: DataTypes.STRING(32),
+      allowNull: false,
+      defaultValue: "basic",
+      field: "risk_method",
+    },
+    riskLevels: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      defaultValue: { names: ["Low", "Medium", "High", "Critical"], bounds: [4, 9, 15] },
+      field: "risk_levels",
+    },
+    riskAppetite: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 9,
+      field: "risk_appetite",
+    },
+    riskAppetiteVer: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1,
+      field: "risk_appetite_ver",
     },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,

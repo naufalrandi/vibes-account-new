@@ -4,7 +4,7 @@ import { ACTIONS } from "../iam/actions.catalog";
 import * as controller from "./israSupport.controller";
 
 const read = requireAction(ACTIONS.ISRA_LIBRARY_READ);
-const manage = requireAction(ACTIONS.ISRA_LIBRARY_MANAGE);
+const manage = requireAction(ACTIONS.ISRA_ORG_CONTROL_MANAGE);
 
 export const israSupportRoutes = Router();
 

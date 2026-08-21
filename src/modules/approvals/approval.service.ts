@@ -71,7 +71,7 @@ export const AP_MODULE_KEYS: readonly string[] = [
  * — a first-generation record is the root of its own lineage.
  */
 async function publishWithLineage(
-  auth: AuthContext, rec: ImplementationRecord, who: string,
+  _auth: AuthContext, rec: ImplementationRecord, who: string,
 ): Promise<void> {
   const data = (rec.data ?? {}) as Record<string, unknown>;
   const lineage = (data.lineageId as string) ?? rec.id;

@@ -149,7 +149,36 @@ export async function deleteAssetMap(auth: AuthContext, id: string, ip: string |
   });
 }
 
-export async function addUsage(auth: AuthContext, mapId: string, processRef: string, ip: string | null) {
+async function requireOwnedUsage(auth: AuthContext, usageId: string): Promise<IsraAssetMapUsage> {
+  const usage = await IsraAssetMapUsage.findByPk(usageId);
+  if (!usage) throw new NotFoundError("Usage not found", "USAGE_NOT_FOUND");
+  const map = await IsraAssetMap.findOne({ where: { id: usage.assetMapId, orgId: auth.orgId } });
+  if (!map) throw new NotFoundError("Asset map not found", "ASSET_MAP_NOT_FOUND");
+  return usage;
+}
+
+async function requireOwnedSecondary(auth: AuthContext, secondaryId: string): Promise<IsraAssetMapSecondary> {
+  const sec = await IsraAssetMapSecondary.findByPk(secondaryId);
+  if (!sec) throw new NotFoundError("Secondary attachment not found", "SEC_NOT_FOUND");
+  await requireOwnedUsage(auth, sec.usageId);
+  return sec;
+}
+
+async function requireOwnedThreatRow(auth: AuthContext, threatRowId: string): Promise<IsraAssetMapThreat> {
+  const threatRow = await IsraAssetMapThreat.findByPk(threatRowId);
+  if (!threatRow) throw new NotFoundError("Threat attachment not found", "THREAT_NOT_FOUND");
+  await requireOwnedSecondary(auth, threatRow.secondaryId);
+  return threatRow;
+}
+
+async function requireOwnedVulnRow(auth: AuthContext, vulnRowId: string): Promise<IsraAssetMapVuln> {
+  const vulnRow = await IsraAssetMapVuln.findByPk(vulnRowId);
+  if (!vulnRow) throw new NotFoundError("Vulnerability attachment not found", "VULN_NOT_FOUND");
+  await requireOwnedThreatRow(auth, vulnRow.threatRowId);
+  return vulnRow;
+}
+
+export async function addUsage(auth: AuthContext, mapId: string, processRef: string, _ip: string | null) {
   const map = await IsraAssetMap.findOne({ where: { id: mapId, orgId: auth.orgId } });
   if (!map) throw new NotFoundError("Asset map not found", "ASSET_MAP_NOT_FOUND");
   if (!processRef) throw new BadRequestError("Process reference is required", "PROCESS_REF_REQUIRED");
@@ -162,12 +191,8 @@ export async function addUsage(auth: AuthContext, mapId: string, processRef: str
   return row.get({ plain: true });
 }
 
-export async function deleteUsage(auth: AuthContext, usageId: string, ip: string | null) {
-  const usage = await IsraAssetMapUsage.findByPk(usageId);
-  if (!usage) throw new NotFoundError("Usage not found", "USAGE_NOT_FOUND");
-  const map = await IsraAssetMap.findOne({ where: { id: usage.assetMapId, orgId: auth.orgId } });
-  if (!map) throw new NotFoundError("Asset map not found", "ASSET_MAP_NOT_FOUND");
-
+export async function deleteUsage(auth: AuthContext, usageId: string, _ip: string | null) {
+  const usage = await requireOwnedUsage(auth, usageId);
   await usage.destroy();
 }
 
@@ -180,12 +205,9 @@ export async function addSecondary(
     groupId?: string | null;
     subgroupId?: string | null;
   },
-  ip: string | null
+  _ip: string | null
 ) {
-  const usage = await IsraAssetMapUsage.findByPk(usageId);
-  if (!usage) throw new NotFoundError("Usage not found", "USAGE_NOT_FOUND");
-  const map = await IsraAssetMap.findOne({ where: { id: usage.assetMapId, orgId: auth.orgId } });
-  if (!map) throw new NotFoundError("Asset map not found", "ASSET_MAP_NOT_FOUND");
+  const usage = await requireOwnedUsage(auth, usageId);
 
   const secondaryAssetRef = str(input.secondaryAssetRef);
   if (!secondaryAssetRef) throw new BadRequestError("Secondary asset reference is required", "SEC_ASSET_REQUIRED");
@@ -242,14 +264,8 @@ export async function addSecondary(
   return row.get({ plain: true });
 }
 
-export async function deleteSecondary(auth: AuthContext, secId: string, ip: string | null) {
-  const sec = await IsraAssetMapSecondary.findByPk(secId);
-  if (!sec) throw new NotFoundError("Secondary asset attachment not found", "SEC_NOT_FOUND");
-  const usage = await IsraAssetMapUsage.findByPk(sec.usageId);
-  if (!usage) throw new NotFoundError("Usage not found", "USAGE_NOT_FOUND");
-  const map = await IsraAssetMap.findOne({ where: { id: usage.assetMapId, orgId: auth.orgId } });
-  if (!map) throw new NotFoundError("Asset map not found", "ASSET_MAP_NOT_FOUND");
-
+export async function deleteSecondary(auth: AuthContext, secId: string, _ip: string | null) {
+  const sec = await requireOwnedSecondary(auth, secId);
   await sec.destroy();
 }
 
@@ -258,10 +274,9 @@ export async function addThreat(
   secondaryId: string,
   threatId: string,
   isBaseline = false,
-  ip: string | null
+  _ip: string | null
 ) {
-  const sec = await IsraAssetMapSecondary.findByPk(secondaryId);
-  if (!sec) throw new NotFoundError("Secondary attachment not found", "SEC_NOT_FOUND");
+  await requireOwnedSecondary(auth, secondaryId);
 
   const row = await IsraAssetMapThreat.create({
     secondaryId,
@@ -272,10 +287,8 @@ export async function addThreat(
   return row.get({ plain: true });
 }
 
-export async function deleteThreat(auth: AuthContext, threatRowId: string, ip: string | null) {
-  const threatRow = await IsraAssetMapThreat.findByPk(threatRowId);
-  if (!threatRow) throw new NotFoundError("Threat attachment not found", "THREAT_NOT_FOUND");
-
+export async function deleteThreat(auth: AuthContext, threatRowId: string, _ip: string | null) {
+  const threatRow = await requireOwnedThreatRow(auth, threatRowId);
   await threatRow.destroy();
 }
 
@@ -284,10 +297,9 @@ export async function addVuln(
   threatRowId: string,
   vulnId: string,
   isBaseline = false,
-  ip: string | null
+  _ip: string | null
 ) {
-  const threatRow = await IsraAssetMapThreat.findByPk(threatRowId);
-  if (!threatRow) throw new NotFoundError("Threat attachment not found", "THREAT_NOT_FOUND");
+  await requireOwnedThreatRow(auth, threatRowId);
 
   const row = await IsraAssetMapVuln.create({
     threatRowId,
@@ -298,15 +310,13 @@ export async function addVuln(
   return row.get({ plain: true });
 }
 
-export async function deleteVuln(auth: AuthContext, vulnRowId: string, ip: string | null) {
-  const vulnRow = await IsraAssetMapVuln.findByPk(vulnRowId);
-  if (!vulnRow) throw new NotFoundError("Vulnerability attachment not found", "VULN_NOT_FOUND");
-
+export async function deleteVuln(auth: AuthContext, vulnRowId: string, _ip: string | null) {
+  const vulnRow = await requireOwnedVulnRow(auth, vulnRowId);
   await vulnRow.destroy();
 }
 
 export async function getBaselineDiff(auth: AuthContext, secondaryId: string) {
-  const sec = await IsraAssetMapSecondary.findByPk(secondaryId);
+  const sec = await requireOwnedSecondary(auth, secondaryId);
   if (!sec || !sec.subgroupId) return { canRefresh: false, additions: [], removals: [] };
 
   const sub = await IsraSaSubgroup.findByPk(sec.subgroupId);
@@ -332,8 +342,8 @@ export async function getBaselineDiff(auth: AuthContext, secondaryId: string) {
   };
 }
 
-export async function refreshBaseline(auth: AuthContext, secondaryId: string, ip: string | null) {
-  const sec = await IsraAssetMapSecondary.findByPk(secondaryId);
+export async function refreshBaseline(auth: AuthContext, secondaryId: string, _ip: string | null) {
+  const sec = await requireOwnedSecondary(auth, secondaryId);
   if (!sec || !sec.subgroupId) throw new BadRequestError("No subgroup for baseline refresh", "NO_SUBGROUP");
 
   const diff = await getBaselineDiff(auth, secondaryId);

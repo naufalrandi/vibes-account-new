@@ -196,7 +196,7 @@ IsraInitiative.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     orgId: { type: DataTypes.UUID, allowNull: false, field: "org_id" },
-    code: { type: DataTypes.STRING, allowNull: false, unique: true },
+    code: { type: DataTypes.STRING, allowNull: false },
     title: { type: DataTypes.STRING, allowNull: false },
     description: { type: DataTypes.TEXT, allowNull: true },
     owner: { type: DataTypes.STRING, allowNull: true },
@@ -204,7 +204,7 @@ IsraInitiative.init(
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },
-  { sequelize, tableName: "isra_initiatives", underscored: true },
+  { sequelize, tableName: "isra_initiatives", underscored: true, indexes: [{ unique: true, fields: ["org_id", "code"] }] },
 );
 
 /** Junction (`scenarioIds[]`, M:N per spec). */

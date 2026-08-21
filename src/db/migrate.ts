@@ -21,27 +21,29 @@ class NormalizedSequelizeStorage extends SequelizeStorage {
   }
 }
 
-export const migrator = new Umzug({
-  migrations: {
-    glob: [`migrations/*.${migrationExtension}`, { cwd: __dirname }],
-    // Resolve each migration through the active runtime: tsx/Vitest in source
-    // mode, plain Node after tsc emits dist/db/migrations/*.js.
-    resolve: ({ name, path, context }) => {
-      if (!path) {
-        throw new Error(`Migration ${name} is missing a file path`);
-      }
-      const normalizedName = name.replace(/\.(ts|js)$/, "");
-      return {
-        name: normalizedName,
-        up: async () => (await import(path)).up({ context }),
-        down: async () => (await import(path)).down({ context }),
-      };
+export function createMigrator() {
+  return new Umzug({
+    migrations: {
+      glob: [`migrations/*.${migrationExtension}`, { cwd: __dirname }],
+      resolve: ({ name, path, context }) => {
+        if (!path) {
+          throw new Error(`Migration ${name} is missing a file path`);
+        }
+        const normalizedName = name.replace(/\.(ts|js)$/, "");
+        return {
+          name: normalizedName,
+          up: async () => (await import(path)).up({ context }),
+          down: async () => (await import(path)).down({ context }),
+        };
+      },
     },
-  },
-  context: sequelize.getQueryInterface(),
-  storage: new NormalizedSequelizeStorage({ sequelize }),
-  logger: console,
-});
+    context: sequelize.getQueryInterface(),
+    storage: new NormalizedSequelizeStorage({ sequelize }),
+    logger: console,
+  });
+}
+
+export const migrator = createMigrator();
 
 export type Migration = typeof migrator._types.migration;
 

@@ -110,7 +110,7 @@ export async function updateSettings(auth: AuthContext, input: Record<string, un
   return settingsView(row);
 }
 
-async function settingsFor(auth: AuthContext, org: string) {
+async function settingsFor(_auth: AuthContext, org: string) {
   const [row] = await IaSettings.findOrCreate({ where: { orgId: org }, defaults: { orgId: org } });
   return row;
 }

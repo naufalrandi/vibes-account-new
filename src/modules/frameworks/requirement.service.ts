@@ -86,7 +86,7 @@ async function toView(r: FrameworkRequirement, fw: FrameworkRef) {
 
 // Read (list/get/listCriteria): catalog data, no orgId — any authenticated
 // org may read (mirrors framework.service.ts; mutations stay SO-only below).
-export async function listRequirements(auth: AuthContext, frameworkId?: string) {
+export async function listRequirements(_auth: AuthContext, frameworkId?: string) {
   const where = frameworkId ? { frameworkId } : undefined;
   const rows = await FrameworkRequirement.findAll({
     where,
@@ -118,7 +118,7 @@ async function requireRequirement(id: string): Promise<FrameworkRequirement> {
   return r;
 }
 
-export async function getRequirement(auth: AuthContext, id: string) {
+export async function getRequirement(_auth: AuthContext, id: string) {
   const r = await requireRequirement(id);
   return toView(r, await frameworkRef(r.frameworkId));
 }
@@ -180,7 +180,7 @@ function critView(c: RequirementCriterion) {
   return { id: c.id, requirementId: c.requirementId, score: c.score, description: c.description, createdAt: c.createdAt, updatedAt: c.updatedAt };
 }
 
-export async function listCriteria(auth: AuthContext, requirementId: string) {
+export async function listCriteria(_auth: AuthContext, requirementId: string) {
   const rows = await RequirementCriterion.findAll({ where: { requirementId }, order: [["score", "ASC"]] });
   return rows.map(critView);
 }
