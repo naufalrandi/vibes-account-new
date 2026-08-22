@@ -23,6 +23,8 @@ export const up: Migration = async ({ context: q }) => {
   await q.changeColumn("registration_requests", "distributor_org_id", {
     type: DataTypes.UUID, allowNull: true, references: { model: "organizations", key: "id" },
   });
+  await q.sequelize.query('ALTER TABLE "registration_requests" ALTER COLUMN "distributor_org_id" DROP NOT NULL');
+
 
   await q.addColumn("registration_requests", "tenant_id", {
     type: DataTypes.UUID, allowNull: true, references: { model: "organizations", key: "id" }, onDelete: "SET NULL",

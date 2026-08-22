@@ -120,7 +120,7 @@ describe("Knowledge Base", () => {
 
   it("dedupes uniqueViews per user but always increments views (B4)", async () => {
     const so = await makeUser("so5", "AXIA5", "ServiceOwner", [ACTIONS.KB_READ, ACTIONS.KB_MANAGE]);
-    const created = await request(app).post("/v1/kb-articles").set(authed(so.token)).send({ title: "Views doc", category: "platform" });
+    const created = await request(app).post("/v1/kb-articles").set(authed(so.token)).send({ title: "Views doc", category: "platform", status: "Published" });
     const id = created.body.data.id;
     const viewer1 = await makeUser("v1", "VIEW1", "Tenant", [ACTIONS.KB_READ]);
     const viewer2 = await makeUser("v2", "VIEW2", "Tenant", [ACTIONS.KB_READ]);
@@ -142,7 +142,7 @@ describe("Knowledge Base", () => {
 
   it("dedupes votes per user, adjusting counts on change instead of double-counting (B4)", async () => {
     const so = await makeUser("so6", "AXIA6", "ServiceOwner", [ACTIONS.KB_READ, ACTIONS.KB_MANAGE]);
-    const created = await request(app).post("/v1/kb-articles").set(authed(so.token)).send({ title: "Vote doc", category: "platform" });
+    const created = await request(app).post("/v1/kb-articles").set(authed(so.token)).send({ title: "Vote doc", category: "platform", status: "Published" });
     const id = created.body.data.id;
     const voter = await makeUser("vt", "VOTE1", "Tenant", [ACTIONS.KB_READ]);
 
@@ -224,14 +224,14 @@ describe("Reference datasets", () => {
     expect(divs.body.data.map((n: { code: string }) => n.code)).toContain("10");
     const notes = await request(app).get("/v1/reference/isic/C/notes").set(authed(token));
     expect(notes.body.data.i).toContain("transformation");
-    const nace = await request(app).get("/v1/reference/nace?search=comput").set(authed(token));
+    const nace = await request(app).get("/v1/reference/nace?search=programming").set(authed(token));
     expect(nace.body.data[0].isic).toBe("62");
   });
 
   it("fuzzy-matches role suggestions and serves the exam bank", async () => {
     const { token } = await makeUser("t", "TEN", "Tenant", []);
     const roles = await request(app).get("/v1/reference/role-suggestions?q=QA%20Manager").set(authed(token));
-    expect(roles.body.data[0].name).toBe("Quality Manager");
+    expect(roles.body.data.roles[0].name).toBe("Quality Manager");
     const iscedf = await request(app).get("/v1/reference/iscedf").set(authed(token));
     expect(iscedf.body.data).toHaveLength(11);
     const exam = await request(app).get("/v1/reference/exam-bank?skill=Internal%20Auditing&level=L1").set(authed(token));

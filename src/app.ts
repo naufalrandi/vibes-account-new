@@ -137,15 +137,11 @@ export function createApp() {
   app.use("/v1/reference", authenticate, tenantScope, referenceRoutes);
   app.use("/v1/reference-db", authenticate, tenantScope, referenceDbRoutes);
   app.use("/v1/isra-library", authenticate, tenantScope, israThreatVulnLibraryRoutes);
+  app.use("/v1/isra-library", authenticate, tenantScope, israAssetLibraryRoutes);
   app.use("/v1/isra-org-controls", authenticate, tenantScope, israOrgControlRoutes);
-  // F-2a — taxonomy/asset-library/Lt-override system. Distinct mount path
-  // from F-2b's /v1/isra-library above: both agents independently named
-  // their router export `israLibraryRoutes` and both initially targeted the
-  // same path, reconciled here since they cover different data (this is
-  // asset taxonomy + libraries + tenant overrides, not the threat/vuln/
-  // Annex-A reference libraries + knowledge maps).
   app.use("/v1/isra-asset-library", authenticate, tenantScope, israAssetLibraryRoutes);
   app.use("/v1/isra", authenticate, tenantScope, israAssetLibraryRoutes);
+
 
   app.use(errorHandler);
   return app;

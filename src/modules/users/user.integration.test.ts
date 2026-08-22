@@ -328,10 +328,11 @@ describe("users", () => {
       parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null,
     });
     const foreign = await Site.create({
-      orgId: other.id, code: "SIT-0002", name: "Elsewhere", type: "Branch", country: null, address: null,
+      orgId: other.id, code: "SIT-0002", name: "Elsewhere", type: "Branch Office", country: null, address: null,
       city: null, state: null, postalCode: null, status: "Active", isPrimary: false, description: null,
       contactPerson: null, contactEmail: null, contactPhone: null,
     });
+
     const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
       .send({ orgId: tenantOrgId, fullName: "Bobby", username: "bobby", email: "bobby@acme.com" });
     const res = await request(app).patch(`/v1/users/${created.body.data.id}`).set("authorization", `Bearer ${token}`)

@@ -25,11 +25,12 @@ beforeAll(async () => {
     }
     throw error;
   }
-  const { migrateFresh } = await import("../src/db/fresh");
-  await migrateFresh();
+  const { migrator } = await import("../src/db/migrate");
+  await migrator.up();
   ({ sequelize } = await import("../src/db/sequelize"));
   models.initModels();
 });
+
 
 afterAll(async () => {
   if (sequelize) {
