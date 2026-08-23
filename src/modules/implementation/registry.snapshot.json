@@ -154,14 +154,6 @@
       "Archived"
     ]
   },
-  "controls": {
-    "prefix": "CTL",
-    "statuses": [
-      "Draft",
-      "Active",
-      "Retired"
-    ]
-  },
   "suppliers": {
     "prefix": "SUP",
     "statuses": [
@@ -249,14 +241,6 @@
       "Closed",
       "Cancelled",
       "Archived"
-    ]
-  },
-  "customer-focus": {
-    "prefix": "CFO",
-    "statuses": [
-      "Open",
-      "In Progress",
-      "Closed"
     ]
   },
   "customer-satisfaction": {

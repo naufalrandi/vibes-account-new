@@ -121,7 +121,6 @@ export const MS_MODULES: Record<string, RegisterModule> = {
   "record-folders": { prefix: "EDF", statuses: ["Active", "Inactive", "Archived"] },
 
   // --- Operation (clause 8) ---
-  controls: { prefix: "CTL", statuses: ["Draft", "Active", "Retired"] },
   suppliers: { prefix: "SUP", statuses: ["Pending Qualification", "Approved", "Suspended", "Rejected"] },
 
   // --- Performance & improvement (clause 9, 10) ---
@@ -133,7 +132,6 @@ export const MS_MODULES: Record<string, RegisterModule> = {
   incidents: { prefix: "INC", statuses: ["Open", "Under Investigation", "Contained", "Action Required", "In Progress", "Resolved", "Closed", "Cancelled", "Archived"] },
 
   // --- ISO 9001 extensions ---
-  "customer-focus": { prefix: "CFO", statuses: ["Open", "In Progress", "Closed"] },
   "customer-satisfaction": { prefix: "CSAT", statuses: ["New", "Reviewed", "Action Required", "Closed"] },
   psr: { prefix: "PSR", statuses: ["Draft", "Active", "Retired"] },
   design: { prefix: "DSG", statuses: ["Concept", "In Design", "Design Review", "Verification", "Validation", "Released"] },
