@@ -79,6 +79,13 @@ export interface RiskRecordView {
 
 export const RISK_CURRENCIES = ["IDR", "USD", "EUR", "SGD", "AUD", "GBP", "JPY", "MYR", "INR", "CNY", "THB"] as const;
 
+// "Archived" is appended last (terminal) so RISK_STATUSES[0] ("Unassigned",
+// the silent create default in createRisk()) is unchanged. archiveRisk()
+// (below) writes "Archived" and updateRisk()'s status guard used to
+// special-case it with a `next !== "Archived"` bypass + `as any` — proof the
+// type could not express a value the service demonstrably writes. The
+// Monitored-only/terminal transition rule for reaching "Archived" is
+// enforced by archiveRisk()'s own precondition, not by this list.
 export const RISK_STATUSES = [
   "Unassigned",
   "Assigned",
@@ -89,6 +96,7 @@ export const RISK_STATUSES = [
   "Assessed",
   "Treated",
   "Monitored",
+  "Archived",
 ] as const;
 
 export type RiskStatus = (typeof RISK_STATUSES)[number];
@@ -352,7 +360,7 @@ export async function updateRisk(
   }
   if (input.status !== undefined) {
     const next = String(input.status);
-    if (!RISK_STATUSES.includes(next as any) && next !== "Archived") {
+    if (!(RISK_STATUSES as readonly string[]).includes(next)) {
       throw new BadRequestError(`Invalid risk status: ${next}`, "INVALID_STATUS");
     }
     rec.status = next;

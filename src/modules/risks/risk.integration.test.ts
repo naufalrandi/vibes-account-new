@@ -5,6 +5,7 @@ import { initModels, Organization, User, Role } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
+import { RISK_STATUSES } from "./risk.service";
 
 const app = createApp();
 const authed = (t: string) => ({ Authorization: `Bearer ${t}` });
@@ -192,5 +193,55 @@ describe("Tenant Risk Register (/v1/risks)", () => {
     const archiveRes = await request(app).post(`/v1/risks/${riskId}/archive`).set(authed(token));
     expect(archiveRes.status).toBe(200);
     expect(archiveRes.body.data.status).toBe("Archived");
+  });
+
+  // P-6.5: RISK_STATUSES (risk.service.ts) is the vocabulary an exhaustive
+  // switch over RiskStatus would rely on. archiveRisk() writes "Archived"
+  // (line ~484) and the updateRisk() status guard special-cased it with a
+  // `&& next !== "Archived"` bypass + `as any` — proof the type could not
+  // express a value the service demonstrably writes. Pin the full vocabulary,
+  // "Archived" last (terminal), so RISK_STATUSES[0] ("Unassigned", the silent
+  // create default) is unchanged.
+  it("RISK_STATUSES lists every status the service can write, including terminal Archived", () => {
+    expect(RISK_STATUSES).toEqual([
+      "Unassigned",
+      "Assigned",
+      "RTP Draft",
+      "Pending Approval",
+      "Pending TM Approval",
+      "In Treatment",
+      "Assessed",
+      "Treated",
+      "Monitored",
+      "Archived",
+    ]);
+    expect(RISK_STATUSES[0]).toBe("Unassigned");
+  });
+
+  // P-6.5: widening RISK_STATUSES to include "Archived" must not weaken
+  // archiveRisk()'s own precondition (line ~478) that a risk can only be
+  // archived from "Monitored". That check is independent of RISK_STATUSES
+  // (it compares rec.status directly), but pin it here so a future edit to
+  // either place cannot silently turn "Archived" into a freely-reachable
+  // status via the archive endpoint.
+  it("archiveRisk still rejects a risk that has not reached Monitored", async () => {
+    const { token } = await makeTenant("t2", "TEN2");
+    const createRes = await request(app)
+      .post("/v1/risks")
+      .set(authed(token))
+      .send({
+        description: "Vendor contract renewal missed due to manual tracking process",
+        category: "Compliance",
+        methodology: "basic",
+      });
+    const riskId = createRes.body.data.id;
+    expect(createRes.body.data.status).toBe("Unassigned");
+
+    const archiveRes = await request(app).post(`/v1/risks/${riskId}/archive`).set(authed(token));
+    expect(archiveRes.status).toBe(400);
+    expect(archiveRes.body.error.code).toBe("RISK_NOT_MONITORED");
+
+    const stillRes = await request(app).get(`/v1/risks/${riskId}`).set(authed(token));
+    expect(stillRes.body.data.status).toBe("Unassigned");
   });
 });
