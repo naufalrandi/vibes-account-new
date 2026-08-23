@@ -167,15 +167,17 @@ describe("approval engine", () => {
     expect((await request(app).get("/v1/approvals/schemes").set(authed(weak.token))).status).toBe(200);
   });
 
-  // OD `apModuleGroups` (10349–10353): the module map spans every governed
-  // module (~29 across 9 VIEWCFG groups), unmapped modules defaulting to S0.
-  // Assignments for modules the engine doesn't yet drive are stored but inert.
+  // OD `apModuleGroups` (app.html:16220-16224): the module map spans every
+  // governed module (27 across 9 VIEWCFG groups — Wave P task P-1.4 dropped
+  // `controls`/`customer-focus`, no OD counterpart), unmapped modules
+  // defaulting to S0. Assignments for modules the engine doesn't yet drive
+  // are stored but inert.
   it("serves the full governed module key set, accepts assignments for not-yet-governed modules, rejects unknown keys", async () => {
     const orgId = await makeOrg();
     const admin = await makeUser(orgId, "ap-a6", "Admin", ADMIN);
 
     const map = (await request(app).get("/v1/approvals/module-map").set(authed(admin.token))).body.data;
-    expect(Object.keys(map)).toHaveLength(29);
+    expect(Object.keys(map)).toHaveLength(27);
     // OD AP_DEFAULT_MAP pairs survive; everything outside it defaults to S0.
     expect(map.policies).toBe("S1");
     expect(map.reviews).toBe("S1");

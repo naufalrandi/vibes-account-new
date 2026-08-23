@@ -29,9 +29,11 @@ export const AP_DEFAULT_MAP: Record<string, string> = {
 };
 
 /**
- * Every governed module key — OD `apModuleGroups()` (index.html:10349–10353):
- * the VIEWCFG tenant sections at tiers basic+ext, minus `tn-roles`, ~29 modules
- * across 9 groups. Keys follow the BE short-name convention (`policies`, not
+ * Every governed module key — OD `apModuleGroups()` (app.html:16220-16224):
+ * the VIEWCFG tenant sections at tiers basic+ext, minus `tn-roles`, 27 modules
+ * across 9 groups (see Wave P task P-1.4: `controls`/`customer-focus` removed,
+ * no OD counterpart — this list is hand-maintained, not derived, pending
+ * task P-1.5). Keys follow the BE short-name convention (`policies`, not
  * `tn-m-policies`) and line up with the implementation-register module keys, so
  * a module the gate engine later learns to drive (see GOVERNED) picks up its
  * stored assignment automatically. Until then an assignment for a non-GOVERNED
@@ -48,7 +50,7 @@ export const AP_MODULE_KEYS: readonly string[] = [
   // Competence (tn-complib / tn-instruments / tn-assess)
   "competence", "instruments", "assessments",
   // Operations
-  "processes", "controls", "suppliers",
+  "processes", "suppliers",
   // Documents
   "documents", "records",
   // Evaluation
@@ -56,7 +58,7 @@ export const AP_MODULE_KEYS: readonly string[] = [
   // Improvement
   "concerns", "nonconformities", "incidents", "improvements",
   // Framework Extensions (ISO 9001)
-  "customer-focus", "customer-satisfaction", "psr", "design", "provision",
+  "customer-satisfaction", "psr", "design", "provision",
 ];
 
 /**
