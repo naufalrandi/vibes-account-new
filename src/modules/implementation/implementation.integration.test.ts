@@ -123,6 +123,24 @@ describe("ISO clause registers (implementation)", () => {
     expect(MS_MODULES.risks.statuses[0]).toBe("Unassigned");
   });
 
+  // P-6.4: OD's `cabClientForm` create path defaults an omitted status to
+  // "Certified" (`g('cab-st')||'Certified'`, app.html:13215). `statuses[0]`
+  // stays "Applicant" (display order + what registryParity.test.ts asserts);
+  // `createStatuses[0]` carries the create-time default instead, and every
+  // other status remains explicitly selectable at creation.
+  it("defaults a new cab-clients record to Certified, not Applicant, and still accepts an explicit status", async () => {
+    const { token } = await makeTenant("t1", "TEN1");
+    const created = await request(app).post("/v1/implementation/cab-clients").set(authed(token))
+      .send({ title: "PT Example Manufaktur" });
+    expect(created.status).toBe(201);
+    expect(created.body.data.status).toBe("Certified");
+
+    const explicit = await request(app).post("/v1/implementation/cab-clients").set(authed(token))
+      .send({ title: "PT Applicant Co", status: "Applicant" });
+    expect(explicit.status).toBe(201);
+    expect(explicit.body.data.status).toBe("Applicant");
+  });
+
   it("rejects an unknown module and an invalid status", async () => {
     const { token } = await makeTenant("t1", "TEN1");
     expect((await request(app).get("/v1/implementation/not-a-module").set(authed(token))).status).toBe(404);

@@ -288,6 +288,9 @@
       "Surveillance Due",
       "Suspended",
       "Withdrawn"
+    ],
+    "createStatuses": [
+      "Certified"
     ]
   },
   "pcb-persons": {

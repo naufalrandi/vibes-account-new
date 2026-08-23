@@ -11,7 +11,17 @@ export interface RegisterModule {
   deep?: boolean;
   /** The transition graph a deep module enforces (current status → legal next statuses). */
   transitions?: Record<string, readonly string[]>;
-  /** Statuses a record may be created at (defaults to any status in the set). */
+  /**
+   * Statuses a record may be created at (defaults to any status in the set).
+   * `createStatuses[0]`, when present, is also the silent create-time default
+   * used by `createRecord` in place of `statuses[0]` — so a module can order
+   * `statuses` however it needs to (e.g. for display, or because the array's
+   * order is itself asserted elsewhere) without that order dictating what an
+   * omitted-status create lands on. `reviews` uses this field as a full
+   * create-time allow-list too (`assertReviewCreateStatus`); other modules
+   * (e.g. `cab-clients`) use only `[0]` as the default and still accept any
+   * `statuses` member when a status is given explicitly.
+   */
   createStatuses?: readonly string[];
 }
 
@@ -145,7 +155,12 @@ export const MS_MODULES: Record<string, RegisterModule> = {
   provision: { prefix: "CP", statuses: ["Draft", "Under review", "Approved"] },
 
   // --- Business unit registers & frameworks ---
-  "cab-clients": { prefix: "CERT", statuses: ["Applicant", "Certified", "Surveillance Due", "Suspended", "Withdrawn"] },
+  // OD `cabClientForm`'s create path defaults an omitted status to "Certified"
+  // (`g('cab-st')||'Certified'`, app.html:13215), not "Applicant" — even
+  // though the dropdown itself, and this `statuses` order/parity-test
+  // ordering, both start at "Applicant". `createStatuses[0]` carries that
+  // create-time default without reordering the vocabulary (P-6.4).
+  "cab-clients": { prefix: "CERT", statuses: ["Applicant", "Certified", "Surveillance Due", "Suspended", "Withdrawn"], createStatuses: ["Certified"] },
   "pcb-persons": { prefix: "PC", statuses: ["Certified", "Recert Due", "Suspended", "Expired", "Revoked"] },
   "lab-scope": { prefix: "SCOPE", statuses: ["Accredited", "Pending", "Withdrawn"] },
   // Note: isra, soa, and hira are bespoke modules with their own schemas/routes and are not generic implementation records.

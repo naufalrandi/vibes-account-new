@@ -173,7 +173,11 @@ export async function createRecord(auth: AuthContext, module: string, input: Rec
   const targetOrg = orgId ?? auth.orgId;
   await assertCanSeeOrg(auth, targetOrg);
   if (!input.title || !input.title.trim()) throw new BadRequestError("Title is required", "TITLE_REQUIRED");
-  const status = input.status ?? def.statuses[0];
+  // The create-time default is `createStatuses[0]` when a module declares
+  // one (P-6.4: e.g. `cab-clients` defaults to "Certified", matching OD's
+  // `cabClientForm`, while its `statuses[0]` stays "Applicant" for display/
+  // parity-test ordering); otherwise it's `statuses[0]`, unchanged.
+  const status = input.status ?? def.createStatuses?.[0] ?? def.statuses[0];
   assertStatus(module, status);
   // The awareness-topic material gate holds on create too (OD `awTopicSave`
   // refuses to create straight at Active without a material).
