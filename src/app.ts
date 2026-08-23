@@ -60,7 +60,8 @@ import { referenceRoutes } from "./modules/reference/reference.routes";
 import { referenceDbRoutes } from "./modules/reference-db/referenceDb.routes";
 import { israLibraryRoutes as israThreatVulnLibraryRoutes } from "./modules/isra-threat-vuln-library/israLibrary.routes";
 import { israOrgControlRoutes } from "./modules/isra-threat-vuln-library/israOrgControl.routes";
-import { israLibraryRoutes as israAssetLibraryRoutes } from "./modules/isra/isra.routes";
+import { israRoutes } from "./modules/isra/isra.routes";
+import { israAssetLibraryRoutes } from "./modules/isra/israAssetLibrary.routes";
 import { riskRoutes } from "./modules/risks/risk.routes";
 
 export function createApp() {
@@ -136,11 +137,20 @@ export function createApp() {
   app.use("/v1/notifications", authenticate, tenantScope, notificationRoutes);
   app.use("/v1/reference", authenticate, tenantScope, referenceRoutes);
   app.use("/v1/reference-db", authenticate, tenantScope, referenceDbRoutes);
+  // Each ISRA router owns exactly one prefix (P-6.2). The FE's three ISRA
+  // path families map 1:1 to three routers:
+  //  - /v1/isra-library/{annex-a-controls,threats,vulns,km/*,categories}  -> israThreatVulnLibraryRoutes
+  //  - /v1/isra-asset-library/{primary,secondary}-assets                 -> israAssetLibraryRoutes
+  //  - /v1/isra/{asset-maps,scenarios,soa,support,taxonomy,catalog,lt}   -> israRoutes (aggregator)
+  // Previously israRoutes was ALSO mounted at /v1/isra-library (a harmless
+  // dup, since its sub-paths never collided with israThreatVulnLibraryRoutes's)
+  // and, worse, at /v1/isra-asset-library instead of the real
+  // israAssetLibraryRoutes — so GET /v1/isra-asset-library/primary-assets
+  // 404'd even though the FE calls it (fixed here).
   app.use("/v1/isra-library", authenticate, tenantScope, israThreatVulnLibraryRoutes);
-  app.use("/v1/isra-library", authenticate, tenantScope, israAssetLibraryRoutes);
   app.use("/v1/isra-org-controls", authenticate, tenantScope, israOrgControlRoutes);
   app.use("/v1/isra-asset-library", authenticate, tenantScope, israAssetLibraryRoutes);
-  app.use("/v1/isra", authenticate, tenantScope, israAssetLibraryRoutes);
+  app.use("/v1/isra", authenticate, tenantScope, israRoutes);
 
 
   app.use(errorHandler);
