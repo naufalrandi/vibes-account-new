@@ -43,7 +43,8 @@
       "In Treatment",
       "Assessed",
       "Treated",
-      "Monitored"
+      "Monitored",
+      "Archived"
     ]
   },
   "objectives": {

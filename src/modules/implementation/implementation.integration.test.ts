@@ -6,6 +6,7 @@ import { CompetenceAssignment, CompetenceGap, CompetenceRole, initModels, Organi
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
+import { MS_MODULES } from "./registry";
 
 const app = createApp();
 const authed = (t: string) => ({ Authorization: `Bearer ${t}` });
@@ -105,6 +106,21 @@ describe("ISO clause registers (implementation)", () => {
     expect(again.status).toBe(400);
     expect(again.body.error.code).toBe("RISK_ALREADY_ARCHIVED");
     expect(again.body.error.message).toBe("Risk already archived");
+  });
+
+  // P-6.1 (D-1): the risk lifecycle test above already proves a risk can be
+  // archived end-to-end over the real API, but `assertStatus` has an
+  // unconditional `status !== "Archived"` bypass (predates this fix) that
+  // would let it pass that test even with "Archived" missing from the risks
+  // registry entirely — which is exactly the state that broke
+  // registryParity.test.ts (FE listed "Archived", BE's MS_MODULES.risks did
+  // not). This pins the registry itself, independent of that bypass.
+  it("lists Archived as a real risks status, last, so Unassigned stays the create default", () => {
+    expect(MS_MODULES.risks.statuses).toEqual([
+      "Unassigned", "Assigned", "RTP Draft", "Pending Approval", "Pending TM Approval",
+      "In Treatment", "Assessed", "Treated", "Monitored", "Archived",
+    ]);
+    expect(MS_MODULES.risks.statuses[0]).toBe("Unassigned");
   });
 
   it("rejects an unknown module and an invalid status", async () => {

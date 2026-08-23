@@ -86,7 +86,13 @@ export const MS_MODULES: Record<string, RegisterModule> = {
   // falls through the unknown-module handling.
   processes: { prefix: "BP", statuses: ["Active", "Inactive", "Archived"] },
   "work-units": { prefix: "WU", statuses: ["Applicable", "Inapplicable", "Archived"] },
-  // OD `renderTnRisk`: 9 workflow statuses, 4-digit RISK-nnnn id.
+  // OD `renderTnRisk`: 10 workflow statuses, 4-digit RISK-nnnn id. "Archived"
+  // (P-6.1/D-1) is appended last so statuses[0] ("Unassigned", the silent
+  // create default) is unchanged. OD's `riskArchive()` offers it only from
+  // "Monitored" and treats it as terminal (app.html:12365-12366, 14002);
+  // that transition rule is enforced in code by `assertRiskArchivable`
+  // (implementation.service.ts), not by a `transitions` graph here — `risks`
+  // has never carried one, so this registry entry stays a flat status set.
   risks: {
     prefix: "RISK",
     statuses: [
@@ -99,6 +105,7 @@ export const MS_MODULES: Record<string, RegisterModule> = {
       "Assessed",
       "Treated",
       "Monitored",
+      "Archived",
     ],
   },
   objectives: { prefix: "OBJ", statuses: ["Open", "Achieved", "Cancelled"] },
