@@ -244,4 +244,98 @@ describe("Tenant Risk Register (/v1/risks)", () => {
     const stillRes = await request(app).get(`/v1/risks/${riskId}`).set(authed(token));
     expect(stillRes.body.data.status).toBe("Unassigned");
   });
+
+  // Fix round 1 (fresh implementer): widening RISK_STATUSES to include
+  // "Archived" (P-6.5, above) made "Archived" pass updateRisk()'s status
+  // membership check for the first time. Membership was never the same
+  // thing as *reachability* — archiveRisk() (line ~477) is the only
+  // legitimate door to "Archived", gated on "Monitored" and writing its
+  // own "Risk archived from Monitored status" activity entry + distinct
+  // "risk.archived" audit action. Without this guard, PUT /v1/risks/:id
+  // could set status: "Archived" from any state, silently skipping that
+  // precondition and that audit trail. Pin all three properties together:
+  // (1) archiveRisk still succeeds from Monitored and writes its real
+  // activity entry, (2) archiveRisk still rejects a non-Monitored risk
+  // (already covered above, re-asserted here for locality), and (3) the
+  // generic updater refuses "Archived" from every state, Monitored
+  // included — the case that would otherwise have been silently permitted
+  // through the wrong door.
+  it("PUT /v1/risks/:id cannot reach Archived from any state; only POST /:id/archive can, and only from Monitored", async () => {
+    const { token } = await makeTenant("t3", "TEN3", MS, true);
+
+    const createRes = await request(app)
+      .post("/v1/risks")
+      .set(authed(token))
+      .send({
+        description: "Contractor badge access not revoked after offboarding",
+        category: "Physical Security",
+        methodology: "basic",
+      });
+    const riskId = createRes.body.data.id;
+    expect(createRes.body.data.status).toBe("Unassigned");
+
+    // Property 3a: from Unassigned, the generic updater refuses.
+    const fromUnassigned = await request(app)
+      .put(`/v1/risks/${riskId}`)
+      .set(authed(token))
+      .send({ status: "Archived" });
+    expect(fromUnassigned.status).toBe(400);
+    expect(fromUnassigned.body.error.code).toBe("RISK_STATUS_REQUIRES_DEDICATED_ENDPOINT");
+
+    const stillUnassigned = await request(app).get(`/v1/risks/${riskId}`).set(authed(token));
+    expect(stillUnassigned.body.data.status).toBe("Unassigned");
+
+    // Property 2: archiveRisk itself still rejects a non-Monitored risk.
+    const archiveTooEarly = await request(app).post(`/v1/risks/${riskId}/archive`).set(authed(token));
+    expect(archiveTooEarly.status).toBe(400);
+    expect(archiveTooEarly.body.error.code).toBe("RISK_NOT_MONITORED");
+
+    // Walk the risk to Monitored via the real RTP lifecycle, so property 3
+    // can be checked from the one state where archiving is legitimate.
+    await request(app).post(`/v1/risks/${riskId}/assign`).set(authed(token)).send({ owner: "Facilities Lead" });
+    await request(app).post(`/v1/risks/${riskId}/rtp/generate`).set(authed(token));
+    const apRes = await request(app)
+      .post(`/v1/risks/${riskId}/rtp/action-plans`)
+      .set(authed(token))
+      .send({
+        title: "Automate badge deactivation on offboarding",
+        deadline: "2026-11-01",
+        resources: [{ id: "r1", title: "Access system integration", budget: 5000000, currency: "IDR" }],
+        pics: ["Facilities Lead"],
+      });
+    const apId = apRes.body.data.rtp.actionPlans[0].id;
+    await request(app).post(`/v1/risks/${riskId}/rtp/propose`).set(authed(token));
+    await request(app).post(`/v1/risks/${riskId}/rtp/approve-ms`).set(authed(token));
+    await request(app).post(`/v1/risks/${riskId}/rtp/approve-tm`).set(authed(token));
+    await request(app).post(`/v1/risks/${riskId}/rtp/action-plans/${apId}/verify`).set(authed(token));
+    const completeRes = await request(app).post(`/v1/risks/${riskId}/rtp/complete`).set(authed(token));
+    expect(completeRes.body.data.status).toBe("Monitored");
+
+    // Property 3b (the one most likely to be skipped): even from
+    // Monitored, where the outcome would otherwise be "permitted anyway",
+    // the generic updater still refuses — it must not be a second door.
+    const fromMonitored = await request(app)
+      .put(`/v1/risks/${riskId}`)
+      .set(authed(token))
+      .send({ status: "Archived" });
+    expect(fromMonitored.status).toBe(400);
+    expect(fromMonitored.body.error.code).toBe("RISK_STATUS_REQUIRES_DEDICATED_ENDPOINT");
+
+    const stillMonitored = await request(app).get(`/v1/risks/${riskId}`).set(authed(token));
+    expect(stillMonitored.body.data.status).toBe("Monitored");
+
+    // Property 1: the real archive endpoint still succeeds from Monitored,
+    // and writes archiveRisk()'s own distinct activity entry — proof this
+    // guard didn't also break the legitimate path, and that reaching
+    // Archived through the correct door still produces the correct audit
+    // trail (unlike a hypothetical bypass through updateRisk(), which
+    // would have written updateRisk()'s generic "Risk attributes updated"
+    // entry instead).
+    const archiveRes = await request(app).post(`/v1/risks/${riskId}/archive`).set(authed(token));
+    expect(archiveRes.status).toBe(200);
+    expect(archiveRes.body.data.status).toBe("Archived");
+    const activity = archiveRes.body.data.activity as Array<{ action: string; summary: string }>;
+    expect(activity[0].action).toBe("Archived");
+    expect(activity[0].summary).toBe("Risk archived from Monitored status");
+  });
 });

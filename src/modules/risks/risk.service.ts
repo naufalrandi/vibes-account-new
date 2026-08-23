@@ -101,6 +101,16 @@ export const RISK_STATUSES = [
 
 export type RiskStatus = (typeof RISK_STATUSES)[number];
 
+// "Archived" is a real member of RISK_STATUSES (the service does hold risks
+// in that status), but it is reachable through exactly one door:
+// archiveRisk()'s dedicated POST /:id/archive, which enforces the
+// Monitored-only precondition (below) and writes its own "risk.archived"
+// audit trail. This set names the statuses that updateRisk()'s generic
+// attribute updater must refuse to write, regardless of the risk's current
+// status — a rule about which *transition* is permitted through this
+// endpoint, not a gap in the vocabulary RISK_STATUSES itself.
+const STATUSES_ONLY_VIA_DEDICATED_ENDPOINT: ReadonlySet<RiskStatus> = new Set(["Archived"]);
+
 function rUid(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
@@ -362,6 +372,12 @@ export async function updateRisk(
     const next = String(input.status);
     if (!(RISK_STATUSES as readonly string[]).includes(next)) {
       throw new BadRequestError(`Invalid risk status: ${next}`, "INVALID_STATUS");
+    }
+    if (STATUSES_ONLY_VIA_DEDICATED_ENDPOINT.has(next as RiskStatus)) {
+      throw new BadRequestError(
+        `"${next}" cannot be set via PUT /v1/risks/${id}; use POST /v1/risks/${id}/archive instead.`,
+        "RISK_STATUS_REQUIRES_DEDICATED_ENDPOINT"
+      );
     }
     rec.status = next;
   }
