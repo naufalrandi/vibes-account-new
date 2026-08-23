@@ -5,6 +5,7 @@ import { initModels, Organization, User, Role } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
+import { AP_DEFAULT_MAP } from "./approval.service";
 
 const app = createApp();
 const authed = (t: string) => ({ Authorization: `Bearer ${t}` });
@@ -167,32 +168,33 @@ describe("approval engine", () => {
     expect((await request(app).get("/v1/approvals/schemes").set(authed(weak.token))).status).toBe(200);
   });
 
-  // OD `apModuleGroups` (app.html:16220-16224): the module map spans every
-  // governed module (27 across 9 VIEWCFG groups — Wave P task P-1.4 dropped
-  // `controls`/`customer-focus`, no OD counterpart), unmapped modules
-  // defaulting to S0. Assignments for modules the engine doesn't yet drive
-  // are stored but inert.
-  it("serves the full governed module key set, accepts assignments for not-yet-governed modules, rejects unknown keys", async () => {
+  // Wave P task P-1.5: this backend intentionally does NOT enumerate "every
+  // governed module" — that set is derived entirely on the frontend from the
+  // tenant nav (`AP_MODULE_GROUPS`, `lib/api/types.ts`), which this backend
+  // has no equivalent of and would only be able to mirror by hand (see the
+  // doc comment on `AP_DEFAULT_MAP`, approval.service.ts). The BE's only
+  // governed-module data is `AP_DEFAULT_MAP` (explicit non-S0 overrides) plus
+  // whatever an org has actually assigned; any other syntactically valid
+  // module key is accepted on write — matching OD's own `apSetModuleScheme`,
+  // which performs no key-membership check either (app.html:16231).
+  it("serves the default-map overrides and accepts assignments for any module key", async () => {
     const orgId = await makeOrg();
     const admin = await makeUser(orgId, "ap-a6", "Admin", ADMIN);
 
     const map = (await request(app).get("/v1/approvals/module-map").set(authed(admin.token))).body.data;
-    expect(Object.keys(map)).toHaveLength(27);
-    // OD AP_DEFAULT_MAP pairs survive; everything outside it defaults to S0.
-    expect(map.policies).toBe("S1");
-    expect(map.reviews).toBe("S1");
-    expect(map.training).toBe("S0");
-    expect(map.instruments).toBe("S0");
-    expect(map.nonconformities).toBe("S0");
-    expect(map["customer-satisfaction"]).toBe("S0");
+    // Every explicit AP_DEFAULT_MAP override is present with its assigned value.
+    for (const [key, schemeId] of Object.entries(AP_DEFAULT_MAP)) expect(map[key]).toBe(schemeId);
+    // A module with no AP_DEFAULT_MAP entry and no prior assignment simply
+    // isn't in the response — the frontend resolves that missing case to
+    // "S0" itself (`moduleSchemeId`, `app/(app)/approvals/page.tsx`).
+    expect(map.training).toBeUndefined();
 
-    // A not-yet-governed module accepts (and stores) an assignment…
-    await request(app).put("/v1/approvals/module-map").set(authed(admin.token)).send({ moduleKey: "training", schemeId: "S1" });
-    expect((await request(app).get("/v1/approvals/module-map").set(authed(admin.token))).body.data.training).toBe("S1");
-    // …but an off-list key is rejected.
-    const bad = await request(app).put("/v1/approvals/module-map").set(authed(admin.token)).send({ moduleKey: "bogus", schemeId: "S1" });
-    expect(bad.status).toBe(400);
-    expect(bad.body.error.code).toBe("MODULE_UNKNOWN");
+    // Any module key — including one this backend has never heard of before,
+    // as if the frontend nav had just grown a new module — accepts (and
+    // stores) an assignment. No 400, no code change required here.
+    const put = await request(app).put("/v1/approvals/module-map").set(authed(admin.token)).send({ moduleKey: "a-brand-new-nav-module", schemeId: "S1" });
+    expect(put.status).toBe(200);
+    expect((await request(app).get("/v1/approvals/module-map").set(authed(admin.token))).body.data["a-brand-new-nav-module"]).toBe("S1");
   });
 
   // OD `polPublishCore`: publishing supersedes the previously published policy

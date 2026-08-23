@@ -23,43 +23,34 @@ function builtins(): SchemeView[] {
   ];
 }
 
+/**
+ * Explicit non-default approval-scheme overrides — OD `AP_DEFAULT_MAP`
+ * (app.html:10355), `AP_DEFAULT_MAP[k]||'S0'`. A module with no entry here
+ * defaults to "S0" (OD's own fallback), whether or not this BE has ever heard
+ * of that module key before.
+ *
+ * This is deliberately the ONLY governed-module data this backend owns. Wave
+ * P task P-1.5 removed the enumerated `AP_MODULE_KEYS` list that used to sit
+ * alongside this map: it was a hand-maintained mirror of the frontend's
+ * nav-derived `AP_MODULE_GROUPS` (`lib/api/types.ts`), and the two had
+ * already drifted twice (P-1.4 found two invented modules with no OD
+ * counterpart; a follow-up audit found the grouping itself had diverged from
+ * the nav). This backend has no nav config to derive an equivalent list from,
+ * and its own module registry (`implementation/registry.ts`) doesn't cover
+ * every governed key either (`scope`, `competence`, `instruments`,
+ * `assessments`, `audits` aren't clause-register modules) — so re-deriving a
+ * second enumeration here would just relocate the hand-maintenance burden,
+ * not remove it. Instead the frontend's nav is treated as the sole contract:
+ * `setModuleScheme` below accepts any module key at all, matching OD's own
+ * `apSetModuleScheme` (app.html:16231), which performs no key-membership
+ * check either — it just writes `t.moduleApproval[k]=id` for whatever key the
+ * (nav-driven) UI passes. A backend that 400s on a module the frontend
+ * renders is worse than the drift this removal fixes.
+ */
 export const AP_DEFAULT_MAP: Record<string, string> = {
   policies: "S1", context: "S1", parties: "S1", objectives: "S1", compliance: "S1", risks: "S1", scope: "S1", reviews: "S1",
   awareness: "S0", documents: "S0", records: "S0", competence: "S0",
 };
-
-/**
- * Every governed module key — OD `apModuleGroups()` (app.html:16220-16224):
- * the VIEWCFG tenant sections at tiers basic+ext, minus `tn-roles`, 27 modules
- * across 9 groups (see Wave P task P-1.4: `controls`/`customer-focus` removed,
- * no OD counterpart — this list is hand-maintained, not derived, pending
- * task P-1.5). Keys follow the BE short-name convention (`policies`, not
- * `tn-m-policies`) and line up with the implementation-register module keys, so
- * a module the gate engine later learns to drive (see GOVERNED) picks up its
- * stored assignment automatically. Until then an assignment for a non-GOVERNED
- * module is stored but inert. Modules outside AP_DEFAULT_MAP default to S0
- * (OD `apModuleSchemeId`: `AP_DEFAULT_MAP[k]||'S0'`).
- */
-export const AP_MODULE_KEYS: readonly string[] = [
-  // Organization
-  "context", "parties", "scope",
-  // Governance
-  "policies", "objectives", "compliance", "risks",
-  // Personnel (tn-roles excluded)
-  "training", "awareness",
-  // Competence (tn-complib / tn-instruments / tn-assess)
-  "competence", "instruments", "assessments",
-  // Operations
-  "processes", "suppliers",
-  // Documents
-  "documents", "records",
-  // Evaluation
-  "performance", "audits", "reviews",
-  // Improvement
-  "concerns", "nonconformities", "incidents", "improvements",
-  // Framework Extensions (ISO 9001)
-  "customer-satisfaction", "psr", "design", "provision",
-];
 
 /**
  * OD `polPublishCore` / `cdPublish`: publishing a policy or controlled document
@@ -196,10 +187,14 @@ export async function deleteScheme(auth: AuthContext, code: string, ip: string |
 // ---- Module → scheme map ----
 export async function getModuleMap(auth: AuthContext): Promise<Record<string, string>> {
   const rows = await ApprovalModuleMap.findAll({ where: { orgId: auth.orgId } });
-  // Full governed key set, unmapped modules defaulting to S0 (OD 10355), then
-  // the org's stored assignments on top (including any legacy off-list key).
-  const out: Record<string, string> = {};
-  for (const k of AP_MODULE_KEYS) out[k] = AP_DEFAULT_MAP[k] ?? "S0";
+  // Seed with the explicit non-S0 overrides (OD 10355), then the org's stored
+  // assignments on top. This BE has no enumerated "every governed module"
+  // list to pre-seed further with (see the doc comment on AP_DEFAULT_MAP) —
+  // any module without an override or a stored row simply isn't in this
+  // response; the frontend already resolves that case to "S0" itself
+  // (`moduleSchemeId`, `app/(app)/approvals/page.tsx`), matching OD's own
+  // `apModuleSchemeId` fallback.
+  const out: Record<string, string> = { ...AP_DEFAULT_MAP };
   for (const r of rows) out[r.moduleKey] = r.schemeId;
   return out;
 }
@@ -208,7 +203,9 @@ export async function resolveSchemeId(auth: AuthContext, moduleKey: string): Pro
   return row?.schemeId ?? AP_DEFAULT_MAP[moduleKey] ?? "S0";
 }
 export async function setModuleScheme(auth: AuthContext, moduleKey: string, schemeId: string, ip: string | null) {
-  if (!AP_MODULE_KEYS.includes(moduleKey)) throw new BadRequestError("Unknown module", "MODULE_UNKNOWN");
+  // No module-key membership check — see the doc comment on AP_DEFAULT_MAP
+  // above. `moduleKey` is still required non-empty by the controller's zod
+  // schema (`z.string().min(1)`); the scheme itself is still validated below.
   const schemes = await listSchemes(auth);
   if (!schemes.some((s) => s.id === schemeId)) throw new BadRequestError("Unknown scheme", "SCHEME_UNKNOWN");
   const [row] = await ApprovalModuleMap.findOrCreate({ where: { orgId: auth.orgId, moduleKey }, defaults: { orgId: auth.orgId, moduleKey, schemeId } });
