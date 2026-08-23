@@ -1,0 +1,326 @@
+{
+  "context": {
+    "prefix": "OCX",
+    "statuses": [
+      "Open",
+      "Monitored",
+      "Dismissed",
+      "Archived"
+    ]
+  },
+  "parties": {
+    "prefix": "IP",
+    "statuses": [
+      "Active",
+      "Under Review",
+      "Archived"
+    ]
+  },
+  "processes": {
+    "prefix": "BP",
+    "statuses": [
+      "Active",
+      "Inactive",
+      "Archived"
+    ]
+  },
+  "work-units": {
+    "prefix": "WU",
+    "statuses": [
+      "Applicable",
+      "Inapplicable",
+      "Archived"
+    ]
+  },
+  "risks": {
+    "prefix": "RISK",
+    "statuses": [
+      "Unassigned",
+      "Assigned",
+      "RTP Draft",
+      "Pending Approval",
+      "Pending TM Approval",
+      "In Treatment",
+      "Assessed",
+      "Treated",
+      "Monitored"
+    ]
+  },
+  "objectives": {
+    "prefix": "OBJ",
+    "statuses": [
+      "Open",
+      "Achieved",
+      "Cancelled"
+    ]
+  },
+  "compliance": {
+    "prefix": "COBL",
+    "statuses": [
+      "Active",
+      "Under Review",
+      "Archived"
+    ]
+  },
+  "policies": {
+    "prefix": "POL",
+    "statuses": [
+      "Draft",
+      "Under Review",
+      "Pending Final Approval",
+      "Approved",
+      "Published",
+      "Needs Revision",
+      "Superseded",
+      "Archived"
+    ]
+  },
+  "training": {
+    "prefix": "TP",
+    "statuses": [
+      "Draft",
+      "Planned",
+      "Scheduled",
+      "In Progress",
+      "Completed",
+      "Pending Reassessment",
+      "Closed",
+      "Cancelled"
+    ]
+  },
+  "awareness": {
+    "prefix": "AWP",
+    "statuses": [
+      "Draft",
+      "Planned",
+      "Active",
+      "Completed",
+      "Under Review",
+      "Archived"
+    ]
+  },
+  "awareness-topics": {
+    "prefix": "AWT",
+    "statuses": [
+      "Draft",
+      "Active",
+      "Inactive",
+      "Archived"
+    ]
+  },
+  "awareness-campaigns": {
+    "prefix": "AWC",
+    "statuses": [
+      "Draft",
+      "Scheduled",
+      "Active",
+      "Completed",
+      "Partially Completed",
+      "Overdue",
+      "Archived"
+    ]
+  },
+  "documents": {
+    "prefix": "DOC",
+    "statuses": [
+      "Draft",
+      "Under Review",
+      "Revision Requested",
+      "Approved",
+      "Published",
+      "Review Due",
+      "Superseded",
+      "Obsolete",
+      "Archived",
+      "Rejected"
+    ]
+  },
+  "records": {
+    "prefix": "EXT",
+    "statuses": [
+      "Active",
+      "Under Review",
+      "Updated Version Available",
+      "Superseded",
+      "Obsolete",
+      "Archived"
+    ]
+  },
+  "record-folders": {
+    "prefix": "EDF",
+    "statuses": [
+      "Active",
+      "Inactive",
+      "Archived"
+    ]
+  },
+  "controls": {
+    "prefix": "CTL",
+    "statuses": [
+      "Draft",
+      "Active",
+      "Retired"
+    ]
+  },
+  "suppliers": {
+    "prefix": "SUP",
+    "statuses": [
+      "Pending Qualification",
+      "Approved",
+      "Suspended",
+      "Rejected"
+    ]
+  },
+  "performance": {
+    "prefix": "PEV",
+    "statuses": [
+      "Draft",
+      "Active",
+      "Achieved",
+      "At Risk",
+      "Closed"
+    ]
+  },
+  "reviews": {
+    "prefix": "MR",
+    "statuses": [
+      "Draft",
+      "Scheduled",
+      "In Progress",
+      "Pending Outputs",
+      "Completed",
+      "Finalized",
+      "Cancelled",
+      "Archived"
+    ],
+    "createStatuses": [
+      "Draft",
+      "Scheduled"
+    ]
+  },
+  "nonconformities": {
+    "prefix": "NC",
+    "statuses": [
+      "Open",
+      "CAP Required",
+      "CAP Planned",
+      "In Progress",
+      "Pending Effectiveness Check",
+      "Closed",
+      "Cancelled",
+      "Archived"
+    ]
+  },
+  "improvements": {
+    "prefix": "IMP",
+    "statuses": [
+      "Open",
+      "Under Review",
+      "Planned",
+      "In Progress",
+      "Implemented",
+      "Completed",
+      "Deferred",
+      "Cancelled",
+      "Archived"
+    ]
+  },
+  "concerns": {
+    "prefix": "CON",
+    "statuses": [
+      "Draft",
+      "Submitted",
+      "Under Review",
+      "Routed",
+      "Closed",
+      "Cancelled",
+      "Archived"
+    ]
+  },
+  "incidents": {
+    "prefix": "INC",
+    "statuses": [
+      "Open",
+      "Under Investigation",
+      "Contained",
+      "Action Required",
+      "In Progress",
+      "Resolved",
+      "Closed",
+      "Cancelled",
+      "Archived"
+    ]
+  },
+  "customer-focus": {
+    "prefix": "CFO",
+    "statuses": [
+      "Open",
+      "In Progress",
+      "Closed"
+    ]
+  },
+  "customer-satisfaction": {
+    "prefix": "CSAT",
+    "statuses": [
+      "New",
+      "Reviewed",
+      "Action Required",
+      "Closed"
+    ]
+  },
+  "psr": {
+    "prefix": "PSR",
+    "statuses": [
+      "Draft",
+      "Active",
+      "Retired"
+    ]
+  },
+  "design": {
+    "prefix": "DSG",
+    "statuses": [
+      "Concept",
+      "In Design",
+      "Design Review",
+      "Verification",
+      "Validation",
+      "Released"
+    ]
+  },
+  "provision": {
+    "prefix": "CP",
+    "statuses": [
+      "Draft",
+      "Under review",
+      "Approved"
+    ]
+  },
+  "cab-clients": {
+    "prefix": "CERT",
+    "statuses": [
+      "Applicant",
+      "Certified",
+      "Surveillance Due",
+      "Suspended",
+      "Withdrawn"
+    ]
+  },
+  "pcb-persons": {
+    "prefix": "PC",
+    "statuses": [
+      "Certified",
+      "Recert Due",
+      "Suspended",
+      "Expired",
+      "Revoked"
+    ]
+  },
+  "lab-scope": {
+    "prefix": "SCOPE",
+    "statuses": [
+      "Accredited",
+      "Pending",
+      "Withdrawn"
+    ]
+  }
+}

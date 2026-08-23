@@ -16,7 +16,8 @@
     "db:reset": "tsx src/db/fresh.ts --seed",
     "db:seed": "tsx src/db/seeders/seed.ts",
     "seed": "tsx src/db/seeders/seed.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "registry:snapshot": "tsx scripts/emit-registry-snapshot.ts"
   },
   "keywords": [],
   "author": "",
