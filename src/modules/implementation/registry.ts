@@ -150,7 +150,16 @@ export const MS_MODULES: Record<string, RegisterModule> = {
 
   // --- ISO 9001 extensions ---
   "customer-satisfaction": { prefix: "CSAT", statuses: ["New", "Reviewed", "Action Required", "Closed"] },
-  psr: { prefix: "PSR", statuses: ["Draft", "Active", "Retired"] },
+  // OD's PSR module (app.html:11507-11938) stores three different `kind`s of
+  // row in one array (`db.psrRecords`/`db.psrCatalog`/`db.psrSpecTemplates`)
+  // — this port collapses all three into the one generic "psr" module,
+  // distinguished by `data.kind`. Catalog offerings and specification
+  // templates share OD's PSR_STATUS 3-value set (Draft/Active/Retired,
+  // `psrStatusBadge`, app.html:11513); the §8.2.3 requirements-review record
+  // (`psrRec*`) has its own 6-value PSR_REC_STATUS vocabulary (app.html:
+  // 11516: Draft/Under Review/Accepted/Rejected/Fulfilled/Closed). Both sets
+  // validate against this one shared status column, so it carries the union.
+  psr: { prefix: "PSR", statuses: ["Draft", "Active", "Retired", "Under Review", "Accepted", "Rejected", "Fulfilled", "Closed"] },
   design: { prefix: "DSG", statuses: ["Concept", "In Design", "Design Review", "Verification", "Validation", "Released"] },
   provision: { prefix: "CP", statuses: ["Draft", "Under review", "Approved"] },
 

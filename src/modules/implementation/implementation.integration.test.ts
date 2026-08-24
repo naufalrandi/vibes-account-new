@@ -710,4 +710,39 @@ describe("ISO clause registers (implementation)", () => {
     expect(dismissed.body.data.data.dismissedBy).toBeTruthy();
     expect(dismissed.body.data.data.dismissedAt).toBeTruthy();
   });
+
+  // G-66 (Wave Q task R1): the "psr" module already stores catalog offerings
+  // and specification templates (Draft/Active/Retired) — the FE port never
+  // gave the §8.2.3 requirements-review record (OD `psrRec*`, app.html:
+  // 11507-11657) any CRUD at all, so its 6-value PSR_REC_STATUS vocabulary
+  // (app.html:11516: Draft/Under Review/Accepted/Rejected/Fulfilled/Closed)
+  // was never added to this module's status set. Every value beyond "Draft"
+  // 400'd with INVALID_STATUS, which made it impossible to ever save a
+  // record past its initial creation — this proves the full vocabulary
+  // (both the record statuses and the pre-existing offering/template ones)
+  // now shares the one "psr" module status column.
+  it("accepts the full PSR requirements-record status vocabulary alongside the existing offering/template one", async () => {
+    const { token } = await makeTenant("tpsr", "TPSR");
+
+    const created = await request(app).post("/v1/implementation/psr").set(authed(token)).send({
+      title: "Northwind — annual bracket supply contract",
+      status: "Under Review",
+      data: { kind: "record", customer: "Northwind Traders" },
+    });
+    expect(created.status).toBe(201);
+    expect(created.body.data).toMatchObject({ module: "psr", status: "Under Review" });
+    expect(created.body.data.code).toMatch(/^PSR-\d{4}$/);
+
+    for (const status of ["Draft", "Accepted", "Rejected", "Fulfilled", "Closed"]) {
+      const updated = await request(app).put(`/v1/implementation/psr/${created.body.data.id}`).set(authed(token))
+        .send({ status, data: { kind: "record", customer: "Northwind Traders" } });
+      expect(updated.status, `status "${status}" should be accepted`).toBe(200);
+      expect(updated.body.data.status).toBe(status);
+    }
+
+    // The offering/template statuses this module already carried keep working.
+    const offering = await request(app).post("/v1/implementation/psr").set(authed(token))
+      .send({ title: "Enterprise Cloud Hosting", status: "Active", data: { kind: "offering" } });
+    expect(offering.status).toBe(201);
+  });
 });

@@ -258,7 +258,12 @@
     "statuses": [
       "Draft",
       "Active",
-      "Retired"
+      "Retired",
+      "Under Review",
+      "Accepted",
+      "Rejected",
+      "Fulfilled",
+      "Closed"
     ]
   },
   "design": {
