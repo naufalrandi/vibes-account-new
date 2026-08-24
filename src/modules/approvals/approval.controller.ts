@@ -20,7 +20,7 @@ export const deleteScheme = wrap(async (req, res) => { await service.deleteSchem
 
 // Module map
 export const getModuleMap = wrap(async (req, res) => sendOk(res, await service.getModuleMap(guard(req))));
-export const setModuleScheme = wrap(async (req, res) => { const b = z.object({ moduleKey: z.string().min(1), schemeId: z.string().min(1) }).parse(req.body); sendOk(res, await service.setModuleScheme(guard(req), b.moduleKey, b.schemeId, ip(req))); });
+export const setModuleScheme = wrap(async (req, res) => { const b = z.object({ moduleKey: z.string().min(1).max(255), schemeId: z.string().min(1) }).parse(req.body); sendOk(res, await service.setModuleScheme(guard(req), b.moduleKey, b.schemeId, ip(req))); });
 
 // Pools
 export const listPoolMembers = wrap(async (req, res) => { const d = await service.listPoolMembers(guard(req)); sendOk(res, d, 200, listMeta(d)); });
