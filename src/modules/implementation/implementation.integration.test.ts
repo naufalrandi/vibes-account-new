@@ -123,6 +123,31 @@ describe("ISO clause registers (implementation)", () => {
     expect(MS_MODULES.risks.statuses[0]).toBe("Unassigned");
   });
 
+  // G-55: OD `bpForm`/`bpArchive` (app.html:24565,24570) refuse to save any
+  // change to a Seeded business process ("Seeded processes cannot be
+  // edited"/"...cannot be archived"). A Tenant Created process is unaffected.
+  it("refuses to edit or archive a Seeded process, but allows a Tenant Created one", async () => {
+    const { token } = await makeTenant("t1", "TEN1");
+    const seeded = await request(app).post("/v1/implementation/processes").set(authed(token))
+      .send({ title: "Service / Production Delivery", data: { sourceType: "Seeded" } });
+    const tenantMade = await request(app).post("/v1/implementation/processes").set(authed(token))
+      .send({ title: "Custom Onboarding", data: { sourceType: "Tenant Created" } });
+
+    const blockedEdit = await request(app).put(`/v1/implementation/processes/${seeded.body.data.id}`).set(authed(token))
+      .send({ title: "Renamed" });
+    expect(blockedEdit.status).toBe(400);
+    expect(blockedEdit.body.error.message).toBe("Seeded processes cannot be edited");
+
+    const blockedArchive = await request(app).put(`/v1/implementation/processes/${seeded.body.data.id}`).set(authed(token))
+      .send({ status: "Archived" });
+    expect(blockedArchive.status).toBe(400);
+
+    const allowedEdit = await request(app).put(`/v1/implementation/processes/${tenantMade.body.data.id}`).set(authed(token))
+      .send({ title: "Custom Onboarding v2" });
+    expect(allowedEdit.status).toBe(200);
+    expect(allowedEdit.body.data.title).toBe("Custom Onboarding v2");
+  });
+
   // P-6.4: OD's `cabClientForm` create path defaults an omitted status to
   // "Certified" (`g('cab-st')||'Certified'`, app.html:13215). `statuses[0]`
   // stays "Applicant" (display order + what registryParity.test.ts asserts);
@@ -254,6 +279,21 @@ describe("ISO clause registers (implementation)", () => {
     // Unknown type falls back to DOC; another org starts its own sequence at 0001.
     expect((await mk(a.token, { type: "Something Else" })).body.data.code).toBe("DOC-0004");
     expect((await mk(b.token, { type: "Policy" })).body.data.code).toBe("POL-0001");
+  });
+
+  // G-51 verification: OD `edDocNewId` (app.html:24593) is `'EXT-'+ED_CAT_CODE[cat]+'-'+padded`
+  // — one number sequence across the whole `records` register, but a per-category code segment.
+  // `extDocCode` (externalDocs.ts) implements this; this locks in the behavior the gap register
+  // flagged as open against the wrong code path (the generic `nextCode()` used by other modules).
+  it("assigns edDocNewId-style codes with the category segment (records register)", async () => {
+    const a = await makeTenant("rec1", "REC1");
+    const mk = (data: Record<string, unknown>) =>
+      request(app).post("/v1/implementation/records").set(authed(a.token)).send({ title: "Ext Doc", data });
+
+    expect((await mk({ category: "Standard" })).body.data.code).toBe("EXT-STD-0001");
+    expect((await mk({ category: "Law" })).body.data.code).toBe("EXT-LAW-0002");
+    // Unknown category falls back to DOC; the number sequence still advances across categories.
+    expect((await mk({ category: "Something Else" })).body.data.code).toBe("EXT-DOC-0003");
   });
 
   // OD `cdSave` gates (12905–12909): the org's cdSettings decide the mandatory metadata.

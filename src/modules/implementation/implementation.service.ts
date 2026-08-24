@@ -554,6 +554,15 @@ function assertRiskArchivable(module: string, r: ImplementationRecord, nextStatu
 
 export async function updateRecord(auth: AuthContext, module: string, id: string, input: RecordInput, ip: string | null): Promise<RecordView> {
   const r = await requireRecord(auth, module, id);
+  // OD `bpForm`/`bpArchive` (app.html:24565,24570): a Seeded business process
+  // is system-provided and can never be edited or archived — the register
+  // list even swaps its Edit/Archive controls for a plain "System" label.
+  // OD `bpForm`/`bpArchive` (app.html:24565,24570): a Seeded business process
+  // is system-provided and can never be edited or archived — the register
+  // list even swaps its Edit/Archive controls for a plain "System" label.
+  if (module === "processes" && (r.data as Record<string, unknown> | null)?.sourceType === "Seeded") {
+    throw new BadRequestError("Seeded processes cannot be edited", "SEEDED_PROCESS_READONLY");
+  }
   // External documents/folders: the bespoke flows (edit metadata, upload new
   // version, record review, status set, folder edit/archive) pass an OD-style
   // activity line (`ocLogAdd`) via the transient `data._activityNote` key —
