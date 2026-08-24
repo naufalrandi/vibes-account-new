@@ -22,6 +22,24 @@ const createPipelineSchema = z.object({
   currency: z.string().min(1).optional(),
 });
 
+const saveRegistrationSchema = z.object({
+  legalName: z.string().min(1),
+  industry: z.string().nullish(),
+  country: z.string().optional(),
+  address: z.string().nullish(),
+  taxId: z.string().nullish(),
+  siteName: z.string().optional(),
+  adminName: z.string().min(1),
+  adminEmail: z.string().email(),
+  adminUser: z.string().optional(),
+  billingEmail: z.string().nullish(),
+  termsAccepted: z.boolean(),
+});
+
+const uploadProofSchema = z.object({
+  proofUrl: z.string().nullish(),
+});
+
 function listHandler<T>(fn: () => Promise<T[]>) {
   return async (_req: Request, res: Response, next: NextFunction) => {
     try {
@@ -70,6 +88,60 @@ export async function createPipelineQuote(req: Request, res: Response, next: Nex
 export async function renewSubscription(req: Request, res: Response, next: NextFunction) {
   try {
     sendOk(res, await service.renewSubscription(guard(req), req.params.id as string, req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
+
+// ---- Pipeline stage transitions -------------------------------------------
+
+export async function acceptPipeline(req: Request, res: Response, next: NextFunction) {
+  try {
+    sendOk(res, await service.acceptPipelineQuote(guard(req), req.params.id as string, req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function declinePipeline(req: Request, res: Response, next: NextFunction) {
+  try {
+    sendOk(res, await service.declinePipelineQuote(guard(req), req.params.id as string, req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function saveRegistration(req: Request, res: Response, next: NextFunction) {
+  try {
+    sendOk(
+      res,
+      await service.saveRegistration(guard(req), req.params.id as string, saveRegistrationSchema.parse(req.body), req.ip ?? null),
+    );
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function uploadPaymentProof(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { proofUrl } = uploadProofSchema.parse(req.body ?? {});
+    sendOk(res, await service.uploadPaymentProof(guard(req), req.params.id as string, proofUrl, req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function verifyPayment(req: Request, res: Response, next: NextFunction) {
+  try {
+    sendOk(res, await service.verifyPayment(guard(req), req.params.id as string, req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function provisionPipeline(req: Request, res: Response, next: NextFunction) {
+  try {
+    sendOk(res, await service.provisionPipeline(guard(req), req.params.id as string, req.ip ?? null));
   } catch (e) {
     next(e);
   }
