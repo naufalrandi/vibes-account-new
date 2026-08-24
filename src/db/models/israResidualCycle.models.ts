@@ -107,6 +107,17 @@ IsraScenarioActualResidual.init(
   { sequelize, tableName: "isra_scenario_actual_residual", underscored: true },
 );
 
+/** Adequacy snapshot stored alongside a residual/current-risk assessment —
+ * ports OD's `isra2AdqEval(score)` result (`{threshold, result, assessedAt}`),
+ * frozen at save time so a later appetite-threshold change doesn't silently
+ * rewrite a past assessment's "within/above appetite" verdict (G-91). */
+export interface IsraAdequacy {
+  threshold: number;
+  appetiteVersion: number | null;
+  result: "Within acceptance criteria" | "Above acceptance criteria";
+  assessedAt: string;
+}
+
 /** `sc.residual` — the newer rolling-cycle single-entry model. Coexists with
  * Projected/Actual, does not replace them (design doc §3.8). */
 export class IsraScenarioResidual extends Model<InferAttributes<IsraScenarioResidual>, InferCreationAttributes<IsraScenarioResidual>> {
@@ -117,6 +128,7 @@ export class IsraScenarioResidual extends Model<InferAttributes<IsraScenarioResi
   declare assessmentDate: string | null;
   declare assessedBy: string | null;
   declare notes: string | null;
+  declare adequacy: IsraAdequacy | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -129,6 +141,7 @@ IsraScenarioResidual.init(
     assessmentDate: { type: DataTypes.DATEONLY, allowNull: true, field: "assessment_date" },
     assessedBy: { type: DataTypes.STRING, allowNull: true, field: "assessed_by" },
     notes: { type: DataTypes.TEXT, allowNull: true },
+    adequacy: { type: DataTypes.JSONB, allowNull: true },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

@@ -60,6 +60,20 @@ export function getRiskBand(score: number): string {
   return score > 25 ? "Critical" : "Low";
 }
 
+/** Ports OD's `isra2AdqEval(score)` (app.html:19383) — the adequacy verdict
+ * frozen alongside a residual assessment at save time (G-91), so a later
+ * change to the org's appetite threshold cannot rewrite a past verdict. */
+async function computeAdequacy(score: number, orgId: string): Promise<{ threshold: number; appetiteVersion: number | null; result: "Within acceptance criteria" | "Above acceptance criteria"; assessedAt: string }> {
+  const appetiteLog = await IsraAppetiteLog.findOne({ where: { orgId }, order: [["version", "DESC"]] });
+  const threshold = appetiteLog?.threshold ?? 9;
+  return {
+    threshold,
+    appetiteVersion: appetiteLog?.version ?? null,
+    result: score <= threshold ? "Within acceptance criteria" : "Above acceptance criteria",
+    assessedAt: new Date().toISOString(),
+  };
+}
+
 // 12-area consequence calculation with dominance floor (§3.2)
 export function calculateWeightedSeverity(
   potentialImpacts: { area: string; severity: number }[],
@@ -871,6 +885,7 @@ export async function saveResidual(auth: AuthContext, scenarioId: string, input:
   let residual = await IsraScenarioResidual.findOne({ where: { scenarioId } });
   const score = typeof input.score === "number" ? input.score : 4;
   const band = getRiskBand(score);
+  const adequacy = await computeAdequacy(score, auth.orgId);
 
   if (!residual) {
     residual = await IsraScenarioResidual.create({
@@ -881,6 +896,7 @@ export async function saveResidual(auth: AuthContext, scenarioId: string, input:
       assessmentDate: new Date().toISOString().slice(0, 10),
       assessedBy: auth.userId,
       notes: str(input.notes),
+      adequacy,
     });
   } else {
     residual.score = score;
@@ -889,6 +905,7 @@ export async function saveResidual(auth: AuthContext, scenarioId: string, input:
     residual.assessmentDate = new Date().toISOString().slice(0, 10);
     residual.assessedBy = auth.userId;
     residual.notes = str(input.notes);
+    residual.adequacy = adequacy;
     await residual.save();
   }
 

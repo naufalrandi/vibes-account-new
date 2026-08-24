@@ -336,4 +336,33 @@ describe("ISRA gap-register Wave Q, task Q3 fixes", () => {
     expect(withRationale.status).toBe(200);
     expect(withRationale.body.data.rationale).toBe("Reduce likelihood via least-privilege access control.");
   });
+
+  // G-91 — adequacy is computed against the org's appetite threshold and stored on save.
+  it("computes and stores an adequacy verdict on the residual at save time", async () => {
+    const { token } = await makeTenant("isra_g91", "ORG_ISRA_G91");
+    const scen = await createBareScenario(token);
+
+    // Set an explicit appetite threshold of 9 (also the service default, made explicit here).
+    const appetiteRes = await request(app)
+      .post("/v1/isra/support/appetite-log")
+      .set(authed(token))
+      .send({ threshold: 9, rationale: "Wave Q test threshold" });
+    expect(appetiteRes.status).toBe(201);
+
+    const withinRes = await request(app)
+      .post(`/v1/isra/scenarios/${scen.id}/residual`)
+      .set(authed(token))
+      .send({ score: 6, basis: "verified", notes: "Within appetite" });
+    expect(withinRes.status).toBe(200);
+    expect(withinRes.body.data.adequacy).toBeTruthy();
+    expect(withinRes.body.data.adequacy.threshold).toBe(9);
+    expect(withinRes.body.data.adequacy.result).toBe("Within acceptance criteria");
+
+    const aboveRes = await request(app)
+      .post(`/v1/isra/scenarios/${scen.id}/residual`)
+      .set(authed(token))
+      .send({ score: 12, basis: "verified", notes: "Above appetite" });
+    expect(aboveRes.status).toBe(200);
+    expect(aboveRes.body.data.adequacy.result).toBe("Above acceptance criteria");
+  });
 });
