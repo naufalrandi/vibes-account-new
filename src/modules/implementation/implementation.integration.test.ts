@@ -745,4 +745,21 @@ describe("ISO clause registers (implementation)", () => {
       .send({ title: "Enterprise Cloud Hosting", status: "Active", data: { kind: "offering" } });
     expect(offering.status).toBe(201);
   });
+
+  // Wave Q task W1: the `design` register's code prefix drifted to "DSG"
+  // during the initial port — OD `dndSave` mints "DND-" codes
+  // (`ipPad(db.designItems,'DND-')`, app.html:22199). registry.ts now
+  // declares `design: { prefix: "DND", ... }`; this proves the live create
+  // path actually mints that prefix, not just the registry declaration.
+  it("mints DND-prefixed codes for the design register", async () => {
+    const { token } = await makeTenant("tdnd", "TDND");
+    const created = await request(app).post("/v1/implementation/design").set(authed(token)).send({
+      title: "Modular Shelving Kit MS-Flex",
+      status: "Concept",
+      data: { kind: "Product", category: "Kit / Bundle" },
+    });
+    expect(created.status).toBe(201);
+    expect(created.body.data.code).toMatch(/^DND-\d{4}$/);
+    expect(created.body.data.code).not.toMatch(/^DSG-/);
+  });
 });

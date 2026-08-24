@@ -160,7 +160,11 @@ export const MS_MODULES: Record<string, RegisterModule> = {
   // 11516: Draft/Under Review/Accepted/Rejected/Fulfilled/Closed). Both sets
   // validate against this one shared status column, so it carries the union.
   psr: { prefix: "PSR", statuses: ["Draft", "Active", "Retired", "Under Review", "Accepted", "Rejected", "Fulfilled", "Closed"] },
-  design: { prefix: "DSG", statuses: ["Concept", "In Design", "Design Review", "Verification", "Validation", "Released"] },
+  // OD `dndSave`'s create path mints "DND-" codes (`ipPad(db.designItems,'DND-')`,
+  // app.html:22199) — the design catalog register uses OD's "Design &
+  // Development" module short code, not a "DSG" invention. Migration 0076
+  // renames any pre-existing "DSG-" rows so the register stays consistent.
+  design: { prefix: "DND", statuses: ["Concept", "In Design", "Design Review", "Verification", "Validation", "Released"] },
   provision: { prefix: "CP", statuses: ["Draft", "Under review", "Approved"] },
 
   // --- Business unit registers & frameworks ---
