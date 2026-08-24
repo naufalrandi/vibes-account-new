@@ -58,7 +58,7 @@ async function assertSite(orgId: string, siteId: string | null | undefined): Pro
 
 const arr = (v: unknown): string[] => (Array.isArray(v) ? v.map(String).filter(Boolean) : []);
 
-// OD mints work-unit ids as `WU-nnnn` (`wuNewId`, index.html:9070); the BE
+// OD mints work-unit ids as `WU-nnnn` (`wuNewId`, app.html:14920); the BE
 // port originally used `WKU-`. New codes switch to `WU-` for parity — legacy
 // `WKU-nnnn` rows are left untouched (never renamed; they resolve by the row's
 // UUID `id`, not `code`, so nothing breaks) and still count toward the running
@@ -108,7 +108,7 @@ export async function createWorkUnit(auth: AuthContext, input: WorkUnitInput, ip
     createdBy: await actorName(auth),
   });
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "workUnit.created", entityType: "WorkUnit", entityId: w.id, sourceIp: ip, result: "Success" });
-  // OD `wuSave` (index.html:9320): `ocLogAdd(nw,'created this work unit', …)`
+  // OD `wuSave` (app.html:15165): `ocLogAdd(nw,'created this work unit', …)`
   // — the drawer's Activity Timeline is now backed by the shared record-events
   // module (`RECORD_MODULE`), wired in `recordEvent.routes.ts`.
   const created = w.processIds.length
@@ -162,7 +162,7 @@ export async function archiveWorkUnit(auth: AuthContext, id: string, ip: string 
   w.status = "Archived";
   await w.save();
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "workUnit.archived", entityType: "WorkUnit", entityId: w.id, sourceIp: ip, result: "Success" });
-  // OD `wuArchive` (index.html:9360): "soft delete" — see the FE confirm copy.
+  // OD `wuArchive` (app.html:15214): "soft delete" — see the FE confirm copy.
   await logActivity(auth, auth.orgId, RECORD_MODULE, w.id, "Work unit archived — status set to Archived");
   return view(w);
 }

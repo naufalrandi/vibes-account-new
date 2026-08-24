@@ -9,7 +9,7 @@ export interface TenantAuditEntry {
   msg: string;
 }
 
-/** One Subscription Timeline event (OD `timelineHtml`, index.html:7481). */
+/** One Subscription Timeline event (OD `timelineHtml`, app.html:10071). */
 export interface TenantAgreementEvent {
   date: string;
   event: string;

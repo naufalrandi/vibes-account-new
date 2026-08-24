@@ -78,7 +78,7 @@ describe("ISO clause registers (implementation)", () => {
     expect(updated.body.data.data).toMatchObject({ riskScore: 2, riskLevel: "Low", level: 2, band: "Low" });
   });
 
-  // OD `riskArchive` (index.html:8135–8137): a risk must reach "Monitored"
+  // OD `riskArchive` (app.html:12365): a risk must reach "Monitored"
   // before it can be archived, and an already-archived risk refuses a second
   // archive rather than silently no-op-ing.
   it("only allows archiving a risk once it reaches Monitored, and refuses to re-archive", async () => {
@@ -200,7 +200,7 @@ describe("ISO clause registers (implementation)", () => {
   });
 
   // P-6.4: OD's `cabClientForm` create path defaults an omitted status to
-  // "Certified" (`g('cab-st')||'Certified'`, app.html:13215). `statuses[0]`
+  // "Certified" (`g('cab-st')||'Certified'`, app.html:13210). `statuses[0]`
   // stays "Applicant" (display order + what registryParity.test.ts asserts);
   // `createStatuses[0]` carries the create-time default instead, and every
   // other status remains explicitly selectable at creation.

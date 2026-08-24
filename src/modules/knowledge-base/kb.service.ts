@@ -107,7 +107,7 @@ export async function listArticles(auth: AuthContext, filters: { category?: stri
   if (filters.category) Object.assign(where, { category: filters.category });
   if (filters.status) Object.assign(where, { status: filters.status });
   if (filters.search) {
-    // OD `kbMatch` (index.html:15683) matches title, summary, content, and
+    // OD `kbMatch` (app.html:26758) matches title, summary, content, and
     // keywords (plus the category display name, which the FE layers on
     // client-side since it isn't a stored column here). `keywords` is a JSONB
     // array — cast it to text so a substring search still reaches it.

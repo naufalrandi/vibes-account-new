@@ -3,7 +3,7 @@ import type { Migration } from "../migrate";
 
 /**
  * Internal Documents (controlled documents) workflow — OD `cdSettings`
- * (index.html:12726).
+ * (app.html:24140).
  *
  * The document records themselves stay 1:1 inside `implementation_records.data`
  * (the established JSONB shape), so the only new storage is the per-org

@@ -25,7 +25,7 @@ function builtins(): SchemeView[] {
 
 /**
  * Explicit non-default approval-scheme overrides — OD `AP_DEFAULT_MAP`
- * (app.html:10355), `AP_DEFAULT_MAP[k]||'S0'`. A module with no entry here
+ * (app.html:16226), `AP_DEFAULT_MAP[k]||'S0'`. A module with no entry here
  * defaults to "S0" (OD's own fallback), whether or not this BE has ever heard
  * of that module key before.
  *
@@ -217,7 +217,7 @@ export async function setModuleScheme(auth: AuthContext, moduleKey: string, sche
 // ---- Pool members ----
 
 /**
- * OD parity (`apMigrateFlags`, index.html:4530-4536): OD self-heals an empty
+ * OD parity (`apMigrateFlags`, app.html:5739): OD self-heals an empty
  * approval pool on every `render()` — if a tenant has no MS Team member it
  * promotes an Administrator into the pool (falling back to injecting a
  * synthetic team member when no Administrator candidate exists) so gate

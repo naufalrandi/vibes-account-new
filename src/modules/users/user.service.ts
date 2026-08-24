@@ -53,7 +53,7 @@ export interface UpdateUserInput {
   photo?: string | null;
   workUnit?: string | null;
   // OD tenant-team member fields (migration 0047): Site / Type columns and the
-  // per-member business-process assignment (`tmBpForm`, index.html:9126).
+  // per-member business-process assignment (`tmBpForm`, app.html:14981).
   siteId?: string | null;
   personnelType?: string | null;
   processIds?: string[] | null;

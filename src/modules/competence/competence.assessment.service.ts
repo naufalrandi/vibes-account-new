@@ -73,7 +73,7 @@ const ROLE_STR = ["name", "description", "reviewFreq", "eduMinLevelId", "eduCoun
 const ROLE_JSON = ["eduFields", "expReqs", "responsibilities", "authorities"] as const;
 
 /** Validates an optional status field the way `setRoleStatus` does, so the
- * role editor's Status select (OD `rolesEditHtml`, index.html:17632 — the
+ * role editor's Status select (OD `rolesEditHtml`, app.html:33785 — the
  * only way to reach "Under review") can be persisted from create/update too,
  * not just the dedicated status-transition endpoint. */
 function optionalRoleStatus(input: Record<string, unknown>): string | undefined {
@@ -467,7 +467,7 @@ export async function markGapNoTrainingRequired(auth: AuthContext, id: string, r
   return withDisposition(row.get({ plain: true }));
 }
 
-/** OD `tpSave` create-path (index.html:14157) — when a NEW training plan is
+/** OD `tpSave` create-path (app.html:25228) — when a NEW training plan is
  * created bound to this gap (source='Competence Gap'), the gap's
  * `trainingPlanId` is set and an Open gap moves to Planned. Exported for the
  * implementation module to call right after it creates the training-plan
@@ -483,7 +483,7 @@ export async function bindGapToNewTrainingPlan(auth: AuthContext, gapId: string,
 
 const GAP_REASSESS_MEETS = "Meets Requirement";
 
-/** OD `tpReassessSave` (index.html:14184-14192) — record a reassessment
+/** OD `tpReassessSave` (app.html:25269) — record a reassessment
  * result the linked training plan captured against this gap. "Meets
  * Requirement" resolves the gap; anything else reopens it as Open with the
  * result recorded. Exported for the implementation module's training-plan

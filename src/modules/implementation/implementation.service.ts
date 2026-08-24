@@ -536,7 +536,7 @@ async function assertArchivable(
 }
 
 /**
- * OD `riskArchive` (index.html:8135–8137): a risk can only be archived once
+ * OD `riskArchive` (app.html:12365): a risk can only be archived once
  * it has reached "Monitored" — every other status must run its assessment /
  * treatment through first. Re-archiving an already-archived risk is refused
  * too, exactly as OD's own guard does (it checks `r.status==='Archived'`

@@ -196,7 +196,7 @@ export function skillTopic(skill: { name: string; type: string }): SkillTopic {
 
 // --- Description generators (OD `compGuessCat`/`compSkillDesc`/`trainDesc`) ---
 
-/** OD `compGuessCat(type,n)` (index.html:13405-13407) — an internal category
+/** OD `compGuessCat(type,n)` (app.html:33986) — an internal category
  * bucket used only to pick a `compSkillDesc` template; not persisted (this
  * backend's `CompetenceSkill` has no `category` column). `type` here is OD's
  * `'Hard Skill'/'Soft Skill'` vocabulary, distinct from `skillTopic`'s

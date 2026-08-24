@@ -24,7 +24,7 @@ function normalizeType(type: string | null | undefined): "Header" | "Requirement
 }
 
 /**
- * OD `classifyReqArray` (index.html:2241-2248), persisted server-side: a clause
+ * OD `classifyReqArray` (app.html:3421), persisted server-side: a clause
  * with child clauses (`<code>.x` in the same framework) is a structural Header
  * (Assessable=No); a leaf clause is an assessable Requirement. Runs after every
  * requirement create/update/delete so the whole framework stays consistent —

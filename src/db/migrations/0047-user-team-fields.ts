@@ -2,7 +2,7 @@ import { DataTypes } from "sequelize";
 import type { Migration } from "../migrate";
 
 /**
- * OD tenant team rows (`renderTenantTeam`, index.html:15231–15240) carry three
+ * OD tenant team rows (`renderTenantTeam`, app.html:26306) carry three
  * per-member fields the `users` table never modelled:
  *
  * 1. `siteId` — the site the member belongs to (Site column, `wuSiteName`).

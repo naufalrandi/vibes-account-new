@@ -363,7 +363,7 @@ export async function seed(): Promise<void> {
     },
   });
   // Two more sites (OD PT Hammer Industries: Head Office/Factory A/Warehouse,
-  // index.html:7201-7204) so the Work Units seed below (`wuSeedIfNeeded`,
+  // app.html:14987) so the Work Units seed below (`wuSeedIfNeeded`,
   // 9132-9181) has somewhere to distribute its 3 site indices across.
   const [siteFactory] = await Site.findOrCreate({
     where: { code: "STE-1002" },
@@ -417,7 +417,7 @@ export async function seed(): Promise<void> {
   );
   if (!existingStmt) await generateStatementForPartner(distributor.id, "January 2026");
 
-  // 11. Phase 6 — OD's 8 seeded support tickets (`seedTickets`, index.html:15477-
+  // 11. Phase 6 — OD's 8 seeded support tickets (`seedTickets`, app.html:26557-
   //     15505), spanning all 5 statuses and 4 priorities across tenant + partner
   //     scope. OD's four flavor orgs (PT Hammer Industries / PT Parker Industries
   //     / PT Damage Control / PT Stark Industries) map onto our seeded orgs:
@@ -615,7 +615,7 @@ export async function seed(): Promise<void> {
     // module is the dedicated `/internal-audit` surface, not this register
     // (the orphan `audits` register was removed; see registry.ts).
     { module: "nonconformities", code: "NC-0002", title: "Backup restore test not performed", status: "Corrective Action", owner: "IT Lead", data: { source: "Internal Audit", severity: "Medium", rootCause: "No scheduled restore test.", correctiveAction: "Add quarterly restore test to the calendar." } },
-    // OD `ipSeedIfNeeded` obligation-register seed (index.html:8683-8685) —
+    // OD `ipSeedIfNeeded` obligation-register seed (app.html:14455) —
     // the compliance-obligations link targets used by Interested Parties
     // requirements. `compliance` is the `registry.ts` module for OD's
     // `db.obligations` (`coNewId` → `COBL-`).
@@ -944,7 +944,7 @@ export async function seed(): Promise<void> {
     }
 
     // Audit findings — OD's original two June-program findings from
-    // `iauditSeedIfNeeded` (index.html:11791-11792), deliberately created
+    // `iauditSeedIfNeeded` (app.html:23073), deliberately created
     // with their own fields (not the uniform `findSeeds` shape above) because
     // OD gives them distinct review/issue states: IAF-0001 is still
     // "Pending Lead Auditor Review" and IAF-0002 is issued and routed to an
@@ -981,7 +981,7 @@ export async function seed(): Promise<void> {
     });
 
     // Ensure IMP-0002 exists for the linked improvement (OD's
-    // `iauditSeedIfNeeded`, index.html:11793: "ensure IMP-0002 exists for
+    // `iauditSeedIfNeeded`, app.html:23073: "ensure IMP-0002 exists for
     // the linked improvement"). Represented the same way seed.ts already
     // represents IMP-0001's concern origin (`sourceConcernId`/
     // `sourceConcernCode`, see the Phase 9a concern chain above) but for a
@@ -1014,7 +1014,7 @@ export async function seed(): Promise<void> {
       });
     }
 
-    // Audit reports — OD's `iauditSeedIfNeeded` (index.html:11796) and
+    // Audit reports — OD's `iauditSeedIfNeeded` (app.html:23073) and
     // `iauditSeedExtra` (index.html:11852) reports. `IaReport.plans` /
     // `.sessions` / `.findings` are arrays of CODE strings, matching how
     // `generateReport` (internalAudit.service.ts) populates them from
@@ -1117,7 +1117,7 @@ export async function seed(): Promise<void> {
   }
 
   // 14c. Phase 9c — Approval pools (OD's team-seed + `apMigrateFlags`
-  //      invariant, index.html:4530-4536, 7207-7210, 10144-10160): guarantee
+  //      invariant, app.html:5739, 7207-7210, 10144-10160): guarantee
   //      the demo tenant ships with a non-empty approval pool instead of
   //      relying solely on the runtime auto-derive fallback in
   //      approval.service.ts. Two more tenant users (mirroring OD's Monica
@@ -1151,7 +1151,7 @@ export async function seed(): Promise<void> {
   type Lss = "Mandatory" | "Optional" | "Not Applicable";
   const st = (planning: Lss, sampling: Lss, cert: Lss, retention: Lss, disposal: Lss): Record<string, Lss> => ({ planning, sampling, cert, retention, disposal });
   const M: Lss = "Mandatory", O: Lss = "Optional", N: Lss = "Not Applicable";
-  // OD `seedTestingServices` per-service descriptions (index.html:16046-16054)
+  // OD `seedTestingServices` per-service descriptions (app.html:27122)
   // — replaces the generic "<name> service line." placeholder.
   const LIMS_DESC: Record<string, string> = {
     "Environmental Testing": "Air, water, soil and emissions testing for environmental compliance.",

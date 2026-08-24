@@ -2,7 +2,7 @@ import { DataTypes, Model, type CreationOptional, type InferAttributes, type Inf
 import { sequelize } from "../sequelize";
 
 /**
- * Per-org controlled-document settings — OD `cdSettings` (index.html:12726).
+ * Per-org controlled-document settings — OD `cdSettings` (app.html:24140).
  * Stored as one JSONB blob per organization; defaults are merged in the
  * service layer so a missing row (or a missing key) behaves exactly like OD's
  * lazily-initialised `db.cdSettings` object.

@@ -58,7 +58,7 @@ export const SCOPE_ENV_DESC: Record<string, string> = {
   "Endpoint Management Platform": "System for managing and securing endpoint devices.",
 };
 
-// OD `MS_PERSONNEL_DEFS` (index.html:9394-9399).
+// OD `MS_PERSONNEL_DEFS` (app.html:15249).
 export const SCOPE_PERSONNEL_DESC: Record<string, string> = {
   "Employee (Permanent Contract)": "Directly employed staff on an open-ended, permanent employment contract.",
   "Employee (Fixed-Duration Contract)": "Directly employed staff on a fixed-term / fixed-duration employment contract.",

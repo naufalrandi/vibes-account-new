@@ -7,7 +7,7 @@ export const tenantRoutes = Router();
 tenantRoutes.get("/", requireAction(ACTIONS.TENANT_READ), c.list);
 tenantRoutes.post("/", requireAction(ACTIONS.TENANT_CREATE), c.provision);
 tenantRoutes.get("/:id", requireAction(ACTIONS.TENANT_READ), c.get);
-// Edit Tenant (OD `tenantEdit`, index.html:7594). The service additionally
+// Edit Tenant (OD `tenantEdit`, app.html:10483). The service additionally
 // enforces Service-Owner-only, like direct provisioning.
 tenantRoutes.put("/:id", requireAction(ACTIONS.TENANT_UPDATE), c.update);
 

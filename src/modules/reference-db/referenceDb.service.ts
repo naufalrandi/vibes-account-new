@@ -134,7 +134,7 @@ export async function createEducationLevel(auth: AuthContext, input: Record<stri
 export async function updateEducationLevel(auth: AuthContext, id: string, input: Record<string, unknown>, ip: string | null) {
   const row = await ReferenceEducationLevel.findOne({ where: { id, orgId: auth.orgId } });
   if (!row) throw new NotFoundError("Education level not found", "LEVEL_NOT_FOUND");
-  // OD `eduSave` (index.html:18400-18406) writes level on update, not just create —
+  // OD `eduSave` (app.html:34590) writes level on update, not just create —
   // this previously silently dropped it, so editing the ISCED number never persisted.
   if (input.level !== undefined) {
     const level = Number(input.level);
@@ -154,7 +154,7 @@ export async function updateEducationLevel(auth: AuthContext, id: string, input:
 export async function deleteEducationLevel(auth: AuthContext, id: string, ip: string | null) {
   const row = await ReferenceEducationLevel.findOne({ where: { id, orgId: auth.orgId } });
   if (!row) throw new NotFoundError("Education level not found", "LEVEL_NOT_FOUND");
-  // OD `eduDel` (index.html:18417): deleting a level falls every role that used
+  // OD `eduDel` (app.html:34603): deleting a level falls every role that used
   // it as eligibility back to "no minimum" instead of leaving a dangling id —
   // done in the same transaction as the delete so a failure can't half-clear.
   const affectedRoles = await sequelize.transaction(async (transaction) => {
@@ -202,7 +202,7 @@ export async function updateIndustrySector(auth: AuthContext, id: string, input:
 export async function deleteIndustrySector(auth: AuthContext, id: string, ip: string | null) {
   const row = await ReferenceIndustrySector.findOne({ where: { id, orgId: auth.orgId } });
   if (!row) throw new NotFoundError("Industry sector not found", "SECTOR_NOT_FOUND");
-  // OD `sectorDel` (index.html:18506): deleting a sector clears every role's
+  // OD `sectorDel` (app.html:34692): deleting a sector clears every role's
   // `expReqs[].sector` entries that pointed at it instead of leaving a dangling
   // reference — `expReqs` is JSONB so each matching role is rewritten
   // individually, all inside the delete's transaction.

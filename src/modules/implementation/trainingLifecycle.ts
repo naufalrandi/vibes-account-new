@@ -52,7 +52,7 @@ async function withOptionalGap(action: () => Promise<unknown>): Promise<void> {
   }
 }
 
-/** OD `tpReassessSave`'s dropdown (index.html:14184) — a separate 3-value vocabulary from TP_RESULTS. */
+/** OD `tpReassessSave`'s dropdown (app.html:25269) — a separate 3-value vocabulary from TP_RESULTS. */
 export const TP_REASSESS_RESULTS = ["Meets Requirement", "Partially Meets", "Does Not Meet"] as const;
 
 const TERMINAL_STATUSES = ["Completed", "Closed", "Cancelled"];
@@ -288,7 +288,7 @@ export async function setTrainingStatus(
   return decorateTrainingView(view(r));
 }
 
-// --- Create-time gap binding (OD `tpSave` create path, index.html:14157) ---
+// --- Create-time gap binding (OD `tpSave` create path, app.html:25228) ---
 
 /**
  * OD `tpSave`: creating a NEW training plan bound to a competence gap

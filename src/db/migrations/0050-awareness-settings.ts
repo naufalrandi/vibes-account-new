@@ -2,7 +2,7 @@ import { DataTypes } from "sequelize";
 import type { Migration } from "../migrate";
 
 /**
- * Awareness module governance settings — OD `awSettings` (index.html:14240).
+ * Awareness module governance settings — OD `awSettings` (app.html:25337).
  *
  * The awareness records themselves (programs / topics / campaigns, including the
  * per-recipient acknowledgment + evaluation ledgers materialised on campaign

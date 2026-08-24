@@ -22,7 +22,7 @@ import type { Migration } from "../migrate";
  * `context` is separate: its prefix is DYNAMIC (the code of the
  * "Organizational Context" framework element, falling back to "FWE-001"),
  * and — unlike every other register — its numeric suffix is NOT zero-padded
- * (OD `ocNewId`, index.html:8119-8120). Existing "OCX-####" rows are
+ * (OD `ocNewId`, app.html:12332). Existing "OCX-####" rows are
  * renumbered GLOBALLY (across every org, in creation order) as "<prefix>-<n>"
  * — `implementation_records` has a UNIQUE constraint on (module, code) alone
  * (migration 0015), with no org_id in it, so a per-org restart-at-1 would

@@ -313,7 +313,7 @@ export async function addSessionComment(auth: AuthContext, id: string, text: str
   return addComment(IaSession, auth, id, text, ip, "Session not found", "SESSION_NOT_FOUND", "IaSession", "ia.session.comment");
 }
 
-// --- Planning mode: move / merge (OD `iaCommitMove`, index.html:12212) ---
+// --- Planning mode: move / merge (OD `iaCommitMove`, app.html:23570) ---
 
 /** Org-role assignments that grant Planning Mode (OD `iaCanPlan`, 12159). */
 const IA_PLAN_ROLES = ["Top Management", "Quality Manager", "Internal Auditor", "Information Security Officer"] as const;
@@ -593,7 +593,7 @@ export async function routeFinding(auth: AuthContext, id: string, target: "nc" |
   if (target === "nc") {
     if (row.type !== "Nonconformity") throw new BadRequestError("Only nonconformity findings route to an NC", "NOT_NC_TYPE");
     if (row.linkedNC) throw new ConflictError(`Already linked to ${row.linkedNC}`, "ALREADY_LINKED");
-    // OD `iafRoute` (index.html:12626–12630) carries the finding's process,
+    // OD `iafRoute` (app.html:24039) carries the finding's process,
     // work unit, PIC, due date and framework relevance across to the NC it
     // creates — routing used to drop all of that context.
     const nc = await createRecord(auth, "nonconformities", {

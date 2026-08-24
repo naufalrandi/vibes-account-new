@@ -59,7 +59,7 @@ export async function get(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-// OD `tenantEdit` fields (index.html:7594): name/email required, partner
+// OD `tenantEdit` fields (app.html:10483): name/email required, partner
 // required when acquisition = Partner (enforced in the service alongside the
 // SP-only check).
 const updateSchema = z.object({

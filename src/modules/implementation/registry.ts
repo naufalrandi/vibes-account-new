@@ -119,7 +119,7 @@ export const MS_MODULES: Record<string, RegisterModule> = {
     ],
   },
   objectives: { prefix: "OBJ", statuses: ["Open", "Achieved", "Cancelled"] },
-  // OD `renderTnObligations` (index.html:9035): Active/Under Review/Archived —
+  // OD `renderTnObligations` (app.html:14864): Active/Under Review/Archived —
   // legacy "COM-" codes already issued under the old prefix keep resolving
   // (codes are never renamed retroactively); only new records get "COBL-".
   compliance: { prefix: "COBL", statuses: ["Active", "Under Review", "Archived"] },

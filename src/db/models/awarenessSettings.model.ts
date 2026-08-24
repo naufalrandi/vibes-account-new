@@ -2,7 +2,7 @@ import { DataTypes, Model, type CreationOptional, type InferAttributes, type Inf
 import { sequelize } from "../sequelize";
 
 /**
- * Per-org awareness governance settings — OD `awSettings` (index.html:14240).
+ * Per-org awareness governance settings — OD `awSettings` (app.html:25337).
  * Stored as one JSONB blob per organization; defaults are merged in the
  * service layer so a missing row (or a missing key) behaves exactly like OD's
  * lazily-initialised `db.awSettings` object. `reminderFreq` is a string

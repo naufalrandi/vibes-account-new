@@ -46,7 +46,7 @@ export interface TenantView {
   updatedAt: Date;
 }
 
-/** OD `tenantEdit` (index.html:7594): SP-editable organization/contact fields. */
+/** OD `tenantEdit` (app.html:10483): SP-editable organization/contact fields. */
 export interface UpdateTenantInput {
   name: string;
   acquisitionSource: TenantAcquisition;
@@ -363,7 +363,7 @@ export const suspend = (a: AuthContext, id: string, ip: string | null) =>
 export const resume = (a: AuthContext, id: string, ip: string | null) =>
   transition(a, id, { from: ["Suspended"], to: "Active", action: "resumed", msg: "Tenant resumed" }, ip);
 // OD offers Deactivate from every status except Inactive (`tenantHeaderActions`,
-// index.html:7349) — including Draft and Pending Activation.
+// app.html:10273) — including Draft and Pending Activation.
 export const deactivate = (a: AuthContext, id: string, ip: string | null) =>
   transition(a, id, { from: ["Draft", "Pending Activation", "Active", "Suspended"], to: "Inactive", action: "deactivated", msg: "Tenant deactivated" }, ip);
 export const reactivate = (a: AuthContext, id: string, ip: string | null) =>

@@ -109,7 +109,7 @@ describe("competence libraries", () => {
   });
 
   it("updateEducation persists a changed ISCED level number and rejects a duplicate", async () => {
-    // OD `eduSave` (index.html:18400-18406) writes the ISCED number on
+    // OD `eduSave` (app.html:34590) writes the ISCED number on
     // update, not just create — the level is editable on an existing row.
     const sp = await makeOrg("co-edu-upd", "COEDUUPD", "ServiceOwner");
     const a = (await request(app).post("/v1/competence/education").set(authed(sp.token)).send({ level: 3, label: "Upper secondary" })).body.data;

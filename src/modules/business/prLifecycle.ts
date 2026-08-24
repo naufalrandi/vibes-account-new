@@ -38,7 +38,7 @@ export const PR_TRANSITIONS: Record<string, readonly string[]> = {
   "No Budget Available": ["Budget Review", "Cancelled"],
   Approved: ["PO Issued"],
   // `PO Issued` → `Sourcing & Quotation` / `In Procurement` covers `prResource`
-  // ("Take action → Re-source supplier", app.html:30873) branching on the
+  // ("Take action → Re-source supplier", app.html:30861) branching on the
   // category's sourcing method.
   "PO Issued": ["Receiving", "Sourcing & Quotation", "In Procurement", "Cancelled"],
   Receiving: ["QC / Acceptance"],
@@ -65,7 +65,7 @@ export const PR_TRANSITIONS: Record<string, readonly string[]> = {
  * so the supplier gets "a fresh response window", app.html:31880). Acknowledged → Confirmed is
  * the PR's own acknowledgement handling moving its linked request into Receiving. Confirmed →
  * Received → Invoiced → Completed mirrors the PR's Receiving → QC/Acceptance → Invoice & Payment
- * → Completed hops one-for-one (`poStatusOf`'s status map, app.html:31853). Cancelled is reachable
+ * → Completed hops one-for-one (`poStatusOf`'s status map, app.html:31846). Cancelled is reachable
  * only from Issued/Sent/Acknowledged/Declined — OD only ever offers Take Action → Re-source/Cancel
  * (`prActionsFor`'s `"PO Issued"` case) while the linked PR is still status `'PO Issued'`, i.e.
  * before acknowledgement moves it into Receiving; once a PO is Confirmed there is no OD affordance

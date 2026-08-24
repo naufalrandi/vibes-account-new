@@ -48,7 +48,7 @@ export async function updateEducation(auth: AuthContext, id: string, input: Reco
   assertServiceOwner(auth);
   const row = await CompetenceEducation.findByPk(id);
   if (!row) throw new NotFoundError("Education level not found", "EDU_NOT_FOUND");
-  // OD `eduSave` (index.html:18400-18406) writes the ISCED number on update,
+  // OD `eduSave` (app.html:34590) writes the ISCED number on update,
   // not just on create — the level is editable on an existing row, not locked
   // after creation.
   if (input.level !== undefined) {
@@ -69,7 +69,7 @@ export async function deleteEducation(auth: AuthContext, id: string, ip: string 
   assertServiceOwner(auth);
   const row = await CompetenceEducation.findByPk(id);
   if (!row) throw new NotFoundError("Education level not found", "EDU_NOT_FOUND");
-  // OD `eduDel` (index.html:18417): deleting a level falls every role that
+  // OD `eduDel` (app.html:34603): deleting a level falls every role that
   // used it as eligibility back to "no minimum" instead of leaving a dangling
   // id. `CompetenceEducation` is global (org_id NULL, matching OD's shared
   // `db.compEdu`), so — like OD's flat `db.roles` — the cascade is NOT scoped
@@ -96,7 +96,7 @@ export async function listSkills(auth: AuthContext, filters: { type?: string } =
   const scope = await orgClause(auth);
   const where = filters.type ? { ...scope, type: filters.type } : scope;
   const rows = (await CompetenceSkill.findAll({ where, order: [["name", "ASC"]] })).map((r) => r.get({ plain: true }));
-  // OD `skillTopic(s)` (index.html:17835) pre-computed server-side so the
+  // OD `skillTopic(s)` (app.html:34048) pre-computed server-side so the
   // Competence Library grouping (`clibSkills`, 17862) doesn't need a
   // client-side re-implementation of the keyword classifier.
   return rows.map((r) => ({ ...r, topic: skillTopic(r) }));

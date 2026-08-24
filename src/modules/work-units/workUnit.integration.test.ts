@@ -94,7 +94,7 @@ describe("work units", () => {
     expect((await request(app).post("/v1/work-units").set(authed(full.token)).send({ name: "x", status: "Bogus" })).status).toBe(400);
   });
 
-  // OD `wuDetail` (index.html:9331): the drawer's Activity Timeline + Comments
+  // OD `wuDetail` (app.html:15186): the drawer's Activity Timeline + Comments
   // feed. Wired here through the shared record-events module (P1 §2.3) —
   // `recordEvent.routes.ts`'s `MODULE_ACTIONS["work-units"]` gates it on
   // WORKUNIT_READ/WORKUNIT_MANAGE, and `workUnit.service.ts` auto-logs

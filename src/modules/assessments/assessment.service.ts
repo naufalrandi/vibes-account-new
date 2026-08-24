@@ -27,7 +27,7 @@ const MODULE_BY_ELEMENT: Record<string, ModuleRec> = {
   "Management Review": { key: "management-review", label: "Management Review", route: "/implementation/reviews" },
   "Objectives & Planning": { key: "objectives", label: "Objectives & Planning", route: "/implementation/objectives" },
   // OD redirects its 'tn-m-competence' gap recommendation straight into the
-  // real Competence/Assessments area (index.html:8079, `tnAssessRender`) —
+  // real Competence/Assessments area (app.html:26064, `tnAssessRender`) —
   // never a clause register. The FE's duplicate orphan register at
   // `/implementation/competence` was removed; route there instead.
   Competence: { key: "competence", label: "Competence", route: "/competence?tab=assessments" },
