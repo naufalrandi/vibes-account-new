@@ -723,6 +723,13 @@ export async function saveTreatmentDecision(auth: AuthContext, scenarioId: strin
   if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
 
   const option = str(input.option) || "Modify";
+  const rationale = str(input.rationale);
+  // OD refuses the save outright when rationale is blank (isra2TreatForm:
+  // "Decision rationale is required"; G-92) — validate before any mutation
+  // so a rejected save leaves no partial state behind.
+  if (!rationale) {
+    throw new BadRequestError("Decision rationale is required", "TREATMENT_RATIONALE_REQUIRED");
+  }
 
   // Mark previous current as not current
   await IsraScenarioTreatmentDecision.update({ isCurrent: false }, { where: { scenarioId, isCurrent: true } });
@@ -732,7 +739,7 @@ export async function saveTreatmentDecision(auth: AuthContext, scenarioId: strin
     cycle: scenario.evalCycle || 1,
     version: 1,
     option,
-    rationale: str(input.rationale),
+    rationale,
     decidedBy: auth.userId,
     decisionDate: new Date().toISOString().slice(0, 10),
     approvalStatus: str(input.approvalStatus) || "Approved",

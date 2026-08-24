@@ -316,4 +316,24 @@ describe("ISRA gap-register Wave Q, task Q3 fixes", () => {
     expect(withJust.body.data.impactOverride.justification).toBe("Board-approved worst-case scenario for this asset class");
     expect(withJust.body.data.overallImpact).toBe(4);
   });
+
+  // G-92 — a treatment decision without a rationale must be refused.
+  it("refuses to save a treatment decision without a rationale", async () => {
+    const { token } = await makeTenant("isra_g92", "ORG_ISRA_G92");
+    const scen = await createBareScenario(token);
+
+    const noRationale = await request(app)
+      .post(`/v1/isra/scenarios/${scen.id}/treatment`)
+      .set(authed(token))
+      .send({ option: "Modify" });
+    expect(noRationale.status).toBe(400);
+    expect(noRationale.body.error.code).toBe("TREATMENT_RATIONALE_REQUIRED");
+
+    const withRationale = await request(app)
+      .post(`/v1/isra/scenarios/${scen.id}/treatment`)
+      .set(authed(token))
+      .send({ option: "Modify", rationale: "Reduce likelihood via least-privilege access control." });
+    expect(withRationale.status).toBe(200);
+    expect(withRationale.body.data.rationale).toBe("Reduce likelihood via least-privilege access control.");
+  });
 });
