@@ -123,6 +123,50 @@ describe("ISO clause registers (implementation)", () => {
     expect(MS_MODULES.risks.statuses[0]).toBe("Unassigned");
   });
 
+  // Wave Q task W5: three-way disagreement on the Design & Development
+  // module's status vocabulary — OD `DND_STATUS` (app.html:22103) is 8
+  // values including "On Hold" and "Retired"; this registry had drifted to
+  // the 6-value `DND_STAGES` subset, so `assertStatus` hard-rejected both
+  // (unlike "Archived", neither gets a bypass — see the `design` registry
+  // entry's comment). Pins the registry itself, byte-for-byte against OD,
+  // independent of the live-request proof below.
+  it("lists On Hold and Retired as real design statuses, matching OD's DND_STATUS order, so Concept stays the create default", () => {
+    expect(MS_MODULES.design.statuses).toEqual([
+      "Concept", "In Design", "Design Review", "Verification", "Validation", "Released", "On Hold", "Retired",
+    ]);
+    expect(MS_MODULES.design.statuses[0]).toBe("Concept");
+  });
+
+  // Proves the fix end-to-end over the real API, not just in the registry:
+  // before this fix, a design item's edit form could select "On Hold"
+  // (OD `dndForm`, app.html:22188 — the field is unrestricted) or "Retired"
+  // (also `dndForm`, and one click via `dndMenu`'s "Retire" item) and the
+  // save would 400 with INVALID_STATUS. "Archived" is included as a control:
+  // it already worked before this fix (assertStatus's unconditional bypass),
+  // and must keep working now that the registry lists other statuses too.
+  it("accepts On Hold, Retired, and Archived on a design item over the real API", async () => {
+    const { token } = await makeTenant("t1", "TEN1");
+    const created = await request(app).post("/v1/implementation/design").set(authed(token))
+      .send({ title: "Sensor Gate V3", status: "Concept", data: { kind: "Product" } });
+    expect(created.status).toBe(201);
+    const id = created.body.data.id;
+
+    const onHold = await request(app).put(`/v1/implementation/design/${id}`).set(authed(token))
+      .send({ title: "Sensor Gate V3", status: "On Hold" });
+    expect(onHold.status).toBe(200);
+    expect(onHold.body.data.status).toBe("On Hold");
+
+    const retired = await request(app).put(`/v1/implementation/design/${id}`).set(authed(token))
+      .send({ title: "Sensor Gate V3", status: "Retired" });
+    expect(retired.status).toBe(200);
+    expect(retired.body.data.status).toBe("Retired");
+
+    const archived = await request(app).put(`/v1/implementation/design/${id}`).set(authed(token))
+      .send({ title: "Sensor Gate V3", status: "Archived" });
+    expect(archived.status).toBe(200);
+    expect(archived.body.data.status).toBe("Archived");
+  });
+
   // G-55: OD `bpForm`/`bpArchive` (app.html:24565,24570) refuse to save any
   // change to a Seeded business process ("Seeded processes cannot be
   // edited"/"...cannot be archived"). A Tenant Created process is unaffected.

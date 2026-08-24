@@ -164,7 +164,24 @@ export const MS_MODULES: Record<string, RegisterModule> = {
   // app.html:22199) — the design catalog register uses OD's "Design &
   // Development" module short code, not a "DSG" invention. Migration 0076
   // renames any pre-existing "DSG-" rows so the register stays consistent.
-  design: { prefix: "DND", statuses: ["Concept", "In Design", "Design Review", "Verification", "Validation", "Released"] },
+  //
+  // Statuses are OD's exact 8-value `DND_STATUS` (app.html:22103), not the
+  // 6-value `DND_STAGES` subset `dndAdvance`/`dndStageBar` step through.
+  // "On Hold" and "Retired" are appended last (after "Released") so
+  // `statuses[0]` stays "Concept", the create default. Wave Q task W5: this
+  // port had drifted to `DND_STAGES` only, which meant `assertStatus` hard-
+  // rejected "On Hold" outright and "Retired" too (the latter despite the FE
+  // TS union already claiming it) — both are legal OD statuses reachable
+  // from `dndForm`'s status dropdown (unrestricted, any status selectable),
+  // and "Retired" is additionally one click away via `dndMenu`'s "Retire"
+  // item. "Archived" is deliberately NOT listed here, matching every other
+  // bespoke-workspace module (e.g. `psr`) — it is handled by `assertStatus`'s
+  // unconditional `status !== "Archived"` bypass, the repo-wide convention
+  // for the terminal archive state (see `risks`'s comment above and P-6.1).
+  design: {
+    prefix: "DND",
+    statuses: ["Concept", "In Design", "Design Review", "Verification", "Validation", "Released", "On Hold", "Retired"],
+  },
   provision: { prefix: "CP", statuses: ["Draft", "Under review", "Approved"] },
 
   // --- Business unit registers & frameworks ---

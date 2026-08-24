@@ -274,7 +274,9 @@
       "Design Review",
       "Verification",
       "Validation",
-      "Released"
+      "Released",
+      "On Hold",
+      "Retired"
     ]
   },
   "provision": {
