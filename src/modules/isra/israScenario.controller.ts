@@ -43,3 +43,4 @@ export const approveRtp = wrap(async (req, res) => ok(res, await service.approve
 
 export const saveResidual = wrap(async (req, res) => ok(res, await service.saveResidual(guard(req), req.params.id as string, req.body, req.ip || null)));
 export const promoteResidual = wrap(async (req, res) => ok(res, await service.promoteResidual(guard(req), req.params.id as string, req.ip || null)));
+export const saveProjectedResidual = wrap(async (req, res) => ok(res, await service.saveProjectedResidual(guard(req), req.params.id as string, req.body, req.ip || null)));

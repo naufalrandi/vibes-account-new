@@ -33,3 +33,4 @@ israScenarioRoutes.post("/:id/rtp/approve", manage, controller.approveRtp);
 // Residuals
 israScenarioRoutes.post("/:id/residual", manage, controller.saveResidual);
 israScenarioRoutes.post("/:id/residual/promote", manage, controller.promoteResidual);
+israScenarioRoutes.post("/:id/projected-residual", manage, controller.saveProjectedResidual);

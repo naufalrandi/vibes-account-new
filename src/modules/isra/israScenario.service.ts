@@ -15,6 +15,7 @@ import {
   IsraRtpActionControl,
   IsraScenarioActualResidual,
   IsraScenarioResidual,
+  IsraScenarioProjectedResidual,
   IsraScenarioCycle,
   IsraAnnexAControl,
   IsraOrgControl,
@@ -22,10 +23,12 @@ import {
   IsraKmVulnControl,
   IsraVulnControlOverlay,
   IsraAppetiteLog,
+  IsraOrgSettings,
 } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError, NotFoundError } from "../../lib/errors";
+import { ISRA_RESIDUAL_BASIS, type IsraResidualBasis } from "../../db/models/israResidualCycle.models";
 
 const str = (v: unknown): string | null =>
   typeof v === "string" && v.trim() ? v.trim() : v === "" ? "" : v == null ? null : String(v);
@@ -72,6 +75,26 @@ async function computeAdequacy(score: number, orgId: string): Promise<{ threshol
     result: score <= threshold ? "Within acceptance criteria" : "Above acceptance criteria",
     assessedAt: new Date().toISOString(),
   };
+}
+
+/** Ports OD's `isra2ResidualBasisText(basis)` (app.html:18658) verbatim,
+ * including the "(Method C)" parenthetical. OD's source HTML-escapes the
+ * ampersand (`&amp;`) because it is a raw string literal spliced into HTML —
+ * per this repo's established convention for that (lib/od-spec/pageHeaders.ts
+ * in the frontend port: the *rendered* text is what gets stored), the real
+ * `&` character is stored here, not the entity. */
+const ISRA_RESIDUAL_BASIS_TEXT: Record<IsraResidualBasis, string> = {
+  verified: "implemented & verified controls (Method C)",
+  projected: "the planned treatment controls in scope",
+  current: "the current risk (no new treatment credited this cycle)",
+  inherent: "the inherent risk (no controls credited yet)",
+};
+
+export function residualBasisText(basis: string | null | undefined): string {
+  if (basis && (ISRA_RESIDUAL_BASIS as readonly string[]).includes(basis)) {
+    return ISRA_RESIDUAL_BASIS_TEXT[basis as IsraResidualBasis];
+  }
+  return "the controls in scope";
 }
 
 // 12-area consequence calculation with dominance floor (§3.2)
@@ -426,6 +449,7 @@ export async function getScenarioById(auth: AuthContext, id: string) {
   const rtp = await IsraRtp.findOne({ where: { scenarioId: id, isCurrent: true } });
   const rtpActions = rtp ? await IsraRtpAction.findAll({ where: { rtpId: rtp.id } }) : [];
   const residual = await IsraScenarioResidual.findOne({ where: { scenarioId: id } });
+  const projectedResidual = await IsraScenarioProjectedResidual.findOne({ where: { scenarioId: id } });
   const cycles = await IsraScenarioCycle.findAll({ where: { scenarioId: id }, order: [["cycleNumber", "ASC"]] });
 
   const plain = scenario.get({ plain: true }) as any;
@@ -451,6 +475,7 @@ export async function getScenarioById(auth: AuthContext, id: string) {
   plain.addedControls = addedControls.map((a) => a.get({ plain: true }));
   plain.rtp = rtp ? { ...rtp.get({ plain: true }), actions: rtpActions.map((a) => a.get({ plain: true })) } : null;
   plain.residual = residual ? residual.get({ plain: true }) : null;
+  plain.projectedResidual = projectedResidual ? projectedResidual.get({ plain: true }) : null;
   plain.cycles = cycles.map((c) => c.get({ plain: true }));
 
   const weighted = calculateWeightedSeverity(plain.potentialImpacts, plain.impactOverride);
@@ -458,6 +483,13 @@ export async function getScenarioById(auth: AuthContext, id: string) {
   plain.overallImpact = weighted.sev;
   plain.inherentScore = plain.inherentL > 0 && plain.overallImpact > 0 ? plain.inherentL * plain.overallImpact : 0;
   plain.inherentBand = plain.inherentScore > 0 ? getRiskBand(plain.inherentScore) : "";
+
+  // Auto-suggested residual for this cycle (isra2SuggestResidual) — computed
+  // fresh on every read, exactly as OD does (isra2ResidualForm/
+  // isra2ResidualSection call it inline, they never cache it). Only omitted
+  // when the residual has already been assessed and confirmed this cycle,
+  // matching OD's `_fromProj=!r.assessmentDate&&...` gate on the auto-card.
+  plain.suggestedResidual = residual?.assessmentDate ? null : await suggestResidual(id, auth.orgId);
 
   return plain;
 }
@@ -878,18 +910,119 @@ export async function approveRtp(auth: AuthContext, scenarioId: string, _ip: str
   return rtp.get({ plain: true });
 }
 
+export interface IsraResidualSuggestion {
+  l: number;
+  impact: number;
+  score: number;
+  band: string;
+  basis: IsraResidualBasis;
+  basisText: string;
+}
+
+/**
+ * Ports OD's `isra2SuggestResidual(sc)` (app.html:18643) — the four-tier
+ * auto-suggested post-treatment residual, in priority order:
+ *   1. verified  — controls implemented AND verified this cycle, Method C
+ *      over verified Existing Controls only (`isra2DeriveActual`).
+ *   2. projected — this cycle's user-ASSESSED Projected Residual. OD never
+ *      runs Method C for this tier ("Planned/Added controls are not
+ *      operating or evidenced yet") — it is whatever the user entered via
+ *      `isra2ProjForm` / `saveProjectedResidual` below.
+ *   3. current   — the confirmed Current Risk.
+ *   4. inherent  — overall impact severity (or 3) x inherentL (or 3), when
+ *      nothing above is available.
+ * Then capped: if the picked score exceeds the confirmed Current Risk score,
+ * it is replaced by Current — OD's own comment: "treatment cannot raise the
+ * risk above where it already sits." Returns null only when the scenario
+ * itself does not exist.
+ */
+export async function suggestResidual(scenarioId: string, orgId: string): Promise<IsraResidualSuggestion | null> {
+  const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId } });
+  if (!scenario) return null;
+
+  const current = await IsraScenarioCurrentRisk.findOne({ where: { scenarioId } });
+  const curL = current?.confirmedL ?? null;
+  const curImpact = current?.confirmedImpact ?? null;
+  const curScore = current?.confirmedScore ?? null;
+  const curBand = current?.confirmedBand ?? null;
+  // OD's `curConf` gate is `!!sc.current.confirmedAt` alone. This backend's
+  // "Auto-adopt Current Risk" (recalculateScenarioScores) sets confirmedAt
+  // unconditionally the instant a scenario exists, even fully unrated (score
+  // 0 — the same "not assessed" sentinel this codebase already uses for
+  // overallImpact/inherentScore, G-21). A literal confirmedAt-only gate would
+  // make tier 3 fire on that zero placeholder and tier 4 unreachable, so this
+  // additionally requires a real (nonzero) confirmed score — the adaptation
+  // this repo's auto-adopt behavior requires to keep the tier faithful.
+  const curMeaningful = !!(current && current.confirmedAt && curScore != null && curScore > 0 && curL && curImpact);
+
+  let pick: { l: number; impact: number; score: number; band: string; basis: IsraResidualBasis } | null = null;
+
+  // Tier 1 — verified (Method C over controls verified this cycle).
+  const actualRes = await IsraScenarioActualResidual.findOne({ where: { scenarioId } });
+  if (actualRes && (actualRes.verifiedControlIds || []).length > 0) {
+    const l = actualRes.suggestedL ?? 0;
+    const impact = actualRes.suggestedImpact ?? 0;
+    const score = actualRes.suggestedScore ?? l * impact;
+    pick = { l, impact, score, band: actualRes.suggestedBand || getRiskBand(score), basis: "verified" };
+  }
+
+  // Tier 2 — projected (user-assessed, never Method C).
+  if (!pick) {
+    const projected = await IsraScenarioProjectedResidual.findOne({ where: { scenarioId } });
+    if (projected && projected.confirmedL && projected.confirmedImpact) {
+      const score = projected.confirmedScore ?? projected.confirmedL * projected.confirmedImpact;
+      pick = { l: projected.confirmedL, impact: projected.confirmedImpact, score, band: projected.confirmedBand || getRiskBand(score), basis: "projected" };
+    }
+  }
+
+  // Tier 3 — current (see curMeaningful above). A scenario with no
+  // meaningfully-scored Current Risk yet (unrated, or no Current Risk row at
+  // all) falls through to inherent below instead of duplicating the Method C
+  // derivation for a case OD's own "derive fresh" branch would otherwise cover.
+  if (!pick && curMeaningful) {
+    pick = { l: curL as number, impact: curImpact as number, score: curScore as number, band: curBand || getRiskBand(curScore as number), basis: "current" };
+  }
+
+  // Tier 4 — inherent.
+  if (!pick) {
+    const impacts = await IsraScenarioPotentialImpact.findAll({ where: { scenarioId } });
+    const weighted = calculateWeightedSeverity(
+      impacts.map((i) => i.get({ plain: true })) as { area: string; severity: number }[],
+      scenario.impactOverride as { severity: number; justification?: string } | null,
+    );
+    const oi = weighted.sev || 3;
+    const iL = scenario.inherentL || 3;
+    pick = { l: iL, impact: oi, score: iL * oi, band: getRiskBand(iL * oi), basis: "inherent" };
+  }
+
+  // Cap at Current — treatment cannot raise the risk above where it already sits.
+  if (curMeaningful && pick.score > (curScore as number)) {
+    pick = { l: curL as number, impact: curImpact as number, score: curScore as number, band: curBand || getRiskBand(curScore as number), basis: "current" };
+  }
+
+  return { ...pick, basisText: residualBasisText(pick.basis) };
+}
+
 export async function saveResidual(auth: AuthContext, scenarioId: string, input: Record<string, unknown>, _ip: string | null) {
   const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId: auth.orgId } });
   if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
 
   let residual = await IsraScenarioResidual.findOne({ where: { scenarioId } });
-  const score = typeof input.score === "number" ? input.score : 4;
+  // OD's residual is always L x Impact (isra2ResidualForm.onOk: `sco=L*I`) —
+  // accept L/impact when the caller has them and derive score from them.
+  // A bare `score` is still accepted (and still wins if L/impact are absent)
+  // so existing callers that only ever posted a raw score keep working.
+  const l = typeof input.l === "number" ? input.l : typeof input.L === "number" ? (input.L as number) : null;
+  const impact = typeof input.impact === "number" ? input.impact : null;
+  const score = l != null && impact != null ? l * impact : typeof input.score === "number" ? input.score : 4;
   const band = getRiskBand(score);
   const adequacy = await computeAdequacy(score, auth.orgId);
 
   if (!residual) {
     residual = await IsraScenarioResidual.create({
       scenarioId,
+      l,
+      impact,
       score,
       band,
       basis: str(input.basis) || "verified",
@@ -899,6 +1032,8 @@ export async function saveResidual(auth: AuthContext, scenarioId: string, input:
       adequacy,
     });
   } else {
+    residual.l = l ?? residual.l;
+    residual.impact = impact ?? residual.impact;
     residual.score = score;
     residual.band = band;
     residual.basis = str(input.basis) || residual.basis;
@@ -910,6 +1045,62 @@ export async function saveResidual(auth: AuthContext, scenarioId: string, input:
   }
 
   return residual.get({ plain: true });
+}
+
+/**
+ * Ports OD's `isra2ProjForm` save (app.html:19374's `onOk`) — the Phase-3
+ * USER-assessed Projected Residual entered during RTP planning. Unlike
+ * Current/Actual Residual, OD deliberately does not run Method C here
+ * (planned/added controls aren't operating or evidenced yet), so this only
+ * persists the caller's L/impact — `suggestedL/Impact/Score/Band` are left
+ * null (see the class doc on `IsraScenarioProjectedResidual`).
+ */
+export async function saveProjectedResidual(auth: AuthContext, scenarioId: string, input: Record<string, unknown>, _ip: string | null) {
+  const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId: auth.orgId } });
+  if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
+
+  const l = typeof input.l === "number" ? input.l : typeof input.L === "number" ? (input.L as number) : null;
+  const impact = typeof input.impact === "number" ? input.impact : null;
+  if (!l || !impact) {
+    throw new BadRequestError("Projected Likelihood and Impact are required", "PROJECTED_LC_REQUIRED");
+  }
+  const score = l * impact;
+  const band = getRiskBand(score);
+  const adequacy = await computeAdequacy(score, auth.orgId);
+  const rtp = await IsraRtp.findOne({ where: { scenarioId, isCurrent: true } });
+
+  let projected = await IsraScenarioProjectedResidual.findOne({ where: { scenarioId } });
+  if (!projected) {
+    projected = await IsraScenarioProjectedResidual.create({
+      scenarioId,
+      suggestedL: null,
+      suggestedImpact: null,
+      suggestedScore: null,
+      suggestedBand: null,
+      confirmedL: l,
+      confirmedImpact: impact,
+      confirmedScore: score,
+      confirmedBand: band,
+      rtpVersion: rtp?.version ?? null,
+      adequacy,
+      confirmedAt: new Date(),
+      confirmedBy: auth.userId,
+      needsReview: false,
+    });
+  } else {
+    projected.confirmedL = l;
+    projected.confirmedImpact = impact;
+    projected.confirmedScore = score;
+    projected.confirmedBand = band;
+    projected.rtpVersion = rtp?.version ?? null;
+    projected.adequacy = adequacy;
+    projected.confirmedAt = new Date();
+    projected.confirmedBy = auth.userId;
+    projected.needsReview = false;
+    await projected.save();
+  }
+
+  return projected.get({ plain: true });
 }
 
 export async function canCloseScenario(scenarioId: string, orgId: string): Promise<{ canClose: boolean; reasons: string[] }> {
@@ -949,6 +1140,24 @@ export async function canCloseScenario(scenarioId: string, orgId: string): Promi
   return { canClose: reasons.length === 0, reasons };
 }
 
+/**
+ * Ports OD's `isra2PromoteResidual(sc)` (app.html:18669) — promotes the
+ * confirmed residual to Current, closes the cycle, and either accepts the
+ * risk (within appetite) or leaves it open for further treatment (above
+ * appetite):
+ *   - snapshot the cycle (current/treatment/rtp/actual/residual/projected)
+ *   - current <- residual (L, impact, score, band)
+ *   - null out residual AND projected, evalCycle++
+ *   - reviewDue via the within/above review period
+ *   - within appetite: mark accepted, archive the RTP out of "current",
+ *     clear added controls (they're baked into the new Current now)
+ *   - above appetite: leave "accepted" unset
+ * OD's `sc.accepted={at,by,score}` has no dedicated column in this schema;
+ * this port already used `treatment.status = "Accepted"` as the closest
+ * available signal (pre-existing choice, kept) — fixed here to apply
+ * unconditionally within appetite rather than only when the treatment
+ * decision happened to already be "Active".
+ */
 export async function promoteResidual(auth: AuthContext, scenarioId: string, _ip: string | null) {
   const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId: auth.orgId } });
   if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
@@ -960,6 +1169,16 @@ export async function promoteResidual(auth: AuthContext, scenarioId: string, _ip
   const treatment = await IsraScenarioTreatmentDecision.findOne({ where: { scenarioId, isCurrent: true } });
   const rtp = await IsraRtp.findOne({ where: { scenarioId, isCurrent: true } });
   const actualRes = await IsraScenarioActualResidual.findOne({ where: { scenarioId } });
+  const projected = await IsraScenarioProjectedResidual.findOne({ where: { scenarioId } });
+
+  // Appetite check drives both the review period and the accept/keep-treating branch.
+  const appetiteLog = await IsraAppetiteLog.findOne({ where: { orgId: auth.orgId }, order: [["version", "DESC"]] });
+  const appetiteThreshold = appetiteLog?.threshold ?? 9;
+  const promotedScore = residual.score ?? 4;
+  const promotedBand = residual.band ?? getRiskBand(promotedScore);
+  const promotedL = residual.l ?? 1;
+  const promotedImpact = residual.impact ?? 1;
+  const within = promotedScore <= appetiteThreshold;
 
   // 1. Archive cycle history snapshot
   const currentCycle = scenario.evalCycle || 1;
@@ -972,7 +1191,11 @@ export async function promoteResidual(auth: AuthContext, scenarioId: string, _ip
       treatmentDecision: treatment ? treatment.get({ plain: true }) : null,
       rtp: rtp ? rtp.get({ plain: true }) : null,
       actualResidual: actualRes ? actualRes.get({ plain: true }) : null,
+      projectedResidual: projected ? projected.get({ plain: true }) : null,
       residual: residual.get({ plain: true }),
+      dueDate: scenario.reviewDue || "",
+      completedAt: new Date().toISOString(),
+      completedBy: auth.userId,
     },
     archivedAt: new Date(),
   });
@@ -980,9 +1203,7 @@ export async function promoteResidual(auth: AuthContext, scenarioId: string, _ip
   // 2. Advance evaluation cycle
   scenario.evalCycle = currentCycle + 1;
 
-  // 3. Promote residual to current risk confirmed score
-  const promotedScore = residual.score ?? 4;
-  const promotedBand = residual.band ?? getRiskBand(promotedScore);
+  // 3. Promote residual (L, impact, score, band) to Current
   if (!current) {
     current = await IsraScenarioCurrentRisk.create({
       scenarioId,
@@ -990,13 +1211,13 @@ export async function promoteResidual(auth: AuthContext, scenarioId: string, _ip
       methodVer: 1,
       calcAt: new Date(),
       iL: scenario.inherentL || 1,
-      iImpact: 1,
-      suggestedL: 1,
-      suggestedImpact: 1,
+      iImpact: promotedImpact,
+      suggestedL: promotedL,
+      suggestedImpact: promotedImpact,
       suggestedScore: promotedScore,
       suggestedBand: promotedBand,
-      confirmedL: 1,
-      confirmedImpact: 1,
+      confirmedL: promotedL,
+      confirmedImpact: promotedImpact,
       confirmedScore: promotedScore,
       confirmedBand: promotedBand,
       confirmedAt: new Date(),
@@ -1005,6 +1226,8 @@ export async function promoteResidual(auth: AuthContext, scenarioId: string, _ip
       eligibleControlIds: [],
     });
   } else {
+    current.confirmedL = promotedL;
+    current.confirmedImpact = promotedImpact;
     current.confirmedScore = promotedScore;
     current.confirmedBand = promotedBand;
     current.confirmedAt = new Date();
@@ -1012,26 +1235,35 @@ export async function promoteResidual(auth: AuthContext, scenarioId: string, _ip
     await current.save();
   }
 
-  // 4. Check appetite threshold and calculate review due date
-  const appetiteLog = await IsraAppetiteLog.findOne({ where: { orgId: auth.orgId }, order: [["version", "DESC"]] });
-  const appetiteThreshold = appetiteLog?.threshold ?? 9;
-
-  const reviewMonths = promotedScore <= 4 ? 12 : promotedScore <= 9 ? 6 : promotedScore <= 15 ? 3 : 1;
+  // 4. Review due — isra2ReviewPeriodMonths(within), mapped onto this
+  // backend's pre-existing IsraOrgSettings.reviewPeriodWithinDays/AboveDays
+  // (days, not OD's tenant-configurable within/above MONTHS setting — reused
+  // rather than adding a second, parallel period config).
+  const orgSettings = await IsraOrgSettings.findOne({ where: { orgId: auth.orgId } });
+  const reviewDays = within ? (orgSettings?.reviewPeriodWithinDays ?? 365) : (orgSettings?.reviewPeriodAboveDays ?? 90);
   const nextReview = new Date();
-  nextReview.setMonth(nextReview.getMonth() + reviewMonths);
+  nextReview.setDate(nextReview.getDate() + reviewDays);
   scenario.reviewDue = nextReview.toISOString().slice(0, 10);
 
-  if (promotedScore <= appetiteThreshold) {
-    if (treatment && treatment.status === "Active") {
+  // 5. Within appetite: accept + archive the RTP out of "current" + clear added controls.
+  //    Above appetite: leave acceptance unset — further treatment is needed.
+  if (within) {
+    if (treatment) {
       treatment.status = "Accepted";
       await treatment.save();
     }
+    if (rtp) {
+      rtp.isCurrent = false;
+      await rtp.save();
+    }
+    await IsraScenarioAddedControl.destroy({ where: { scenarioId } });
   }
 
   await scenario.save();
 
-  // 5. Clear residual slot for next cycle
+  // 6. Clear residual AND projected slots for the next cycle.
   await residual.destroy();
+  if (projected) await projected.destroy();
 
   await writeAudit({
     actorUserId: auth.userId,
@@ -1043,5 +1275,5 @@ export async function promoteResidual(auth: AuthContext, scenarioId: string, _ip
     result: "Success",
   });
 
-  return { promoted: true, cycle: scenario.evalCycle, reviewDue: scenario.reviewDue };
+  return { promoted: true, cycle: scenario.evalCycle, reviewDue: scenario.reviewDue, within };
 }
