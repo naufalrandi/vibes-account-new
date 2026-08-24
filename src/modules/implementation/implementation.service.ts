@@ -655,6 +655,20 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
     provisionApproveStamp = { approver: (await actorName(auth)) ?? "", approvedDate: new Date().toISOString() };
   }
 
+  // OD `supSet`/`supQualify` (app.html:31444-31445): qualifying a supplier
+  // (transition into Approved) stamps `qualifiedDate` (today) and
+  // `requalDate` (today + 1 year), date-only — never typed form fields.
+  let supplierQualifyStamp: Record<string, unknown> | undefined;
+  if (module === "suppliers" && input.status === "Approved" && r.status !== "Approved") {
+    const today = new Date();
+    const requal = new Date(today);
+    requal.setFullYear(requal.getFullYear() + 1);
+    supplierQualifyStamp = {
+      qualifiedDate: today.toISOString().slice(0, 10),
+      requalDate: requal.toISOString().slice(0, 10),
+    };
+  }
+
   const statusChanged = input.status !== undefined && input.status !== r.status;
   const prevStatus = r.status;
   if (input.title !== undefined) r.title = input.title.trim();
@@ -663,9 +677,10 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
     r.status = input.status;
   }
   if (input.owner !== undefined) r.owner = input.owner;
-  if (input.data !== undefined || archiveStamp || reviewStamp || provisionApproveStamp) {
+  if (input.data !== undefined || archiveStamp || reviewStamp || provisionApproveStamp || supplierQualifyStamp) {
     r.data = enrichData(module, {
-      ...(input.data ?? r.data ?? {}), ...(archiveStamp ?? {}), ...(reviewStamp ?? {}), ...(provisionApproveStamp ?? {}),
+      ...(input.data ?? r.data ?? {}), ...(archiveStamp ?? {}), ...(reviewStamp ?? {}),
+      ...(provisionApproveStamp ?? {}), ...(supplierQualifyStamp ?? {}),
     });
   }
   if (input.elementId !== undefined) r.elementId = input.elementId;

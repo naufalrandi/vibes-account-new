@@ -173,6 +173,32 @@ describe("ISO clause registers (implementation)", () => {
     expect(reApproved.body.data.data.approvedDate).toBe(firstApprovedDate);
   });
 
+  // G-58: OD `supSet`/`supQualify` (app.html:31444-31445) stamp
+  // `qualifiedDate` (today) and `requalDate` (today + 1 year), date-only, as
+  // a side effect of qualifying a supplier (transition into Approved) — a
+  // new supplier is never created already Approved (`supEditModal` always
+  // creates at "Pending Qualification"; the tenant registry has no
+  // `createStatuses` override, so an omitted status already defaults there).
+  it("stamps qualifiedDate/requalDate a year out when a supplier is qualified (Approved)", async () => {
+    const { token } = await makeTenant("t1", "TEN1");
+    const created = await request(app).post("/v1/implementation/suppliers").set(authed(token))
+      .send({ title: "Continental Steel Supply", data: { categories: ["Raw Materials"] } });
+    expect(created.body.data.status).toBe("Pending Qualification");
+    expect(created.body.data.data.qualifiedDate ?? "").toBe("");
+
+    const approved = await request(app).put(`/v1/implementation/suppliers/${created.body.data.id}`).set(authed(token))
+      .send({ status: "Approved" });
+    expect(approved.body.data.status).toBe("Approved");
+    const qualified = approved.body.data.data.qualifiedDate as string;
+    const requal = approved.body.data.data.requalDate as string;
+    expect(qualified).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(requal).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(Number(requal.slice(0, 4)) - Number(qualified.slice(0, 4))).toBe(1);
+    expect(requal.slice(5)).toBe(qualified.slice(5)); // same month/day
+    // Unrelated fields already on the record survive the stamp.
+    expect(approved.body.data.data.categories).toEqual(["Raw Materials"]);
+  });
+
   // P-6.4: OD's `cabClientForm` create path defaults an omitted status to
   // "Certified" (`g('cab-st')||'Certified'`, app.html:13215). `statuses[0]`
   // stays "Applicant" (display order + what registryParity.test.ts asserts);
