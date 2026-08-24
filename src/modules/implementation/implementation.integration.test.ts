@@ -148,6 +148,31 @@ describe("ISO clause registers (implementation)", () => {
     expect(allowedEdit.body.data.title).toBe("Custom Onboarding v2");
   });
 
+  // G-57: OD `prvApprove` (app.html:12192) stamps `approver`/`approvedDate`
+  // from the acting user and the clock as a side effect of the Approve
+  // action — never as typed form fields. Re-approving (already Approved)
+  // must not re-stamp the date.
+  it("stamps approver/approvedDate when a control plan is approved (provision)", async () => {
+    const { token } = await makeTenant("t1", "TEN1");
+    const created = await request(app).post("/v1/implementation/provision").set(authed(token))
+      .send({ title: "Widget Line — Control Plan", data: { productService: "Widgets", revision: "1.0" } });
+    expect(created.body.data.data.approver ?? "").toBe("");
+
+    const approved = await request(app).put(`/v1/implementation/provision/${created.body.data.id}`).set(authed(token))
+      .send({ status: "Approved" });
+    expect(approved.body.data.status).toBe("Approved");
+    expect(approved.body.data.data.approver).toBe("T");
+    expect(typeof approved.body.data.data.approvedDate).toBe("string");
+    expect(approved.body.data.data.approvedDate.length).toBeGreaterThan(0);
+    // Unrelated fields already on the record survive the stamp.
+    expect(approved.body.data.data.productService).toBe("Widgets");
+
+    const firstApprovedDate = approved.body.data.data.approvedDate;
+    const reApproved = await request(app).put(`/v1/implementation/provision/${created.body.data.id}`).set(authed(token))
+      .send({ status: "Approved" });
+    expect(reApproved.body.data.data.approvedDate).toBe(firstApprovedDate);
+  });
+
   // P-6.4: OD's `cabClientForm` create path defaults an omitted status to
   // "Certified" (`g('cab-st')||'Certified'`, app.html:13215). `statuses[0]`
   // stays "Applicant" (display order + what registryParity.test.ts asserts);

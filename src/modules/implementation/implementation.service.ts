@@ -647,6 +647,14 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
     }
   }
 
+  // OD `prvApprove` (app.html:12192): approving a control plan stamps
+  // `approver`/`approvedDate` from the acting user and the clock — they are
+  // never form fields, only the side effect of the Approve action.
+  let provisionApproveStamp: Record<string, unknown> | undefined;
+  if (module === "provision" && input.status === "Approved" && r.status !== "Approved") {
+    provisionApproveStamp = { approver: (await actorName(auth)) ?? "", approvedDate: new Date().toISOString() };
+  }
+
   const statusChanged = input.status !== undefined && input.status !== r.status;
   const prevStatus = r.status;
   if (input.title !== undefined) r.title = input.title.trim();
@@ -655,8 +663,10 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
     r.status = input.status;
   }
   if (input.owner !== undefined) r.owner = input.owner;
-  if (input.data !== undefined || archiveStamp || reviewStamp) {
-    r.data = enrichData(module, { ...(input.data ?? r.data ?? {}), ...(archiveStamp ?? {}), ...(reviewStamp ?? {}) });
+  if (input.data !== undefined || archiveStamp || reviewStamp || provisionApproveStamp) {
+    r.data = enrichData(module, {
+      ...(input.data ?? r.data ?? {}), ...(archiveStamp ?? {}), ...(reviewStamp ?? {}), ...(provisionApproveStamp ?? {}),
+    });
   }
   if (input.elementId !== undefined) r.elementId = input.elementId;
   if (input.frameworks !== undefined) r.frameworks = input.frameworks;
