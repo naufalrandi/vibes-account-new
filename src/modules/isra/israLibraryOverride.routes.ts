@@ -8,7 +8,7 @@ const read = requireAction(ACTIONS.ISRA_LIBRARY_READ);
 // action, distinct from the platform-admin `ISRA_LIBRARY_ADMIN` grant used by
 // `israTaxonomy.routes.ts`/`israAssetLibrary.routes.ts` — any org with this
 // grant may customize its OWN library, enforced by `targetOrg` in the service.
-const manage = requireAction(ACTIONS.ISRA_LIBRARY_MANAGE);
+const manage = requireAction(ACTIONS.ISRA_ORG_CONTROL_MANAGE);
 
 export const israLibraryOverrideRoutes = Router();
 

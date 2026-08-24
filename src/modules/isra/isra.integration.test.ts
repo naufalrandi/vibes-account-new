@@ -161,6 +161,11 @@ describe("isra Lt override/item/archive/audit system (F-2a)", () => {
   beforeAll(() => initModels());
   afterEach(() => resetDb());
 
+  // The `manage` gate on israLibraryOverride.routes.ts is ISRA_ORG_CONTROL_MANAGE
+  // (gap register G-2) — org-level Lt customization is a tenant-manage action,
+  // not the SP-only ISRA_LIBRARY_MANAGE (platform library curation). Grant the
+  // same action a real tenant gets from `grantEverythingExceptSpOnly`.
+
   async function seedPlatformPrimaryAsset(token: string): Promise<{ id: string; name: string }> {
     const group = await request(app).post("/v1/isra/taxonomy/pa-groups").set(authed(token)).send({ name: "Business Records" });
     const sub = await request(app).post("/v1/isra/taxonomy/pa-subgroups").set(authed(token))
@@ -173,7 +178,7 @@ describe("isra Lt override/item/archive/audit system (F-2a)", () => {
   it("customizes a platform item via override, then restores the platform default", async () => {
     const soToken = await soLogin();
     const asset = await seedPlatformPrimaryAsset(soToken);
-    const { token } = await makeTenant("lt1", "LT1", [ACTIONS.ISRA_LIBRARY_READ, ACTIONS.ISRA_LIBRARY_MANAGE]);
+    const { token } = await makeTenant("lt1", "LT1", [ACTIONS.ISRA_LIBRARY_READ, ACTIONS.ISRA_ORG_CONTROL_MANAGE]);
 
     const effBefore = await request(app).get("/v1/isra/lt/primary/effective").set(authed(token));
     expect(effBefore.status).toBe(200);
@@ -213,7 +218,7 @@ describe("isra Lt override/item/archive/audit system (F-2a)", () => {
   it("creates, copies, updates, archives and unarchives tenant-owned library items", async () => {
     const soToken = await soLogin();
     const asset = await seedPlatformPrimaryAsset(soToken);
-    const { token } = await makeTenant("lt2", "LT2", [ACTIONS.ISRA_LIBRARY_READ, ACTIONS.ISRA_LIBRARY_MANAGE]);
+    const { token } = await makeTenant("lt2", "LT2", [ACTIONS.ISRA_LIBRARY_READ, ACTIONS.ISRA_ORG_CONTROL_MANAGE]);
 
     const created = await request(app).post("/v1/isra/lt/primary/items").set(authed(token)).send({ name: "Wholly Custom Asset" });
     expect(created.status).toBe(201);
@@ -262,8 +267,8 @@ describe("isra Lt override/item/archive/audit system (F-2a)", () => {
   it("isolates Lt customizations and audit entries between orgs", async () => {
     const soToken = await soLogin();
     const asset = await seedPlatformPrimaryAsset(soToken);
-    const t1 = await makeTenant("iso1", "ISO1", [ACTIONS.ISRA_LIBRARY_READ, ACTIONS.ISRA_LIBRARY_MANAGE]);
-    const t2 = await makeTenant("iso2", "ISO2", [ACTIONS.ISRA_LIBRARY_READ, ACTIONS.ISRA_LIBRARY_MANAGE]);
+    const t1 = await makeTenant("iso1", "ISO1", [ACTIONS.ISRA_LIBRARY_READ, ACTIONS.ISRA_ORG_CONTROL_MANAGE]);
+    const t2 = await makeTenant("iso2", "ISO2", [ACTIONS.ISRA_LIBRARY_READ, ACTIONS.ISRA_ORG_CONTROL_MANAGE]);
 
     const t1Save = await request(app).put(`/v1/isra/lt/primary/overrides/${asset.id}`).set(authed(t1.token)).send({ name: "Org1 Name" });
     expect(t1Save.status).toBe(200);
