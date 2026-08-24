@@ -60,6 +60,7 @@ import { IsraScenario, IsraScenarioVuln, IsraScenarioPotentialImpact, IsraExisti
 import { IsraScenarioTreatmentDecision, IsraScenarioRecommendationSnapshot, IsraScenarioRecommendationDisposition, IsraScenarioAddedControl, IsraRtp, IsraRtpAction, IsraRtpActionControl } from "./israTreatmentRtp.models";
 import { IsraScenarioProjectedResidual, IsraScenarioActualResidual, IsraScenarioResidual, IsraScenarioClosure, IsraScenarioCycle, IsraInitiative, IsraInitiativeScenario, IsraAppetiteLog } from "./israResidualCycle.models";
 import { IsraEvidence, IsraAudit, IsraScenarioTemplate, IsraSoaJustification, IsraOrgSettings } from "./israSupport.models";
+import { SaasPipeline, SaasSubscription, SaasWorkspace } from "./saas.models";
 
 let initialized = false;
 
@@ -612,4 +613,7 @@ export {
   IsraScenarioTemplate,
   IsraSoaJustification,
   IsraOrgSettings,
+  SaasPipeline,
+  SaasSubscription,
+  SaasWorkspace,
 };

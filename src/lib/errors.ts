@@ -39,3 +39,15 @@ export class TooManyRequestsError extends AppError {
     super(code, message, 429);
   }
 }
+/**
+ * SaaS lifecycle lockout (G-75): the tenant's workspace subscription is in
+ * Grace 2 / Archived / Purged. 423 (WebDAV "Locked") distinguishes a
+ * lifecycle lockout from an ordinary permission failure (403) so callers can
+ * tell "you don't have this grant" apart from "nobody on this tenant has any
+ * grant right now — the subscription lapsed."
+ */
+export class LockedError extends AppError {
+  constructor(message = "This workspace is locked", code = "SUBSCRIPTION_LOCKED") {
+    super(code, message, 423);
+  }
+}
