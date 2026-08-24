@@ -102,13 +102,21 @@ export const RISK_STATUSES = [
 export type RiskStatus = (typeof RISK_STATUSES)[number];
 
 // "Archived" is a real member of RISK_STATUSES (the service does hold risks
-// in that status), but it is reachable through exactly one door:
-// archiveRisk()'s dedicated POST /:id/archive, which enforces the
-// Monitored-only precondition (below) and writes its own "risk.archived"
-// audit trail. This set names the statuses that updateRisk()'s generic
-// attribute updater must refuse to write, regardless of the risk's current
-// status — a rule about which *transition* is permitted through this
-// endpoint, not a gap in the vocabulary RISK_STATUSES itself.
+// in that status), but this module's own updateRisk() refuses to write it —
+// it is reachable through this module only via archiveRisk()'s dedicated
+// POST /:id/archive, which enforces the Monitored-only precondition (below)
+// and writes its own "risk.archived" audit trail. This is NOT the only door
+// into "Archived" on this record, though: both this service and
+// implementation.service.ts's generic module CRUD operate on the same
+// ImplementationRecord rows (module: "risks"), and PUT /v1/implementation/
+// risks/:id can also set status to "Archived" — guarded by that file's own
+// assertRiskArchivable() enforcing the identical Monitored-only/terminal
+// rule, so there is no hole, but it writes a generic "ms.risks.updated"
+// audit action instead of "risk.archived". This set names the statuses that
+// THIS module's updateRisk() must refuse to write, regardless of the risk's
+// current status — a rule about which *transition* is permitted through
+// this specific endpoint, not a gap in the vocabulary RISK_STATUSES itself,
+// and not a claim about every endpoint that can touch these rows.
 const STATUSES_ONLY_VIA_DEDICATED_ENDPOINT: ReadonlySet<RiskStatus> = new Set(["Archived"]);
 
 function rUid(prefix: string): string {
