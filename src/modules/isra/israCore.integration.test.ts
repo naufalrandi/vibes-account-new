@@ -243,3 +243,51 @@ describe("ISRA Core: Asset Map, Scenarios, Method C Scoring & SoA (F-3 to F-6)",
     expect(justRes.body.data.justification).toBe("Required for database boundary isolation");
   });
 });
+
+describe("ISRA gap-register Wave Q, task Q3 fixes", () => {
+  beforeAll(() => initModels());
+  afterEach(() => resetDb());
+
+  async function createBareScenario(token: string) {
+    const scenRes = await request(app)
+      .post("/v1/isra/scenarios")
+      .set(authed(token))
+      .send({
+        primaryAssetRef: "PAL-001",
+        secondaryAssetRef: "SAL-001",
+        threatId: "THR-001",
+        title: "Unassessed scenario",
+        inherentL: 4,
+        includedVulns: ["VUL-001"],
+        // Deliberately no potentialImpacts — this scenario is not yet assessed.
+      });
+    expect(scenRes.status).toBe(201);
+    return scenRes.body.data;
+  }
+
+  // G-21 — an unrated scenario must not score as "Low".
+  it("keeps overallImpact/inherentScore/inherentBand at the unassessed sentinel (0/0/'') instead of coercing to Low, on both create and list", async () => {
+    const { token } = await makeTenant("isra_g21", "ORG_ISRA_G21");
+    const scen = await createBareScenario(token);
+
+    // Consumer 1: getScenarioById (returned directly from create, and from a fresh GET).
+    expect(scen.overallImpact).toBe(0);
+    expect(scen.inherentScore).toBe(0);
+    expect(scen.inherentBand).toBe("");
+
+    const getRes = await request(app).get(`/v1/isra/scenarios/${scen.id}`).set(authed(token));
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.data.overallImpact).toBe(0);
+    expect(getRes.body.data.inherentScore).toBe(0);
+    expect(getRes.body.data.inherentBand).toBe("");
+
+    // Consumer 2: listScenarios (a separate code path with its own copy of the sentinel logic).
+    const listRes = await request(app).get("/v1/isra/scenarios").set(authed(token));
+    expect(listRes.status).toBe(200);
+    const listed = listRes.body.data.find((s: { id: string }) => s.id === scen.id);
+    expect(listed).toBeTruthy();
+    expect(listed.overallImpact).toBe(0);
+    expect(listed.inherentScore).toBe(0);
+    expect(listed.inherentBand).toBe("");
+  });
+});

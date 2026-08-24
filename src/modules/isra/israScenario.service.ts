@@ -383,9 +383,12 @@ export async function listScenarios(auth: AuthContext) {
     plain.residual = resByScen.get(s.id) || null;
 
     const weighted = calculateWeightedSeverity(plain.potentialImpacts, plain.impactOverride);
-    plain.overallImpact = weighted.sev || 1;
-    plain.inherentScore = (plain.inherentL || 1) * plain.overallImpact;
-    plain.inherentBand = getRiskBand(plain.inherentScore);
+    // Unassessed (sev === 0) must stay 0 — coercing to 1 would render an
+    // unrated scenario as "Low" instead of "not assessed" (G-21; matches OD's
+    // isra2OverallImpact/isra2InherentScore, which never inflate sev to 1).
+    plain.overallImpact = weighted.sev;
+    plain.inherentScore = plain.inherentL > 0 && plain.overallImpact > 0 ? plain.inherentL * plain.overallImpact : 0;
+    plain.inherentBand = plain.inherentScore > 0 ? getRiskBand(plain.inherentScore) : "";
 
     return plain;
   });
@@ -437,9 +440,10 @@ export async function getScenarioById(auth: AuthContext, id: string) {
   plain.cycles = cycles.map((c) => c.get({ plain: true }));
 
   const weighted = calculateWeightedSeverity(plain.potentialImpacts, plain.impactOverride);
-  plain.overallImpact = weighted.sev || 1;
-  plain.inherentScore = (plain.inherentL || 1) * plain.overallImpact;
-  plain.inherentBand = getRiskBand(plain.inherentScore);
+  // See listScenarios above — unassessed (sev === 0) must stay 0 (G-21).
+  plain.overallImpact = weighted.sev;
+  plain.inherentScore = plain.inherentL > 0 && plain.overallImpact > 0 ? plain.inherentL * plain.overallImpact : 0;
+  plain.inherentBand = plain.inherentScore > 0 ? getRiskBand(plain.inherentScore) : "";
 
   return plain;
 }
