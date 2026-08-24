@@ -555,7 +555,33 @@ export async function updateScenario(auth: AuthContext, id: string, input: Recor
   if (input.cia !== undefined) scenario.cia = (input.cia as any) || scenario.cia;
   if (input.inherentL !== undefined && typeof input.inherentL === "number") scenario.inherentL = input.inherentL;
   if (input.reviewDue !== undefined) scenario.reviewDue = str(input.reviewDue);
-  if (input.impactOverride !== undefined) scenario.impactOverride = (input.impactOverride as any) || null;
+  if (input.impactOverride !== undefined) {
+    const rawOverride = input.impactOverride as Record<string, unknown> | null;
+    if (rawOverride) {
+      // OD gates this at the form (isra2OverrideForm: "Justification is
+      // required for an override"), not at compute — this is the only
+      // enforcement point in this split, since no FE form posts here yet
+      // (G-20). An override without justification is an unauditable severity
+      // change on an ISO 27001 risk scenario, so refuse the save outright
+      // rather than silently persisting it.
+      const overrideSeverity = typeof rawOverride.severity === "number" ? rawOverride.severity : null;
+      const overrideJustification = str(rawOverride.justification);
+      if (overrideSeverity == null || overrideSeverity < 1 || overrideSeverity > 5) {
+        throw new BadRequestError("Override severity must be between 1 and 5", "OVERRIDE_SEVERITY_INVALID");
+      }
+      if (!overrideJustification) {
+        throw new BadRequestError("Override justification is required", "OVERRIDE_JUSTIFICATION_REQUIRED");
+      }
+      scenario.impactOverride = {
+        severity: overrideSeverity,
+        justification: overrideJustification,
+        by: auth.userId,
+        at: new Date().toISOString(),
+      };
+    } else {
+      scenario.impactOverride = null;
+    }
+  }
 
   await scenario.save();
 

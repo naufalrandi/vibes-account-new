@@ -290,4 +290,30 @@ describe("ISRA gap-register Wave Q, task Q3 fixes", () => {
     expect(listed.inherentScore).toBe(0);
     expect(listed.inherentBand).toBe("");
   });
+
+  // G-20 — an impact override without justification must be refused, not silently persisted.
+  it("refuses to save an impact override without a justification, and accepts one with justification", async () => {
+    const { token } = await makeTenant("isra_g20", "ORG_ISRA_G20");
+    const scen = await createBareScenario(token);
+
+    const noJust = await request(app)
+      .put(`/v1/isra/scenarios/${scen.id}`)
+      .set(authed(token))
+      .send({ impactOverride: { severity: 4 } });
+    expect(noJust.status).toBe(400);
+    expect(noJust.body.error.code).toBe("OVERRIDE_JUSTIFICATION_REQUIRED");
+
+    // Confirm nothing was persisted by the rejected save.
+    const afterReject = await request(app).get(`/v1/isra/scenarios/${scen.id}`).set(authed(token));
+    expect(afterReject.body.data.impactOverride).toBeFalsy();
+
+    const withJust = await request(app)
+      .put(`/v1/isra/scenarios/${scen.id}`)
+      .set(authed(token))
+      .send({ impactOverride: { severity: 4, justification: "Board-approved worst-case scenario for this asset class" } });
+    expect(withJust.status).toBe(200);
+    expect(withJust.body.data.impactOverride.severity).toBe(4);
+    expect(withJust.body.data.impactOverride.justification).toBe("Board-approved worst-case scenario for this asset class");
+    expect(withJust.body.data.overallImpact).toBe(4);
+  });
 });
