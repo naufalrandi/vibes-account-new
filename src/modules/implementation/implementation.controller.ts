@@ -80,7 +80,7 @@ export async function putDocumentSettings(req: Request, res: Response, next: Nex
   }
 }
 
-// --- Awareness settings + campaign launch/ack/eval (OD `aw*` 14227–14680) ----
+// --- Awareness settings + campaign launch/ack/eval (OD `aw*` app.html:25297–25867) ----
 
 const awSettingsSchema = z.record(z.string(), z.unknown());
 

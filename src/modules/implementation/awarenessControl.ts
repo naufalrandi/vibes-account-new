@@ -11,21 +11,28 @@ import { MS_MODULES } from "./registry";
 
 /**
  * Awareness acknowledgment / evaluation stack — the server-side half of OD's
- * `aw*` helpers (index.html:14227–14680). The three registers stay inside
- * `implementation_records` (modules `awareness` / `awareness-topics` /
- * `awareness-campaigns`); this module owns:
+ * `aw*` helpers (app.html:25297–25867; OD renamed index.html→app.html and
+ * this whole cluster shifted ~11000 lines — all citations below are
+ * re-derived against the current app.html, not the old index.html numbers).
+ * The three registers stay inside `implementation_records` (modules
+ * `awareness` / `awareness-topics` / `awareness-campaigns`); this module
+ * owns:
  *
- *  - the per-org `awSettings` singleton (OD 14240) in `awareness_settings`,
- *  - campaign launch: audience resolution (OD `awResolveAudience` 14262) +
- *    per-recipient ACK/AEV fan-out (OD `awCampDoLaunch` 14547–14552) stored as
+ *  - the per-org `awSettings` singleton (OD app.html:25337) in `awareness_settings`,
+ *  - campaign launch: audience resolution (OD `awResolveAudience` app.html:25359) +
+ *    per-recipient ACK/AEV fan-out (OD `awCampDoLaunch` app.html:25729) stored as
  *    `data.acks[]` / `data.evals[]` on the campaign record,
  *  - the acknowledgment mutations (acknowledge / remind / waive — OD
- *    `awAckDo` / `awAckRemind` / `awAckWaive` 14580–14596),
+ *    `awAckDo` / `awAckRemind` / `awAckWaive` app.html:25776-25778),
  *  - the evaluation mutations (record result / follow-up action / raise a
- *    Training Plan — OD `awEvalRecord` / `awEvalFollowup` / `awEvalToTP`
- *    14622–14643),
- *  - the derived roll-ups (`ackRate` / `evalRate`, OD 14268–14269) and the
- *    Partially Completed / Overdue / Completed campaign status transitions.
+ *    Training Plan — OD `awEvalTake` (auto-graded, app.html:25590) /
+ *    `awEvalAttest` (manager attestation, app.html:25802) / `awEvalFollowup`
+ *    (app.html:25812) / `awEvalToTP` (app.html:25822) — OD has no single
+ *    `awEvalRecord` function; "record result" is two OD functions depending
+ *    on `AW_EVAL_METHODS`),
+ *  - the derived roll-ups (`awCampAckRate` / `awCampEvalRate`, OD
+ *    app.html:25365-25366) and the Partially Completed / Overdue / Completed
+ *    campaign status transitions.
  *
  * Roll-up computation design: `ackRate` / `evalRate` and the derived campaign
  * status are BOTH (a) recomputed and PERSISTED on every mutation that touches
@@ -41,7 +48,7 @@ import { MS_MODULES } from "./registry";
  * never clobber each other's rows.
  */
 
-// --- Vocabulary (OD 14227–14239) ---------------------------------------------
+// --- Vocabulary (OD AW_* constants, app.html:25297-25310) ---------------------
 
 export const AW_ACK_STMT =
   "I acknowledge that I have read and understood the awareness material and understand my responsibilities related to this topic.";
@@ -88,7 +95,7 @@ export interface AwFollowup {
 
 export interface AwAudience { type?: string; members?: string[]; roles?: string[]; workUnits?: string[] }
 
-// --- Settings singleton (OD `awSettings` 14240) -------------------------------
+// --- Settings singleton (OD `awSettings` app.html:25337) ---------------------
 
 export const AW_SETTINGS_DEFAULTS = {
   requireMaterial: true,
@@ -145,7 +152,7 @@ function str(v: unknown): string {
 
 /**
  * A topic material still "counts" unless archived/superseded — OD
- * `awTopicActiveMats` (14257) filters `status !== 'Archived'`; the FE materials
+ * `awTopicActiveMats` (app.html:25350) filters `status !== 'Archived'`; the FE materials
  * panel marks replaced files `superseded: true`. Both shapes are honoured.
  */
 export function topicHasMaterial(data: Record<string, unknown> | null | undefined): boolean {
@@ -154,13 +161,13 @@ export function topicHasMaterial(data: Record<string, unknown> | null | undefine
   );
 }
 
-/** OD `awAckEff` (14260): a Pending ack past its due date reads as Overdue. */
+/** OD `awAckEff` (app.html:25357): a Pending ack past its due date reads as Overdue. */
 export function ackEffectiveStatus(a: Pick<AwAck, "status" | "due">, now = new Date()): string {
   if (a.status === "Pending" && a.due && new Date(a.due) < now) return "Overdue";
   return a.status;
 }
 
-/** OD `awCampAckRate` / `awCampEvalRate` (14268–14269) — null when no rows. */
+/** OD `awCampAckRate` / `awCampEvalRate` (app.html:25365-25366) — null when no rows. */
 export function campaignRates(data: Record<string, unknown>): { ackRate: number | null; evalRate: number | null } {
   const acks = arr<AwAck>(data.acks);
   const evals = arr<AwEval>(data.evals);
@@ -216,7 +223,7 @@ async function requireCampaign(auth: AuthContext, id: string, tx?: Transaction):
 }
 
 /**
- * OD `awNewId` (14253): one number sequence per tenant per prefix, across all
+ * OD `awNewId` (app.html:25348): one number sequence per tenant per prefix, across all
  * campaigns — scans every campaign's nested ledgers for the highest suffix.
  */
 async function nextNestedId(orgId: string, key: "acks" | "evals" | "followups", prefix: string, tx?: Transaction): Promise<number> {
@@ -237,7 +244,7 @@ async function nextNestedId(orgId: string, key: "acks" | "evals" | "followups", 
 
 const pad = (n: number) => String(n).padStart(4, "0");
 
-// --- Audience resolution (OD `awResolveAudience` 14262) -----------------------
+// --- Audience resolution (OD `awResolveAudience` app.html:25359) --------------
 
 /**
  * Resolves a campaign audience to concrete recipients against the org's Active
@@ -268,7 +275,7 @@ export async function resolveAudience(orgId: string, a: AwAudience | undefined |
   return team.map(toView);
 }
 
-// --- Campaign launch (OD `awCampLaunch` / `awCampDoLaunch` 14533–14555) -------
+// --- Campaign launch (OD `awCampDoLaunch` app.html:25729 / `awCampLaunch` app.html:25735) -------
 
 export interface CampaignRecordView {
   id: string; orgId: string; module: string; code: string; title: string;
@@ -303,7 +310,7 @@ export async function launchCampaign(auth: AuthContext, id: string, ip: string |
     if (topicRows.length !== topics.length) {
       throw new BadRequestError("One or more selected topics do not exist", "TOPIC_NOT_FOUND");
     }
-    // OD awCampLaunch (14556): the material gate holds unless the org opted out.
+    // OD awCampLaunch (app.html:25736): the material gate holds unless the org opted out.
     if (!settings.allowLaunchNoMaterial) {
       const noMat = topicRows.filter((tp) => !topicHasMaterial(tp.data));
       if (noMat.length > 0) {
@@ -420,7 +427,7 @@ function replaceRow<T extends { id: string }>(data: Record<string, unknown>, key
 
 // --- Acknowledgment mutations (OD `awAckDo`/`awAckRemind`/`awAckWaive`) -------
 
-/** OD `awAckDo` (14580): Pending/Overdue → Acknowledged, stamped now. */
+/** OD `awAckDo` (app.html:25776): Pending/Overdue → Acknowledged, stamped now. */
 export async function acknowledgeAck(auth: AuthContext, campaignId: string, ackId: string, ip: string | null): Promise<CampaignRecordView> {
   const { r } = await mutateCampaign(auth, campaignId, ip, (data) => {
     const a = requireAck(data, ackId);
@@ -438,7 +445,7 @@ export async function acknowledgeAck(auth: AuthContext, campaignId: string, ackI
 }
 
 /**
- * OD `awAckRemind` (14581): stamps `reminderDate` and raises a bell
+ * OD `awAckRemind` (app.html:25777): stamps `reminderDate` and raises a bell
  * notification for the recipient through the notifications module. Gated on
  * the org's `reminders` setting.
  */
@@ -467,7 +474,7 @@ export async function remindAck(auth: AuthContext, campaignId: string, ackId: st
   return decorateCampaignView(view(r));
 }
 
-/** OD `awAckWaive` (14582–14586): requires a typed reason, stamps who + when. */
+/** OD `awAckWaive` (app.html:25778-25779): requires a typed reason, stamps who + when. */
 export async function waiveAck(auth: AuthContext, campaignId: string, ackId: string, reason: string, ip: string | null): Promise<CampaignRecordView> {
   if (!reason || !reason.trim()) throw new BadRequestError("Waiver reason is required", "WAIVER_REASON_REQUIRED");
   const who = (await actorName(auth)) ?? "";
@@ -495,7 +502,9 @@ export interface EvalResultInput {
   method?: string; result: string; score?: string; evaluator?: string; notes?: string;
 }
 
-/** OD `awEvalRecord` (14622): record the result; Failed arms the follow-up flag. */
+/** OD has no single `awEvalRecord` — this ports both `awEvalTake` (auto-graded,
+ * app.html:25590) and `awEvalAttest` (manager attestation, app.html:25802);
+ * Failed arms the follow-up flag in both. */
 export async function recordEvaluation(
   auth: AuthContext, campaignId: string, evalId: string, input: EvalResultInput, ip: string | null,
 ): Promise<CampaignRecordView> {
@@ -531,7 +540,7 @@ export interface FollowupInput {
   title: string; description?: string; owner?: string; due?: string; priority?: string;
 }
 
-/** OD `awEvalFollowup` (14629): a Failed evaluation raises `data.followups[]`. */
+/** OD `awEvalFollowup` (app.html:25812): a Failed evaluation raises `data.followups[]`. */
 export async function createEvalFollowup(
   auth: AuthContext, campaignId: string, evalId: string, input: FollowupInput, ip: string | null,
 ): Promise<CampaignRecordView> {
@@ -567,7 +576,7 @@ export async function createEvalFollowup(
 }
 
 /**
- * OD `awEvalToTP` (14639): a failed evaluation raises a Training Plan record
+ * OD `awEvalToTP` (app.html:25822): a failed evaluation raises a Training Plan record
  * (`training` register) with `source: "Awareness Follow-up"`, cross-linked both
  * ways — the eval stores the training code/id, the training record stores the
  * campaign/topic/eval ids.
