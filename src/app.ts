@@ -63,6 +63,7 @@ import { israOrgControlRoutes } from "./modules/isra-threat-vuln-library/israOrg
 import { israRoutes } from "./modules/isra/isra.routes";
 import { israAssetLibraryRoutes } from "./modules/isra/israAssetLibrary.routes";
 import { riskRoutes } from "./modules/risks/risk.routes";
+import { saasRoutes } from "./modules/saas/saas.routes";
 
 export function createApp() {
   const app = express();
@@ -151,6 +152,7 @@ export function createApp() {
   app.use("/v1/isra-org-controls", authenticate, tenantScope, israOrgControlRoutes);
   app.use("/v1/isra-asset-library", authenticate, tenantScope, israAssetLibraryRoutes);
   app.use("/v1/isra", authenticate, tenantScope, israRoutes);
+  app.use("/v1/saas", authenticate, tenantScope, saasRoutes);
 
 
   app.use(errorHandler);

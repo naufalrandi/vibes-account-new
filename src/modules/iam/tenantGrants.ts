@@ -84,6 +84,11 @@ export const SP_ONLY_ACTIONS: readonly string[] = [
   ACTIONS.AGREEMENT_UPDATE,
   ACTIONS.AGREEMENT_DELETE,
   ACTIONS.TENANT_CREATE,
+  // saas.read/saas.manage: the sales pipeline and every tenant's subscription
+  // commercial data (pricing, payment method, renewal dates) is SP-internal —
+  // a tenant/distributor admin must not see other tenants' data here.
+  ACTIONS.SAAS_READ,
+  ACTIONS.SAAS_MANAGE,
   // isra.library.manage: editing the platform Annex A/Threat/Vuln libraries
   // and the derived knowledge maps is platform curation, analogous to
   // element.manage/framework.create above — org-level customization uses

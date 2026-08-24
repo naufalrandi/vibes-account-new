@@ -62,6 +62,12 @@ export const ACTIONS = {
   FRAMEWORK_ASSIGNMENT_DELETE: "frameworkAssignment.delete",
   BILLING_READ: "billing.read",
   BILLING_MANAGE: "billing.manage",
+  // SaaS lifecycle (G-73): sales pipeline (quote -> registration -> payment ->
+  // provisioning), subscriptions and workspaces. SP-internal commercial data —
+  // see SP_ONLY_ACTIONS in tenantGrants.ts (a tenant/distributor admin must
+  // not see other tenants' pipeline/subscription data).
+  SAAS_READ: "saas.read",
+  SAAS_MANAGE: "saas.manage",
   TICKET_READ: "ticket.read",
   TICKET_CREATE: "ticket.create",
   TICKET_REPLY: "ticket.reply",
@@ -341,6 +347,18 @@ export const MENU_SEED: SeedMenu[] = [
           { key: ACTIONS.DEMO_READ, name: "View demo workspaces" },
           { key: ACTIONS.DEMO_CREATE, name: "Create demo request" },
           { key: ACTIONS.DEMO_MANAGE, name: "Approve/generate/extend/disable/delete demo access" },
+        ],
+      },
+      // OD labels this "Subscriptions" (not "SaaS Subscriptions") and files it
+      // here, third after Tenant Requests and Tenants (app.html:5600).
+      {
+        name: "Subscriptions",
+        route: "/billing/saas-subscriptions",
+        routeSeo: "saas-subscriptions",
+        icon: "credit-card",
+        actions: [
+          { key: ACTIONS.SAAS_READ, name: "View SaaS pipeline / subscriptions / workspaces" },
+          { key: ACTIONS.SAAS_MANAGE, name: "Manage pipeline / renew subscriptions / provision workspaces" },
         ],
       },
     ],
