@@ -23,8 +23,17 @@ export type IsraClosureStatus = (typeof ISRA_CLOSURE_STATUS)[number];
 export const ISRA_INITIATIVE_STATUS = ["Draft", "Active", "Completed", "Cancelled"] as const;
 export type IsraInitiativeStatus = (typeof ISRA_INITIATIVE_STATUS)[number];
 
-/** `sc.projected` — still read/written by `isra2Stage`/`isra2ActualForm` in
- * the live code (design doc §4.8) — not dead. 1:1, `scenarioId` IS the PK. */
+/** `sc.projected` — OD's USER-assessed Projected Residual (`isra2ProjForm`,
+ * app.html:19374), entered during RTP planning; deliberately NOT auto-computed
+ * ("Planned/Added controls are not operating or evidenced yet, so the system
+ * does not apply Method C here" — OD's own comment). This class had zero
+ * references anywhere outside this file and `db/models/index.ts` until Wave Q
+ * task S3 wired it up in `israScenario.service.ts` (`saveProjectedResidual`,
+ * `suggestResidual`'s tier 2) — the prior "not dead" note above was wrong;
+ * corrected here. Because OD's `sc.projected` carries only one L/impact (no
+ * separate system suggestion for this tier), this port leaves
+ * `suggestedL/Impact/Score/Band` null and stores the user's values in
+ * `confirmedL/Impact/Score/Band` only. 1:1, `scenarioId` IS the PK. */
 export class IsraScenarioProjectedResidual extends Model<InferAttributes<IsraScenarioProjectedResidual>, InferCreationAttributes<IsraScenarioProjectedResidual>> {
   declare scenarioId: string;
   declare suggestedL: number | null;
@@ -122,6 +131,11 @@ export interface IsraAdequacy {
  * Projected/Actual, does not replace them (design doc §3.8). */
 export class IsraScenarioResidual extends Model<InferAttributes<IsraScenarioResidual>, InferCreationAttributes<IsraScenarioResidual>> {
   declare scenarioId: string;
+  /** `r.L`/`r.impact` (app.html:18525) — added by migration 0075 so a
+   * residual cell can be plotted on the L×C heat map (G-32); `score`/`band`
+   * alone cannot be decomposed back into a unique (L, C) pair. */
+  declare l: number | null;
+  declare impact: number | null;
   declare score: number | null;
   declare band: string | null;
   declare basis: string | null;
@@ -135,6 +149,8 @@ export class IsraScenarioResidual extends Model<InferAttributes<IsraScenarioResi
 IsraScenarioResidual.init(
   {
     scenarioId: { type: DataTypes.UUID, primaryKey: true, field: "scenario_id" },
+    l: { type: DataTypes.INTEGER, allowNull: true },
+    impact: { type: DataTypes.INTEGER, allowNull: true },
     score: { type: DataTypes.INTEGER, allowNull: true },
     band: { type: DataTypes.STRING, allowNull: true },
     basis: { type: DataTypes.STRING, allowNull: true },
