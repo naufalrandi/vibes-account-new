@@ -317,5 +317,224 @@
       "Pending",
       "Withdrawn"
     ]
+  },
+  "capa": {
+    "prefix": "CAPA",
+    "statuses": [
+      "Open",
+      "Root Cause Analysis",
+      "Action Planned",
+      "In Progress",
+      "Pending Effectiveness Check",
+      "Verified",
+      "Closed",
+      "Cancelled",
+      "Archived"
+    ]
+  },
+  "mmr": {
+    "prefix": "MMR",
+    "statuses": [
+      "In Service",
+      "Calibration Due",
+      "Under Calibration",
+      "Out of Calibration",
+      "Under Repair",
+      "Retired",
+      "Archived"
+    ]
+  },
+  "hira": {
+    "prefix": "HIRA",
+    "statuses": [
+      "Identified",
+      "Under Assessment",
+      "Controls Planned",
+      "Controls Implemented",
+      "Monitored",
+      "Reassessment Due",
+      "Closed",
+      "Archived"
+    ]
+  },
+  "cab-schemes": {
+    "prefix": "CSCH",
+    "statuses": [
+      "Draft",
+      "Under Review",
+      "Active",
+      "Suspended",
+      "Withdrawn",
+      "Archived"
+    ]
+  },
+  "cab-audits": {
+    "prefix": "CAUD",
+    "statuses": [
+      "Planned",
+      "Scheduled",
+      "In Progress",
+      "Reporting",
+      "Findings Open",
+      "Closed",
+      "Cancelled",
+      "Archived"
+    ]
+  },
+  "cab-decisions": {
+    "prefix": "CDEC",
+    "statuses": [
+      "Pending Review",
+      "Under Decision",
+      "Granted",
+      "Maintained",
+      "Suspended",
+      "Restored",
+      "Withdrawn",
+      "Refused",
+      "Archived"
+    ]
+  },
+  "cab-impartiality": {
+    "prefix": "IMPT",
+    "statuses": [
+      "Identified",
+      "Under Evaluation",
+      "Mitigated",
+      "Accepted",
+      "Escalated",
+      "Closed",
+      "Archived"
+    ]
+  },
+  "cab-appeals": {
+    "prefix": "APPL",
+    "statuses": [
+      "Received",
+      "Acknowledged",
+      "Under Investigation",
+      "Decision Pending",
+      "Upheld",
+      "Rejected",
+      "Closed",
+      "Archived"
+    ]
+  },
+  "pcb-schemes": {
+    "prefix": "PSCH",
+    "statuses": [
+      "Draft",
+      "Under Review",
+      "Active",
+      "Suspended",
+      "Withdrawn",
+      "Archived"
+    ]
+  },
+  "pcb-exams": {
+    "prefix": "EXM",
+    "statuses": [
+      "Draft",
+      "Item Development",
+      "Approved",
+      "Scheduled",
+      "Delivered",
+      "Marked",
+      "Results Released",
+      "Retired",
+      "Archived"
+    ]
+  },
+  "pcb-candidates": {
+    "prefix": "CAND",
+    "statuses": [
+      "Applied",
+      "Eligibility Review",
+      "Eligible",
+      "Ineligible",
+      "Exam Scheduled",
+      "Examined",
+      "Passed",
+      "Failed",
+      "Certified",
+      "Withdrawn",
+      "Archived"
+    ]
+  },
+  "pcb-decisions": {
+    "prefix": "PDEC",
+    "statuses": [
+      "Pending Review",
+      "Under Decision",
+      "Certified",
+      "Recertified",
+      "Refused",
+      "Suspended",
+      "Revoked",
+      "Archived"
+    ]
+  },
+  "pcb-appeals": {
+    "prefix": "PAPL",
+    "statuses": [
+      "Received",
+      "Acknowledged",
+      "Under Investigation",
+      "Decision Pending",
+      "Upheld",
+      "Rejected",
+      "Closed",
+      "Archived"
+    ]
+  },
+  "lab-methods": {
+    "prefix": "MTH",
+    "statuses": [
+      "Draft",
+      "Under Validation",
+      "Validated",
+      "In Use",
+      "Under Review",
+      "Superseded",
+      "Withdrawn",
+      "Archived"
+    ]
+  },
+  "lab-equipment": {
+    "prefix": "EQP",
+    "statuses": [
+      "In Service",
+      "Calibration Due",
+      "Under Calibration",
+      "Out of Service",
+      "Under Repair",
+      "Retired",
+      "Archived"
+    ]
+  },
+  "lab-uncertainty": {
+    "prefix": "MU",
+    "statuses": [
+      "Draft",
+      "Under Review",
+      "Approved",
+      "Superseded",
+      "Archived"
+    ]
+  },
+  "lab-pt": {
+    "prefix": "PTS",
+    "statuses": [
+      "Planned",
+      "Registered",
+      "Sample Received",
+      "In Progress",
+      "Results Submitted",
+      "Satisfactory",
+      "Questionable",
+      "Unsatisfactory",
+      "Closed",
+      "Archived"
+    ]
   }
 }

@@ -193,7 +193,126 @@ export const MS_MODULES: Record<string, RegisterModule> = {
   "cab-clients": { prefix: "CERT", statuses: ["Applicant", "Certified", "Surveillance Due", "Suspended", "Withdrawn"], createStatuses: ["Certified"] },
   "pcb-persons": { prefix: "PC", statuses: ["Certified", "Recert Due", "Suspended", "Expired", "Revoked"] },
   "lab-scope": { prefix: "SCOPE", statuses: ["Accredited", "Pending", "Withdrawn"] },
-  // Note: isra, soa, and hira are bespoke modules with their own schemas/routes and are not generic implementation records.
+
+  // --- Scaffold modules: registers OD declares but never implements --------
+  //
+  // SOF-24. The 17 keys below are `TN_MODULES` entries (js/core.js:7830) that
+  // OD renders through `renderTenantModule()`'s generic fallback
+  // (core.js:8957-8970): a title, the module's `intent` line, a card per
+  // sub-tab, and an empty-state table whose "New Record" button only fires
+  // `toast('… (scaffold)')`. That means OD defines a NAME, a GROUP, an FWE
+  // mapping and a set of sub-tabs for each — and no fields, no status
+  // dropdown and no save path. There is nothing to transcribe.
+  //
+  // So unlike every entry above, these vocabularies are NOT ported from OD —
+  // they are derived from the normative standard each module's `fwe` and
+  // `intent` name, cited per entry. They are the first server-side contract
+  // for these modules, deliberately flat (no `deep`/`transitions`): OD has no
+  // state machine here to mirror, and inventing one would pin clients to a
+  // graph no design or standard actually mandates. `statuses[0]` is the
+  // create default in each set, chosen to be the state a freshly-entered
+  // record is genuinely in.
+  //
+  // NOT registered here: `tn-m-lab-operations`. OD routes it to
+  // `setPlat('axia','lims')` (core.js:8951) — the whole LIMS platform area,
+  // not a clause register — so a register entry would be a fake home for it.
+  // Its gap stays open against `src/modules/lims` (SOF-3 follow-up).
+
+  // ISO 9001 §10.2 / ISO 45001 §10.2 corrective action: react, evaluate the
+  // need to eliminate causes, implement, review effectiveness. Vocabulary is
+  // aligned with the `nonconformities` register above (which speaks of a
+  // "CAP" and a "Pending Effectiveness Check") so a CAPA raised from an NC
+  // reads in the same language; "Root Cause Analysis" and "Verified" carry
+  // the two sub-tabs OD names but never builds (Root Cause Analysis,
+  // Effectiveness Review).
+  capa: {
+    prefix: "CAPA",
+    statuses: [
+      "Open", "Root Cause Analysis", "Action Planned", "In Progress",
+      "Pending Effectiveness Check", "Verified", "Closed", "Cancelled", "Archived",
+    ],
+  },
+  // ISO 9001 §7.1.5 monitoring and measuring resources: §7.1.5.2 requires
+  // measuring equipment to be calibrated/verified at intervals, safeguarded,
+  // and — when found unfit — assessed for the validity of previous results.
+  // The vocabulary is the equipment's fitness-for-use state, which is what
+  // the "Calibration & Verification Schedule" sub-tab reports on.
+  mmr: {
+    prefix: "MMR",
+    statuses: [
+      "In Service", "Calibration Due", "Under Calibration", "Out of Calibration",
+      "Under Repair", "Retired", "Archived",
+    ],
+  },
+  // ISO 45001 §6.1.2 hazard identification and assessment of OH&S risks,
+  // §8.1.2 hierarchy of controls, §6.1.2.1 "ongoing and proactive" (hence
+  // "Reassessment Due"). Mirrors the shape of the `risks` register — identify,
+  // assess, treat, monitor — without adopting its ISO 31000 approval chain,
+  // which is an ISMS-specific flow OD only ever built for `risks` itself.
+  hira: {
+    prefix: "HIRA",
+    statuses: [
+      "Identified", "Under Assessment", "Controls Planned", "Controls Implemented",
+      "Monitored", "Reassessment Due", "Closed", "Archived",
+    ],
+  },
+
+  // ISO/IEC 17021-1 (certification bodies for management systems).
+  // §7.3/§8.2 scheme ownership and publicly available scheme documents.
+  "cab-schemes": { prefix: "CSCH", statuses: ["Draft", "Under Review", "Active", "Suspended", "Withdrawn", "Archived"] },
+  // §9.1-9.4 the audit programme: initial stage 1/stage 2, surveillance and
+  // recertification. Stage is a property of the audit, not its state, so it
+  // lives in `data` — this is the lifecycle of one programmed audit through
+  // planning, conduct, reporting and finding closure.
+  "cab-audits": { prefix: "CAUD", statuses: ["Planned", "Scheduled", "In Progress", "Reporting", "Findings Open", "Closed", "Cancelled", "Archived"] },
+  // §9.5 certification decision, §9.6 maintaining/renewing certification,
+  // §9.6.2-9.6.5 suspend / restore / reduce / withdraw. The status is the
+  // decision taken, which is what an auditable decision register records.
+  "cab-decisions": { prefix: "CDEC", statuses: ["Pending Review", "Under Decision", "Granted", "Maintained", "Suspended", "Restored", "Withdrawn", "Refused", "Archived"] },
+  // §5.2 and Annex A: identify, analyse, evaluate and treat threats to
+  // impartiality; residual threats may be accepted at an acceptable level,
+  // hence "Accepted" alongside "Mitigated".
+  "cab-impartiality": { prefix: "IMPT", statuses: ["Identified", "Under Evaluation", "Mitigated", "Accepted", "Escalated", "Closed", "Archived"] },
+  // §9.7 appeals, §9.8 complaints — receipt, acknowledgement, investigation,
+  // decision by someone not involved in the subject of the appeal, closure.
+  "cab-appeals": { prefix: "APPL", statuses: ["Received", "Acknowledged", "Under Investigation", "Decision Pending", "Upheld", "Rejected", "Closed", "Archived"] },
+
+  // ISO/IEC 17024 (certification of persons).
+  // §8 scheme development, review and revision.
+  "pcb-schemes": { prefix: "PSCH", statuses: ["Draft", "Under Review", "Active", "Suspended", "Withdrawn", "Archived"] },
+  // §9.3 examination: development of items, approval, delivery, marking and
+  // release of results; retired exams stay on the register for traceability.
+  "pcb-exams": { prefix: "EXM", statuses: ["Draft", "Item Development", "Approved", "Scheduled", "Delivered", "Marked", "Results Released", "Retired", "Archived"] },
+  // §9.1-9.4 application, eligibility review, examination, decision. Pass/fail
+  // is the exam outcome; "Certified" only lands once a §9.4 decision is made
+  // (which the `pcb-decisions` register records).
+  "pcb-candidates": { prefix: "CAND", statuses: ["Applied", "Eligibility Review", "Eligible", "Ineligible", "Exam Scheduled", "Examined", "Passed", "Failed", "Certified", "Withdrawn", "Archived"] },
+  // §9.4 certification decision, §9.5 recertification, §9.6 suspending and
+  // withdrawing certification.
+  "pcb-decisions": { prefix: "PDEC", statuses: ["Pending Review", "Under Decision", "Certified", "Recertified", "Refused", "Suspended", "Revoked", "Archived"] },
+  // §9.8 appeals, §9.9 complaints — same shape as the CAB register above;
+  // kept as its own module because the two bodies keep separate registers.
+  "pcb-appeals": { prefix: "PAPL", statuses: ["Received", "Acknowledged", "Under Investigation", "Decision Pending", "Upheld", "Rejected", "Closed", "Archived"] },
+
+  // ISO/IEC 17025 (testing and calibration laboratories).
+  // §7.2.1 selection/verification of methods, §7.2.2 validation of non-standard
+  // and lab-developed methods; a superseded method stays on the register.
+  "lab-methods": { prefix: "MTH", statuses: ["Draft", "Under Validation", "Validated", "In Use", "Under Review", "Superseded", "Withdrawn", "Archived"] },
+  // §6.4 equipment: §6.4.3 fitness for use, §6.4.4 verification before use,
+  // §6.4.6 calibration, §6.4.9 equipment removed from service after overload
+  // or mishandling. Same fitness-state vocabulary as `mmr` minus the ISO 9001
+  // §7.1.5 "Out of Calibration" state, which 17025 handles as removal from
+  // service (§6.4.9) rather than a distinct calibration verdict.
+  "lab-equipment": { prefix: "EQP", statuses: ["In Service", "Calibration Due", "Under Calibration", "Out of Service", "Under Repair", "Retired", "Archived"] },
+  // §7.6 evaluation of measurement uncertainty; the budget is a controlled
+  // document-like artefact (drafted, reviewed, approved, superseded), which is
+  // why this vocabulary is a document lifecycle rather than an equipment one.
+  "lab-uncertainty": { prefix: "MU", statuses: ["Draft", "Under Review", "Approved", "Superseded", "Archived"] },
+  // §7.7.2 proficiency testing / interlaboratory comparison participation.
+  // The three terminal verdicts are ISO 13528's performance-score bands
+  // (|z| ≤ 2 satisfactory, 2 < |z| < 3 questionable, |z| ≥ 3 unsatisfactory).
+  "lab-pt": { prefix: "PTS", statuses: ["Planned", "Registered", "Sample Received", "In Progress", "Results Submitted", "Satisfactory", "Questionable", "Unsatisfactory", "Closed", "Archived"] },
+  // Note: isra and soa are bespoke modules with their own schemas/routes and are not generic implementation records.
 };
 
 export type MsModuleKey = keyof typeof MS_MODULES;

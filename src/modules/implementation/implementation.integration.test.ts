@@ -806,4 +806,66 @@ describe("ISO clause registers (implementation)", () => {
     expect(created.body.data.code).toMatch(/^DND-\d{4}$/);
     expect(created.body.data.code).not.toMatch(/^DSG-/);
   });
+
+  // SOF-24: the 17 `TN_MODULES` scaffold registers (CAB / PCB / LAB verticals
+  // plus the CAPA / MMR / HIRA clause modules) had no backend home at all —
+  // `GET/POST /v1/implementation/capa` 404'd with MODULE_NOT_FOUND. They now
+  // ride the generic clause-register endpoints, so the contract each one has
+  // to keep is: the module resolves, it mints its own code prefix, it accepts
+  // its declared create-default status, and it rejects a status outside its
+  // vocabulary. Table-driven so a registry entry that loses its prefix or
+  // vocabulary fails here rather than silently 400ing a real client.
+  const SCAFFOLD_MODULES: [module: string, prefix: string][] = [
+    ["capa", "CAPA"], ["mmr", "MMR"], ["hira", "HIRA"],
+    ["cab-schemes", "CSCH"], ["cab-audits", "CAUD"], ["cab-decisions", "CDEC"],
+    ["cab-impartiality", "IMPT"], ["cab-appeals", "APPL"],
+    ["pcb-schemes", "PSCH"], ["pcb-exams", "EXM"], ["pcb-candidates", "CAND"],
+    ["pcb-decisions", "PDEC"], ["pcb-appeals", "PAPL"],
+    ["lab-methods", "MTH"], ["lab-equipment", "EQP"], ["lab-uncertainty", "MU"], ["lab-pt", "PTS"],
+  ];
+
+  it.each(SCAFFOLD_MODULES)("serves the %s register end to end with %s- codes", async (module, prefix) => {
+    const suffix = module.replace(/-/g, "").slice(0, 8);
+    const { token } = await makeTenant(`t${suffix}`, `T${suffix.toUpperCase()}`);
+    const created = await request(app).post(`/v1/implementation/${module}`).set(authed(token))
+      .send({ title: `${module} record`, data: { note: "seeded by test" } });
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+    expect(created.body.data.code).toBe(`${prefix}-0001`);
+    // No `createStatuses` on any of these — the create default is statuses[0].
+    expect(created.body.data.status).toBe(MS_MODULES[module].statuses[0]);
+
+    const listed = await request(app).get(`/v1/implementation/${module}`).set(authed(token));
+    expect(listed.status).toBe(200);
+    expect(listed.body.data.map((r: { id: string }) => r.id)).toContain(created.body.data.id);
+
+    // Every declared status is accepted…
+    for (const status of MS_MODULES[module].statuses) {
+      const updated = await request(app).put(`/v1/implementation/${module}/${created.body.data.id}`).set(authed(token)).send({ status });
+      expect(updated.status, `${module}: status "${status}" should be accepted`).toBe(200);
+      expect(updated.body.data.status).toBe(status);
+    }
+    // …and anything outside the vocabulary is a hard 400, not a silent write.
+    const bogus = await request(app).put(`/v1/implementation/${module}/${created.body.data.id}`).set(authed(token))
+      .send({ status: "Marinated" });
+    expect(bogus.status).toBe(400);
+    expect(bogus.body.error.code).toBe("INVALID_STATUS");
+  });
+
+  // Guards the code namespace the table above pins: two registers sharing a
+  // prefix would interleave their sequences in `implementation_records` and
+  // hand out duplicate codes.
+  it("gives every register a unique code prefix", () => {
+    const prefixes = Object.values(MS_MODULES).map((m) => m.prefix);
+    expect(prefixes.length).toBe(new Set(prefixes).size);
+  });
+
+  // `tn-m-lab-operations` is deliberately NOT a register — OD routes it to the
+  // LIMS platform area (`setPlat('axia','lims')`, core.js:8951), so it must
+  // keep 404ing here instead of quietly becoming an 18th clause register.
+  it("does not register lab-operations as a clause register", async () => {
+    const { token } = await makeTenant("tlabops", "TLABOPS");
+    const res = await request(app).get("/v1/implementation/lab-operations").set(authed(token));
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe("MODULE_NOT_FOUND");
+  });
 });
