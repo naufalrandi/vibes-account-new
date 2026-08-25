@@ -48,6 +48,81 @@ describe("business unit registers", () => {
     expect((await mk("ent-leads-people", "Andi Wijaya")).body.data.code).toBe("PL-001");
   });
 
+  // SOF-25: BIZ_CODE_CONFIG entries newly registered for previously-unregistered
+  // (generic-fallback-prefix) Business Unit modules.
+  it("mints codes from the newly registered BIZ_CODE_CONFIG entries", async () => {
+    const a = await actor("SP", "sp1", ALL);
+    const mk = (area: string, mod: string, title: string, data?: Record<string, unknown>) =>
+      request(app).post(`/v1/business/${area}/${mod}`).set(authed(a.token)).send({ title, data });
+    expect((await mk("enterprise", "ent-pr", "Developer laptops")).body.data.code).toBe("PR-0001");
+    expect((await mk("enterprise", "ent-po", "Stark Industries Supply")).body.data.code).toBe("PO-0001");
+    expect((await mk("exelera", "ex-cab", "PT Sinar Jaya — ISO 9001")).body.data.code).toBe("CB-1001");
+    expect((await mk("motoran", "mb-vehicle", "B 1234 XY")).body.data.code).toBe("MB-0001");
+    expect((await mk("motoran", "mb-booking", "Fleet booking")).body.data.code).toBe("BK-0001");
+    expect((await mk("motoran", "mb-support", "Flat tyre")).body.data.code).toBe("TK-0001");
+    expect((await mk("enterprise", "ent-comp", "Base salary")).body.data.code).toBe("COMP-0001");
+    expect((await mk("enterprise", "ent-payroll", "August 2026 cycle")).body.data.code).toBe("PY-1");
+    expect((await mk("enterprise", "ent-minwage", "DKI Jakarta 2026")).body.data.code).toBe("MW-0001");
+    expect((await mk("enterprise", "ent-db-courses", "ISO 9001 Lead Auditor")).body.data.code).toBe("CRS-0001");
+    expect((await mk("enterprise", "ent-ctypes", "Permanent")).body.data.code).toBe("CT-001");
+    expect((await mk("enterprise", "ent-svc-ctypes", "Retainer")).body.data.code).toBe("SCT-001");
+    expect((await mk("enterprise", "ent-sup-ctypes", "Framework agreement")).body.data.code).toBe("PCT-001");
+    expect((await mk("enterprise", "ent-ss", "BPJS Kesehatan")).body.data.code).toBe("SS-0001");
+
+    // `ent-recruitment` numbers job openings and candidates from two different
+    // bases in the same module, keyed by `data.entity`.
+    expect((await mk("enterprise", "ent-recruitment", "Backend Engineer")).body.data.code).toBe("JOB-1001");
+    expect((await mk("enterprise", "ent-recruitment", "Backend Engineer #2")).body.data.code).toBe("JOB-1002");
+    expect((await mk("enterprise", "ent-recruitment", "Andi Wijaya", { entity: "candidate" })).body.data.code).toBe("CAN-2001");
+    expect((await mk("enterprise", "ent-recruitment", "Budi Santoso", { entity: "candidate" })).body.data.code).toBe("CAN-2002");
+
+    // SOF-25 second batch.
+    expect((await mk("enterprise", "ent-svc-contracts", "Garuda Tech — ISO 9001 implementation")).body.data.code).toBe("SC-5001");
+    expect((await mk("enterprise", "ent-leave", "Annual leave — Cindy Moon")).body.data.code).toBe("LV-4001");
+    expect((await mk("enterprise", "ent-holidays", "Independence Day")).body.data.code).toBe("HOL-6001");
+    expect((await mk("enterprise", "ent-banks", "Bank Mandiri")).body.data.code).toBe("BNK-9001");
+    expect((await mk("enterprise", "ent-po-terms", "Governing law")).body.data.code).toBe("POT-001");
+    expect((await mk("enterprise", "ent-ctype-profiles", "PKWTT · ID")).body.data.code).toBe("CTP-001");
+    expect((await mk("enterprise", "ent-ctype-templates", "PKWTT — Permanent Employment")).body.data.code).toBe("CTT-001");
+    expect((await mk("enterprise", "ent-db-disciplines", "Quality and Safety")).body.data.code).toBe("CD-001");
+    expect((await mk("enterprise", "ent-fiscal", "Jan 2026")).body.data.code).toBe("FP-01");
+
+    // SOF-25 third batch — Exelera scope datasets + groups.
+    expect((await mk("exelera", "ex-sp-envs", "Production Environment")).body.data.code).toBe("SDENV-0001");
+    expect((await mk("exelera", "ex-sp-deps", "Cloud Hosting Provider")).body.data.code).toBe("SDDEP-0001");
+    expect((await mk("exelera", "ex-sp-ptypes", "Employee (Permanent Contract)")).body.data.code).toBe("SDPT-0001");
+    expect((await mk("exelera", "ex-groups", "Standards")).body.data.code).toBe("GRP-001");
+  });
+
+  // SOF-25: the three new transition graphs (service contracts, leave, fiscal periods) plus the
+  // entry status every graph-gated module now defaults to instead of the generic "Open".
+  it("defaults a graph-gated module to its entry status and enforces its graph", async () => {
+    const a = await actor("SP", "sp1", ALL);
+    const mk = (mod: string, title: string, status?: string) =>
+      request(app).post(`/v1/business/enterprise/${mod}`).set(authed(a.token)).send({ title, status });
+    const move = (mod: string, id: string, status: string) =>
+      request(app).put(`/v1/business/enterprise/${mod}/${id}`).set(authed(a.token)).send({ status });
+
+    const contract = await mk("ent-svc-contracts", "Garuda Tech — ISO 9001");
+    expect(contract.body.data.status).toBe("Draft");
+    expect((await move("ent-svc-contracts", contract.body.data.id, "Signed")).status).toBe(400); // Draft → Signed skips Issued
+    expect((await move("ent-svc-contracts", contract.body.data.id, "Issued")).status).toBe(200);
+
+    const leave = await mk("ent-leave", "Annual leave — Cindy Moon");
+    expect(leave.body.data.status).toBe("Pending Approval");
+    expect((await move("ent-leave", leave.body.data.id, "Approved")).status).toBe(200);
+    expect((await move("ent-leave", leave.body.data.id, "Cancelled")).status).toBe(400); // Approved is terminal
+
+    const period = await mk("ent-fiscal", "Jan 2026");
+    expect(period.body.data.status).toBe("Open");
+    expect((await move("ent-fiscal", period.body.data.id, "Closed")).status).toBe(200);
+    expect((await move("ent-fiscal", period.body.data.id, "Open")).status).toBe(200); // reopen is legal (fiscalPeriodClose toggles)
+
+    // Create may pick any status the graph knows, but not a word outside it.
+    expect((await mk("ent-leave", "Sick leave", "Needs Revision")).body.data.status).toBe("Needs Revision");
+    expect((await mk("ent-leave", "Sick leave", "Escalated")).status).toBe(400);
+  });
+
   // OD `PLATFORM` (index.html:5848-5874) carries five areas, not four —
   // `exelera` is a sister operating company with its own live modules.
   it("accepts the exelera business area", async () => {

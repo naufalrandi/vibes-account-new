@@ -83,15 +83,70 @@ export const PO_TRANSITIONS: Record<string, readonly string[]> = {
   Cancelled: [],
 };
 
+/**
+ * Service contract lifecycle (SOF-25, `enterprise/ent-svc-contracts`). OD's contract action bar
+ * (modules.js:2660-2662) offers exactly one action per status: Draft → Issue, Issued → Mark
+ * signed, and — on Signed — "Convert to project", which creates a *different* record
+ * (`ent-projects`) rather than moving this one. So Signed is terminal here.
+ */
+export const SERVICE_CONTRACT_TRANSITIONS: Record<string, readonly string[]> = {
+  Draft: ["Issued"],
+  Issued: ["Signed"],
+  Signed: [],
+};
+
+/**
+ * Leave request lifecycle (SOF-25, `enterprise/ent-leave`), a one-for-one port of OD's
+ * `leaveActions` (modules.js:3470-3473): only Pending Approval and Needs Revision have any
+ * action at all; Approved / Rejected / Cancelled are terminal (`default: return []`). Which
+ * role may fire which hop (Manager vs Requester) stays client-side, exactly as `PR_TRANSITIONS`
+ * above declines to re-derive the DOA branch rules server-side.
+ */
+export const LEAVE_TRANSITIONS: Record<string, readonly string[]> = {
+  "Pending Approval": ["Approved", "Needs Revision", "Rejected", "Cancelled"],
+  "Needs Revision": ["Pending Approval", "Cancelled"],
+  Approved: [],
+  Rejected: [],
+  Cancelled: [],
+};
+
+/**
+ * Fiscal period open/close (SOF-25, `enterprise/ent-fiscal`). OD's `fiscalPeriodClose`
+ * (modules.js:2859) toggles freely in both directions — a closed period can be reopened — so
+ * neither state is terminal. Registered anyway so the vocabulary is only these two words, not
+ * whatever string a client posts.
+ */
+export const FISCAL_PERIOD_TRANSITIONS: Record<string, readonly string[]> = {
+  Open: ["Closed"],
+  Closed: ["Open"],
+};
+
 /** Business Unit modules with a server-enforced transition graph. Extend this map (never
  *  `PR_TRANSITIONS`/`PO_TRANSITIONS` themselves) for another module's own graph. */
 export const BUSINESS_TRANSITIONS: Record<string, Record<string, readonly string[]>> = {
   "enterprise/ent-pr": PR_TRANSITIONS,
   "enterprise/ent-po": PO_TRANSITIONS,
+  "enterprise/ent-svc-contracts": SERVICE_CONTRACT_TRANSITIONS,
+  "enterprise/ent-leave": LEAVE_TRANSITIONS,
+  "enterprise/ent-fiscal": FISCAL_PERIOD_TRANSITIONS,
 };
 
 export function businessTransitionGraph(area: string, module: string): Record<string, readonly string[]> | undefined {
   return BUSINESS_TRANSITIONS[`${area}/${module}`];
+}
+
+/**
+ * Initial status for a graph-gated module: the graph's first key. Every graph above is written
+ * with its entry state first (`Draft` for PR and service contracts, `Issued` for PO,
+ * `Pending Approval` for leave, `Open` for fiscal periods) — which is also the status OD mints a
+ * new record with in each case (`prNew`, `poIssue`, `contractIssue` modules.js:2652, `leaveNew`
+ * modules.js:3479, `fiscalGen` modules.js:2856). Without this, `createBusiness`'s generic
+ * `"Open"` default dropped a graph-gated record into a status the graph has no key for, and
+ * every subsequent transition out of it was rejected as illegal.
+ */
+export function businessDefaultStatus(area: string, module: string): string | undefined {
+  const graph = businessTransitionGraph(area, module);
+  return graph ? Object.keys(graph)[0] : undefined;
 }
 
 /** Mirrors `implementation/reviewLifecycle.ts`'s `assertReviewTransition` shape exactly. */
