@@ -11,9 +11,21 @@
     "count": 1,
     "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
   },
+  "src/modules/assessments/assessment.service.ts:Organization.findByPk": {
+    "count": 1,
+    "why": "View-hydration lookup: the id comes from an already-scoped row, so the join cannot widen visibility."
+  },
+  "src/modules/assessments/assessment.service.ts:Site.findByPk": {
+    "count": 1,
+    "why": "View-hydration lookup: the id comes from an already-scoped row, so the join cannot widen visibility."
+  },
   "src/modules/billing/billing.service.ts:Organization.findAll": {
     "count": 1,
     "why": "Name lookup for an id list the caller already scoped (orgNames helper); returns id -> name only."
+  },
+  "src/modules/billing/billing.service.ts:Organization.findByPk": {
+    "count": 1,
+    "why": "View-hydration lookup: the id comes from an already-scoped row, so the join cannot widen visibility."
   },
   "src/modules/billing/billing.service.ts:Payment.findAll": {
     "count": 1,
@@ -51,13 +63,13 @@
     "count": 1,
     "why": "Deliberate cross-org cascade clearing eduMinLevelId on a deleted global education level (documented at the call site)."
   },
-  "src/modules/competence/competence.service.ts:CompetenceTraining.findByPk": {
-    "count": 2,
-    "why": "Followed by assertCanManageTraining(auth,row), which rejects rows outside the actor org."
-  },
   "src/modules/dashboard/dashboard.service.ts:Organization.count": {
     "count": 2,
     "why": "Service-Owner-only path (orgType/assertSp gate) — cross-org visibility is the feature, not a leak."
+  },
+  "src/modules/dashboard/dashboard.service.ts:Organization.findByPk": {
+    "count": 1,
+    "why": "Lookup by an id taken from the verified JWT (auth.orgId/auth.userId) — never caller-supplied."
   },
   "src/modules/dashboard/dashboard.service.ts:User.count": {
     "count": 3,
@@ -80,12 +92,20 @@
     "why": "Public demo-request intake (unauthenticated) deduped by email — no actor org exists."
   },
   "src/modules/demo/demo.service.ts:User.findByPk": {
-    "count": 1,
+    "count": 3,
     "why": "Syncs the demo workspace own provisioned user; id comes from the DemoTenant row, not the caller."
   },
   "src/modules/framework-assignments/frameworkAssignment.service.ts:FrameworkAssignment.findAll": {
     "count": 1,
     "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
+  },
+  "src/modules/framework-assignments/frameworkAssignment.service.ts:Organization.findByPk": {
+    "count": 1,
+    "why": "View-hydration lookup: the id comes from an already-scoped row, so the join cannot widen visibility."
+  },
+  "src/modules/framework-assignments/frameworkAssignment.service.ts:Site.findByPk": {
+    "count": 1,
+    "why": "View-hydration lookup: the id comes from an already-scoped row, so the join cannot widen visibility."
   },
   "src/modules/iam/access.service.ts:User.findByPk": {
     "count": 3,
@@ -100,12 +120,16 @@
     "why": "Pre-session demo-window check keyed by the just-resolved provisionedUserId — runs before any token is issued, so no actor org exists."
   },
   "src/modules/iam/auth.service.ts:User.findByPk": {
-    "count": 1,
+    "count": 3,
     "why": "Pre-authentication: resolves the demo workspace own provisioned user during login."
   },
   "src/modules/iam/auth.service.ts:User.findOne": {
     "count": 4,
     "why": "Credential/reset flows keyed by a secret (email, activation or reset token) — must resolve before any org context exists."
+  },
+  "src/modules/implementation/implementation.service.ts:CompetenceGap.findByPk": {
+    "count": 1,
+    "why": "Gap id from the training record's own data; the very next line rejects a gap whose orgId differs from the record's."
   },
   "src/modules/interested-parties/ip.service.ts:IpRequirement.findAll": {
     "count": 1,
@@ -127,9 +151,9 @@
     "count": 1,
     "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
   },
-  "src/modules/knowledge-base/kb.service.ts:KbArticle.findByPk": {
+  "src/modules/organizations/organization.service.ts:Organization.findByPk": {
     "count": 2,
-    "why": "Followed by assertCanReadArticle(auth,a) — global Published articles plus own-org only."
+    "why": "Lookup by an id taken from the verified JWT (auth.orgId/auth.userId) — never caller-supplied."
   },
   "src/modules/organizations/organization.service.ts:Organization.findOne": {
     "count": 1,
@@ -148,16 +172,24 @@
     "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
   },
   "src/modules/partners/partner.service.ts:User.findByPk": {
-    "count": 1,
+    "count": 2,
     "why": "Resolves a partner profile own adminUserId on an SP-managed partner record."
   },
   "src/modules/record-events/recordEvent.service.ts:User.findByPk": {
     "count": 1,
     "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
   },
+  "src/modules/risks/risk.service.ts:Organization.findByPk": {
+    "count": 1,
+    "why": "Risk-config read for an orgId the caller already passed assertCanSeeOrg on; returns config scalars, no rows."
+  },
   "src/modules/risks/risk.service.ts:User.findByPk": {
     "count": 1,
     "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+  },
+  "src/modules/saas/lifecycle.service.ts:SaasSubscription.findByPk": {
+    "count": 1,
+    "why": "Subscription id read off the workspace row already resolved for this tenant; drives the access verdict only."
   },
   "src/modules/saas/saas.service.ts:Organization.findAll": {
     "count": 1,
@@ -168,7 +200,7 @@
     "why": "Service-Owner-only module (router-level orgType gate) — one cross-org listing plus one code-sequence scan."
   },
   "src/modules/saas/saas.service.ts:SaasPipeline.findByPk": {
-    "count": 2,
+    "count": 4,
     "why": "Service-Owner-only path (orgType/assertSp gate) — cross-org visibility is the feature, not a leak."
   },
   "src/modules/saas/saas.service.ts:SaasSubscription.findAll": {
@@ -176,7 +208,7 @@
     "why": "Service-Owner-only module (router-level orgType gate) — cross-org listing, code-sequence scan, and a lookup by already-fetched subIds."
   },
   "src/modules/saas/saas.service.ts:SaasSubscription.findByPk": {
-    "count": 2,
+    "count": 3,
     "why": "Service-Owner-only path (orgType/assertSp gate) — cross-org visibility is the feature, not a leak."
   },
   "src/modules/saas/saas.service.ts:SaasWorkspace.findAll": {
@@ -199,13 +231,25 @@
     "count": 1,
     "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
   },
+  "src/modules/scope/scope.service.ts:Organization.findByPk": {
+    "count": 1,
+    "why": "View-hydration lookup: the id comes from an already-scoped row, so the join cannot widen visibility."
+  },
   "src/modules/scope/scope.service.ts:User.findByPk": {
     "count": 1,
     "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
   },
+  "src/modules/site-requests/siteRequest.service.ts:Organization.findByPk": {
+    "count": 1,
+    "why": "View-hydration lookup: the id comes from an already-scoped row, so the join cannot widen visibility."
+  },
   "src/modules/site-requests/siteRequest.service.ts:Site.findAll": {
     "count": 1,
     "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
+  },
+  "src/modules/site-requests/siteRequest.service.ts:Site.findByPk": {
+    "count": 2,
+    "why": "View-hydration lookup: the id comes from an already-scoped row, so the join cannot widen visibility."
   },
   "src/modules/site-requests/siteRequest.service.ts:SiteRequest.findAll": {
     "count": 1,
@@ -219,17 +263,33 @@
     "count": 1,
     "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
   },
+  "src/modules/tenants/tenant.service.ts:Organization.findByPk": {
+    "count": 1,
+    "why": "View-hydration lookup: the id comes from an already-scoped row, so the join cannot widen visibility."
+  },
   "src/modules/tenants/tenant.service.ts:Organization.findOne": {
     "count": 1,
     "why": "Service-Owner-only global code-uniqueness check; returns nothing but the duplicate verdict."
+  },
+  "src/modules/tenants/tenant.service.ts:RegistrationRequest.findByPk": {
+    "count": 1,
+    "why": "Best-effort back-link during Service-Owner-only tenant provisioning; a foreign row is ignored, never read out."
   },
   "src/modules/tenants/tenant.service.ts:Site.count": {
     "count": 1,
     "why": "Site-code sequence count inside tenant provisioning; returns a number, no row data."
   },
+  "src/modules/tickets/ticket.service.ts:Organization.findByPk": {
+    "count": 2,
+    "why": "Lookup by an id taken from the verified JWT (auth.orgId/auth.userId) — never caller-supplied."
+  },
   "src/modules/tickets/ticket.service.ts:Ticket.count": {
     "count": 1,
     "why": "Ticket-number sequence count; returns a number, no row data."
+  },
+  "src/modules/tickets/ticket.service.ts:User.findByPk": {
+    "count": 2,
+    "why": "Lookup by an id taken from the verified JWT (auth.orgId/auth.userId) — never caller-supplied."
   },
   "src/modules/users/user.service.ts:User.findOne": {
     "count": 1,

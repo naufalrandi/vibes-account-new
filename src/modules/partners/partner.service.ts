@@ -263,7 +263,7 @@ export async function createPartner(
     );
 
     if (send && input.agreement) {
-      await generateForPartner(org, profile, input.agreement.templateId, input.agreement.vars ?? {}, tx);
+      await generateForPartner(auth, org, profile, input.agreement.templateId, input.agreement.vars ?? {}, tx);
     }
 
     await writeAudit(
@@ -426,13 +426,22 @@ async function nextAgreementNumber(): Promise<string> {
  * createPartner (send mode) and the explicit generate endpoint.
  */
 async function generateForPartner(
+  auth: AuthContext,
   org: Organization,
   profile: PartnerProfile,
   templateId: string,
   vars: Record<string, string>,
   tx?: import("sequelize").Transaction,
 ): Promise<PartnerAgreement> {
-  const template = await AgreementTemplate.findByPk(templateId, { transaction: tx });
+  // `templateId` comes straight from the request body, and agreement templates
+  // are org-owned rows (`agreement_templates.org_id` is NOT NULL). A primary-key
+  // lookup let any PARTNER_UPDATE holder render another org's template text into
+  // their own agreement — scope the read the way agreement.service.requireOwned
+  // already does for every other template read.
+  const template = await AgreementTemplate.findOne({
+    where: { id: templateId, orgId: auth.orgId },
+    transaction: tx,
+  });
   if (!template) throw new BadRequestError("Agreement template does not exist", "TEMPLATE_NOT_FOUND");
   const number = await nextAgreementNumber();
   const rendered = renderBlocks(template.blocks, vars);
@@ -493,7 +502,7 @@ export async function generateAgreement(
   ip: string | null,
 ): Promise<PartnerAgreement> {
   const { org, profile } = await resolvePartner(auth, orgId);
-  const agreement = await generateForPartner(org, profile, input.templateId, input.vars ?? {});
+  const agreement = await generateForPartner(auth, org, profile, input.templateId, input.vars ?? {});
   await writeAudit({
     actorUserId: auth.userId,
     organizationId: org.id,
@@ -516,7 +525,9 @@ async function requireAgreement(auth: AuthContext, orgId: string): Promise<Partn
 export async function regenerateAgreement(auth: AuthContext, orgId: string, ip: string | null): Promise<PartnerAgreement> {
   const ag = await requireAgreement(auth, orgId);
   if (ag.status === "Terminated") throw new ConflictError("Agreement is terminated", "ILLEGAL_TRANSITION");
-  const template = ag.templateId ? await AgreementTemplate.findByPk(ag.templateId) : null;
+  const template = ag.templateId
+    ? await AgreementTemplate.findOne({ where: { id: ag.templateId, orgId: auth.orgId } })
+    : null;
   if (template) ag.renderedBlocks = renderBlocks(template.blocks, ag.vars);
   ag.history = [...ag.history, { date: new Date().toISOString().slice(0, 10), event: "Agreement Regenerated" }];
   await ag.save();

@@ -72,6 +72,27 @@ describe("partners", () => {
     expect(admin?.status).toBe("PendingActivation");
   });
 
+  it("refuses to render another org's agreement template", async () => {
+    const { token } = await makeSo();
+    // A template owned by a different organization — the only thing the caller
+    // supplies is its id, so a primary-key lookup would happily render its text.
+    const foreign = await Organization.create({
+      name: "Other", code: "OTHER", type: "Distributor", status: "Active",
+      parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null,
+    });
+    const stolen = await AgreementTemplate.create({
+      orgId: foreign.id, code: "AGT-9001", name: "Confidential", description: null,
+      blocks: [{ id: "b1", type: "paragraph", text: "Other org's commercial terms" }],
+    });
+    const created = await request(app).post("/v1/partners").set(authed(token)).send({
+      name: "P", admin: { fullName: "A", username: "a.admin", email: "a@p.io" },
+    });
+    const res = await request(app).post(`/v1/partners/${created.body.data.id}/agreement/generate`)
+      .set(authed(token)).send({ templateId: stolen.id, vars: {} });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("TEMPLATE_NOT_FOUND");
+  });
+
   it("runs the full lifecycle: generate → approve → activate → suspend → resume → terminate", async () => {
     const { token } = await makeSo();
     const templateId = await makeTemplate(token);

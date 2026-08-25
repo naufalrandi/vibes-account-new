@@ -55,7 +55,8 @@ const SCOPE_RE = /\borg_?Ids?\b|\btenantId\b|\btenant_id\b|\borg_id\b/i;
  * a WHERE, so the guard has to appear elsewhere in the same function: either a
  * direct comparison against the actor's org, or one of the shared assertions.
  */
-const OWNERSHIP_RE = /canActOnOrg|assertCanSee|targetOrg|visible\w*OrgIds|ForbiddenError|scopeWhere|ScopeWhere/;
+const OWNERSHIP_RE =
+  /\bassert(?:Can|Owned|Visible|Org)\w*|\brequireOwned\w*|canActOnOrg|targetOrg|visible\w*OrgIds|orgClause|ForbiddenError|scopeWhere|ScopeWhere/;
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
@@ -256,19 +257,21 @@ function scanFile(file: string, scopedModels: Set<string>): Site[] {
       const method = node.expression.name.text;
       if (scopedModels.has(model)) {
         const line = sf.getLineAndCharacterOfPosition(node.getStart()).line + 1;
-        const opts = method in OPTION_ARG ? node.arguments[OPTION_ARG[method]] : undefined;
+        const takesOptions = method in OPTION_ARG;
+        if (!takesOptions && !PK_METHODS.has(method)) return ts.forEachChild(node, visit);
+        const opts = takesOptions ? node.arguments[OPTION_ARG[method]] : undefined;
         const optsText = opts?.getText() ?? "";
+
+        // Best case: the query carries its own tenancy predicate.
+        if (opts && SCOPE_RE.test(resolvedScopeText(optsText, node))) return ts.forEachChild(node, visit);
+
         // A lookup pinned to one primary key is in the same position as
-        // `findByPk`: the row is singular, so the scope check cannot live in the
-        // WHERE and has to follow in the same function.
-        if (PK_METHODS.has(method) || PK_WHERE_RE.test(optsText)) {
-          const body = enclosingBody(node);
-          if (!SCOPE_RE.test(body) && !OWNERSHIP_RE.test(body)) found.push({ file: rel, line, model, method });
-        } else if (method in OPTION_ARG) {
-          if (!opts || !SCOPE_RE.test(resolvedScopeText(optsText, node))) {
-            found.push({ file: rel, line, model, method });
-          }
-        }
+        // `findByPk`: the row is singular, so the scope cannot live in the WHERE
+        // and the check has to follow in the same function. Only an explicit
+        // ownership assertion counts — a bare `orgId` mention proves nothing,
+        // since every service reads `row.orgId` for audit or view mapping.
+        const pkLike = PK_METHODS.has(method) || PK_WHERE_RE.test(optsText);
+        if (!pkLike || !OWNERSHIP_RE.test(enclosingBody(node))) found.push({ file: rel, line, model, method });
       }
     }
     ts.forEachChild(node, visit);
