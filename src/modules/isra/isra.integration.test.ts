@@ -191,6 +191,10 @@ describe("isra Lt override/item/archive/audit system (F-2a)", () => {
     expect(save.status).toBe(200);
     expect(save.body.data.overrideVersion).toBe(1);
     expect(save.body.data.fields).toMatchObject({ name: "Customer Ledger (Localized)" });
+    // OD stamps the master's `platformVersion` (default 1) as the base the
+    // override was cut against, so stale-override detection has something to
+    // compare against — never null.
+    expect(save.body.data.basePlatformVersion).toBe(1);
 
     const effAfter = await request(app).get("/v1/isra/lt/primary/effective").set(authed(token));
     expect(effAfter.body.data[0]).toMatchObject({ customized: true, name: "Customer Ledger (Localized)", key });
@@ -202,6 +206,11 @@ describe("isra Lt override/item/archive/audit system (F-2a)", () => {
       .send({ name: "Customer Ledger (Localized)" });
     expect(resave.body.data.overrideVersion).toBe(2);
     expect(resave.body.data.history).toHaveLength(1);
+    // Snapshot shape is OD's `{ver, ts, by, fields}` — the version being
+    // superseded, not the new one — so the design's history modal renders it.
+    expect(resave.body.data.history[0]).toMatchObject({ ver: 1, fields: { name: "Customer Ledger (Localized)" } });
+    expect(typeof resave.body.data.history[0].by).toBe("string");
+    expect(typeof resave.body.data.history[0].ts).toBe("string");
 
     const restore = await request(app).delete(`/v1/isra/lt/primary/overrides/${asset.id}`).set(authed(token));
     expect(restore.status).toBe(200);

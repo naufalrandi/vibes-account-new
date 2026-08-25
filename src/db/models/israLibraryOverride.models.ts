@@ -10,7 +10,10 @@ import { sequelize } from "../sequelize";
 export const ISRA_LIB_TYPES = ["primary", "secondary", "threat", "vuln"] as const;
 export type IsraLibType = (typeof ISRA_LIB_TYPES)[number];
 
-export interface IsraLibHistoryEntry { ts: string; user: string; fields: Record<string, unknown> }
+/** One revision snapshot in `IsraLibraryOverride.history`. Field names match
+ * OD's `israLtSaveOverride` snapshot (`core.js:15995`) so the design's history
+ * modal (`core.js:16225`, which renders `r.ver`/`r.ts`/`r.by`) reads it as-is. */
+export interface IsraLibHistoryEntry { ts: string; ver: number; by: string; fields: Record<string, unknown> }
 
 /** `israTenantOverrides` — an org's field-level diff against a platform
  * library row. */

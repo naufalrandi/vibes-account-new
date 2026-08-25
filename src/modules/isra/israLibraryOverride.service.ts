@@ -179,9 +179,16 @@ export async function saveLibraryOverride(
   const who = await actorName(auth);
   let ov = await IsraLibraryOverride.findOne({ where: { orgId: org, libType, platformItemId } });
   if (!ov) {
-    ov = await IsraLibraryOverride.create({ orgId: org, libType, platformItemId, fields: changed, overrideVersion: 1, basePlatformVersion: null, history: [] });
+    // OD `israLtSaveOverride` (`core.js:15994`) stamps the master's
+    // `platformVersion` (defaulting to 1) as the base the tenant customized
+    // against — that is what `israLtPlatformUpdate` later compares to detect a
+    // stale override. Storing null here made the comparison undefined.
+    // The four platform library tables carry no version column yet, so this
+    // resolves to 1 until one is added.
+    const basePlatformVersion = Number(master.platformVersion ?? 1);
+    ov = await IsraLibraryOverride.create({ orgId: org, libType, platformItemId, fields: changed, overrideVersion: 1, basePlatformVersion, history: [] });
   } else {
-    const snapshot: IsraLibHistoryEntry = { ts: nowIso(), user: who, fields: ov.fields };
+    const snapshot: IsraLibHistoryEntry = { ts: nowIso(), ver: ov.overrideVersion, by: who, fields: ov.fields };
     ov.history = [snapshot, ...ov.history];
     ov.fields = changed;
     ov.overrideVersion += 1;
