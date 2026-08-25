@@ -119,6 +119,40 @@ describe("saas lifecycle module (G-73)", () => {
     expect(await SaasPipeline.count()).toBe(0);
   });
 
+  it("refuses cross-tenant SaaS reads to a tenant's own super-admin role (isSuperAdmin bypasses requireAction)", async () => {
+    seq += 1;
+    const other = await Organization.create({
+      name: "PT Other Tenant", code: `OTH${seq}`, type: "Tenant", status: "Active",
+      parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null,
+    });
+    other.tenantId = other.id;
+    await other.save();
+    await seedWorkspace(other.id, 0); // another tenant's commercial data
+
+    const tenant = await Organization.create({
+      name: "PT Snooper", code: `SNP${seq}`, type: "Tenant", status: "Active",
+      parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null,
+    });
+    tenant.tenantId = tenant.id;
+    await tenant.save();
+    const user = await User.create({
+      orgId: tenant.id, tenantId: tenant.id, fullName: "Snoop", username: `snoop${seq}`, email: `snoop${seq}@snooper.io`,
+      passwordHash: await hashPassword("ChangeMe123"), status: "Active", position: null, workUnit: null,
+      lastLogin: null, activationToken: null, resetToken: null, resetExpires: null,
+    });
+    // A super-admin role inside a tenant: `requireAction` waves it through, so
+    // the SaaS boundary has to come from the JWT's org type, not from grants.
+    const role = await Role.create({ name: "Tenant Super", tierScope: "Tenant", orgId: tenant.id, isSuperAdmin: true, status: true });
+    await (user as unknown as { setRoles: (r: Role[]) => Promise<unknown> }).setRoles([role]);
+    const login = await request(app).post("/v1/auth/login").send({ identifier: `snoop${seq}`, password: "ChangeMe123" });
+
+    for (const path of ["/v1/saas/pipeline", "/v1/saas/subscriptions", "/v1/saas/workspaces"]) {
+      const res = await request(app).get(path).set(authed(login.body.data.accessToken));
+      expect(res.status).toBe(403);
+      expect(JSON.stringify(res.body)).not.toContain("PT Other Tenant");
+    }
+  });
+
   it("lists subscriptions/workspaces with the derived lifecycle state (not persisted)", async () => {
     const { token } = await seedServiceOwner([ACTIONS.SAAS_READ]);
     const { tenant } = await seedTenant();

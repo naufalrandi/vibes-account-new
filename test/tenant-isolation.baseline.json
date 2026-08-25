@@ -1,0 +1,242 @@
+{
+  "src/modules/agreements/agreement.service.ts:AgreementTemplate.findAll": {
+    "count": 1,
+    "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
+  },
+  "src/modules/approvals/approval.service.ts:User.findByPk": {
+    "count": 1,
+    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+  },
+  "src/modules/assessments/assessment.service.ts:Assessment.findAll": {
+    "count": 1,
+    "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
+  },
+  "src/modules/billing/billing.service.ts:Organization.findAll": {
+    "count": 1,
+    "why": "Name lookup for an id list the caller already scoped (orgNames helper); returns id -> name only."
+  },
+  "src/modules/billing/billing.service.ts:Payment.findAll": {
+    "count": 1,
+    "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
+  },
+  "src/modules/billing/billing.service.ts:Receipt.findAll": {
+    "count": 1,
+    "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
+  },
+  "src/modules/billing/billing.service.ts:TenantProfile.findAll": {
+    "count": 1,
+    "why": "Scoped by the partnerOrgId argument in generateStatementForPartner; its authenticated callers resolve that org first."
+  },
+  "src/modules/competence/competence.assessment.service.ts:CompetenceGap.findOne": {
+    "count": 1,
+    "why": "Child row keyed by assignmentId from the parent assessment, whose org was already asserted."
+  },
+  "src/modules/competence/competence.assessment.service.ts:CompetenceRole.findByPk": {
+    "count": 1,
+    "why": "Reached through a parent row whose ownership was already asserted by the caller."
+  },
+  "src/modules/competence/competence.assessment.service.ts:CompetenceSkill.findAll": {
+    "count": 1,
+    "why": "Global (org_id NULL) catalog row shared across orgs by design."
+  },
+  "src/modules/competence/competence.assessment.service.ts:CompetenceTraining.findAll": {
+    "count": 1,
+    "why": "Global (org_id NULL) catalog row shared across orgs by design."
+  },
+  "src/modules/competence/competence.assessment.service.ts:User.findByPk": {
+    "count": 1,
+    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+  },
+  "src/modules/competence/competence.service.ts:CompetenceRole.update": {
+    "count": 1,
+    "why": "Deliberate cross-org cascade clearing eduMinLevelId on a deleted global education level (documented at the call site)."
+  },
+  "src/modules/competence/competence.service.ts:CompetenceTraining.findByPk": {
+    "count": 2,
+    "why": "Followed by assertCanManageTraining(auth,row), which rejects rows outside the actor org."
+  },
+  "src/modules/dashboard/dashboard.service.ts:Organization.count": {
+    "count": 2,
+    "why": "Service-Owner-only path (orgType/assertSp gate) — cross-org visibility is the feature, not a leak."
+  },
+  "src/modules/dashboard/dashboard.service.ts:User.count": {
+    "count": 3,
+    "why": "Service-Owner-only path (orgType/assertSp gate) — cross-org visibility is the feature, not a leak."
+  },
+  "src/modules/dashboard/dashboard.service.ts:User.findByPk": {
+    "count": 1,
+    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+  },
+  "src/modules/demo/demo.service.ts:DemoTenant.findAll": {
+    "count": 3,
+    "why": "Two are SP-only listings (assertSp) and one is the time-based expiry sweep, which must span orgs."
+  },
+  "src/modules/demo/demo.service.ts:DemoTenant.findByPk": {
+    "count": 1,
+    "why": "Service-Owner-only path (orgType/assertSp gate) — cross-org visibility is the feature, not a leak."
+  },
+  "src/modules/demo/demo.service.ts:DemoTenant.findOne": {
+    "count": 1,
+    "why": "Public demo-request intake (unauthenticated) deduped by email — no actor org exists."
+  },
+  "src/modules/demo/demo.service.ts:User.findByPk": {
+    "count": 1,
+    "why": "Syncs the demo workspace own provisioned user; id comes from the DemoTenant row, not the caller."
+  },
+  "src/modules/framework-assignments/frameworkAssignment.service.ts:FrameworkAssignment.findAll": {
+    "count": 1,
+    "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
+  },
+  "src/modules/iam/access.service.ts:User.findByPk": {
+    "count": 3,
+    "why": "Resolves the authenticated user own effective access; the id is the JWT subject."
+  },
+  "src/modules/iam/auth.service.ts:DemoTenant.findByPk": {
+    "count": 1,
+    "why": "Pre-authentication demo login flow — no actor org exists yet; the id is the demo link secret."
+  },
+  "src/modules/iam/auth.service.ts:DemoTenant.findOne": {
+    "count": 3,
+    "why": "Pre-session demo-window check keyed by the just-resolved provisionedUserId — runs before any token is issued, so no actor org exists."
+  },
+  "src/modules/iam/auth.service.ts:User.findByPk": {
+    "count": 1,
+    "why": "Pre-authentication: resolves the demo workspace own provisioned user during login."
+  },
+  "src/modules/iam/auth.service.ts:User.findOne": {
+    "count": 4,
+    "why": "Credential/reset flows keyed by a secret (email, activation or reset token) — must resolve before any org context exists."
+  },
+  "src/modules/interested-parties/ip.service.ts:IpRequirement.findAll": {
+    "count": 1,
+    "why": "Child rows keyed by partyId, immediately after targetOrg(auth, party.orgId) accepted the parent."
+  },
+  "src/modules/interested-parties/ip.service.ts:User.findByPk": {
+    "count": 1,
+    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+  },
+  "src/modules/internal-audit/internalAudit.service.ts:User.findByPk": {
+    "count": 1,
+    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+  },
+  "src/modules/isra/israLibraryOverride.service.ts:User.findByPk": {
+    "count": 1,
+    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+  },
+  "src/modules/knowledge-base/kb.service.ts:KbArticle.findAll": {
+    "count": 1,
+    "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
+  },
+  "src/modules/knowledge-base/kb.service.ts:KbArticle.findByPk": {
+    "count": 2,
+    "why": "Followed by assertCanReadArticle(auth,a) — global Published articles plus own-org only."
+  },
+  "src/modules/organizations/organization.service.ts:Organization.findOne": {
+    "count": 1,
+    "why": "Service-Owner-only global code-uniqueness check; returns nothing but the duplicate verdict."
+  },
+  "src/modules/organizations/registration.service.ts:RegistrationRequest.findAll": {
+    "count": 1,
+    "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
+  },
+  "src/modules/partners/partner.service.ts:PartnerAgreement.count": {
+    "count": 1,
+    "why": "Agreement-number sequence count; returns a number, no row data."
+  },
+  "src/modules/partners/partner.service.ts:PartnerProfile.findAll": {
+    "count": 1,
+    "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
+  },
+  "src/modules/partners/partner.service.ts:User.findByPk": {
+    "count": 1,
+    "why": "Resolves a partner profile own adminUserId on an SP-managed partner record."
+  },
+  "src/modules/record-events/recordEvent.service.ts:User.findByPk": {
+    "count": 1,
+    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+  },
+  "src/modules/risks/risk.service.ts:User.findByPk": {
+    "count": 1,
+    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+  },
+  "src/modules/saas/saas.service.ts:Organization.findAll": {
+    "count": 1,
+    "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
+  },
+  "src/modules/saas/saas.service.ts:SaasPipeline.findAll": {
+    "count": 2,
+    "why": "Service-Owner-only module (router-level orgType gate) — one cross-org listing plus one code-sequence scan."
+  },
+  "src/modules/saas/saas.service.ts:SaasPipeline.findByPk": {
+    "count": 2,
+    "why": "Service-Owner-only path (orgType/assertSp gate) — cross-org visibility is the feature, not a leak."
+  },
+  "src/modules/saas/saas.service.ts:SaasSubscription.findAll": {
+    "count": 2,
+    "why": "Service-Owner-only module (router-level orgType gate) — cross-org listing, code-sequence scan, and a lookup by already-fetched subIds."
+  },
+  "src/modules/saas/saas.service.ts:SaasSubscription.findByPk": {
+    "count": 2,
+    "why": "Service-Owner-only path (orgType/assertSp gate) — cross-org visibility is the feature, not a leak."
+  },
+  "src/modules/saas/saas.service.ts:SaasWorkspace.findAll": {
+    "count": 2,
+    "why": "Service-Owner-only module (router-level orgType gate) — cross-org listing plus a code-sequence scan."
+  },
+  "src/modules/saas/saas.service.ts:SaasWorkspace.findByPk": {
+    "count": 1,
+    "why": "Service-Owner-only path (orgType/assertSp gate) — cross-org visibility is the feature, not a leak."
+  },
+  "src/modules/saas/saas.service.ts:Site.count": {
+    "count": 1,
+    "why": "Site-code sequence count inside tenant provisioning; returns a number, no row data."
+  },
+  "src/modules/saas/saas.service.ts:User.findByPk": {
+    "count": 1,
+    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+  },
+  "src/modules/scope/scope.service.ts:MsScope.findAll": {
+    "count": 1,
+    "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
+  },
+  "src/modules/scope/scope.service.ts:User.findByPk": {
+    "count": 1,
+    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+  },
+  "src/modules/site-requests/siteRequest.service.ts:Site.findAll": {
+    "count": 1,
+    "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
+  },
+  "src/modules/site-requests/siteRequest.service.ts:SiteRequest.findAll": {
+    "count": 1,
+    "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
+  },
+  "src/modules/sites/site.service.ts:Site.findAll": {
+    "count": 1,
+    "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
+  },
+  "src/modules/tenants/tenant.service.ts:Organization.findAll": {
+    "count": 1,
+    "why": "Code-sequence scan (attributes:[\"code\"]) to mint the next id; returns no row data to the caller."
+  },
+  "src/modules/tenants/tenant.service.ts:Organization.findOne": {
+    "count": 1,
+    "why": "Service-Owner-only global code-uniqueness check; returns nothing but the duplicate verdict."
+  },
+  "src/modules/tenants/tenant.service.ts:Site.count": {
+    "count": 1,
+    "why": "Site-code sequence count inside tenant provisioning; returns a number, no row data."
+  },
+  "src/modules/tickets/ticket.service.ts:Ticket.count": {
+    "count": 1,
+    "why": "Ticket-number sequence count; returns a number, no row data."
+  },
+  "src/modules/users/user.service.ts:User.findOne": {
+    "count": 1,
+    "why": "Global username/email uniqueness check, after the actor's right to manage the target org was asserted; returns only the duplicate verdict."
+  },
+  "src/modules/work-units/workUnit.service.ts:User.findByPk": {
+    "count": 1,
+    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+  }
+}
