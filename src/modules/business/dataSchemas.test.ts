@@ -62,6 +62,9 @@ const MODULE_FIELDS: Record<string, string[]> = {
    "co", "conversionTarget", "countryProfiles", "defaultTerms", "domain", "hasEndDate",
    "leaveEligible", "name", "personnelType", "probationApplies", "renewable",
   ],
+  "ent-clauses": [
+   "body", "category", "co", "country", "domain", "scope", "title",
+  ],
   "ent-db-courses": [
    "active", "audience", "category", "co", "cpdHours", "credential", "delivery", "disciplineId",
    "durationUnit", "durationVal", "elearnMedia", "elearnSupport", "format", "frameworkId",
