@@ -117,14 +117,14 @@ describe("tenant provisioning grants (P0: new tenant admin gets an Administrator
     const distLogin = await request(app).post("/v1/auth/login").send({ identifier: "partner.admin", password: "ChangeMe123" });
     const distToken = distLogin.body.data.accessToken;
 
-    const submitRes = await request(app).post("/v1/registrations").set(authed(distToken)).send({
+    const submitRes = await request(app).post("/v1/registration-requests").set(authed(distToken)).send({
       name: "Garuda Manufacturing", code: "GARUDA2",
       adminFullName: "Garuda Admin", adminUsername: "garuda.admin", adminEmail: "admin@garuda.id",
     });
     expect(submitRes.status).toBe(201);
 
-    const approveRes = await request(app).post(`/v1/registrations/${submitRes.body.data.id}/approve`).set(authed(soToken));
-    expect(approveRes.status).toBe(200);
+    const approveRes = await request(app).post(`/v1/registration-requests/${submitRes.body.data.id}/approve`).set(authed(soToken));
+    expect(approveRes.status).toBe(201);
     const tenantId = approveRes.body.data.tenantId as string;
     expect(tenantId).toBeTruthy();
 

@@ -626,8 +626,11 @@ export async function assertMayApprove(auth: AuthContext, authorName: string | n
   if (!selfApprovalAllowed && authorName && authorName === who) {
     throw new ForbiddenError("Self-approval is disabled for this organization");
   }
-  const members = await listPoolMembers(auth);
-  const me = members.find((m) => m.userId === auth.userId);
+  // Deliberately bypasses listPoolMembers' self-heal: that default-provisioning
+  // exists so a fresh org's Approvals page always has someone to show, but
+  // running it here would auto-admit the sole caller into the pool this check
+  // is supposed to gate. Check actual, explicitly-set membership only.
+  const me = await ApprovalPoolMember.findOne({ where: { orgId: auth.orgId, userId: auth.userId } });
   if (!me || (!me.isMST && !me.isTM)) {
     throw new ForbiddenError("You are not in an approval pool. Add yourself under Approvals to sign off.");
   }

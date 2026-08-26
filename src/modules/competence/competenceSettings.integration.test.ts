@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
+import { randomUUID } from "node:crypto";
 import { createApp } from "../../app";
 import { initModels, Organization, User, Role } from "../../db/models";
 import { hashPassword } from "../../lib/password";
@@ -90,7 +91,7 @@ describe("competence settings singleton", () => {
       .send({ name: "QA Engineer", requirements: [] });
     expect(role.status).toBe(201);
     const assign = await request(app).post("/v1/competence/assignments").set(authed(token))
-      .send({ roleId: role.body.data.id, personId: "person-1" });
+      .send({ roleId: role.body.data.id, personId: randomUUID() });
     expect(assign.status).toBe(201);
 
     const assessment = await request(app).post("/v1/competence/assessments").set(authed(token))
