@@ -1,5 +1,6 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
+import type { TenantAuditEntry } from "./tenantProfile.model";
 
 export type SiteRequestType = "Site Addition" | "Site Change" | "Site Closure";
 export type SiteRequestStatus =
@@ -32,6 +33,9 @@ export class SiteRequest extends Model<
   declare status: CreationOptional<SiteRequestStatus>;
   declare provisioned: CreationOptional<boolean>;
   declare provisionedSiteId: string | null;
+  /** OD `siteRequests[].audit` — array of `{ts, msg}` entries, same shape as
+   * `TenantProfile.audit`/`PartnerProfile.audit` (NOT the IA activity/comments triple). */
+  declare audit: CreationOptional<TenantAuditEntry[]>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -52,6 +56,7 @@ SiteRequest.init(
     },
     provisioned: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     provisionedSiteId: { type: DataTypes.UUID, allowNull: true, field: "provisioned_site_id" },
+    audit: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

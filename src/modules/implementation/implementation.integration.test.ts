@@ -861,11 +861,65 @@ describe("ISO clause registers (implementation)", () => {
 
   // `tn-m-lab-operations` is deliberately NOT a register — OD routes it to the
   // LIMS platform area (`setPlat('axia','lims')`, core.js:8951), so it must
-  // keep 404ing here instead of quietly becoming an 18th clause register.
+  // keep 404ing here instead of quietly becoming an 18th clause register. Its
+  // real home is `GET /v1/lims/area` (SOF-32) — see `lims.integration.test.ts`.
   it("does not register lab-operations as a clause register", async () => {
     const { token } = await makeTenant("tlabops", "TLABOPS");
     const res = await request(app).get("/v1/implementation/lab-operations").set(authed(token));
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe("MODULE_NOT_FOUND");
+  });
+
+  // SOF-58 follow-up: closes the `tnPOs` parity gap (`parity/backend-
+  // unseeded.md`) — OD `tnPoForm`/`tnPoSeed` (`core.js:8676`/`8711`), ridden
+  // on `ImplementationRecord` as `supplier-po` next to `suppliers`.
+  describe("supplier-po (OD db.tnPOs)", () => {
+    it("accepts the full OD tnPOs field contract and defaults to Issued", async () => {
+      const { token } = await makeTenant("tpo1", "TPO1");
+      const created = await request(app).post("/v1/implementation/supplier-po").set(authed(token)).send({
+        title: "PO to Continental Steel",
+        data: {
+          supplierId: "SUP-0001",
+          supplierName: "Continental Steel Supply",
+          date: "2026-08-01",
+          provisionType: "Product",
+          items: [{ name: "Steel coil", qty: 10, unit: "ton", requirement: "Grade A" }],
+          requiredDate: "2026-09-01",
+          value: "12500.00",
+          currency: "EUR",
+          receipt: null,
+          evaluation: null,
+          activity: [],
+        },
+      });
+      expect(created.status).toBe(201);
+      expect(created.body.data.code).toMatch(/^TPO-\d{4}$/);
+      expect(created.body.data.status).toBe("Issued");
+      expect(created.body.data.data.supplierName).toBe("Continental Steel Supply");
+      expect(created.body.data.data.currency).toBe("EUR");
+
+      // Full lifecycle: Issued -> Accepted -> Closed, plus the receipt/evaluation objects.
+      const accepted = await request(app).put(`/v1/implementation/supplier-po/${created.body.data.id}`).set(authed(token))
+        .send({
+          status: "Accepted",
+          data: {
+            ...created.body.data.data,
+            receipt: { date: "2026-09-02", result: "Accept", by: "T", qty: 10, notes: "", ncId: null },
+            evaluation: { criteria: { quality: 5, delivery: 4, price: 3, compliance: 5 }, note: "Good batch", by: "T", ts: "2026-09-02" },
+          },
+        });
+      expect(accepted.body.data.status).toBe("Accepted");
+      expect(accepted.body.data.data.receipt.result).toBe("Accept");
+      expect(accepted.body.data.data.evaluation.criteria.quality).toBe(5);
+    });
+
+    it("rejects an unrecognized field in a supplier-po payload", async () => {
+      const { token } = await makeTenant("tpo2", "TPO2");
+      const res = await request(app).post("/v1/implementation/supplier-po").set(authed(token)).send({
+        title: "Bogus PO",
+        data: { supplierId: "SUP-0002", bogusField: "nope" },
+      });
+      expect(res.status).toBe(400);
+    });
   });
 });

@@ -1,5 +1,5 @@
 import { Op, type WhereOptions } from "sequelize";
-import { ImplementationRecord, Organization, User } from "../../db/models";
+import { ImplementationRecord, Organization, User, ApprovalPoolMember } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
@@ -158,15 +158,18 @@ async function getOrgRiskConfig(orgId: string): Promise<{
   };
 }
 
+/**
+ * Ports OD's `riskHasTM()` (app.html:14012: `team.some(u => u.isTM)`) — the
+ * deterministic MS-vs-TM routing check `approveRtpMS` uses below. This must
+ * read the same ground-truth "Top Management" flag the rest of this backend
+ * already uses (`ApprovalPoolMember.isTM`, set via the Approvals pool —
+ * approval.service.ts), not `User.personnelType` (a free-form HR employment
+ * category with no "Top Management" value in its vocabulary, so that check
+ * could never actually match).
+ */
 async function hasTopManagement(orgId: string): Promise<boolean> {
-  const tmUser = await User.findOne({
-    where: {
-      orgId,
-      status: "Active",
-      personnelType: "Top Management",
-    },
-  });
-  return !!tmUser;
+  const count = await ApprovalPoolMember.count({ where: { orgId, isTM: true } });
+  return count > 0;
 }
 
 function toRiskView(

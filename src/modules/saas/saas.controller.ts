@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import * as service from "./saas.service";
+import { SAAS_PIPELINE_TYPES } from "../../db/models/saas.models";
 import { sendOk } from "../../lib/apiResponse";
 import { UnauthorizedError } from "../../lib/errors";
 
@@ -17,6 +18,8 @@ const createPipelineSchema = z.object({
   contactPerson: z.string().nullish(),
   contactEmail: z.string().email().nullish(),
   contactPhone: z.string().nullish(),
+  // OD `pq-type` — only the two values its select offers; omitted means 'New Tenant / SaaS'.
+  type: z.enum(SAAS_PIPELINE_TYPES).optional(),
   items: z.array(z.unknown()).min(1),
   amount: z.number().int().nonnegative(),
   currency: z.string().min(1).optional(),

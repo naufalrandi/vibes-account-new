@@ -86,6 +86,7 @@ describe("saas lifecycle module (G-73)", () => {
     expect(create.status).toBe(201);
     expect(create.body.data.code).toMatch(/^PIPE-\d{4}$/);
     expect(create.body.data.stage).toBe("Quote Sent");
+    expect(create.body.data.type).toBe("New Tenant / SaaS"); // OD `pq-type` default
 
     const list = await request(app).get("/v1/saas/pipeline").set(authed(token));
     expect(list.status).toBe(200);
@@ -94,6 +95,21 @@ describe("saas lifecycle module (G-73)", () => {
     const get = await request(app).get(`/v1/saas/pipeline/${create.body.data.id}`).set(authed(token));
     expect(get.status).toBe(200);
     expect(get.body.data.tenantName).toBe("PT Roxxon Energy");
+  });
+
+  it("round-trips an 'Add-on: SaaS' request type and rejects any other value (OD `pq-type`)", async () => {
+    const { token } = await seedServiceOwner([ACTIONS.SAAS_READ, ACTIONS.SAAS_MANAGE]);
+    const base = { tenantName: "PT Roxxon Energy", items: [{ product: "lab" }], amount: 48000000 };
+
+    const create = await request(app).post("/v1/saas/pipeline").set(authed(token)).send({ ...base, type: "Add-on: SaaS" });
+    expect(create.status).toBe(201);
+    expect(create.body.data.type).toBe("Add-on: SaaS");
+
+    const get = await request(app).get(`/v1/saas/pipeline/${create.body.data.id}`).set(authed(token));
+    expect(get.body.data.type).toBe("Add-on: SaaS");
+
+    const bad = await request(app).post("/v1/saas/pipeline").set(authed(token)).send({ ...base, type: "Renewal" });
+    expect(bad.status).toBe(400);
   });
 
   it("rejects pipeline/renew writes from a non-ServiceOwner caller even if somehow granted saas.manage (defence in depth)", async () => {

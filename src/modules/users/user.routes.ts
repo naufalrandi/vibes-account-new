@@ -1,5 +1,6 @@
 import { Router } from "express";
 import * as c from "./user.controller";
+import * as pc from "./personnelProfile.controller";
 import { requireAction } from "../../middleware/requireAction";
 import { ACTIONS } from "../iam/actions.catalog";
 
@@ -13,3 +14,18 @@ userRoutes.patch("/:id/status", requireAction(ACTIONS.USER_SUSPEND), c.setStatus
 userRoutes.delete("/:id", requireAction(ACTIONS.USER_DELETE), c.softDelete);
 userRoutes.post("/:id/roles", requireAction(ACTIONS.ROLE_ASSIGN), c.assignRole);
 userRoutes.delete("/:id/roles/:roleId", requireAction(ACTIONS.ROLE_ASSIGN), c.removeRole);
+
+// Personnel record sub-data (OD ent-personnel Personal/Emergency/Employment
+// tabs, SOF-48-1). Same USER_READ/USER_UPDATE grants as the rest of the user
+// record — this is just more fields on the same managed entity.
+userRoutes.get("/:id/personnel-profile", requireAction(ACTIONS.USER_READ), pc.get);
+userRoutes.patch("/:id/personnel-profile/personal", requireAction(ACTIONS.USER_UPDATE), pc.updatePersonal);
+userRoutes.patch("/:id/personnel-profile/emergency", requireAction(ACTIONS.USER_UPDATE), pc.updateEmergency);
+userRoutes.patch("/:id/personnel-profile/employment", requireAction(ACTIONS.USER_UPDATE), pc.updateEmployment);
+userRoutes.post("/:id/personnel-profile/employment/renew", requireAction(ACTIONS.USER_UPDATE), pc.renew);
+userRoutes.post("/:id/personnel-profile/employment/convert", requireAction(ACTIONS.USER_UPDATE), pc.convert);
+userRoutes.post(
+  "/:id/personnel-profile/employment/confirm-probation",
+  requireAction(ACTIONS.USER_UPDATE),
+  pc.confirmProbation,
+);

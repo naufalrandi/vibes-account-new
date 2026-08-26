@@ -17,6 +17,7 @@ export class Fwrc extends Model<InferAttributes<Fwrc>, InferCreationAttributes<F
   declare questionId: string | null;
   declare responseId: string;
   declare statement: string;
+  declare status: CreationOptional<string>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -31,6 +32,7 @@ Fwrc.init(
     questionId: { type: DataTypes.UUID, allowNull: true, field: "question_id" },
     responseId: { type: DataTypes.UUID, allowNull: false, field: "response_id" },
     statement: { type: DataTypes.TEXT, allowNull: false },
+    status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Active" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

@@ -74,6 +74,8 @@ export class ReferenceEducationField extends Model<InferAttributes<ReferenceEduc
   declare label: string;
   declare level: number;
   declare parentId: string | null;
+  /** OD `eduFields[].extension` — true only when this field extends a parent (design only sets it when present). */
+  declare extension: boolean | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -85,6 +87,7 @@ ReferenceEducationField.init(
     label: { type: DataTypes.STRING, allowNull: false },
     level: { type: DataTypes.INTEGER, allowNull: false },
     parentId: { type: DataTypes.UUID, allowNull: true, field: "parent_id" },
+    extension: { type: DataTypes.BOOLEAN, allowNull: true },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

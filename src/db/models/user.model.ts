@@ -35,6 +35,8 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare siteId: CreationOptional<string | null>;
   declare personnelType: CreationOptional<string | null>;
   declare processIds: CreationOptional<string[]>;
+  declare orgUnitId: CreationOptional<string | null>;
+  declare empLevel: CreationOptional<string | null>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 
@@ -82,6 +84,8 @@ User.init(
     siteId: { type: DataTypes.UUID, allowNull: true, field: "site_id" },
     personnelType: { type: DataTypes.STRING, allowNull: true, field: "personnel_type" },
     processIds: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "process_ids" },
+    orgUnitId: { type: DataTypes.UUID, allowNull: true, field: "org_unit_id" },
+    empLevel: { type: DataTypes.STRING, allowNull: true, field: "emp_level" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

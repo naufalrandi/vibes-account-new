@@ -473,6 +473,28 @@ const suppliersDataSchema = z
   })
   .strict();
 
+/**
+ * OD `db.tnPOs` (`tnPoForm`/`tnPoSeed`, `core.js:8676`/`8711`, SOF-58
+ * follow-up). `id`/`tenantId` are the envelope's `id`/org scoping;
+ * `supplierId` links to the `suppliers` register.
+ */
+const supplierPoDataSchema = z
+  .object({
+    ...envelope,
+    supplierId: str,
+    supplierName: str,
+    date: str,
+    provisionType: str,
+    items: unknownArray,
+    requiredDate: str,
+    value: str,
+    currency: str,
+    receipt: nullableObject,
+    evaluation: nullableObject,
+    activity: unknownArray,
+  })
+  .strict();
+
 const performanceDataSchema = z
   .object({
     ...envelope,
@@ -781,6 +803,7 @@ export const IMPLEMENTATION_DATA_SCHEMAS: Partial<Record<MsModuleKey, z.ZodTypeA
   reviews: reviewsDataSchema,
   risks: risksDataSchema,
   suppliers: suppliersDataSchema,
+  "supplier-po": supplierPoDataSchema,
   training: trainingDataSchema,
   "work-units": workUnitsDataSchema,
 };

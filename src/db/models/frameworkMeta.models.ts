@@ -62,6 +62,8 @@ export class FrameworkRequirement extends Model<InferAttributes<FrameworkRequire
   declare type: CreationOptional<string>;
   declare shortLabel: string | null;
   declare status: CreationOptional<LibraryStatus>;
+  /** OD `requirements[].assessable` ("Yes"/"No" in the design source; stored as a real boolean here). */
+  declare assessable: CreationOptional<boolean>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -75,6 +77,7 @@ FrameworkRequirement.init(
     type: { type: DataTypes.STRING, allowNull: false, defaultValue: "Assessable" },
     shortLabel: { type: DataTypes.STRING, allowNull: true, field: "short_label" },
     status: { type: DataTypes.ENUM("Draft", "Active", "Archived"), allowNull: false, defaultValue: "Active" },
+    assessable: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

@@ -1,5 +1,6 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
+import type { IaActivityEntry, IaComment } from "./internalAudit.models";
 
 /**
  * A tenant Work Unit (ISO 5.3 — organizational roles, responsibilities & authorities).
@@ -22,6 +23,10 @@ export class WorkUnit extends Model<
   declare envIds: CreationOptional<string[]>;
   declare depIds: CreationOptional<string[]>;
   declare createdBy: string | null;
+  /** Audit-trail triple (same shape as the IA entities, `internalAudit.models.ts`). */
+  declare lastUpdatedBy: string | null;
+  declare activity: CreationOptional<IaActivityEntry[]>;
+  declare comments: CreationOptional<IaComment[]>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -39,6 +44,9 @@ WorkUnit.init(
     envIds: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "env_ids" },
     depIds: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "dep_ids" },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
+    lastUpdatedBy: { type: DataTypes.STRING, allowNull: true, field: "last_updated_by" },
+    activity: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+    comments: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

@@ -98,6 +98,8 @@ export class IaPlan extends Model<InferAttributes<IaPlan>, InferCreationAttribut
   declare leadAuditor: string | null;
   declare auditors: CreationOptional<string[]>;
   declare notes: string | null;
+  /** OD `iaPlans[].department` — the plan's owning department label. */
+  declare department: string | null;
   declare status: CreationOptional<string>;
   declare createdBy: string | null;
   declare lastUpdatedBy: string | null;
@@ -118,6 +120,7 @@ IaPlan.init(
     leadAuditor: { type: DataTypes.STRING, allowNull: true, field: "lead_auditor" },
     auditors: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     notes: { type: DataTypes.TEXT, allowNull: true },
+    department: { type: DataTypes.STRING, allowNull: true },
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Draft" },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
     lastUpdatedBy: { type: DataTypes.STRING, allowNull: true, field: "last_updated_by" },
@@ -143,6 +146,8 @@ export class IaSession extends Model<InferAttributes<IaSession>, InferCreationAt
   declare auditor: string;
   declare auditee: string | null;
   declare criteria: CreationOptional<string[]>;
+  /** OD `iaSessions[].criteriaReqs` — the requirement ids drawn from `criteria`'s frameworks. */
+  declare criteriaReqs: CreationOptional<string[]>;
   declare process: string;
   declare workUnit: string | null;
   declare methods: CreationOptional<string[]>;
@@ -172,6 +177,7 @@ IaSession.init(
     auditor: { type: DataTypes.STRING, allowNull: false },
     auditee: { type: DataTypes.STRING, allowNull: true },
     criteria: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+    criteriaReqs: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "criteria_reqs" },
     process: { type: DataTypes.STRING, allowNull: false },
     workUnit: { type: DataTypes.STRING, allowNull: true, field: "work_unit" },
     methods: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
@@ -202,6 +208,8 @@ export class IaFinding extends Model<InferAttributes<IaFinding>, InferCreationAt
   declare evidence: string | null;
   declare frameworks: CreationOptional<string[]>;
   declare criteria: string | null;
+  /** OD `iaFindings[].criteriaReqs` — the requirement ids the finding was raised against. */
+  declare criteriaReqs: CreationOptional<string[]>;
   declare process: string;
   declare workUnit: string | null;
   declare site: CreationOptional<string>;
@@ -238,6 +246,7 @@ IaFinding.init(
     evidence: { type: DataTypes.TEXT, allowNull: true },
     frameworks: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     criteria: { type: DataTypes.STRING, allowNull: true },
+    criteriaReqs: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "criteria_reqs" },
     process: { type: DataTypes.STRING, allowNull: false },
     workUnit: { type: DataTypes.STRING, allowNull: true, field: "work_unit" },
     site: { type: DataTypes.STRING, allowNull: false, defaultValue: "" },

@@ -1,5 +1,6 @@
 import { Organization } from "./organization.model";
 import { User } from "./user.model";
+import { PersonnelProfile } from "./personnelProfile.model";
 import { Role } from "./role.model";
 import { Menu } from "./menu.model";
 import { Action } from "./action.model";
@@ -61,6 +62,14 @@ import { IsraScenarioTreatmentDecision, IsraScenarioRecommendationSnapshot, Isra
 import { IsraScenarioProjectedResidual, IsraScenarioActualResidual, IsraScenarioResidual, IsraScenarioClosure, IsraScenarioCycle, IsraInitiative, IsraInitiativeScenario, IsraAppetiteLog } from "./israResidualCycle.models";
 import { IsraEvidence, IsraAudit, IsraScenarioTemplate, IsraSoaJustification, IsraOrgSettings } from "./israSupport.models";
 import { SaasPipeline, SaasSubscription, SaasWorkspace } from "./saas.models";
+import { PersonnelContractDocument, PersonnelActivityLog, PersonnelOnboardingItem, PersonnelCompensation } from "./personnelContractComp.models";
+import { OrgUnit } from "./orgUnit.model";
+import { PerfEval, MReview } from "./evaluation.models";
+import { BusinessProcess, BusinessProcessStep } from "./businessProcess.models";
+import { DocumentFolder, Document } from "./document.model";
+import { CmsPage, CmsPost, CmsMedia, CmsMenuItem, CmsSettings } from "./cms.model";
+import { ResumeRecord, LeaveRecord, DisciplinaryRecord, PerformanceRecord } from "./personnelRecords.models";
+import { DoaMatrixEntry } from "./doaMatrix.model";
 
 let initialized = false;
 
@@ -467,12 +476,92 @@ export function initModels(): void {
   Organization.hasOne(IsraOrgSettings, { foreignKey: "orgId" });
   IsraOrgSettings.belongsTo(Organization, { foreignKey: "orgId" });
 
+  // A user has one personal/emergency-contact/employment sub-record
+  // (ent-personnel Personal/Emergency/Employment tabs). Deleting the user
+  // cascades the profile away (FK); a manager reference is a plain lookup,
+  // not a delete-cascading association.
+  User.hasOne(PersonnelProfile, { foreignKey: "userId" });
+  PersonnelProfile.belongsTo(User, { foreignKey: "userId" });
+  User.hasMany(PersonnelProfile, { foreignKey: "managerId", as: "ManagedPersonnelProfiles" });
+  PersonnelProfile.belongsTo(User, { foreignKey: "managerId", as: "Manager" });
+
+  // Personnel sub-record logs (SOF-53/SOF-48-3) — each scoped to a User (the
+  // personnel record) and to the User's org for org-scoped listing.
+  Organization.hasMany(ResumeRecord, { foreignKey: "orgId" });
+  ResumeRecord.belongsTo(Organization, { foreignKey: "orgId" });
+  User.hasMany(ResumeRecord, { foreignKey: "userId" });
+  ResumeRecord.belongsTo(User, { foreignKey: "userId" });
+
+  Organization.hasMany(LeaveRecord, { foreignKey: "orgId" });
+  LeaveRecord.belongsTo(Organization, { foreignKey: "orgId" });
+  User.hasMany(LeaveRecord, { foreignKey: "userId" });
+  LeaveRecord.belongsTo(User, { foreignKey: "userId" });
+
+  Organization.hasMany(DisciplinaryRecord, { foreignKey: "orgId" });
+  DisciplinaryRecord.belongsTo(Organization, { foreignKey: "orgId" });
+  User.hasMany(DisciplinaryRecord, { foreignKey: "userId" });
+  DisciplinaryRecord.belongsTo(User, { foreignKey: "userId" });
+
+  Organization.hasMany(PerformanceRecord, { foreignKey: "orgId" });
+  PerformanceRecord.belongsTo(Organization, { foreignKey: "orgId" });
+  User.hasMany(PerformanceRecord, { foreignKey: "userId" });
+  PerformanceRecord.belongsTo(User, { foreignKey: "userId" });
+  PerformanceRecord.belongsTo(User, { foreignKey: "reviewerId", as: "reviewer" });
+
+  // Contract documents / activity log / onboarding checklist / comp+bank
+  // binding (SOF-48-5) — all key off `users.id` directly, independent of
+  // PersonnelProfile.
+  Organization.hasMany(PersonnelContractDocument, { foreignKey: "orgId" });
+  PersonnelContractDocument.belongsTo(Organization, { foreignKey: "orgId" });
+  User.hasMany(PersonnelContractDocument, { foreignKey: "userId" });
+  PersonnelContractDocument.belongsTo(User, { foreignKey: "userId" });
+
+  Organization.hasMany(PersonnelActivityLog, { foreignKey: "orgId" });
+  PersonnelActivityLog.belongsTo(Organization, { foreignKey: "orgId" });
+  User.hasMany(PersonnelActivityLog, { foreignKey: "userId" });
+  PersonnelActivityLog.belongsTo(User, { foreignKey: "userId" });
+
+  Organization.hasMany(PersonnelOnboardingItem, { foreignKey: "orgId" });
+  PersonnelOnboardingItem.belongsTo(Organization, { foreignKey: "orgId" });
+  User.hasMany(PersonnelOnboardingItem, { foreignKey: "userId" });
+  PersonnelOnboardingItem.belongsTo(User, { foreignKey: "userId" });
+
+  Organization.hasMany(PersonnelCompensation, { foreignKey: "orgId" });
+  PersonnelCompensation.belongsTo(Organization, { foreignKey: "orgId" });
+  User.hasOne(PersonnelCompensation, { foreignKey: "userId" });
+  PersonnelCompensation.belongsTo(User, { foreignKey: "userId" });
+  BusinessRecord.hasMany(PersonnelCompensation, { foreignKey: "compRecordId" });
+  PersonnelCompensation.belongsTo(BusinessRecord, { foreignKey: "compRecordId", as: "compRecord" });
+
+  // SOF-58 §3 — DOA (Delegation of Authority) spend-band matrix.
+  Organization.hasMany(DoaMatrixEntry, { foreignKey: "orgId" });
+  DoaMatrixEntry.belongsTo(Organization, { foreignKey: "orgId" });
+
+  // SOF-58 §4 — relations that already existed as bare FK columns but had no
+  // registered Sequelize association, needed so the corresponding
+  // `DESIGN_ONLY` parity notes point at a real, working relation.
+  // A partner's tenants: TenantProfile.partnerOrgId -> the partner Organization.
+  // Distinct from the existing Organization.hasOne(TenantProfile,{foreignKey:"orgId"})
+  // (a tenant's own 1:1 profile) — same two tables, a second FK, so a second alias.
+  Organization.hasMany(TenantProfile, { foreignKey: "partnerOrgId", as: "partnerTenants" });
+  TenantProfile.belongsTo(Organization, { foreignKey: "partnerOrgId", as: "partnerOrg" });
+  // A user's org unit (single-membership; OD's rarely-populated `units[]` array
+  // was not adopted — see DESIGN_ONLY.units).
+  OrgUnit.hasMany(User, { foreignKey: "orgUnitId" });
+  User.belongsTo(OrgUnit, { foreignKey: "orgUnitId" });
+
+  // SOF-58 §5/§6 — tenant/partner admin user link (design's `tenants.admin` /
+  // `partners.admin`, constructed from a User row at creation time).
+  TenantProfile.belongsTo(User, { foreignKey: "adminUserId", as: "admin" });
+  PartnerProfile.belongsTo(User, { foreignKey: "adminUserId", as: "admin" });
+
   initialized = true;
 }
 
 export {
   Organization,
   User,
+  PersonnelProfile,
   Role,
   Menu,
   Action,
@@ -616,4 +705,25 @@ export {
   SaasPipeline,
   SaasSubscription,
   SaasWorkspace,
+  OrgUnit,
+  PerfEval,
+  MReview,
+  BusinessProcess,
+  BusinessProcessStep,
+  DocumentFolder,
+  Document,
+  CmsPage,
+  CmsPost,
+  CmsMedia,
+  CmsMenuItem,
+  CmsSettings,
+  ResumeRecord,
+  LeaveRecord,
+  DisciplinaryRecord,
+  PerformanceRecord,
+  PersonnelContractDocument,
+  PersonnelActivityLog,
+  PersonnelOnboardingItem,
+  PersonnelCompensation,
+  DoaMatrixEntry,
 };

@@ -162,6 +162,7 @@ GET    /v1/implementation/:module                       ACTIONS.MS_READ
 POST   /v1/implementation/:module                       ACTIONS.MS_MANAGE
 PUT    /v1/implementation/:module/:id                   ACTIONS.MS_MANAGE
 DELETE /v1/implementation/:module/:id                   ACTIONS.MS_MANAGE
+GET    /v1/lims/area                                   ACTIONS.LIMS_READ
 GET    /v1/lims/workflow-config                         ACTIONS.LIMS_READ
 GET    /v1/lims/workflow-preview                        ACTIONS.LIMS_READ
 GET    /v1/lims/testing-services                        ACTIONS.LIMS_READ

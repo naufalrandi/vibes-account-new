@@ -1,5 +1,6 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
+import type { IaActivityEntry, IaComment } from "./internalAudit.models";
 
 /**
  * Tenant organizational-role template (ISO 5.3). Distinct from IAM roles: this is
@@ -24,6 +25,10 @@ export class RoleTemplate extends Model<
   declare status: string;
   declare notes: string | null;
   declare createdBy: string | null;
+  /** Audit-trail triple (same shape as the IA entities, `internalAudit.models.ts`). */
+  declare lastUpdatedBy: string | null;
+  declare activity: CreationOptional<IaActivityEntry[]>;
+  declare comments: CreationOptional<IaComment[]>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -44,6 +49,9 @@ RoleTemplate.init(
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Draft" },
     notes: { type: DataTypes.TEXT, allowNull: true },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
+    lastUpdatedBy: { type: DataTypes.STRING, allowNull: true, field: "last_updated_by" },
+    activity: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+    comments: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

@@ -139,6 +139,18 @@ export const MS_MODULES: Record<string, RegisterModule> = {
 
   // --- Operation (clause 8) ---
   suppliers: { prefix: "SUP", statuses: ["Pending Qualification", "Approved", "Suspended", "Rejected"] },
+  // SOF-58 follow-up: OD `db.tnPOs` (ISO 9001 §8.4.2/§8.4.3), `tnPoForm`/
+  // `tnPoSeed` (`core.js:8676`/`8711`) — a live, seeded feature the extractor
+  // missed only because `tnPoSeed(t)` takes an arg (`parity/backend-
+  // unseeded.md`). Not `enterprise/ent-po` (that is the business-side
+  // procurement PO on `BusinessRecord`, a different module/lifecycle).
+  // Recommended by the same doc: ride `ImplementationRecord` next to
+  // `suppliers` rather than a bespoke table. `TPO-0001` codes match OD's
+  // `tnPoNextId()`. Two OD behaviours are storage-only here for now (no
+  // auto-NC on a rejected receipt via `tnPoRaiseNC`, no evaluation push onto
+  // `supplier.evaluations` via `tnPoEval`) — the field contract is complete,
+  // the cross-module side effects are a follow-up.
+  "supplier-po": { prefix: "TPO", statuses: ["Issued", "Accepted", "Closed", "Rejected"] },
 
   // --- Performance & improvement (clause 9, 10) ---
   performance: { prefix: "PEV", statuses: ["Draft", "Active", "Achieved", "At Risk", "Closed"] },
@@ -216,7 +228,11 @@ export const MS_MODULES: Record<string, RegisterModule> = {
   // NOT registered here: `tn-m-lab-operations`. OD routes it to
   // `setPlat('axia','lims')` (core.js:8951) — the whole LIMS platform area,
   // not a clause register — so a register entry would be a fake home for it.
-  // Its gap stays open against `src/modules/lims` (SOF-3 follow-up).
+  // SOF-32 closed that gap the way OD draws it: the module's backend home is
+  // `src/modules/lims`, whose `GET /v1/lims/area` serves OD's `LIMSCFG()` map
+  // (5 sections / 7 views) and states which of them the server actually backs.
+  // `/v1/implementation/lab-operations` therefore still 404s, deliberately —
+  // pinned by "does not register lab-operations as a clause register" below.
 
   // ISO 9001 §10.2 / ISO 45001 §10.2 corrective action: react, evaluate the
   // need to eliminate causes, implement, review effectiveness. Vocabulary is

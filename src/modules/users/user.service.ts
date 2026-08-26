@@ -230,7 +230,7 @@ export async function setUserStatus(
 }
 
 /** Resolve a user the actor is allowed to manage (same scope rules as the others). */
-async function requireManagedUser(auth: AuthContext, userId: string): Promise<User> {
+export async function requireManagedUser(auth: AuthContext, userId: string): Promise<User> {
   const user = await User.findByPk(userId, { include: [Role] });
   if (!user) throw new NotFoundError("User not found");
   if (auth.orgType === "Tenant" && user.tenantId !== auth.tenantId) throw new ForbiddenError();

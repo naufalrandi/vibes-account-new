@@ -46,6 +46,7 @@ import { competenceRoutes } from "./modules/competence/competence.routes";
 import { approvalRoutes } from "./modules/approvals/approval.routes";
 import { scopeRoutes } from "./modules/scope/scope.routes";
 import { workUnitRoutes } from "./modules/work-units/workUnit.routes";
+import { doaMatrixRoutes } from "./modules/doa-matrix/doaMatrix.routes";
 import { roleRegisterRoutes } from "./modules/roles-register/roleRegister.routes";
 import { recordEventRoutes } from "./modules/record-events/recordEvent.routes";
 import { interestedPartyRoutes } from "./modules/interested-parties/ip.routes";
@@ -64,6 +65,9 @@ import { israRoutes } from "./modules/isra/isra.routes";
 import { israAssetLibraryRoutes } from "./modules/isra/israAssetLibrary.routes";
 import { riskRoutes } from "./modules/risks/risk.routes";
 import { saasRoutes } from "./modules/saas/saas.routes";
+import { personnelRecordsRoutes } from "./modules/personnel-records/personnelRecords.routes";
+import { personnelContractRoutes } from "./modules/personnel-records/personnelContractComp.routes";
+import { personnelProfileRoutes } from "./modules/personnel-records/personnelProfile.routes";
 
 export function createApp() {
   const app = express();
@@ -85,6 +89,14 @@ export function createApp() {
   });
   app.use("/v1/auth", authLimiter, authRoutes);
   app.use("/v1/users", authenticate, tenantScope, userRoutes);
+  // Personnel sub-record logs (resume/leave/disciplinary/performance), nested
+  // under a single user (the personnel record) — SOF-53/SOF-48-3.
+  app.use("/v1/users/:userId", authenticate, tenantScope, personnelRecordsRoutes);
+  // Contract documents / activity log / onboarding checklist / comp+bank
+  // binding, nested under the same owning user — SOF-54/SOF-48-5.
+  app.use("/v1/users/:userId", authenticate, tenantScope, personnelContractRoutes);
+  // List-level "Add Profile" — creates a new personnel record (User row).
+  app.use("/v1/personnel-profiles", authenticate, tenantScope, personnelProfileRoutes);
   app.use("/v1/organizations", authenticate, tenantScope, organizationRoutes);
   app.use("/v1/org-settings", authenticate, tenantScope, orgSettingsRoutes);
   app.use("/v1/registration-requests", authenticate, tenantScope, registrationRoutes);
@@ -124,6 +136,7 @@ export function createApp() {
   app.use("/v1/approvals", authenticate, tenantScope, approvalRoutes);
   app.use("/v1/scope", authenticate, tenantScope, scopeRoutes);
   app.use("/v1/work-units", authenticate, tenantScope, workUnitRoutes);
+  app.use("/v1/doa-matrix", authenticate, tenantScope, doaMatrixRoutes);
   app.use("/v1/org-roles", authenticate, tenantScope, roleRegisterRoutes);
   app.use("/v1/record-events", authenticate, tenantScope, recordEventRoutes);
   app.use("/v1/interested-parties", authenticate, tenantScope, interestedPartyRoutes);

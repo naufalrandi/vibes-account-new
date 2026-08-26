@@ -5,7 +5,7 @@ import { initModels, Organization, User, Role } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
-import { limsGenerate } from "./limsEngine";
+import { limsGenerate, type LimsSection, type LimsView } from "./limsEngine";
 
 const app = createApp();
 const authed = (t: string) => ({ Authorization: `Bearer ${t}` });
@@ -50,6 +50,39 @@ describe("limsGenerate engine (unit)", () => {
 describe("LIMS module (integration)", () => {
   beforeAll(() => initModels());
   afterEach(() => resetDb());
+
+  // SOF-32. `tn-m-lab-operations` is the one tenant module OD does not render
+  // as a register — `core.js:8951` dispatches it to `setPlat('axia','lims')`.
+  // This endpoint is the backend home it resolves to, so the assertions below
+  // pin OD's `LIMSCFG()` shape (5 sections / 7 views, core.js:22382-22393) and
+  // the implemented/placeholder split. If a future change quietly claims one of
+  // OD's four `limsPlaceholder` views as implemented, or drops the module-key
+  // hand-off, this fails.
+  it("serves the LIMS area map as the tn-m-lab-operations backend home", async () => {
+    const { token } = await makeTenant("t1", "TEN1");
+    const res = await request(app).get("/v1/lims/area").set(authed(token));
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ area: "lims", platform: "axia", moduleKey: "tn-m-lab-operations", defaultView: "lims-services" });
+    expect(res.body.data.sections.map((s: LimsSection) => s.key)).toEqual(["calibration", "testing", "equipment", "customers", "reporting"]);
+    expect(res.body.data.views).toEqual([
+      "lims-calibration", "lims-services", "lims-workflow", "lims-preview",
+      "lims-equipment", "lims-customers", "lims-reporting",
+    ]);
+    const views: LimsView[] = res.body.data.sections.flatMap((s: LimsSection) => s.views);
+    expect(views.filter((v) => v.implemented).map((v) => v.key)).toEqual(["lims-services", "lims-workflow", "lims-preview"]);
+    // Every implemented view names at least one live endpoint; every OD
+    // placeholder names none and carries OD's blurb instead.
+    for (const v of views) {
+      if (v.implemented) expect(v.endpoints.length).toBeGreaterThan(0);
+      else { expect(v.endpoints).toEqual([]); expect(v.description).toBeTruthy(); }
+    }
+    expect(views.find((v) => v.key === "lims-services")?.sub).toBe("LIMS · platform master data — laboratory service lines");
+  });
+
+  it("gates the area map behind LIMS_READ", async () => {
+    const { token } = await makeTenant("t9", "TEN9", []);
+    expect((await request(app).get("/v1/lims/area").set(authed(token))).status).toBe(403);
+  });
 
   it("serves the static workflow catalog", async () => {
     const { token } = await makeTenant("t1", "TEN1");

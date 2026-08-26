@@ -1,5 +1,6 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
+import type { TenantAgreementInfo } from "./tenantProfile.model";
 
 export type PartnerTier = "Bronze" | "Silver" | "Gold";
 export type PartnerStatus =
@@ -33,6 +34,9 @@ export class PartnerProfile extends Model<
   declare adminUserId: string | null;
   declare commercialSummary: Record<string, unknown> | null;
   declare audit: CreationOptional<PartnerAuditEntry[]>;
+  /** OD `partners[].agreement` — same shape as `TenantProfile.agreement`, the
+   * commercial partner's own Subscription/Partnership Agreement document. */
+  declare agreement: CreationOptional<TenantAgreementInfo | null>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -51,6 +55,7 @@ PartnerProfile.init(
     adminUserId: { type: DataTypes.UUID, allowNull: true, field: "admin_user_id" },
     commercialSummary: { type: DataTypes.JSONB, allowNull: true, field: "commercial_summary" },
     audit: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+    agreement: { type: DataTypes.JSONB, allowNull: true, defaultValue: null },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

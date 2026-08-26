@@ -164,6 +164,15 @@
       "Rejected"
     ]
   },
+  "supplier-po": {
+    "prefix": "TPO",
+    "statuses": [
+      "Issued",
+      "Accepted",
+      "Closed",
+      "Rejected"
+    ]
+  },
   "performance": {
     "prefix": "PEV",
     "statuses": [

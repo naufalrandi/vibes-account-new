@@ -29,6 +29,8 @@ export class Framework extends Model<
   declare jurisdictions: CreationOptional<string[]>;
   /** OD Short Label — compact register tag (e.g. "9001"); null = auto-derive. */
   declare shortLabel: string | null;
+  /** OD `frameworks[].disciplineId` — the owning discipline/category id, SP master data. */
+  declare disciplineId: string | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -47,6 +49,7 @@ Framework.init(
     groupId: { type: DataTypes.UUID, allowNull: true, field: "group_id" },
     jurisdictions: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     shortLabel: { type: DataTypes.STRING, allowNull: true, field: "short_label" },
+    disciplineId: { type: DataTypes.STRING, allowNull: true, field: "discipline_id" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

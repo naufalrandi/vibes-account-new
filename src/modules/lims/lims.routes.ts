@@ -4,6 +4,9 @@ import { requireAction } from "../../middleware/requireAction";
 import { ACTIONS } from "../iam/actions.catalog";
 
 export const limsRoutes = Router();
+// The LIMS area map — the backend home `tn-m-lab-operations` resolves to
+// (OD `setPlat('axia','lims')`, core.js:8951), not a clause register.
+limsRoutes.get("/area", requireAction(ACTIONS.LIMS_READ), c.getArea);
 // Static workflow catalog + preview generation.
 limsRoutes.get("/workflow-config", requireAction(ACTIONS.LIMS_READ), c.getWorkflowConfig);
 limsRoutes.get("/workflow-preview", requireAction(ACTIONS.LIMS_READ), c.preview);

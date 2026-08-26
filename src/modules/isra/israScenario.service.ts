@@ -195,7 +195,17 @@ export async function recalculateScenarioScores(scenarioId: string, orgId: strin
     const statusEligible = c.status === "Implemented" || c.status === "Implemented and Effective";
     const hasDesc = !!c.description && c.description.trim().length > 0;
     const refs = refsByControl.get(c.id) || [];
-    return statusEligible && hasDesc && refs.length > 0;
+    if (!statusEligible || !hasDesc || refs.length === 0) return false;
+    // OD's isra2CtrlEligibility also requires at least one mapped Annex A ref
+    // to carry a nonzero P/D/C reduction profile on either axis — a control
+    // mapped only to refs with no capability/dedication has "mapped controls
+    // have no P/D/C reduction profile" and is excluded, not just zero-power.
+    return refs.some((ref) => {
+      const prof = controlProfileMap.get(ref);
+      if (!prof) return false;
+      const cap = Math.min(1, (prof.fnP ? 0.6 : 0) + (prof.fnD ? 0.3 : 0) + (prof.fnC ? 0.1 : 0));
+      return cap > 0 && (prof.dedL || prof.dedC);
+    });
   });
 
   const getPower = (c: IsraExistingControl, axis: "L" | "C") => {

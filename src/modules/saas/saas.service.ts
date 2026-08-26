@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Transaction } from "sequelize";
 import { SaasPipeline, SaasSubscription, SaasWorkspace, Organization, TenantProfile, Site, Role, User } from "../../db/models";
-import type { SaasPipelineStage, SaasPaymentMethod } from "../../db/models/saas.models";
+import type { SaasPipelineStage, SaasPipelineType, SaasPaymentMethod } from "../../db/models/saas.models";
 import { sequelize } from "../../db/sequelize";
 import type { AuthContext } from "../../lib/scope";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
@@ -108,6 +108,8 @@ export interface CreatePipelineInput {
   contactPerson?: string | null;
   contactEmail?: string | null;
   contactPhone?: string | null;
+  /** OD `pq-type` (js/core.js:7395). Defaults to 'New Tenant / SaaS', as OD's own `g('pq-type')||…` fallback does. */
+  type?: SaasPipelineType;
   items: unknown[];
   amount: number;
   currency?: string;
@@ -126,7 +128,7 @@ export async function createPipelineQuote(auth: AuthContext, input: CreatePipeli
     contactPerson: input.contactPerson ?? null,
     contactEmail: input.contactEmail ?? null,
     contactPhone: input.contactPhone ?? null,
-    type: "New Tenant / SaaS",
+    type: input.type ?? "New Tenant / SaaS",
     stage: "Quote Sent",
     items: input.items,
     amount: input.amount,

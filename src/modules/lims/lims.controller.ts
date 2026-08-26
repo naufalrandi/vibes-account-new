@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import * as service from "./lims.service";
-import { workflowConfig } from "./limsEngine";
+import { areaMap, workflowConfig } from "./limsEngine";
 import { sendOk } from "../../lib/apiResponse";
 import { UnauthorizedError } from "../../lib/errors";
 
@@ -63,6 +63,14 @@ export async function removeService(req: Request, res: Response, next: NextFunct
   } catch (e) {
     next(e);
   }
+}
+
+/**
+ * The `tn-m-lab-operations` hand-off target: OD's LIMS area map, telling a
+ * client which views the area has and which of them the server actually backs.
+ */
+export function getArea(_req: Request, res: Response) {
+  sendOk(res, areaMap());
 }
 
 export function getWorkflowConfig(_req: Request, res: Response) {

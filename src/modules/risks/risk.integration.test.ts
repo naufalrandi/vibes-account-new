@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
-import { initModels, Organization, User, Role } from "../../db/models";
+import { initModels, Organization, User, Role, ApprovalPoolMember } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
@@ -46,6 +46,13 @@ async function makeTenant(
     resetExpires: null,
     personnelType: withTM ? "Top Management" : "Staff",
   });
+  // Deterministic TM routing (risk.service.ts `hasTopManagement`) reads the
+  // real Approvals-pool "isTM" flag (`ApprovalPoolMember`, the same one the
+  // Approvals module itself uses) — not `personnelType`, which is a free-form
+  // HR employment category with no "Top Management" value in its vocabulary.
+  if (withTM) {
+    await ApprovalPoolMember.create({ orgId: org.id, userId: user.id, isMST: false, mstPriority: "required", isTM: true, tmFinal: true });
+  }
   const role = await Role.create({
     name: `R-${username}`,
     tierScope: "Tenant",
@@ -337,5 +344,39 @@ describe("Tenant Risk Register (/v1/risks)", () => {
     const activity = archiveRes.body.data.activity as Array<{ action: string; summary: string }>;
     expect(activity[0].action).toBe("Archived");
     expect(activity[0].summary).toBe("Risk archived from Monitored status");
+  });
+
+  // OD `riskHasTM()` (app.html:14012) — deterministic TM routing keys off
+  // whether the org's Approvals pool has ANY isTM member, read from the same
+  // `ApprovalPoolMember` flag the Approvals module itself uses (not
+  // `personnelType`, which never carries a "Top Management" value in real
+  // data — see the `withTM` setup in `makeTenant` above). With no TM member
+  // configured, MS approval goes straight to "In Treatment" (OD's
+  // `rtpApproveMS` else-branch), skipping the TM gate entirely.
+  it("MS approval with no Top Management member configured goes straight to In Treatment", async () => {
+    const { token } = await makeTenant("t4", "TEN4", MS, false);
+
+    const createRes = await request(app)
+      .post("/v1/risks")
+      .set(authed(token))
+      .send({
+        description: "Unpatched CVE on the public-facing API gateway",
+        category: "Information Security",
+        methodology: "basic",
+      });
+    const riskId = createRes.body.data.id;
+
+    await request(app).post(`/v1/risks/${riskId}/assign`).set(authed(token)).send({ owner: "AppSec Lead" });
+    await request(app).post(`/v1/risks/${riskId}/rtp/generate`).set(authed(token));
+    await request(app)
+      .post(`/v1/risks/${riskId}/rtp/action-plans`)
+      .set(authed(token))
+      .send({ title: "Patch and redeploy the gateway", deadline: "2026-09-15", pics: ["AppSec Lead"] });
+    await request(app).post(`/v1/risks/${riskId}/rtp/propose`).set(authed(token));
+
+    const msRes = await request(app).post(`/v1/risks/${riskId}/rtp/approve-ms`).set(authed(token));
+    expect(msRes.status).toBe(200);
+    expect(msRes.body.data.status).toBe("In Treatment");
+    expect(msRes.body.data.rtp.approvedBy).toBeTruthy();
   });
 });

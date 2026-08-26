@@ -32,6 +32,15 @@ export type SaasPipelineStage =
   | "Provisioning Failed"
   | "Declined";
 
+/**
+ * OD's Request Type select (`pq-type`, js/core.js:7395) offers exactly these
+ * two values, and `reqRows` (js/core.js:7418) falls back to the first one for
+ * rows that carry no type. Column stays STRING(64) — this is the accepted
+ * input set, not a DB enum.
+ */
+export const SAAS_PIPELINE_TYPES = ["New Tenant / SaaS", "Add-on: SaaS"] as const;
+export type SaasPipelineType = (typeof SAAS_PIPELINE_TYPES)[number];
+
 export class SaasPipeline extends Model<InferAttributes<SaasPipeline>, InferCreationAttributes<SaasPipeline>> {
   declare id: CreationOptional<string>;
   declare code: string;
@@ -43,7 +52,7 @@ export class SaasPipeline extends Model<InferAttributes<SaasPipeline>, InferCrea
   declare contactPerson: string | null;
   declare contactEmail: string | null;
   declare contactPhone: string | null;
-  declare type: CreationOptional<string>;
+  declare type: CreationOptional<SaasPipelineType>;
   declare stage: CreationOptional<SaasPipelineStage>;
   declare items: CreationOptional<unknown[]>;
   declare amount: CreationOptional<number>;

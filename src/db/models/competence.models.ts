@@ -1,5 +1,6 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
+import type { IaActivityEntry, IaComment } from "./internalAudit.models";
 
 /**
  * Competence master data (the SP-owned libraries that role competence profiles
@@ -92,6 +93,9 @@ export class CompetenceRole extends Model<InferAttributes<CompetenceRole>, Infer
   declare expReqs: CreationOptional<ExperienceReq[]>;
   declare responsibilities: CreationOptional<ProfileItem[]>;
   declare authorities: CreationOptional<ProfileItem[]>;
+  /** OD `roles[].empLevel` — the org-unit employment-level code (`"L1"`.."L11"`), same
+   * plain-string-code convention as `User.empLevel` (`user.model.ts`); no FK. */
+  declare empLevel: string | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -109,6 +113,7 @@ CompetenceRole.init(
     expReqs: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "exp_reqs" },
     responsibilities: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     authorities: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+    empLevel: { type: DataTypes.STRING, allowNull: true, field: "emp_level" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },
@@ -127,6 +132,12 @@ export class CompetenceAssignment extends Model<InferAttributes<CompetenceAssign
   declare latestStatus: string | null;
   declare latestDate: string | null;
   declare validUntil: string | null;
+  /** Audit-trail triple (same shape as the IA entities, `internalAudit.models.ts`) — the
+   * remainder of the OD `roleAssignments` row that lands on the competence-assignment
+   * side after the `RoleAssignment`/`CompetenceAssignment` split (SOF-58 §0/§2). */
+  declare lastUpdatedBy: string | null;
+  declare activity: CreationOptional<IaActivityEntry[]>;
+  declare comments: CreationOptional<IaComment[]>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -143,6 +154,9 @@ CompetenceAssignment.init(
     latestStatus: { type: DataTypes.STRING, allowNull: true, field: "latest_status" },
     latestDate: { type: DataTypes.DATEONLY, allowNull: true, field: "latest_date" },
     validUntil: { type: DataTypes.DATEONLY, allowNull: true, field: "valid_until" },
+    lastUpdatedBy: { type: DataTypes.STRING, allowNull: true, field: "last_updated_by" },
+    activity: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+    comments: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },
@@ -234,6 +248,9 @@ export class CompetenceGap extends Model<InferAttributes<CompetenceGap>, InferCr
   declare noTrainingReason: string | null;
   /** OD `gap.reassessResult` (`tpReassessSave`, index.html:14184-14192). */
   declare reassessResult: string | null;
+  /** OD `gap.reviewedBy`/`gap.reviewedDate` — who/when a gap's disposition was reviewed. */
+  declare reviewedBy: string | null;
+  declare reviewedDate: string | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -267,6 +284,8 @@ CompetenceGap.init(
     noTraining: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: "no_training" },
     noTrainingReason: { type: DataTypes.TEXT, allowNull: true, field: "no_training_reason" },
     reassessResult: { type: DataTypes.STRING, allowNull: true, field: "reassess_result" },
+    reviewedBy: { type: DataTypes.STRING, allowNull: true, field: "reviewed_by" },
+    reviewedDate: { type: DataTypes.DATEONLY, allowNull: true, field: "reviewed_date" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },
