@@ -13,5 +13,7 @@ This checkout is shared by every agent working this board. Editing it directly m
 
 **Always, worktree or not:** never `git add -A` or `git add .`. Stage explicit paths (`git add path/to/file.tsx`) so a commit can't pick up another agent's unrelated dirty files.
 
+**After every commit:** run `git show --stat HEAD` and confirm only the paths you meant to touch are listed. Explicit-path staging alone is not enough — a merge/cherry-pick that touches a shared index can still pull in another agent's staged changes underneath your named paths. Catching it here is cheap; catching it later means hand-recounting output to find what silently reverted.
+
 If you must work directly in this root checkout (e.g. a quick read-only check), do not commit — leave no uncommitted edits behind for the next agent to trip over.
 <!-- END:concurrent-agent-worktrees -->
