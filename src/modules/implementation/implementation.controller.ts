@@ -6,6 +6,7 @@ import * as awControl from "./awarenessControl";
 import * as trainingLifecycle from "./trainingLifecycle";
 import { sendOk } from "../../lib/apiResponse";
 import { UnauthorizedError } from "../../lib/errors";
+import { getImplementationDataSchema } from "./dataSchemas";
 
 const inputSchema = z.object({
   title: z.string().max(300).optional(),
@@ -15,6 +16,23 @@ const inputSchema = z.object({
   elementId: z.string().uuid().nullish(),
   frameworks: z.array(z.string()).optional(),
 });
+
+/**
+ * Parses the generic envelope, then — if the module has a registered
+ * payload schema (SOF-23, `dataSchemas.ts`) — re-validates `data` against
+ * it. Every `MS_MODULES` key has one except the 17 SOF-24 registers OD only
+ * scaffolds — they have no field contract to validate against and stay on the
+ * open `data` JSONB (SOF-37), so they fall through the permissive path here.
+ * `dataSchemas.test.ts` fails if any other key loses its schema.
+ */
+function parseInput(module: string, body: unknown) {
+  const input = inputSchema.parse(body);
+  if (input.data !== undefined) {
+    const dataSchema = getImplementationDataSchema(module);
+    if (dataSchema) input.data = dataSchema.parse(input.data) as Record<string, unknown>;
+  }
+  return input;
+}
 
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
@@ -30,7 +48,7 @@ export async function list(req: Request, res: Response, next: NextFunction) {
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    const input = inputSchema.parse(req.body);
+    const input = parseInput(req.params.module as string, req.body);
     const orgId = typeof req.query.orgId === "string" ? req.query.orgId : undefined;
     sendOk(res, await service.createRecord(req.auth, req.params.module as string, input, orgId, req.ip ?? null), 201);
   } catch (e) {
@@ -41,7 +59,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
 export async function update(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    const input = inputSchema.parse(req.body);
+    const input = parseInput(req.params.module as string, req.body);
     sendOk(res, await service.updateRecord(req.auth, req.params.module as string, req.params.id as string, input, req.ip ?? null));
   } catch (e) {
     next(e);
