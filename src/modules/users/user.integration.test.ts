@@ -293,6 +293,46 @@ describe("users", () => {
     expect(res.body.data).not.toHaveProperty("passwordHash");
   });
 
+  // Member-level access axes (SOF-84, split out of SOF-74): Enterprise
+  // system-of-record access and per-business-unit grants, independent of the
+  // Service Provider permissionMode/permissions grid above.
+  it("edits member-level access axes (entAccess, entPerms, units, unitAccess, unitPerms) via PATCH", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Luanne", username: "luanne", email: "luanne@acme.com" });
+    const id = created.body.data.id as string;
+
+    const res = await request(app).patch(`/v1/users/${id}`).set("authorization", `Bearer ${token}`)
+      .send({
+        entAccess: true,
+        entPerms: ["hr", "finance"],
+        units: ["unit-a", "unit-b"],
+        unitAccess: { "unit-a": true, "unit-b": false },
+        unitPerms: { "unit-a": ["view", "edit"] },
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.data.entAccess).toBe(true);
+    expect(res.body.data.entPerms).toEqual(["hr", "finance"]);
+    expect(res.body.data.units).toEqual(["unit-a", "unit-b"]);
+    expect(res.body.data.unitAccess).toEqual({ "unit-a": true, "unit-b": false });
+    expect(res.body.data.unitPerms).toEqual({ "unit-a": ["view", "edit"] });
+  });
+
+  it("locks member-level access axes of a Super Administrator on edit", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const superRole = await Role.create({ name: "Administrator", tierScope: "Tenant", orgId: tenantOrgId, isSuperAdmin: true, status: true });
+    const superUser = await User.create({
+      orgId: tenantOrgId, tenantId: tenantOrgId, fullName: "Boss", username: "boss", email: "boss@acme.com",
+      passwordHash: null, status: "Active", position: null, workUnit: null, lastLogin: null,
+      activationToken: null, resetToken: null, resetExpires: null,
+    });
+    await (superUser as unknown as { setRoles: (r: Role[]) => Promise<unknown> }).setRoles([superRole]);
+
+    const res = await request(app).patch(`/v1/users/${superUser.id}`).set("authorization", `Bearer ${token}`)
+      .send({ entAccess: true });
+    expect(res.status).toBe(403);
+  });
+
   // OD tn-team member fields (migration 0047): Site / Type columns and the
   // per-member business-process assignment behind `tmBpForm` / BP Count.
   it("edits team-member fields (siteId, personnelType, processIds) via PATCH", async () => {

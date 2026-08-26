@@ -16,12 +16,14 @@ import { resetDb } from "../../../test/helpers";
  * has been calling since the ISRA module shipped. `GET
  * /v1/isra-asset-library/primary-assets` therefore 404'd in production.
  *
- * Fixed by giving each of the four ISRA routers exactly one `app.use()`
- * prefix in `src/app.ts`:
+ * Fixed by giving each ISRA router exactly one `app.use()` prefix in
+ * `src/app.ts`:
  *   /v1/isra-library        -> israThreatVulnLibraryRoutes
- *   /v1/isra-org-controls   -> israOrgControlRoutes
  *   /v1/isra-asset-library  -> israAssetLibraryRoutes (the real one)
  *   /v1/isra                -> israRoutes (taxonomy/catalog/lt/asset-maps/scenarios/soa/support aggregator)
+ *
+ * A fourth router, `/v1/isra-org-controls` -> israOrgControlRoutes, was
+ * dropped in SOF-87 (no FE caller ever existed).
  */
 const app = createApp();
 const authed = (t: string) => ({ Authorization: `Bearer ${t}` });
@@ -33,9 +35,9 @@ describe("ISRA route mounts (P-6.2)", () => {
       prefix: m[1],
       router: m[2],
     }));
-    // Sanity: the regex actually found the four mounts we expect, not zero
+    // Sanity: the regex actually found the three mounts we expect, not zero
     // (a silently-empty match set would make both assertions below vacuous).
-    expect(mounts.length).toBe(4);
+    expect(mounts.length).toBe(3);
     expect(new Set(mounts.map((m) => m.prefix)).size).toBe(mounts.length);
     expect(new Set(mounts.map((m) => m.router)).size).toBe(mounts.length);
   });

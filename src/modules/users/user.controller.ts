@@ -43,6 +43,13 @@ const updateSchema = z.object({
   siteId: z.string().uuid().nullish(),
   personnelType: z.string().nullish(),
   processIds: z.array(z.string()).nullish(),
+  // Member-level access axes (SOF-84): Enterprise system-of-record access and
+  // per-business-unit grants, independent of permissionMode/permissions above.
+  entAccess: z.boolean().optional(),
+  entPerms: z.array(z.string()).optional(),
+  units: z.array(z.string()).optional(),
+  unitAccess: z.record(z.string(), z.boolean()).optional(),
+  unitPerms: z.record(z.string(), z.array(z.string())).optional(),
 });
 
 const statusSchema = z.object({ status: z.enum(["Active", "Suspended", "Inactive"]) });

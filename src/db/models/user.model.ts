@@ -41,6 +41,15 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare department: CreationOptional<string | null>;
   /** OD `users[].provisioned` — account provisioning status (SOF-58 §1). */
   declare provisioned: CreationOptional<boolean>;
+  // Member-level access axes (SOF-84, split out of SOF-74) — independent of the
+  // Service Provider grid above (`permissionMode`/`permissions`). Mirrors OD
+  // `acSave` (js/core.js:5210-5240): Enterprise system-of-record access, and
+  // per-business-unit membership/access/perms.
+  declare entAccess: CreationOptional<boolean>;
+  declare entPerms: CreationOptional<string[]>;
+  declare units: CreationOptional<string[]>;
+  declare unitAccess: CreationOptional<Record<string, boolean>>;
+  declare unitPerms: CreationOptional<Record<string, string[]>>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 
@@ -92,6 +101,11 @@ User.init(
     empLevel: { type: DataTypes.STRING, allowNull: true, field: "emp_level" },
     department: { type: DataTypes.STRING, allowNull: true },
     provisioned: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    entAccess: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: "ent_access" },
+    entPerms: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "ent_perms" },
+    units: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+    unitAccess: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "unit_access" },
+    unitPerms: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "unit_perms" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

@@ -59,6 +59,14 @@ export interface UpdateUserInput {
   siteId?: string | null;
   personnelType?: string | null;
   processIds?: string[] | null;
+  // Member-level access axes (SOF-84, split out of SOF-74): Enterprise
+  // system-of-record access and per-business-unit grants — mirrors OD `acSave`
+  // (js/core.js:5210-5240), independent of permissionMode/permissions above.
+  entAccess?: boolean;
+  entPerms?: string[];
+  units?: string[];
+  unitAccess?: Record<string, boolean>;
+  unitPerms?: Record<string, string[]>;
 }
 
 export interface UserFilters {
@@ -310,6 +318,29 @@ export async function updateUser(
   if (input.permissions !== undefined) {
     if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
     user.permissions = input.permissions;
+  }
+  // Member-level access axes (SOF-84): independent of permissionMode/permissions
+  // above, but locked the same way — a Super Administrator already has every
+  // axis granted (OD acSave's `sa` branch) and can't be individually edited.
+  if (input.entAccess !== undefined) {
+    if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
+    user.entAccess = input.entAccess;
+  }
+  if (input.entPerms !== undefined) {
+    if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
+    user.entPerms = input.entPerms;
+  }
+  if (input.units !== undefined) {
+    if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
+    user.units = input.units;
+  }
+  if (input.unitAccess !== undefined) {
+    if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
+    user.unitAccess = input.unitAccess;
+  }
+  if (input.unitPerms !== undefined) {
+    if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
+    user.unitPerms = input.unitPerms;
   }
   await user.save();
 

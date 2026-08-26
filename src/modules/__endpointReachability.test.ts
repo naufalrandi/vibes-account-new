@@ -20,14 +20,8 @@ const FE = path.resolve(__dirname, "../../../fe-vibes-new");
 
 /** Mounted but not called by the frontend. Each needs a reason and an owning issue. */
 const UNCALLED: Record<string, string> = {
-  "/v1/management-review": "SOF-86: duplicate of the /implementation/reviews path; MReview is the richer model — decide which survives",
-  "/v1/performance-evaluation": "SOF-86: duplicate of /implementation/performance; PerfEval owns the indicator engine",
-  "/v1/org-units": "SOF-87: work-units is the one in use",
-  "/v1/doa-matrix": "SOF-87: the DOA screen stores through /v1/business",
-  "/v1/framework-types": "SOF-87: frameworks pages use /frameworks, /framework-groups, /framework-xref",
-  "/v1/framework-families": "SOF-87: same",
-  "/v1/framework-catalog": "SOF-87: same",
-  "/v1/isra-org-controls": "SOF-87: no caller; ISRA screens use the isra prefix",
+  "/v1/org-units": "SOF-87: closer to OD's org-structure model than /v1/business, but FE never got wired to it — EnterpriseOrgStructurePage uses the generic business-record escape hatch instead. Kept, not deleted; needs a follow-up to wire the FE.",
+  "/v1/doa-matrix": "SOF-87: matches OD's db.doaMatrix table, but FE never got wired to it — EnterpriseProcurementPolicyPage uses the generic business-record escape hatch instead. Kept, not deleted; needs a follow-up to wire the FE.",
 };
 
 function frontendSource(): string {

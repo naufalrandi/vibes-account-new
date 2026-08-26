@@ -19,10 +19,7 @@ import { roleRoutes } from "./modules/iam/role.routes";
 import { moduleRoutes } from "./modules/iam/modules.routes";
 import { menuRoutes } from "./modules/menus/menu.routes";
 import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
-import { frameworkTypeRoutes } from "./modules/frameworks/frameworkType.routes";
-import { frameworkFamilyRoutes } from "./modules/frameworks/frameworkFamily.routes";
 import { frameworkRoutes } from "./modules/frameworks/framework.routes";
-import { frameworkCatalogRoutes } from "./modules/frameworks/frameworkCatalog.routes";
 import { myFrameworkRoutes } from "./modules/frameworks/myFramework.routes";
 import { profileRoutes } from "./modules/profiles/profile.routes";
 import { accountRoutes } from "./modules/accounts/account.routes";
@@ -50,10 +47,7 @@ import { workUnitRoutes } from "./modules/work-units/workUnit.routes";
 import { doaMatrixRoutes } from "./modules/doa-matrix/doaMatrix.routes";
 import { cmsRoutes } from "./modules/cms/cms.routes";
 import { cmsPublicRoutes } from "./modules/cms/cmsPublic.routes";
-import { documentRoutes } from "./modules/documents/document.routes";
-import { mReviewRoutes } from "./modules/management-review/mReview.routes";
 import { orgUnitRoutes } from "./modules/org-units/orgUnit.routes";
-import { perfEvalRoutes } from "./modules/performance-evaluation/perfEval.routes";
 import { processRoutes } from "./modules/processes/process.routes";
 import { roleRegisterRoutes } from "./modules/roles-register/roleRegister.routes";
 import { recordEventRoutes } from "./modules/record-events/recordEvent.routes";
@@ -67,7 +61,6 @@ import { notificationRoutes } from "./modules/notifications/notification.routes"
 import { referenceRoutes } from "./modules/reference/reference.routes";
 import { referenceDbRoutes } from "./modules/reference-db/referenceDb.routes";
 import { israLibraryRoutes as israThreatVulnLibraryRoutes } from "./modules/isra-threat-vuln-library/israLibrary.routes";
-import { israOrgControlRoutes } from "./modules/isra-threat-vuln-library/israOrgControl.routes";
 import { israRoutes } from "./modules/isra/isra.routes";
 import { israAssetLibraryRoutes } from "./modules/isra/israAssetLibrary.routes";
 import { riskRoutes } from "./modules/risks/risk.routes";
@@ -118,8 +111,6 @@ export function createApp() {
   app.use("/v1/modules", authenticate, tenantScope, moduleRoutes); // permission-grid module catalog
   app.use("/v1/menu", authenticate, tenantScope, menuRoutes); // /v1/menu (current user's tree + access map)
   app.use("/v1/dashboard", authenticate, tenantScope, dashboardRoutes);
-  app.use("/v1/framework-types", authenticate, tenantScope, frameworkTypeRoutes);
-  app.use("/v1/framework-families", authenticate, tenantScope, frameworkFamilyRoutes);
   app.use("/v1/frameworks", authenticate, tenantScope, frameworkRoutes);
   app.use("/v1/framework-groups", authenticate, tenantScope, frameworkGroupRoutes);
   app.use("/v1/requirements", authenticate, tenantScope, requirementRoutes);
@@ -128,7 +119,6 @@ export function createApp() {
   app.use("/v1/elements", authenticate, tenantScope, elementRoutes);
   app.use("/v1/framework-xref", authenticate, tenantScope, xrefRoutes);
   app.use("/v1/assessment", authenticate, tenantScope, assessmentRoutes);
-  app.use("/v1/framework-catalog", authenticate, tenantScope, frameworkCatalogRoutes);
   app.use("/v1/my-frameworks", authenticate, tenantScope, myFrameworkRoutes);
   app.use("/v1/profiles", authenticate, tenantScope, profileRoutes);
   app.use("/v1/accounts", authenticate, tenantScope, accountRoutes);
@@ -151,10 +141,7 @@ export function createApp() {
   app.use("/v1/work-units", authenticate, tenantScope, workUnitRoutes);
   app.use("/v1/doa-matrix", authenticate, tenantScope, doaMatrixRoutes);
   app.use("/v1/cms", authenticate, tenantScope, cmsRoutes);
-  app.use("/v1/documents", authenticate, tenantScope, documentRoutes);
-  app.use("/v1/management-review", authenticate, tenantScope, mReviewRoutes);
   app.use("/v1/org-units", authenticate, tenantScope, orgUnitRoutes);
-  app.use("/v1/performance-evaluation", authenticate, tenantScope, perfEvalRoutes);
   app.use("/v1/processes", authenticate, tenantScope, processRoutes);
   app.use("/v1/org-roles", authenticate, tenantScope, roleRegisterRoutes);
   app.use("/v1/record-events", authenticate, tenantScope, recordEventRoutes);
@@ -177,8 +164,13 @@ export function createApp() {
   // and, worse, at /v1/isra-asset-library instead of the real
   // israAssetLibraryRoutes — so GET /v1/isra-asset-library/primary-assets
   // 404'd even though the FE calls it (fixed here).
+  // /v1/isra-org-controls (a fourth router, direct CRUD on org-control
+  // customizations/maturity-baselines/vuln-control-overlay) was dropped in
+  // SOF-87 — no FE caller ever existed. Its tables stay: israSoa.service.ts
+  // and israScenario.service.ts still read IsraOrgControl/
+  // IsraControlMaturityBaseline/IsraVulnControlOverlay (currently always
+  // empty, since that route was the only writer).
   app.use("/v1/isra-library", authenticate, tenantScope, israThreatVulnLibraryRoutes);
-  app.use("/v1/isra-org-controls", authenticate, tenantScope, israOrgControlRoutes);
   app.use("/v1/isra-asset-library", authenticate, tenantScope, israAssetLibraryRoutes);
   app.use("/v1/isra", authenticate, tenantScope, israRoutes);
   app.use("/v1/saas", authenticate, tenantScope, saasRoutes);
