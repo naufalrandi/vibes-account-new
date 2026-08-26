@@ -37,6 +37,23 @@ async function seedDistributor() {
   return org;
 }
 
+async function seedTenantMember() {
+  const org = await Organization.create({
+    name: "Acme Corp", code: "ACME", type: "Tenant", status: "Active",
+    parentOrgId: null, tenantId: null, email: null, phone: null,
+    website: null, country: "US", address: null,
+  });
+  // Deliberately no roles granted — this is the persona that used to be sent
+  // to the FE's `/member/dashboard` (removed in SOF-91).
+  await User.create({
+    orgId: org.id, tenantId: null, fullName: "Tenant Member", username: "tmember",
+    email: "member@acme.io", passwordHash: await hashPassword("ChangeMe123"),
+    status: "Active", position: null, workUnit: null, lastLogin: null,
+    activationToken: null, resetToken: null, resetExpires: null,
+  });
+  return org;
+}
+
 async function login(identifier: string, password: string): Promise<string> {
   const res = await request(app)
     .post("/v1/auth/login")
@@ -152,4 +169,22 @@ describe("dashboard", () => {
     expect(res.body.data.totalUsers).toBe(1);
     expect(res.body.data.activeUsers).toBe(1);
   });
+
+  // SOF-91: every tenant persona now lands on the FE's `/administrator/dashboard`,
+  // which renders OD's tn-dashboard. A tenant user with no administrator role must
+  // therefore get the tn-dashboard payload, not a Member shape that page cannot render.
+  it("GET /v1/dashboard/stats returns the tn-dashboard shape for a tenant user with no roles", async () => {
+    await seedTenantMember();
+    const token = await login("tmember", "ChangeMe123");
+    const res = await request(app)
+      .get("/v1/dashboard/stats")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.role).toBe("Administrator");
+    expect(res.body.data.orgType).toBe("Tenant");
+    expect(Array.isArray(res.body.data.siteList)).toBe(true);
+    expect(Array.isArray(res.body.data.assignments)).toBe(true);
+    expect(res.body.data.tenant.name).toBe("Acme Corp");
+  });
+
 });

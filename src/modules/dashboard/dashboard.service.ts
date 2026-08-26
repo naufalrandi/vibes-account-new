@@ -29,14 +29,6 @@ export interface AdministratorStats {
   profileCount: number;
 }
 
-export interface MemberStats {
-  role: "Member";
-  activeTasks: number;
-  pendingReviews: number;
-  completed: number;
-  teamMembers: number;
-}
-
 export interface TenantDashboardSite {
   id: string;
   name: string;
@@ -86,8 +78,7 @@ export interface TenantAdministratorStats {
 export type DashboardStats =
   | ServiceOwnerStats
   | AdministratorStats
-  | TenantAdministratorStats
-  | MemberStats;
+  | TenantAdministratorStats;
 
 export interface DashboardRecentOrg {
   id: string;
@@ -148,24 +139,14 @@ export async function getDashboardStats(auth: AuthContext): Promise<DashboardSta
     };
   }
 
-  // Tenant → Administrators get the OD tn-dashboard payload; everyone else the Member view.
-  if (await isTenantAdministrator(auth)) return getTenantAdministratorStats(auth);
-  const teamMembers = await User.count({ where: { orgId: auth.orgId } });
-  return { role: "Member", activeTasks: 0, pendingReviews: 0, completed: 0, teamMembers };
-}
-
-/**
- * Mirrors the FE's landing-route rule (navConfig getDashboardHref): any granted
- * role whose name matches /administrator/i lands on the admin dashboard, so the
- * same test decides which payload that page receives.
- */
-async function isTenantAdministrator(auth: AuthContext): Promise<boolean> {
-  const user = await User.findByPk(auth.userId, {
-    attributes: ["id"],
-    include: [{ model: Role, through: { attributes: [] }, attributes: ["name"], required: false }],
-  });
-  const roles = (user as unknown as { Roles?: { name: string }[] } | null)?.Roles ?? [];
-  return roles.some((r) => /administrator/i.test(r.name));
+  // Tenant → OD's tn-dashboard, for every tenant role. OD lands all three
+  // tenant sub-personas (Top Management / MS Team / Basic User) on the same
+  // first menu key (`setTenantRole`, core.js:2484) and renders one dashboard
+  // for all of them. The FE's `/administrator/dashboard` branches on org type,
+  // not role, for the same reason — so the role-gated "Member" payload that
+  // used to feed the now-removed `/member/dashboard` (SOF-91) would only ever
+  // produce an empty admin surface here.
+  return getTenantAdministratorStats(auth);
 }
 
 async function getTenantAdministratorStats(auth: AuthContext): Promise<TenantAdministratorStats> {
