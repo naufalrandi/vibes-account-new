@@ -22,6 +22,8 @@ const FE = path.resolve(__dirname, "../../../fe-vibes-new");
 const UNCALLED: Record<string, string> = {
   "/v1/org-units": "SOF-87: closer to OD's org-structure model than /v1/business, but FE never got wired to it — EnterpriseOrgStructurePage uses the generic business-record escape hatch instead. Kept, not deleted; needs a follow-up to wire the FE.",
   "/v1/doa-matrix": "SOF-87: matches OD's db.doaMatrix table, but FE never got wired to it — EnterpriseProcurementPolicyPage uses the generic business-record escape hatch instead. Kept, not deleted; needs a follow-up to wire the FE.",
+  "/v1/management-review": "SOF-86: duplicate surface of /implementation/reviews, but MReview owns the OD-faithful MR_TOPIC_CATALOG merge semantics (mrSave/mrRecord) that the generic ImplementationRecord path lacks. Restored after a prior pass deleted it outright — kept mounted, unwired, until a follow-up decides whether the FE repoints here or the merge semantics get ported to the generic path.",
+  "/v1/performance-evaluation": "SOF-86: duplicate surface of /implementation/performance, but PerfEval owns the only ISO 9.1 indicator engine (perfIndicators.ts) in the codebase. Restored after a prior pass deleted it outright — kept mounted, unwired, until a follow-up decides whether the FE repoints here or the indicator engine gets ported to the generic path.",
 };
 
 function frontendSource(): string {
