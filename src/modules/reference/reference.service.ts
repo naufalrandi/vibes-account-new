@@ -24,11 +24,14 @@ export const listIscedf = (search?: string) => filterHier(ISCEDF, undefined, sea
 
 /** Exam bank filtered by skill and/or level (question banks for auto-generated exams). */
 export function examBank(skill?: string, level?: string): { skill: string; level: string; questions: ExamQuestion[] }[] {
+  // Levels are keyed "1"/"2"/"3" in the data but referenced app-wide (org-units,
+  // the competence exam ladder) as "L1"/"L2"/"L3" — accept either.
+  const wantLevel = level?.toLowerCase().replace(/^l/, "");
   const out: { skill: string; level: string; questions: ExamQuestion[] }[] = [];
   for (const [sk, def] of Object.entries(EXAM_BANK)) {
     if (skill && sk.toLowerCase() !== skill.toLowerCase()) continue;
     for (const [lvl, qs] of Object.entries(def.levels)) {
-      if (level && lvl.toLowerCase() !== level.toLowerCase()) continue;
+      if (wantLevel && lvl.toLowerCase() !== wantLevel) continue;
       out.push({ skill: sk, level: lvl, questions: qs });
     }
   }

@@ -1,8 +1,7 @@
-import { randomUUID } from "node:crypto";
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
-import { initModels, Organization, User, Role, RoleAssignment } from "../../db/models";
+import { initModels, Organization, User, Role, RoleAssignment, RoleTemplate } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
@@ -155,8 +154,13 @@ describe("internal audit", () => {
     expect(denied.body.error.code).toBe("PLAN_FORBIDDEN");
 
     // Grant an allowed org role ("Internal Auditor") in the roles register.
+    const roleTemplate = await RoleTemplate.create({
+      orgId, code: "RT-0001", name: "Internal Auditor", category: "Other", purpose: null,
+      workUnits: [], processes: [], frameworks: [], responsibilities: [], authorities: [],
+      status: "Active", notes: null, createdBy: null,
+    });
     await RoleAssignment.create({
-      orgId, code: "RAS-0001", memberId: "tm-1", memberName: "Lead Auditor", roleId: randomUUID(),
+      orgId, code: "RAS-0001", memberId: "tm-1", memberName: "Lead Auditor", roleId: roleTemplate.id,
       roleName: "Internal Auditor", workUnit: null, effectiveDate: null, modReason: null, modSummary: null,
       modifiedBy: null, modifiedDate: null, status: "Active", notes: null, createdBy: null,
     });

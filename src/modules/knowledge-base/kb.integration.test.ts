@@ -224,7 +224,9 @@ describe("Reference datasets", () => {
     expect(divs.body.data.map((n: { code: string }) => n.code)).toContain("10");
     const notes = await request(app).get("/v1/reference/isic/C/notes").set(authed(token));
     expect(notes.body.data.i).toContain("transformation");
-    const nace = await request(app).get("/v1/reference/nace?search=programming").set(authed(token));
+    // "programming" alone also matches NACE 60 ("Programming and broadcasting
+    // activities"), which sorts first — use the unambiguous label to target 62.
+    const nace = await request(app).get("/v1/reference/nace?search=computer%20programming").set(authed(token));
     expect(nace.body.data[0].isic).toBe("62");
   });
 
@@ -232,8 +234,11 @@ describe("Reference datasets", () => {
     const { token } = await makeUser("t", "TEN", "Tenant", []);
     const roles = await request(app).get("/v1/reference/role-suggestions?q=QA%20Manager").set(authed(token));
     expect(roles.body.data.roles[0].name).toBe("Quality Manager");
+    // /v1/reference/iscedf serves the full flat ISCED-F volume (116 rows, all
+    // levels) by design — see reference.integration.test.ts. Count the 11
+    // broad fields (parent === null) rather than the endpoint's total length.
     const iscedf = await request(app).get("/v1/reference/iscedf").set(authed(token));
-    expect(iscedf.body.data).toHaveLength(11);
+    expect(iscedf.body.data.filter((d: { parent: string | null }) => d.parent === null)).toHaveLength(11);
     const exam = await request(app).get("/v1/reference/exam-bank?skill=Internal%20Auditing&level=L1").set(authed(token));
     expect(exam.body.data[0].questions.length).toBeGreaterThan(0);
     // Reference responses are cacheable.

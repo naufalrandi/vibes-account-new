@@ -399,8 +399,13 @@ export async function moveSession(auth: AuthContext, id: string, input: IaSessio
 
   // Double-booking detection (OD `iaPlanMove`, 12181): the same auditor or
   // auditee already engaged in the target month requires an override reason.
+  // `date` is a DATEONLY column, so match the month with a range rather than
+  // LIKE (Postgres has no ~~ operator for date).
+  const [toY = 0, toM = 0] = toPeriod.split("-").map((n) => Number.parseInt(n, 10));
+  const monthStart = `${toPeriod}-01`;
+  const monthEnd = new Date(Date.UTC(toY, toM, 1)).toISOString().slice(0, 10);
   const monthPeers = await IaSession.findAll({
-    where: { orgId: row.orgId, id: { [Op.ne]: row.id }, status: { [Op.ne]: "Cancelled" }, date: { [Op.like]: `${toPeriod}-%` } },
+    where: { orgId: row.orgId, id: { [Op.ne]: row.id }, status: { [Op.ne]: "Cancelled" }, date: { [Op.gte]: monthStart, [Op.lt]: monthEnd } },
   });
   const conflicts: string[] = [];
   if (row.auditor && monthPeers.some((s) => s.auditor === row.auditor)) {
