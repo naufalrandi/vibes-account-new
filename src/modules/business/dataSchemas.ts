@@ -285,6 +285,15 @@ const entCtypeTemplatesDataSchema = z
   .object({ typeId: str, country: str, name: str, items: arr, co })
   .strict();
 
+/**
+ * `clauses` (`parity/backend.md`) — the reusable clause library `contractTemplates`/
+ * `contractDocs` snapshot from. Was wrongly aliased to `FrameworkRequirement`
+ * (a framework/audit clause, unrelated concept); this is its own module (SOF-58).
+ */
+const entClausesDataSchema = z
+  .object({ title: str, category: str, country: str, scope: str, body: str, domain: str, co })
+  .strict();
+
 /** `banks` (`parity/backend.md`). */
 const entBanksDataSchema = z.object({ country: str, name: str, swift: str, type: str, co }).strict();
 
@@ -645,6 +654,7 @@ export const BUSINESS_DATA_SCHEMAS: Record<string, z.ZodTypeAny> = {
   "ent-ctype-profiles": entCtypeProfilesDataSchema,
   "ent-ctype-templates": entCtypeTemplatesDataSchema,
   "ent-ctypes": contractTypesDataSchema,
+  "ent-clauses": entClausesDataSchema,
   "ent-db-courses": entDbCoursesDataSchema,
   "ent-db-disciplines": entDbDisciplinesDataSchema,
   "ent-fiscal": entFiscalDataSchema,

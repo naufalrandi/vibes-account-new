@@ -30,6 +30,7 @@ export interface CreateUserInput {
   phone?: string | null;
   photo?: string | null;
   workUnit?: string | null;
+  department?: string | null;
   // AXIA Team additions (Phase 2). `password` sets an initial credential (the
   // account still starts PendingActivation with an activation invite);
   // permissionMode/permissions are the permission-grid metadata.
@@ -52,6 +53,7 @@ export interface UpdateUserInput {
   phone?: string | null;
   photo?: string | null;
   workUnit?: string | null;
+  department?: string | null;
   // OD tenant-team member fields (migration 0047): Site / Type columns and the
   // per-member business-process assignment (`tmBpForm`, app.html:14981).
   siteId?: string | null;
@@ -107,6 +109,10 @@ export async function createUser(auth: AuthContext, input: CreateUserInput, ip: 
     phone: input.phone ?? null,
     photo: input.photo ?? null,
     workUnit: input.workUnit ?? null,
+    department: input.department ?? null,
+    // Matches core.js seed semantics: `provisioned` is false until a role is
+    // actually granted (role-less accounts await admin assignment).
+    provisioned: !!input.role,
     lastLogin: null,
     activationToken,
     resetToken: null,
@@ -279,6 +285,7 @@ export async function updateUser(
   if (input.phone !== undefined) user.phone = input.phone;
   if (input.photo !== undefined) user.photo = input.photo;
   if (input.workUnit !== undefined) user.workUnit = input.workUnit;
+  if (input.department !== undefined) user.department = input.department;
   // Team-member fields (OD tn-team). A site must belong to the user's own org —
   // the update path is already tenant-scoped via requireManagedUser, so this
   // keeps a Tenant admin from pointing a member at another org's site.
@@ -321,6 +328,9 @@ export async function updateUser(
     if (role) {
       await UserRole.destroy({ where: { userId } });
       await UserRole.findOrCreate({ where: { userId, roleId: role.id } });
+      // OD `users[].provisioned` (core.js seed: false only on role-less accounts
+      // awaiting admin assignment) — flips true once a role is actually granted.
+      if (!user.provisioned) { user.provisioned = true; await user.save(); }
     }
   }
 

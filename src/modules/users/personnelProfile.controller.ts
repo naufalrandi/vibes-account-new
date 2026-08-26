@@ -33,6 +33,7 @@ const employmentSchema = z.object({
   employmentStatus: employmentStatusSchema.nullish(),
   orgUnitId: z.string().uuid().nullish(),
   siteId: z.string().uuid().nullish(),
+  department: z.string().nullish(),
   managerId: z.string().uuid().nullish(),
   employeeId: z.string().nullish(),
   contractType: contractTypeSchema.nullish(),

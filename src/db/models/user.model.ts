@@ -37,6 +37,10 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare processIds: CreationOptional<string[]>;
   declare orgUnitId: CreationOptional<string | null>;
   declare empLevel: CreationOptional<string | null>;
+  /** OD `users[].department` — free-text org department label (SOF-58 §1). */
+  declare department: CreationOptional<string | null>;
+  /** OD `users[].provisioned` — account provisioning status (SOF-58 §1). */
+  declare provisioned: CreationOptional<boolean>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 
@@ -86,6 +90,8 @@ User.init(
     processIds: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "process_ids" },
     orgUnitId: { type: DataTypes.UUID, allowNull: true, field: "org_unit_id" },
     empLevel: { type: DataTypes.STRING, allowNull: true, field: "emp_level" },
+    department: { type: DataTypes.STRING, allowNull: true },
+    provisioned: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

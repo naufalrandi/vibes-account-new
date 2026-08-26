@@ -22,6 +22,7 @@ const createSchema = z.object({
   phone: z.string().nullish(),
   photo: z.string().nullish(),
   workUnit: z.string().nullish(),
+  department: z.string().nullish(),
 });
 
 const updateSchema = z.object({

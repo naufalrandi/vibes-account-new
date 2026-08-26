@@ -31,6 +31,7 @@ export interface EmploymentInput {
   employmentStatus?: EmploymentStatus | null;
   orgUnitId?: string | null;
   siteId?: string | null;
+  department?: string | null;
   managerId?: string | null;
   employeeId?: string | null;
   contractType?: ContractType | null;
@@ -113,15 +114,16 @@ export async function updateEmployment(
   const user = await requireManagedUser(auth, userId);
   if (input.managerId) await assertManagerInOrg(input.managerId, user.orgId);
 
-  // personnelType/orgUnitId/siteId already live on User (OD tn-team fields);
-  // everything else in the modal is new, profile-owned employment data.
+  // personnelType/orgUnitId/siteId/department already live on User (OD tn-team
+  // fields); everything else in the modal is new, profile-owned employment data.
   if (input.personnelType !== undefined) user.personnelType = input.personnelType;
   if (input.orgUnitId !== undefined) user.orgUnitId = input.orgUnitId;
   if (input.siteId !== undefined) user.siteId = input.siteId;
+  if (input.department !== undefined) user.department = input.department;
   await user.save();
 
   const profile = await getOrCreateProfile(userId);
-  const { personnelType: _pt, orgUnitId: _ou, siteId: _sid, ...employmentFields } = input;
+  const { personnelType: _pt, orgUnitId: _ou, siteId: _sid, department: _dept, ...employmentFields } = input;
   Object.assign(profile, employmentFields);
   await profile.save();
 

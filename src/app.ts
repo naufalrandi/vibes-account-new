@@ -1,3 +1,4 @@
+import path from "node:path";
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
@@ -47,6 +48,13 @@ import { approvalRoutes } from "./modules/approvals/approval.routes";
 import { scopeRoutes } from "./modules/scope/scope.routes";
 import { workUnitRoutes } from "./modules/work-units/workUnit.routes";
 import { doaMatrixRoutes } from "./modules/doa-matrix/doaMatrix.routes";
+import { cmsRoutes } from "./modules/cms/cms.routes";
+import { cmsPublicRoutes } from "./modules/cms/cmsPublic.routes";
+import { documentRoutes } from "./modules/documents/document.routes";
+import { mReviewRoutes } from "./modules/management-review/mReview.routes";
+import { orgUnitRoutes } from "./modules/org-units/orgUnit.routes";
+import { perfEvalRoutes } from "./modules/performance-evaluation/perfEval.routes";
+import { processRoutes } from "./modules/processes/process.routes";
 import { roleRegisterRoutes } from "./modules/roles-register/roleRegister.routes";
 import { recordEventRoutes } from "./modules/record-events/recordEvent.routes";
 import { interestedPartyRoutes } from "./modules/interested-parties/ip.routes";
@@ -82,12 +90,18 @@ export function createApp() {
   app.use(requestId);
 
   app.get("/health", (_req, res) => res.json({ success: true, data: { status: "ok" }, error: null, meta: null }));
+  // Uploaded CMS media, served at the `/uploads/cms/:orgId/:file` URLs cmsMedia.service.ts hands out.
+  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
   const authLimiter = rateLimit({
     windowMs: env.AUTH_RATE_LIMIT_WINDOW_MS,
     max: env.AUTH_RATE_LIMIT_MAX,
     keyPrefix: "auth",
   });
   app.use("/v1/auth", authLimiter, authRoutes);
+  // PUBLIC — must be mounted before the blanket `app.use("/v1", authenticate, ...)`
+  // catch-all below, or that middleware runs on every /v1/* request regardless
+  // of whether the matched router below it actually owns the path.
+  app.use("/v1/public/cms", cmsPublicRoutes);
   app.use("/v1/users", authenticate, tenantScope, userRoutes);
   // Personnel sub-record logs (resume/leave/disciplinary/performance), nested
   // under a single user (the personnel record) — SOF-53/SOF-48-3.
@@ -137,6 +151,12 @@ export function createApp() {
   app.use("/v1/scope", authenticate, tenantScope, scopeRoutes);
   app.use("/v1/work-units", authenticate, tenantScope, workUnitRoutes);
   app.use("/v1/doa-matrix", authenticate, tenantScope, doaMatrixRoutes);
+  app.use("/v1/cms", authenticate, tenantScope, cmsRoutes);
+  app.use("/v1/documents", authenticate, tenantScope, documentRoutes);
+  app.use("/v1/management-review", authenticate, tenantScope, mReviewRoutes);
+  app.use("/v1/org-units", authenticate, tenantScope, orgUnitRoutes);
+  app.use("/v1/performance-evaluation", authenticate, tenantScope, perfEvalRoutes);
+  app.use("/v1/processes", authenticate, tenantScope, processRoutes);
   app.use("/v1/org-roles", authenticate, tenantScope, roleRegisterRoutes);
   app.use("/v1/record-events", authenticate, tenantScope, recordEventRoutes);
   app.use("/v1/interested-parties", authenticate, tenantScope, interestedPartyRoutes);

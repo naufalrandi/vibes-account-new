@@ -161,6 +161,9 @@ const BIZ_CODE_CONFIG: Record<string, BizCodeConfig> = {
   "ent-po-terms": { prefix: "POT", base: 0, pad: 3 },
   "ent-ctype-profiles": { prefix: "CTP", base: 0, pad: 3 },
   "ent-ctype-templates": { prefix: "CTT", base: 0, pad: 3 },
+  // `db.clauses` — the reusable clause library `contractTemplates`/`contractDocs`
+  // snapshot from. No OD counter to preserve (`rUid`-seeded), same as `ent-ctypes`.
+  "ent-clauses": { prefix: "CL", base: 0, pad: 3 },
   "ent-db-disciplines": { prefix: "CD", base: 0, pad: 3 },
   // `fiscalGen` (modules.js:2856) mints `FP-<fy>-01..12` — the fiscal year is part of the id, a
   // shape `BizCodeConfig`'s prefix/base/pad cannot express and not worth generalising the whole
