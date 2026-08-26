@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Op, Model, type ModelStatic } from "sequelize";
-import { MReview, User } from "../../db/models";
+import { MReview } from "../../db/models";
 import {
   MR_FORMATS, MR_STATUS, MR_OUTPUT_CATEGORY, MR_DECISION_STATUS, MR_ITEM_STATUS, MR_TOPIC_CATALOG,
   type MrTopic, type MrInvitee, type MrExternal, type MrAction,
@@ -8,6 +8,7 @@ import {
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
+import { actorName } from "../record-events/recordEvent.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 /**
@@ -18,11 +19,6 @@ import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors
  * selected, append blanks for newly-selected titles, drop deselected ones.
  * `record` is a dedicated bulk-update of topic outputs (OD `mrRecord`).
  */
-
-async function actorName(auth: AuthContext): Promise<string> {
-  const u = await User.findByPk(auth.userId);
-  return u?.fullName ?? u?.username ?? "User";
-}
 
 async function targetOrg(auth: AuthContext, orgId?: string): Promise<string> {
   const org = orgId ?? auth.orgId;

@@ -43,8 +43,8 @@ export interface CreateResumeRecordInput {
 }
 
 export async function listResumeRecords(auth: AuthContext, userId: string): Promise<ResumeRecord[]> {
-  await requireManagedUser(auth, userId);
-  return ResumeRecord.findAll({ where: { userId }, order: [["createdAt", "DESC"]] });
+  const user = await requireManagedUser(auth, userId);
+  return ResumeRecord.findAll({ where: { userId, orgId: user.orgId }, order: [["createdAt", "DESC"]] });
 }
 
 export async function createResumeRecord(
@@ -93,7 +93,7 @@ export async function createResumeRecord(
 
 export async function deleteResumeRecord(auth: AuthContext, userId: string, id: string, ip: string | null): Promise<void> {
   const user = await requireManagedUser(auth, userId);
-  const record = await ResumeRecord.findOne({ where: { id, userId } });
+  const record = await ResumeRecord.findOne({ where: { id, userId, orgId: user.orgId } });
   if (!record) throw new NotFoundError("Resume record not found");
   await record.destroy();
   await writeAudit({
@@ -124,8 +124,8 @@ function inclusiveCalendarDays(fromDate: string, toDate: string): number {
 }
 
 export async function listLeaveRecords(auth: AuthContext, userId: string): Promise<LeaveRecord[]> {
-  await requireManagedUser(auth, userId);
-  return LeaveRecord.findAll({ where: { userId }, order: [["createdAt", "DESC"]] });
+  const user = await requireManagedUser(auth, userId);
+  return LeaveRecord.findAll({ where: { userId, orgId: user.orgId }, order: [["createdAt", "DESC"]] });
 }
 
 export async function createLeaveRecord(
@@ -164,7 +164,7 @@ export async function createLeaveRecord(
 
 export async function deleteLeaveRecord(auth: AuthContext, userId: string, id: string, ip: string | null): Promise<void> {
   const user = await requireManagedUser(auth, userId);
-  const record = await LeaveRecord.findOne({ where: { id, userId } });
+  const record = await LeaveRecord.findOne({ where: { id, userId, orgId: user.orgId } });
   if (!record) throw new NotFoundError("Leave record not found");
   await record.destroy();
   await writeAudit({
@@ -190,8 +190,8 @@ export interface CreateDisciplinaryRecordInput {
 }
 
 export async function listDisciplinaryRecords(auth: AuthContext, userId: string): Promise<DisciplinaryRecord[]> {
-  await requireManagedUser(auth, userId);
-  return DisciplinaryRecord.findAll({ where: { userId }, order: [["createdAt", "DESC"]] });
+  const user = await requireManagedUser(auth, userId);
+  return DisciplinaryRecord.findAll({ where: { userId, orgId: user.orgId }, order: [["createdAt", "DESC"]] });
 }
 
 export async function createDisciplinaryRecord(
@@ -230,7 +230,7 @@ export async function createDisciplinaryRecord(
 
 export async function deleteDisciplinaryRecord(auth: AuthContext, userId: string, id: string, ip: string | null): Promise<void> {
   const user = await requireManagedUser(auth, userId);
-  const record = await DisciplinaryRecord.findOne({ where: { id, userId } });
+  const record = await DisciplinaryRecord.findOne({ where: { id, userId, orgId: user.orgId } });
   if (!record) throw new NotFoundError("Disciplinary record not found");
   await record.destroy();
   await writeAudit({
@@ -255,8 +255,8 @@ export interface CreatePerformanceRecordInput {
 }
 
 export async function listPerformanceRecords(auth: AuthContext, userId: string): Promise<PerformanceRecord[]> {
-  await requireManagedUser(auth, userId);
-  return PerformanceRecord.findAll({ where: { userId }, order: [["createdAt", "DESC"]] });
+  const user = await requireManagedUser(auth, userId);
+  return PerformanceRecord.findAll({ where: { userId, orgId: user.orgId }, order: [["createdAt", "DESC"]] });
 }
 
 export async function createPerformanceRecord(
@@ -290,7 +290,7 @@ export async function createPerformanceRecord(
 
 export async function deletePerformanceRecord(auth: AuthContext, userId: string, id: string, ip: string | null): Promise<void> {
   const user = await requireManagedUser(auth, userId);
-  const record = await PerformanceRecord.findOne({ where: { id, userId } });
+  const record = await PerformanceRecord.findOne({ where: { id, userId, orgId: user.orgId } });
   if (!record) throw new NotFoundError("Performance record not found");
   await record.destroy();
   await writeAudit({

@@ -39,6 +39,10 @@
     "count": 1,
     "why": "Scoped by the partnerOrgId argument in generateStatementForPartner; its authenticated callers resolve that org first."
   },
+  "src/modules/cms/cmsPublic.routes.ts:Organization.findByPk": {
+    "count": 1,
+    "why": "Public renderer's org-existence check (requireOrg) — unauthenticated by design, orgId is a path param, not a caller-scoped lookup; page/post reads that follow are Published-status-only."
+  },
   "src/modules/competence/competence.assessment.service.ts:CompetenceGap.findOne": {
     "count": 1,
     "why": "Child row keyed by assignmentId from the parent assessment, whose org was already asserted."

@@ -1,8 +1,9 @@
 import { Op, Model, type ModelStatic } from "sequelize";
-import { PerfEval, User } from "../../db/models";
+import { PerfEval } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
+import { actorName } from "../record-events/recordEvent.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
 import type { PerfEvalIndicator } from "../../db/models/evaluation.models";
 import { listRecords } from "../implementation/implementation.service";
@@ -18,11 +19,6 @@ import { computePerfIndicatorsBase, applyObjectiveOverrides, type PerfIndicator 
  * live computation is out of scope (see issue description). Same thin
  * controller/service split as internal-audit.service.ts.
  */
-
-async function actorName(auth: AuthContext): Promise<string> {
-  const u = await User.findByPk(auth.userId);
-  return u?.fullName ?? u?.username ?? "User";
-}
 
 async function targetOrg(auth: AuthContext, orgId?: string): Promise<string> {
   const org = orgId ?? auth.orgId;

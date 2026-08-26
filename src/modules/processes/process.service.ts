@@ -1,7 +1,8 @@
-import { BusinessProcess, BusinessProcessStep, ImplementationRecord, User } from "../../db/models";
+import { BusinessProcess, BusinessProcessStep, ImplementationRecord } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { BadRequestError, NotFoundError } from "../../lib/errors";
 import { writeAudit } from "../audit/audit.service";
+import { actorName } from "../record-events/recordEvent.service";
 import { createRisk, listRisks, type RiskRecordView } from "../risks/risk.service";
 
 export const PROCESS_STATUSES = ["Active", "Inactive", "Archived"] as const;
@@ -188,12 +189,6 @@ async function nextCode(orgId: string): Promise<string> {
   return `BP-${String(max + 1).padStart(4, "0")}`;
 }
 
-async function actorName(auth: AuthContext): Promise<string | null> {
-  if (!auth.userId) return null;
-  const u = await User.findByPk(auth.userId);
-  return u?.fullName ?? u?.username ?? null;
-}
-
 async function requireProcess(auth: AuthContext, id: string): Promise<BusinessProcess> {
   const p = await BusinessProcess.findOne({ where: { id, orgId: auth.orgId } });
   if (!p) throw new NotFoundError("Business process does not exist", "PROCESS_NOT_FOUND");
@@ -374,7 +369,7 @@ export async function addStep(auth: AuthContext, processId: string, input: Busin
   await requireProcess(auth, processId);
   if (!input.name || !input.name.trim()) throw new BadRequestError("Step name is required", "NAME_REQUIRED");
 
-  const rows = await BusinessProcessStep.findAll({ where: { processId }, attributes: ["seq"] });
+  const rows = await BusinessProcessStep.findAll({ where: { processId, orgId: auth.orgId }, attributes: ["seq"] });
   const maxSeq = rows.reduce((m, r) => Math.max(m, r.seq), 0);
 
   const s = await BusinessProcessStep.create({

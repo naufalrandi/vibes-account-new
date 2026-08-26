@@ -102,6 +102,10 @@ const EXEMPT_MOUNTS: Record<string, string> = {
   "/v1/auth": "Issues the JWT (login/refresh/activate/reset), so it cannot require one. Behind its own rate limiter.",
   "/v1/demo-requests":
     "Public demo-request intake from the marketing site — write-only, deduped by email, own per-IP rate limiter.",
+  "/v1/public/cms":
+    "Public CMS renderer (pages/posts/sitemap/robots) — read-only, Published-status rows only, orgId is a path param validated against a real Organization (404 otherwise), never trusts a token.",
+  "/uploads":
+    "Static file serving for CMS-uploaded media (express.static) — no model access, orgId is baked into the file path by the uploader, not asserted per-request.",
 };
 
 /** `app.use("/v1/x", authenticate, tenantScope, xRoutes)` -> router symbol per prefix. */
