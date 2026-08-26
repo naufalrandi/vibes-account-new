@@ -121,6 +121,53 @@ export const FISCAL_PERIOD_TRANSITIONS: Record<string, readonly string[]> = {
   Closed: ["Open"],
 };
 
+/**
+ * Inquiry pipeline (AXI-42, `enterprise/ent-inq`). OD's Sales Pipeline kanban columns
+ * (modules.js `inqPipelineStages` ~L1980) in order: Cold Leads → Potential → Qualified →
+ * Proposal Sent → Negotiation → Acquired, plus the Lost side-branch reachable from any
+ * non-terminal stage (`inqMarkLost`) and reopenable only back to Cold Leads (`inqReopen`).
+ * Acquired is terminal — OD converts an Acquired inquiry into a Proposal instead of moving it
+ * further (see `ent-proposals` below).
+ */
+export const INQ_TRANSITIONS: Record<string, readonly string[]> = {
+  "Cold Leads": ["Potential", "Lost"],
+  Potential: ["Qualified", "Lost"],
+  Qualified: ["Proposal Sent", "Lost"],
+  "Proposal Sent": ["Negotiation", "Lost"],
+  Negotiation: ["Acquired", "Lost"],
+  Acquired: [],
+  Lost: ["Cold Leads"],
+};
+
+/**
+ * Proposal lifecycle (AXI-43, `enterprise/ent-proposals`). OD's `propActions` (modules.js
+ * ~L2450): Draft can go straight to Sent (non-cert branch) or through Sales Manager review
+ * first; Pending SM can bounce back to Draft; Submitted/Sent can both be Rejected; Accepted is
+ * terminal (the only next step, "Convert to project", mints a *different* record — see
+ * `enterprise/ent-projects` below, mirroring `SERVICE_CONTRACT_TRANSITIONS`'s Signed).
+ */
+export const PROPOSAL_TRANSITIONS: Record<string, readonly string[]> = {
+  Draft: ["Pending SM", "Sent"],
+  "Pending SM": ["Submitted", "Draft"],
+  Submitted: ["Sent", "Rejected"],
+  Sent: ["Accepted", "Rejected"],
+  Accepted: [],
+  Rejected: [],
+};
+
+/**
+ * Project delivery lifecycle (AXI-44, `enterprise/ent-projects`). A project only ever comes
+ * into being already `Planned` (`createProjectFromProposal`, business.service.ts) and then
+ * walks a straight line through delivery — OD's `projectActions` (modules.js ~L2530) offers no
+ * branch or reopen once Closed.
+ */
+export const PROJECT_TRANSITIONS: Record<string, readonly string[]> = {
+  Planned: ["Active"],
+  Active: ["Delivered"],
+  Delivered: ["Closed"],
+  Closed: [],
+};
+
 /** Business Unit modules with a server-enforced transition graph. Extend this map (never
  *  `PR_TRANSITIONS`/`PO_TRANSITIONS` themselves) for another module's own graph. */
 export const BUSINESS_TRANSITIONS: Record<string, Record<string, readonly string[]>> = {
@@ -129,6 +176,9 @@ export const BUSINESS_TRANSITIONS: Record<string, Record<string, readonly string
   "enterprise/ent-svc-contracts": SERVICE_CONTRACT_TRANSITIONS,
   "enterprise/ent-leave": LEAVE_TRANSITIONS,
   "enterprise/ent-fiscal": FISCAL_PERIOD_TRANSITIONS,
+  "enterprise/ent-inq": INQ_TRANSITIONS,
+  "enterprise/ent-proposals": PROPOSAL_TRANSITIONS,
+  "enterprise/ent-projects": PROJECT_TRANSITIONS,
 };
 
 export function businessTransitionGraph(area: string, module: string): Record<string, readonly string[]> | undefined {

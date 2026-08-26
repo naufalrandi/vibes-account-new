@@ -4,6 +4,7 @@ import * as service from "./business.service";
 import { sendOk } from "../../lib/apiResponse";
 import { UnauthorizedError } from "../../lib/errors";
 import type { AuthContext } from "../../lib/scope";
+import { getBusinessDataSchema } from "./dataSchemas";
 
 const inputSchema = z.object({
   title: z.string().optional(),
@@ -12,6 +13,22 @@ const inputSchema = z.object({
   company: z.string().optional(),
   data: z.record(z.string(), z.unknown()).optional(),
 });
+
+/**
+ * Parses the generic envelope, then — if the module has a registered
+ * payload schema (SOF-23, `dataSchemas.ts`) — re-validates `data` against
+ * it. Since SOF-38 every registered key has one; what still bypasses
+ * validation is only a route with no `:module` param (e.g.
+ * `createFromProposal`), which has nothing to dispatch on.
+ */
+function parseInput(module: string | undefined, body: unknown) {
+  const input = inputSchema.parse(body);
+  if (input.data !== undefined && module !== undefined) {
+    const dataSchema = getBusinessDataSchema(module);
+    if (dataSchema) input.data = dataSchema.parse(input.data) as Record<string, unknown>;
+  }
+  return input;
+}
 
 const guard = (req: Request): AuthContext => {
   if (!req.auth) throw new UnauthorizedError();
@@ -43,14 +60,14 @@ export async function list(req: Request, res: Response, next: NextFunction) {
 
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
-    const input = inputSchema.parse(req.body);
+    const input = parseInput(req.params.module as string, req.body);
     sendOk(res, await service.createBusiness(guard(req), req.params.area as string, req.params.module as string, input, req.ip ?? null), 201);
   } catch (e) { next(e); }
 }
 
 export async function update(req: Request, res: Response, next: NextFunction) {
   try {
-    const input = inputSchema.parse(req.body);
+    const input = parseInput(req.params.module as string, req.body);
     const company = resolveCompanyParam(req);
     sendOk(res, await service.updateBusiness(guard(req), req.params.area as string, req.params.module as string, req.params.id as string, input, req.ip ?? null, company));
   } catch (e) { next(e); }
@@ -61,5 +78,32 @@ export async function remove(req: Request, res: Response, next: NextFunction) {
     const company = resolveCompanyParam(req);
     await service.deleteBusiness(guard(req), req.params.area as string, req.params.module as string, req.params.id as string, req.ip ?? null, company);
     sendOk(res, { id: req.params.id });
+  } catch (e) { next(e); }
+}
+
+export async function createFromProposal(req: Request, res: Response, next: NextFunction) {
+  try {
+    const input = inputSchema.parse(req.body);
+    const company = resolveCompanyParam(req);
+    sendOk(res, await service.createProjectFromProposal(guard(req), req.params.proposalId as string, input, req.ip ?? null, company), 201);
+  } catch (e) { next(e); }
+}
+
+const priceSchema = z.object({
+  auditType: z.enum(["Stage 1", "Stage 2", "Surveillance 1", "Surveillance 2", "Recertification"]).optional(),
+});
+
+export async function priceCabClient(req: Request, res: Response, next: NextFunction) {
+  try {
+    const input = priceSchema.parse(req.body ?? {});
+    const company = resolveCompanyParam(req);
+    sendOk(res, await service.priceCabClient(guard(req), req.params.id as string, input.auditType, req.ip ?? null, company));
+  } catch (e) { next(e); }
+}
+
+export async function issueCabCertificate(req: Request, res: Response, next: NextFunction) {
+  try {
+    const company = resolveCompanyParam(req);
+    sendOk(res, await service.issueCabCertificate(guard(req), req.params.id as string, req.ip ?? null, company));
   } catch (e) { next(e); }
 }

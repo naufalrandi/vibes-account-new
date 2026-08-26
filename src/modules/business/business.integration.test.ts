@@ -39,11 +39,13 @@ describe("business unit registers", () => {
   // (`leadNextId` index.html:29329, `inqNextId` :29903, `propNextId` :30236, `prjNextId` :30389, `plNextId` :30513).
   it("uses OD's own code stems and numeric bases for the Sales modules", async () => {
     const a = await actor("SP", "sp1", ALL);
-    const mk = (mod: string, title: string) =>
-      request(app).post(`/v1/business/enterprise/${mod}`).set(authed(a.token)).send({ title });
+    const mk = (mod: string, title: string, data?: Record<string, unknown>) =>
+      request(app).post(`/v1/business/enterprise/${mod}`).set(authed(a.token)).send({ title, data });
     expect((await mk("ent-leads", "PT Sinar Jaya")).body.data.code).toBe("LD-2001");
     expect((await mk("ent-inq", "Website enquiry")).body.data.code).toBe("INQ-3001");
-    expect((await mk("ent-proposals", "ISO 9001 implementation")).body.data.code).toBe("PRO-4001");
+    // AXI-43's `proposalRules.ts` requires `currency` on every proposal — supply the minimum
+    // valid payload so this test can still assert on the code stem alone.
+    expect((await mk("ent-proposals", "ISO 9001 implementation", { currency: "IDR" })).body.data.code).toBe("PRO-4001");
     expect((await mk("ent-projects", "ISO 9001 rollout")).body.data.code).toBe("PRJ-6001");
     expect((await mk("ent-leads-people", "Andi Wijaya")).body.data.code).toBe("PL-001");
   });
