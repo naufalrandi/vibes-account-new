@@ -1,7 +1,7 @@
 import { Op, type WhereOptions } from "sequelize";
 import {
   Organization, Site, Framework, Assessment, AssessmentAnswer, Gap,
-  FrameworkElement, FrameworkRequirement, ElementRequirementXref,
+  FrameworkElement, Fwrc,
   ConformanceQuestion, ConformanceResponse, RequirementCriterion,
 } from "../../db/models";
 import type { AssessmentRunStatus, GapSeverity } from "../../db/models/assessment.models";
@@ -12,6 +12,21 @@ import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors
 
 // An element scoring below this (on the 0–9 maturity rubric) surfaces as a gap.
 const GAP_THRESHOLD = 5;
+// Top of the maturity rubric; the bottom is 0.
+const MAX_MATURITY = 9;
+
+/**
+ * Fallback maturity score for a response that has no SP-authored criterion
+ * (rcmap) attached: OD's ordinal rule — the response's position on its
+ * question's ladder, normalised (`selectedIndex / (numResponses - 1)`) and
+ * scaled onto this rubric's 0–9 range. The seeded CQR library carries no
+ * criterion at all, so without this every answer scored null and both the
+ * maturity score and the gap list came out empty (SOF-115).
+ */
+function ordinalScore(index: number, count: number): number {
+  if (count < 2) return MAX_MATURITY;
+  return Math.round((index / (count - 1)) * MAX_MATURITY);
+}
 
 interface ModuleRec {
   key: string;
@@ -133,29 +148,33 @@ interface QElement {
 }
 
 /**
- * The assessable question set for a scope: framework → its requirements → xref →
- * elements → their Active conformance questions (with Active graded responses).
+ * The assessable question set for a scope: framework → `fwrc` (the authored
+ * framework → requirement → element → question → response join) → those Active
+ * conformance questions and their Active responses.
  * A null framework assesses every Active element (whole-library baseline).
+ *
+ * Scoping used to run through `element_requirement_xref`, but that table is
+ * SP-authored mapping metadata and no seeded content populates it, so every
+ * framework resolved to zero elements and the tenant run view rendered "no
+ * published conformance questions yet" (SOF-115). `fwrc` is the join the
+ * content actually ships with.
  */
 async function buildQuestionSet(frameworkId: string | null): Promise<QElement[]> {
-  let elementIds: string[] | null = null;
+  let questionIds: string[] | null = null;
   if (frameworkId) {
-    const reqs = await FrameworkRequirement.findAll({ where: { frameworkId, status: "Active" }, attributes: ["id"] });
-    const reqIds = reqs.map((r) => r.id);
-    if (reqIds.length === 0) return [];
-    const xrefs = await ElementRequirementXref.findAll({ where: { requirementId: { [Op.in]: reqIds } }, attributes: ["elementId"] });
-    elementIds = [...new Set(xrefs.map((x) => x.elementId))];
-    if (elementIds.length === 0) return [];
+    const rows = await Fwrc.findAll({ where: { frameworkId, status: "Active" }, attributes: ["questionId"] });
+    questionIds = [...new Set(rows.map((r) => r.questionId).filter((id): id is string => id !== null))];
+    if (questionIds.length === 0) return [];
   }
 
-  const elementWhere: WhereOptions = { status: "Active" };
-  if (elementIds) Object.assign(elementWhere, { id: { [Op.in]: elementIds } });
-  const elements = await FrameworkElement.findAll({ where: elementWhere, order: [["code", "ASC"]] });
+  const elements = await FrameworkElement.findAll({ where: { status: "Active" }, order: [["code", "ASC"]] });
 
   const out: QElement[] = [];
   for (const el of elements) {
+    const questionWhere: WhereOptions = { elementId: el.id, status: "Active" };
+    if (questionIds) Object.assign(questionWhere, { id: { [Op.in]: questionIds } });
     const questions = await ConformanceQuestion.findAll({
-      where: { elementId: el.id, status: "Active" },
+      where: questionWhere,
       order: [["sortOrder", "ASC"]],
       include: [{
         model: ConformanceResponse,
@@ -166,13 +185,13 @@ async function buildQuestionSet(frameworkId: string | null): Promise<QElement[]>
     });
     const qOut = questions
       .map((q) => {
-        const responses = ((q.get("ConformanceResponses") as ConformanceResponse[] | undefined) ?? [])
+        const ladder = ((q.get("ConformanceResponses") as ConformanceResponse[] | undefined) ?? [])
           .slice()
-          .sort((a, b) => a.sortOrder - b.sortOrder)
-          .map((r) => {
-            const crit = r.get("RequirementCriterion") as RequirementCriterion | undefined;
-            return { id: r.id, text: r.text, score: crit ? crit.score : null };
-          });
+          .sort((a, b) => a.sortOrder - b.sortOrder);
+        const responses = ladder.map((r, i) => {
+          const crit = r.get("RequirementCriterion") as RequirementCriterion | undefined;
+          return { id: r.id, text: r.text, score: crit ? crit.score : ordinalScore(i, ladder.length) };
+        });
         return { id: q.id, text: q.text, responses };
       })
       .filter((q) => q.responses.length > 0);
@@ -314,8 +333,9 @@ export async function submitAnswers(auth: AuthContext, id: string, input: Submit
   if (a.status === "Completed") throw new BadRequestError("Assessment is already finalized", "ASSESSMENT_FINALIZED");
 
   const qset = await buildQuestionSet(a.frameworkId);
-  const validQuestions = new Map<string, Set<string>>();
-  for (const e of qset) for (const q of e.questions) validQuestions.set(q.id, new Set(q.responses.map((r) => r.id)));
+  // questionId → responseId → the score that question set already published for it.
+  const validQuestions = new Map<string, Map<string, number | null>>();
+  for (const e of qset) for (const q of e.questions) validQuestions.set(q.id, new Map(q.responses.map((r) => [r.id, r.score])));
 
   const entries = Object.entries(input.answers);
   if (entries.length === 0) throw new BadRequestError("No answers provided", "NO_ANSWERS");
@@ -326,11 +346,9 @@ export async function submitAnswers(auth: AuthContext, id: string, input: Submit
     if (!validResponses.has(responseId)) throw new BadRequestError("Response does not belong to the question", "RESPONSE_INVALID");
     const response = await ConformanceResponse.findByPk(responseId);
     const criterionId = response?.criterionId ?? null;
-    let score: number | null = null;
-    if (criterionId) {
-      const crit = await RequirementCriterion.findByPk(criterionId);
-      score = crit ? crit.score : null;
-    }
+    // Same score the run view showed for this option: the response's criterion
+    // when one is mapped, otherwise its ordinal position on the ladder.
+    const score = validResponses.get(responseId) ?? null;
     const existing = await AssessmentAnswer.findOne({ where: { assessmentId: a.id, questionId } });
     if (existing) {
       existing.responseId = responseId;

@@ -3,7 +3,7 @@ import request from "supertest";
 import { createApp } from "../../app";
 import {
   initModels, Organization, User, Role, Framework, FrameworkElement,
-  FrameworkRequirement, RequirementCriterion, ElementRequirementXref,
+  FrameworkRequirement, RequirementCriterion, ElementRequirementXref, Fwrc,
   ConformanceQuestion, ConformanceResponse,
 } from "../../db/models";
 import { hashPassword } from "../../lib/password";
@@ -58,11 +58,43 @@ async function seedMeta(): Promise<Meta> {
   const riskLow = await ConformanceResponse.create({ questionId: riskQ.id, text: "None", sortOrder: 1, status: "Active", criterionId: critR0.id });
   const riskHigh = await ConformanceResponse.create({ questionId: riskQ.id, text: "Mature", sortOrder: 2, status: "Active", criterionId: critR5.id });
 
+  // Framework scope resolves through fwrc, OD's authored framework →
+  // requirement → element → question → response join.
+  let seq = 0;
+  const link = (requirementId: string, elementId: string, questionId: string, responseId: string) =>
+    Fwrc.create({
+      code: `FWRC-${String((seq += 1)).padStart(4, "0")}`,
+      frameworkId: fw.id, requirementId, elementId, questionId, responseId, statement: "s",
+    });
+  await link(reqAudit.id, auditEl.id, auditQ.id, auditLow.id);
+  await link(reqAudit.id, auditEl.id, auditQ.id, auditHigh.id);
+  await link(reqRisk.id, riskEl.id, riskQ.id, riskLow.id);
+  await link(reqRisk.id, riskEl.id, riskQ.id, riskHigh.id);
+
   return {
     frameworkId: fw.id,
     auditQuestionId: auditQ.id, auditHighResponseId: auditHigh.id, auditLowResponseId: auditLow.id,
     riskQuestionId: riskQ.id, riskHighResponseId: riskHigh.id, riskLowResponseId: riskLow.id,
   };
+}
+
+/**
+ * A question whose responses carry no criterion — the shape the seeded CQ/CQR
+ * library actually ships (SOF-115). Returns the question and its three
+ * responses in ladder order.
+ */
+async function seedUngradedQuestion(fwId: string) {
+  const elementId = (await FrameworkElement.findOne({ where: { code: "FWE-001" } }))!.id;
+  const requirementId = (await FrameworkRequirement.findOne({ where: { code: "Clause 9.2.1" } }))!.id;
+  const q = await ConformanceQuestion.create({ elementId, text: "Ungraded?", sortOrder: 2, status: "Active" });
+  const responses = [];
+  for (const [i, text] of ["None", "Some", "All"].entries()) {
+    responses.push(await ConformanceResponse.create({ questionId: q.id, text, sortOrder: i + 1, status: "Active", criterionId: null }));
+  }
+  for (const [i, r] of responses.entries()) {
+    await Fwrc.create({ code: `FWRC-U${i}`, frameworkId: fwId, requirementId, elementId, questionId: q.id, responseId: r.id, statement: "s" });
+  }
+  return { question: q, responses };
 }
 
 describe("assessment run engine", () => {
@@ -79,6 +111,28 @@ describe("assessment run engine", () => {
     // Each question exposes its graded response options with scores.
     const audit = created.body.data.elements.find((e: { elementName: string }) => e.elementName === "Internal Audit");
     expect(audit.questions[0].responses.map((r: { score: number }) => r.score).sort()).toEqual([0, 5]);
+  });
+
+  it("falls back to the ordinal ladder score for responses with no criterion mapped", async () => {
+    const meta = await seedMeta();
+    const ungraded = await seedUngradedQuestion(meta.frameworkId);
+    const { token } = await makeTenant("t1", "TEN1");
+    const created = await request(app).post("/v1/assessments").set(authed(token)).send({ frameworkId: meta.frameworkId });
+    const id = created.body.data.id;
+    expect(created.body.data.questionCount).toBe(3);
+
+    const audit = created.body.data.elements.find((e: { elementName: string }) => e.elementName === "Internal Audit");
+    const shown = audit.questions.find((q: { id: string }) => q.id === ungraded.question.id);
+    // 3 responses → normalised positions 0 / 0.5 / 1 on the 0–9 rubric.
+    expect(shown.responses.map((r: { score: number }) => r.score)).toEqual([0, 5, 9]);
+
+    // The stored answer keeps the score the run view advertised.
+    const answered = await request(app).post(`/v1/assessments/${id}/answers`).set(authed(token))
+      .send({ answers: { [ungraded.question.id]: ungraded.responses[2].id, [meta.auditQuestionId]: meta.auditHighResponseId } });
+    expect(answered.status).toBe(200);
+    const results = await request(app).get(`/v1/assessments/${id}/results`).set(authed(token));
+    const auditResult = results.body.data.elements.find((e: { elementName: string }) => e.elementName === "Internal Audit");
+    expect(auditResult.score).toBe(7); // (5 + 9) / 2
   });
 
   it("scores deterministically through the rcmap and derives a gap with a recommended module", async () => {
