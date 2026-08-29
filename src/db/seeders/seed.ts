@@ -21,6 +21,7 @@ import {
   AssessmentAnswer,
   Gap,
   FrameworkAssignment,
+  Framework,
   ImplementationRecord,
   RecordEvent,
   IaProgram,
@@ -562,6 +563,24 @@ export async function seed(): Promise<void> {
       where: { code: "FA-1001" },
       defaults: { orgId: tenant.id, code: "FA-1001", siteId: tenantSite.id, frameworkId: iso27001.id, status: "Active", assignedDate: "2026-01-15", notes: null },
     });
+  }
+  // OD PT Hammer Industries' remaining 3 site↔framework assignments
+  // (core.js:6904 audit trail): ISO 9001:2015 → Head Office, ISO 14001:2015 →
+  // Factory A, ISO 45001:2018 → Warehouse. FA-1001 above covers ISO/IEC
+  // 27001:2022 → Head Office — together the 4 match OD 1:1.
+  const extraFas: { code: string; frameworkName: string; site: typeof siteHq }[] = [
+    { code: "FA-1002", frameworkName: "ISO 9001:2015", site: siteHq },
+    { code: "FA-1003", frameworkName: "ISO 14001:2015", site: siteFactory },
+    { code: "FA-1004", frameworkName: "ISO 45001:2018", site: siteWarehouse },
+  ];
+  for (const fa of extraFas) {
+    const fw = await Framework.findOne({ where: { name: fa.frameworkName } });
+    if (fw && fa.site) {
+      await FrameworkAssignment.findOrCreate({
+        where: { code: fa.code },
+        defaults: { orgId: tenant.id, code: fa.code, siteId: fa.site.id, frameworkId: fw.id, status: "Active", assignedDate: "2026-01-15", notes: null },
+      });
+    }
   }
   const [demoAssessment, demoCreated] = await Assessment.findOrCreate({
     where: { code: "ASM-1001" },
