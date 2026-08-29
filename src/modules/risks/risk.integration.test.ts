@@ -379,4 +379,63 @@ describe("Tenant Risk Register (/v1/risks)", () => {
     expect(msRes.body.data.status).toBe("In Treatment");
     expect(msRes.body.data.rtp.approvedBy).toBeTruthy();
   });
+
+  // SOF-135: OD `riskAssignForm` (core.js:10484) records an optional free-text
+  // assignment note on the activity entry alongside the owner. Without it the
+  // note the form collects has nowhere to land.
+  it("records the optional assignment note on the owner-assigned activity entry", async () => {
+    const { token } = await makeTenant("t5", "TEN5");
+    const createRes = await request(app)
+      .post("/v1/risks")
+      .set(authed(token))
+      .send({ description: "Backup restore never rehearsed", category: "Operations", methodology: "basic" });
+    const riskId = createRes.body.data.id;
+
+    const withNote = await request(app)
+      .post(`/v1/risks/${riskId}/assign`)
+      .set(authed(token))
+      .send({ owner: "Ops Lead", note: "Owns the DR runbook" });
+    expect(withNote.status).toBe(200);
+    expect(withNote.body.data.activity[0].summary).toBe("Risk assigned to Ops Lead · Owns the DR runbook");
+
+    // Omitted/blank note leaves the summary exactly as it was before SOF-135.
+    const withoutNote = await request(app)
+      .post(`/v1/risks/${riskId}/assign`)
+      .set(authed(token))
+      .send({ owner: "Ops Lead", note: "   " });
+    expect(withoutNote.body.data.activity[0].summary).toBe("Risk assigned to Ops Lead");
+  });
+
+  // SOF-135: OD `apForm` (core.js:10353) sets the plan's status at creation
+  // (Todo / In Progress / Done). "Verified" stays reachable only through the
+  // effectiveness-verification endpoint.
+  it("accepts a creation status on an action plan but refuses Verified", async () => {
+    const { token } = await makeTenant("t6", "TEN6");
+    const createRes = await request(app)
+      .post("/v1/risks")
+      .set(authed(token))
+      .send({ description: "Vendor access reviews are ad hoc", category: "Third Party", methodology: "basic" });
+    const riskId = createRes.body.data.id;
+    await request(app).post(`/v1/risks/${riskId}/assign`).set(authed(token)).send({ owner: "Procurement Lead" });
+    await request(app).post(`/v1/risks/${riskId}/rtp/generate`).set(authed(token));
+
+    const inProgress = await request(app)
+      .post(`/v1/risks/${riskId}/rtp/action-plans`)
+      .set(authed(token))
+      .send({ title: "Quarterly vendor access review", status: "In Progress" });
+    expect(inProgress.status).toBe(201);
+    expect(inProgress.body.data.rtp.actionPlans[0].status).toBe("In Progress");
+
+    const defaulted = await request(app)
+      .post(`/v1/risks/${riskId}/rtp/action-plans`)
+      .set(authed(token))
+      .send({ title: "Publish the vendor register" });
+    expect(defaulted.body.data.rtp.actionPlans[1].status).toBe("Draft");
+
+    const verified = await request(app)
+      .post(`/v1/risks/${riskId}/rtp/action-plans`)
+      .set(authed(token))
+      .send({ title: "Cannot claim verification at creation", status: "Verified" });
+    expect(verified.status).toBe(400);
+  });
 });
