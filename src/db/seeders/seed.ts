@@ -28,6 +28,7 @@ import {
   IaSession,
   IaFinding,
   IaReport,
+  PerfEval,
   TestingService,
   KbArticle,
   Notification,
@@ -1113,6 +1114,37 @@ export async function seed(): Promise<void> {
         depIds: w.deps.map((n) => depIdByName.get(n)).filter((x): x is string => Boolean(x)),
         createdBy: w.by, createdAt, updatedAt: createdAt,
       },
+    });
+  }
+
+  // Performance Evaluation baseline snapshot — OD `perfSeedBaseline`
+  // (core.js:7942): one PEV-0001 record ~a quarter old, owner Jennifer Susan
+  // Walters, indicators frozen slightly below current values so the dashboard
+  // shows improvement trends. Mirrored in the FE mockClient's PERF_EVALS seed.
+  const pevSeeded = await PerfEval.findOne({ where: { orgId: tenant.id, code: "PEV-0001" } });
+  if (!pevSeeded) {
+    const pevDate = new Date(Date.now() - 92 * 86400000);
+    await PerfEval.create({
+      orgId: tenant.id, code: "PEV-0001", period: "Q1 2026",
+      date: pevDate.toISOString().slice(0, 10), owner: "Jennifer Susan Walters",
+      summary: "Baseline performance evaluation for Q1 2026. Several process KPIs and awareness metrics below target — improvement actions raised and tracked.",
+      indicators: [
+        { name: "Process steps with defined KPIs / targets", cat: "Process control (§4.4)", src: "Business Processes", unit: "%", dir: "up", target: "80", val: "72", status: "amber" },
+        { name: "Risks under active control", cat: "Risk management (§6.1)", src: "Risk Register", unit: "%", dir: "up", target: "75", val: "67", status: "amber" },
+        { name: "Open High / Critical risks", cat: "Risk management (§6.1)", src: "Risk Register", unit: "#", dir: "down", target: "0", val: "1", status: "amber" },
+        { name: "Audit finding closure rate", cat: "Internal audit (§9.2)", src: "Internal Audit", unit: "%", dir: "up", target: "85", val: "70", status: "red" },
+        { name: "Open audit findings", cat: "Internal audit (§9.2)", src: "Internal Audit", unit: "#", dir: "down", target: "3", val: "5", status: "red" },
+        { name: "Nonconformity closure rate", cat: "Improvement (§10)", src: "Nonconformities", unit: "%", dir: "up", target: "90", val: "80", status: "amber" },
+        { name: "Concerns pending review", cat: "Improvement (§10)", src: "Concerns", unit: "#", dir: "down", target: "0", val: "2", status: "red" },
+        { name: "Training completion rate", cat: "Competence & awareness (§7.2 / 7.3)", src: "Training Plan", unit: "%", dir: "up", target: "90", val: "82", status: "amber" },
+        { name: "Overdue training actions", cat: "Competence & awareness (§7.2 / 7.3)", src: "Training Plan", unit: "#", dir: "down", target: "0", val: "1", status: "amber" },
+        { name: "Awareness acknowledgment rate", cat: "Competence & awareness (§7.2 / 7.3)", src: "Awareness", unit: "%", dir: "up", target: "95", val: "78", status: "red" },
+        { name: "Awareness evaluation pass rate", cat: "Competence & awareness (§7.2 / 7.3)", src: "Awareness", unit: "%", dir: "up", target: "80", val: "75", status: "amber" },
+        { name: "Internal documents within review date", cat: "Documented information (§7.5)", src: "Internal Documents", unit: "%", dir: "up", target: "95", val: "88", status: "amber" },
+        { name: "External documents current", cat: "Documented information (§7.5)", src: "External Documents", unit: "%", dir: "up", target: "90", val: "84", status: "amber" },
+        { name: "Approved suppliers", cat: "External providers (§8.4)", src: "Suppliers", unit: "%", dir: "up", target: "80", val: "75", status: "amber" },
+      ],
+      createdBy: "Jennifer Susan Walters", lastUpdatedBy: "Jennifer Susan Walters",
     });
   }
 
