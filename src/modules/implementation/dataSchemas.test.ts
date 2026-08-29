@@ -117,9 +117,10 @@ const MODULE_FIELDS: Record<string, string[]> = {
   "documents": [
    "access", "ackAudience", "ackRequired", "approvalNotes", "approvedBy", "approvedDate",
    "approver", "category", "changeSummary", "content", "distribution", "effectiveDate", "ext",
-   "lineageId", "nextReview", "prevVersionId", "publishedBy", "publishedDate",
-   "reasonForChange", "reviewComments", "reviewDecision", "reviewFreq", "submittedBy",
-   "submittedDate", "supersededBy", "supersedes", "type", "version",
+   "finalReviewerMode", "lineageId", "nextReview", "prevVersionId", "publicLink", "publishedBy",
+   "publishedDate", "reasonForChange", "reviewComments", "reviewDecision", "reviewFreq",
+   "submittedBy", "submittedDate", "supersededBy", "supersedes", "type", "version", "viewScope",
+   "viewUnits", "viewUsers", "workUnit",
   ],
   "improvements": [
    "benefit", "category", "due", "priority", "sourceConcernCode", "sourceConcernId",

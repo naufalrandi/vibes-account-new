@@ -273,11 +273,20 @@ const documentsDataSchema = z
     type: str,
     category: str,
     version: str,
+    // OD `cdForm` cd-wu (core.js:19816): the Work Unit a document ties to.
+    workUnit: str,
     effectiveDate: str,
     reviewFreq: str,
     // Derived by `documentControl.ts` from effectiveDate + reviewFreq.
     nextReview: str,
     access: str,
+    // OD cd-vscope/cd-vu-units/cd-vu-users/cd-plink (core.js:19828): per-unit/
+    // per-user view-access scoping, enforced server-side in
+    // `documentControl.filterViewableDocuments`.
+    viewScope: str,
+    viewUnits: strArray,
+    viewUsers: strArray,
+    publicLink: bool,
     ackRequired: bool,
     ackAudience: strArray,
     distribution: strArray,
@@ -286,6 +295,9 @@ const documentsDataSchema = z
     reasonForChange: str,
     approvalNotes: str,
     approver: str,
+    // OD cd-frmode (core.js:19816): Top Management vs a specific authorized
+    // final reviewer.
+    finalReviewerMode: str,
     reviewDecision: str,
     reviewComments: str,
     submittedBy: str,

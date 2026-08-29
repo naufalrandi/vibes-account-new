@@ -1,7 +1,8 @@
-import { DocumentSettings, ImplementationRecord } from "../../db/models";
+import { DocumentSettings, ImplementationRecord, User, WorkUnit } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError } from "../../lib/errors";
+import type { RecordView } from "./implementation.service";
 
 /**
  * Internal Documents (controlled documents) vocabulary + derivations — the
@@ -110,4 +111,56 @@ export async function documentCode(orgId: string, type: unknown, frameworks: str
  */
 export function deriveDocumentData(data: Record<string, unknown>): Record<string, unknown> {
   return { ...data, nextReview: cdNextReview(data.effectiveDate, data.reviewFreq ?? "Annually") };
+}
+
+/**
+ * OD `cdForm` cd-vscope (core.js:19828): per-unit/per-user view-access
+ * scoping. OD itself never enforces it (the field only feeds a display label,
+ * `cdViewAccessLabel`) — a control the API ignores is worse than none, so this
+ * port enforces it server-side instead of copying OD's cosmetic-only behavior.
+ * The document owner, its creator, and org admins always see it regardless of
+ * scope, matching how every other gate in this module treats authorship.
+ */
+function canViewDocument(
+  viewer: { fullName: string | null; workUnit: string | null; isSuperAdmin: boolean },
+  rec: { owner: string | null; data: Record<string, unknown> },
+  unitNameById: Map<string, string>,
+): boolean {
+  const scope = typeof rec.data.viewScope === "string" ? rec.data.viewScope : "Everyone";
+  if (scope === "Everyone" || viewer.isSuperAdmin) return true;
+  if (viewer.fullName && (viewer.fullName === rec.owner || viewer.fullName === rec.data.createdBy)) return true;
+  if (scope === "Specific Users") {
+    const allowed = Array.isArray(rec.data.viewUsers) ? (rec.data.viewUsers as unknown[]) : [];
+    return viewer.fullName !== null && allowed.includes(viewer.fullName);
+  }
+  if (scope === "Work Units") {
+    const units = Array.isArray(rec.data.viewUnits) ? (rec.data.viewUnits as unknown[]) : [];
+    if (!viewer.workUnit) return false;
+    return units.some((id) => typeof id === "string" && unitNameById.get(id) === viewer.workUnit);
+  }
+  return true;
+}
+
+/**
+ * Filters a document list down to what `auth`'s actor may see under each
+ * row's `viewScope`/`viewUnits`/`viewUsers` (OD cd-vscope). Called from
+ * `implementation.service.listRecords` for the `documents` module — the only
+ * read path for controlled documents (there is no single-record GET route).
+ */
+export async function filterViewableDocuments(auth: AuthContext, views: RecordView[]): Promise<RecordView[]> {
+  if (views.length === 0 || auth.isSuperAdmin) return views;
+  const user = auth.userId ? await User.findByPk(auth.userId) : null;
+  const viewer = { fullName: user?.fullName ?? null, workUnit: user?.workUnit ?? null, isSuperAdmin: auth.isSuperAdmin };
+
+  const unitIds = new Set<string>();
+  for (const v of views) {
+    const units = (v.data as Record<string, unknown>).viewUnits;
+    if (Array.isArray(units)) for (const id of units) if (typeof id === "string") unitIds.add(id);
+  }
+  const unitNameById = new Map<string, string>();
+  if (unitIds.size > 0) {
+    const rows = await WorkUnit.findAll({ where: { id: [...unitIds] }, attributes: ["id", "name"] });
+    for (const r of rows) unitNameById.set(r.id, r.name);
+  }
+  return views.filter((v) => canViewDocument(viewer, { owner: v.owner, data: v.data as Record<string, unknown> }, unitNameById));
 }

@@ -10,7 +10,7 @@ import {
   assignReviewTopicIds, reviewTransitionStamp,
 } from "./reviewLifecycle";
 import { logActivity, actorName } from "../record-events/recordEvent.service";
-import { assertDocumentSaveGates, deriveDocumentData, documentCode, getDocSettings } from "./documentControl";
+import { assertDocumentSaveGates, deriveDocumentData, documentCode, filterViewableDocuments, getDocSettings } from "./documentControl";
 import { extDocCode, folderDocumentCount, seedExternalDocsIfNeeded } from "./externalDocs";
 import { decorateCampaignView, getAwSettings, topicHasMaterial } from "./awarenessControl";
 import { derivePolicyData, policyCode, polNextVersion } from "./policyControl";
@@ -157,7 +157,12 @@ export async function listRecords(auth: AuthContext, module: string, filters: { 
   // (awarenessControl.decorateCampaignView); training items get OD's derived
   // Overdue status the same way (decorateTrainingView) — stored status is
   // only the mutation-time snapshot for both.
-  return rows.map((r) => decorateForModule(module, view(r)));
+  const decorated = rows.map((r) => decorateForModule(module, view(r)));
+  // Controlled documents: OD cd-vscope per-unit/per-user view-access scoping,
+  // enforced here since this is the only read path for the module (no
+  // single-record GET route — the FE finds a record in this list by id).
+  if (module === "documents") return filterViewableDocuments(auth, decorated);
+  return decorated;
 }
 
 async function requireRecord(auth: AuthContext, module: string, id: string): Promise<ImplementationRecord> {
