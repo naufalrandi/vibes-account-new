@@ -582,47 +582,181 @@ export async function seed(): Promise<void> {
 
   // 14. Phase 9 — a few ISO clause-register entries for the tenant so the
   //     Management-System registers render real data on first load.
+  // OD `ocSeedIfNeeded` (core.js:9138–9219) — the four §4.1 context issues,
+  // codes from `ocNewId()` (FWE-001-N). Issues 2 & 3 were raised as risks one
+  // day after posting (RISK-0001 / RISK-0002); `riskMethodSeedIfNeeded`
+  // (10488) then re-raises issues 1–3 as RISK-0003/0004/0005, overwriting
+  // `linkedRiskId` and unshifting a newer "Raised as risk" entry — seeded
+  // here as that END state. The newest issue carries OD's 24-entry demo
+  // activity log, the cloud issue the long worked-demo remarks. OD `comments`
+  // have no field here — dropped.
+  const msRelIso = (n: number): string => new Date(Date.now() - n * 86400000).toISOString();
+  const ocActors = ["Jennifer Susan Walters", "Peter Benjamin Parker", "Wanda Maximoff", "Robert Bruce Banner", "Carol Susan Jane Danvers", "Natalia Alianovna Romanova"];
+  const ocLeadTmpl: [string, string][] = [
+    ["Issue created", "Issue posted"],
+    ["Comment added", "Flagged for quality team review"],
+    ["Framework relevance changed", "Added ISO 14001:2015"],
+    ["Issue edited", "Refined topic wording"],
+    ["Status changed", "Open → Monitored"],
+    ["Comment added", "Requested an owner be assigned"],
+    ["Issue edited", "Updated domain to include Market"],
+    ["Comment added", "Linked to the upcoming surveillance audit"],
+    ["Issue edited", "Added supporting description"],
+    ["Status changed", "Monitored → Open"],
+    ["Comment added", "Discussed at the weekly QMS sync"],
+    ["Framework relevance changed", "Removed a duplicate framework tag"],
+    ["Issue edited", "Clarified scope of impact"],
+    ["Comment added", "Awaiting management input"],
+    ["Status changed", "Open → Monitored"],
+    ["Issue edited", "Updated category context"],
+    ["Comment added", "Evidence gathering in progress"],
+    ["Issue edited", "Adjusted framework relevance"],
+    ["Comment added", "Reviewed against ISO 9001:2015 clause 4.1"],
+    ["Status changed", "Monitored → Open"],
+    ["Issue edited", "Minor wording correction"],
+    ["Comment added", "Pending decision on risk escalation"],
+    ["Issue reviewed", "Periodic context review completed"],
+    ["Comment added", "No further action required at this time"],
+  ];
+  const ocLeadActivity = ocLeadTmpl.map(([action, summary], k) => ({ ts: new Date(Date.now() - (24 - k) * 0.66 * 86400000).toISOString(), user: ocActors[k % ocActors.length], action, summary }));
+  // OD ocSeedIfNeeded worked-demo `remarks` on the cloud-reliance issue, verbatim.
+  const ocCloudRemarks = "Migration of core registration, records and analytics workloads to third-party cloud platforms has accelerated over the past two quarters. While this improves scalability and resilience, it also shifts parts of our security control boundary to the provider and introduces new considerations we must actively manage:\n\n• Data residency and sovereignty — customer personal data may be processed or replicated across regions with differing legal regimes; contractual and configuration controls must keep processing within approved jurisdictions.\n• Shared-responsibility gaps — provider secures the platform, but tenant configuration (IAM, network policy, key management, logging) remains our responsibility and is a common source of exposure.\n• Identity and access — federated SSO, service accounts and API tokens broaden the attack surface; least-privilege, short-lived credentials and periodic access reviews are required.\n• Third-party dependency and lock-in — availability and continuity now depend on the provider’s SLAs and our exit/portability plans.\n\nThis issue is monitored through the information security risk assessment (linked risk) and reviewed at each management review; framework relevance spans ISO/IEC 27001:2022 and ISO/IEC 27701:2025.";
+  // OD `polSeedIfNeeded` (core.js:12234): one shared effective date, 4 days
+  // ago, with the next review one year out (`polNextReview`, freq "Annually").
+  const polEffD = new Date(Date.now() - 4 * 86400000);
+  const polEff = polEffD.toISOString();
+  const polNextD = new Date(polEffD);
+  polNextD.setMonth(polNextD.getMonth() + 12);
+  const polNext = polNextD.toISOString();
   const msSeed: { module: string; code: string; title: string; status: string; owner: string | null; data: Record<string, unknown>; elementId?: string | null; frameworks?: string[] }[] = [
-    { module: "context", code: "FWE-001-1", title: "New data-protection regulation in target market", status: "Monitored", owner: "MS Team", data: { domain: "Regulatory", type: "External", impact: "May require additional privacy controls." } },
-    { module: "risks", code: "RISK-0001", title: "Phishing attack on staff", status: "Under Review", owner: "Security Lead", data: { category: "Operational", likelihood: 4, impact: 4, treatment: "Mitigate", riskScore: 16, riskLevel: "Major" }, elementId: riskEl.id },
-    { module: "policies", code: "POL-0001", title: "Information Security Policy", status: "Published", owner: "CISO", data: { category: "High-Level", statement: "Protect the confidentiality, integrity and availability of information.", reviewFreq: "Annually" }, elementId: auditEl?.id ?? null },
-    // OD `polSeedInflightIfNeeded` (index.html:8663-8697) — three in-flight
+    { module: "context", code: "FWE-001-1", title: "New customer requirements and regulatory expectations are increasing the need for stronger documented quality controls.", status: "Open", owner: "Jennifer Susan Walters", frameworks: ["ISO 9001:2015", "ISO 14001:2015"], data: { category: "External Issues", domains: ["Regulatory", "Market"], postedBy: "Jennifer Susan Walters", raisedAsRisk: true, linkedRiskId: "RISK-0003", activity: [{ ts: msRelIso(9), user: "Jennifer Susan Walters", action: "Raised as risk", summary: "Linked risk RISK-0003" }, ...ocLeadActivity] } },
+    { module: "context", code: "FWE-001-2", title: "Increased reliance on cloud-based systems introduces new information security and privacy considerations.", status: "Monitored", owner: "Peter Benjamin Parker", frameworks: ["ISO/IEC 27001:2022", "ISO/IEC 27701:2025"], data: { category: "External Issues", domains: ["Technological", "Regulatory"], postedBy: "Peter Benjamin Parker", description: ocCloudRemarks, raisedAsRisk: true, linkedRiskId: "RISK-0004", activity: [{ ts: msRelIso(13), user: "Gwendolyne Maxine Stacy", action: "Raised as risk", summary: "Linked risk RISK-0004" }, { ts: msRelIso(5), user: "Peter Benjamin Parker", action: "Raised as risk", summary: "Linked risk RISK-0001" }, { ts: msRelIso(6), user: "Peter Benjamin Parker", action: "Issue created", summary: "Issue posted" }] } },
+    { module: "context", code: "FWE-001-3", title: "Limited availability of trained personnel may affect the consistency of process implementation.", status: "Monitored", owner: "Jennifer Susan Walters", frameworks: ["ISO 9001:2015", "ISO 45001:2018"], data: { category: "Internal Issues", domains: ["Human Resources", "Operational"], postedBy: "Jennifer Susan Walters", raisedAsRisk: true, linkedRiskId: "RISK-0005", activity: [{ ts: msRelIso(17), user: "Jennifer Susan Walters", action: "Raised as risk", summary: "Linked risk RISK-0005" }, { ts: msRelIso(8), user: "Jennifer Susan Walters", action: "Raised as risk", summary: "Linked risk RISK-0002" }, { ts: msRelIso(9), user: "Jennifer Susan Walters", action: "Issue created", summary: "Issue posted" }] } },
+    { module: "context", code: "FWE-001-4", title: "Several operational records are still maintained in spreadsheets, creating traceability and version control challenges.", status: "Open", owner: "Wanda Maximoff", frameworks: ["ISO 9001:2015", "ISO/IEC 27001:2022"], data: { category: "Internal Issues", domains: ["Information Systems", "Infrastructure"], postedBy: "Wanda Maximoff", activity: [{ ts: msRelIso(13), user: "Wanda Maximoff", action: "Issue created", summary: "Issue posted" }] } },
+    // Risks 1:1 with OD's seeded register: `ocSeedIfNeeded` (core.js:9138)
+    // raises RISK-0001/0002 from the cloud-reliance and trained-personnel
+    // context issues (RISK-0001 then enriched by `riskDemoEnrich`,
+    // core.js:10541 — long description, High priority, In Treatment and a
+    // 5-action treatment plan); `riskMethodSeedIfNeeded` (core.js:10488) adds
+    // RISK-0003..0010 from the first three context issues, first three
+    // interested-party requirements and the Change Management / Internal
+    // Audit business processes (owner rotation over PT Hammer's 4-person
+    // team, day offsets 9+4·idx).
+    { module: "risks", code: "RISK-0001", title: "Increased reliance on cloud-based systems introduces new information security and privacy considerations", status: "In Treatment", owner: "Peter Benjamin Parker", frameworks: ["ISO/IEC 27001:2022", "ISO/IEC 27701:2025"], elementId: riskEl.id, data: {
+      category: "Quality Risks", source: "Organizational Context", sourceIssueId: "FWE-001-2", issueCategory: "External Issues",
+      domains: ["Technological", "Regulatory"], methodology: "basic", likelihood: null, impact: null, priority: "High",
+      raisedBy: "Peter Benjamin Parker", raisedDate: msRelIso(5),
+      description: "Increased reliance on third-party cloud platforms for core registration, records and analytics workloads concentrates operational and information-security risk in a provider outside our direct control. A prolonged outage, a tenant-side misconfiguration, or a security incident at the provider could interrupt service delivery, expose customer data, or breach contractual and regulatory obligations.\n\nKey drivers:\n• Availability — dependence on the provider’s SLA and multi-region redundancy; an outage halts registration and records processing.\n• Security & configuration — tenant IAM, network policy, key management and logging remain our responsibility and are a common source of exposure.\n• Data residency & privacy — customer personal data may be processed across regions with differing legal regimes.\n• Third-party dependency & exit — continuity depends on the provider’s SLAs and on our portability / exit plans.\n\nThe risk is treated through the action plan below and reviewed at each management review; residual risk is monitored against the risk appetite.",
+      rtp: { createdAt: msRelIso(62), createdBy: "Peter Benjamin Parker", msApprovedBy: "Jennifer Susan Walters", approvedBy: "Jennifer Susan Walters", approvedAt: msRelIso(58), actionPlans: [
+        { id: "ap-1-1", title: "Harden tenant cloud configuration (IAM, network policy, key management)", deadline: msRelIso(30), resources: [], pics: ["Peter Benjamin Parker"], status: "Verified", createdAt: msRelIso(60) },
+        { id: "ap-1-2", title: "Review sub-processor list and confirm processing stays in approved regions", deadline: msRelIso(24), resources: [], pics: ["Peter Benjamin Parker"], status: "Verified", createdAt: msRelIso(60) },
+        { id: "ap-1-3", title: "Enable centralized log export to the SIEM with 90-day retention", deadline: msRelIso(-14), resources: [], pics: ["Peter Benjamin Parker"], status: "In Progress", createdAt: msRelIso(60) },
+        { id: "ap-1-4", title: "Establish a provider incident-notification and escalation runbook", deadline: msRelIso(-21), resources: [], pics: ["Peter Benjamin Parker"], status: "In Progress", createdAt: msRelIso(60) },
+        { id: "ap-1-5", title: "Document and test the exit / data-portability plan", deadline: msRelIso(-45), resources: [], pics: ["Peter Benjamin Parker"], status: "Todo", createdAt: msRelIso(60) },
+      ] },
+    } },
+    { module: "risks", code: "RISK-0002", title: "Limited availability of trained personnel may affect the consistency of process implementation", status: "Unassigned", owner: null, frameworks: ["ISO 9001:2015", "ISO 45001:2018"], elementId: riskEl.id, data: { category: "Quality Risks", source: "Organizational Context", sourceIssueId: "FWE-001-3", issueCategory: "Internal Issues", domains: ["Human Resources", "Operational"], methodology: "basic", likelihood: null, impact: null, priority: null, raisedBy: "Jennifer Susan Walters", raisedDate: msRelIso(8), description: "Limited availability of trained personnel may affect the consistency of process implementation." } },
+    { module: "risks", code: "RISK-0003", title: "New customer requirements and regulatory expectations are increasing the", status: "In Treatment", owner: "Scott Edward Harris Lang", frameworks: ["ISO 9001:2015", "ISO 14001:2015"], elementId: riskEl.id, data: { category: "Quality Risks", source: "Organizational Context", sourceIssueId: "FWE-001-1", issueCategory: "External Issues", domains: [], methodology: "basic", likelihood: null, impact: null, priority: "High", raisedBy: "Jennifer Susan Walters", raisedDate: msRelIso(9), description: "New customer requirements and regulatory expectations are increasing the need for stronger documented quality controls.", rtp: { createdAt: msRelIso(9), createdBy: "Scott Edward Harris Lang", msApprovedBy: "Scott Edward Harris Lang", approvedBy: "Scott Edward Harris Lang", approvedAt: msRelIso(9), actionPlans: [{ id: "ap-3-1", title: "Implement mitigating controls", deadline: "", resources: [], pics: ["Scott Edward Harris Lang"], status: "In Progress", createdAt: msRelIso(9) }, { id: "ap-3-2", title: "Update the affected procedure", deadline: "", resources: [], pics: ["Scott Edward Harris Lang"], status: "Verified", createdAt: msRelIso(9) }] } } },
+    { module: "risks", code: "RISK-0004", title: "Increased reliance on cloud-based systems introduces new information security", status: "Pending Approval", owner: "Monica Rambeau", frameworks: ["ISO/IEC 27001:2022", "ISO/IEC 27701:2025"], elementId: riskEl.id, data: { category: "Quality Risks", source: "Organizational Context", sourceIssueId: "FWE-001-2", issueCategory: "External Issues", domains: [], methodology: "basic", likelihood: null, impact: null, priority: "High", raisedBy: "Gwendolyne Maxine Stacy", raisedDate: msRelIso(13), description: "Increased reliance on cloud-based systems introduces new information security and privacy considerations.", rtp: { createdAt: msRelIso(13), createdBy: "Monica Rambeau", actionPlans: [{ id: "ap-4-1", title: "Define and implement mitigating controls", deadline: "", resources: [], pics: ["Monica Rambeau"], status: "Todo", createdAt: msRelIso(13) }] } } },
+    { module: "risks", code: "RISK-0005", title: "Limited availability of trained personnel may affect the consistency", status: "Monitored", owner: "Scott Edward Harris Lang", frameworks: ["ISO 9001:2015", "ISO 45001:2018"], elementId: riskEl.id, data: { category: "Quality Risks", source: "Organizational Context", sourceIssueId: "FWE-001-3", issueCategory: "Internal Issues", domains: [], methodology: "basic", likelihood: null, impact: null, priority: "Medium", raisedBy: "Jennifer Susan Walters", raisedDate: msRelIso(17), description: "Limited availability of trained personnel may affect the consistency of process implementation.", rtp: { createdAt: msRelIso(17), createdBy: "Scott Edward Harris Lang", msApprovedBy: "Scott Edward Harris Lang", approvedBy: "Scott Edward Harris Lang", approvedAt: msRelIso(17), actionPlans: [{ id: "ap-5-1", title: "Mitigating controls implemented and verified", deadline: "", resources: [], pics: ["Scott Edward Harris Lang"], status: "Verified", createdAt: msRelIso(17) }] } } },
+    { module: "risks", code: "RISK-0006", title: "Employees need clear roles, competence support, safe working conditions", status: "Assigned", owner: "Monica Rambeau", frameworks: ["ISO 9001:2015", "ISO 45001:2018"], elementId: riskEl.id, data: { category: "Quality Risks", source: "Interested Party", sourceReqId: "IP-REQ-0001", issueCategory: "Requirement", domains: [], methodology: "basic", likelihood: null, impact: null, priority: "Medium", raisedBy: "Gwendolyne Maxine Stacy", raisedDate: msRelIso(21), description: "Employees need clear roles, competence support, safe working conditions, and access to relevant procedures." } },
+    { module: "risks", code: "RISK-0007", title: "The organization must comply with applicable occupational health and", status: "Pending Approval", owner: "Scott Edward Harris Lang", frameworks: ["ISO 45001:2018"], elementId: riskEl.id, data: { category: "Quality Risks", source: "Interested Party", sourceReqId: "IP-REQ-0002", issueCategory: "Legal / Regulatory Requirement", domains: [], methodology: "basic", likelihood: null, impact: null, priority: "High", raisedBy: "Jennifer Susan Walters", raisedDate: msRelIso(25), description: "The organization must comply with applicable occupational health and safety legal requirements.", rtp: { createdAt: msRelIso(25), createdBy: "Scott Edward Harris Lang", actionPlans: [{ id: "ap-7-1", title: "Define and implement mitigating controls", deadline: "", resources: [], pics: ["Scott Edward Harris Lang"], status: "Todo", createdAt: msRelIso(25) }] } } },
+    { module: "risks", code: "RISK-0008", title: "Customer expects consistent service delivery, protection of shared information", status: "Assigned", owner: "Monica Rambeau", frameworks: ["ISO 9001:2015", "ISO/IEC 27001:2022"], elementId: riskEl.id, data: { category: "Quality Risks", source: "Interested Party", sourceReqId: "IP-REQ-0003", issueCategory: "Customer Requirement", domains: [], methodology: "basic", likelihood: null, impact: null, priority: "Medium", raisedBy: "Gwendolyne Maxine Stacy", raisedDate: msRelIso(29), description: "Customer expects consistent service delivery, protection of shared information, and prompt handling of complaints." } },
+    { module: "risks", code: "RISK-0009", title: "Risk arising from the Change Management business process —", status: "Monitored", owner: "Scott Edward Harris Lang", frameworks: [], elementId: riskEl.id, data: { category: "Quality Risks", source: "Business Process", processId: "PRC-0019", stepId: "", issueCategory: "Process Risk", domains: [], methodology: "basic", likelihood: null, impact: null, priority: "Low", raisedBy: "Jennifer Susan Walters", raisedDate: msRelIso(33), description: "Risk arising from the Change Management business process — a failure here would affect conformity of the management system.", rtp: { createdAt: msRelIso(33), createdBy: "Scott Edward Harris Lang", msApprovedBy: "Scott Edward Harris Lang", approvedBy: "Scott Edward Harris Lang", approvedAt: msRelIso(33), actionPlans: [{ id: "ap-9-1", title: "Mitigating controls implemented and verified", deadline: "", resources: [], pics: ["Scott Edward Harris Lang"], status: "Verified", createdAt: msRelIso(33) }] } } },
+    { module: "risks", code: "RISK-0010", title: "Risk arising from the Internal Audit business process —", status: "Assigned", owner: "Monica Rambeau", frameworks: [], elementId: riskEl.id, data: { category: "Quality Risks", source: "Business Process", processId: "PRC-0030", stepId: "", issueCategory: "Process Risk", domains: [], methodology: "basic", likelihood: null, impact: null, priority: "High", raisedBy: "Gwendolyne Maxine Stacy", raisedDate: msRelIso(37), description: "Risk arising from the Internal Audit business process — a failure here would affect conformity of the management system." } },
+    // OD `bpRiskSeedIfNeeded` (core.js:9778): two risks raised from the
+    // Business Processes register — one assessed (L3 × C4 = 12, Change
+    // Management's "Approve change?" step, 8 days old), one unassessed
+    // (Internal Audit, 4 days old). Step ids follow the seeded
+    // `data.steps[]` ids above (`<code>-s<n>`).
+    { module: "risks", code: "RISK-0011", title: "Unassessed change approved", status: "Monitored", owner: null, frameworks: [], elementId: riskEl.id, data: { category: "Quality Risks", source: "Business Process", processId: "PRC-0019", stepId: "PRC-0019-s3", issueCategory: "Process Risk", domains: [], methodology: "basic", likelihood: 3, impact: 4, level: 12, priority: null, raisedBy: "Peter Benjamin Parker", raisedDate: msRelIso(8), description: "A change is approved without adequate impact and security assessment, introducing uncontrolled risk to production systems.", activity: [{ ts: msRelIso(8), user: "Peter Benjamin Parker", action: "Risk raised from Business Process", summary: "Process Change Management · step Approve change?" }] } },
+    { module: "risks", code: "RISK-0012", title: "Audit programme behind schedule", status: "Unassigned", owner: null, frameworks: [], elementId: riskEl.id, data: { category: "Quality Risks", source: "Business Process", processId: "PRC-0030", stepId: "", issueCategory: "Process Risk", domains: [], methodology: "basic", likelihood: null, impact: null, priority: null, raisedBy: "Jennifer Susan Walters", raisedDate: msRelIso(4), description: "The internal audit programme is not completed on schedule, reducing assurance over process conformity across the management system.", activity: [{ ts: msRelIso(4), user: "Jennifer Susan Walters", action: "Risk raised from Business Process", summary: "Process Internal Audit" }] } },
+    // OD `bpSeedSteps44` `addRisk` (core.js:9477-9478): eight step-linked
+    // process risks, all Monitored and assessed L3 × C4 = 12, raised/owned by
+    // Bobbi Morse. Titles per OD `riskDeriveTitle` (first sentence).
+    { module: "risks", code: "RISK-0013", title: "Data loss or extended downtime because database backups are not verified as restorable", status: "Monitored", owner: "Bobbi Morse", frameworks: [], elementId: riskEl.id, data: { category: "Quality Risks", source: "Business Process", processId: "PRC-0004", stepId: "PRC-0004-s2", issueCategory: "Process Risk", domains: [], methodology: "basic", likelihood: 3, impact: 4, level: 12, priority: null, raisedBy: "Bobbi Morse", raisedDate: msRelIso(0), description: "Data loss or extended downtime because database backups are not verified as restorable.", treatment: "Controls defined at the process step; residual risk accepted and monitored." } },
+    { module: "risks", code: "RISK-0014", title: "A critical vulnerability is exploited because remediation is not prioritized and tracked to closure", status: "Monitored", owner: "Bobbi Morse", frameworks: [], elementId: riskEl.id, data: { category: "Quality Risks", source: "Business Process", processId: "PRC-0006", stepId: "PRC-0006-s3", issueCategory: "Process Risk", domains: [], methodology: "basic", likelihood: 3, impact: 4, level: 12, priority: null, raisedBy: "Bobbi Morse", raisedDate: msRelIso(0), description: "A critical vulnerability is exploited because remediation is not prioritized and tracked to closure.", treatment: "Controls defined at the process step; residual risk accepted and monitored." } },
+    { module: "risks", code: "RISK-0015", title: "Unauthorized lateral movement because network segmentation is misconfigured", status: "Monitored", owner: "Bobbi Morse", frameworks: [], elementId: riskEl.id, data: { category: "Quality Risks", source: "Business Process", processId: "PRC-0012", stepId: "PRC-0012-s2", issueCategory: "Process Risk", domains: [], methodology: "basic", likelihood: 3, impact: 4, level: 12, priority: null, raisedBy: "Bobbi Morse", raisedDate: msRelIso(0), description: "Unauthorized lateral movement because network segmentation is misconfigured.", treatment: "Controls defined at the process step; residual risk accepted and monitored." } },
+    { module: "risks", code: "RISK-0016", title: "A failed production release causes an outage because rollback is not tested", status: "Monitored", owner: "Bobbi Morse", frameworks: [], elementId: riskEl.id, data: { category: "Quality Risks", source: "Business Process", processId: "PRC-0014", stepId: "PRC-0014-s3", issueCategory: "Process Risk", domains: [], methodology: "basic", likelihood: 3, impact: 4, level: 12, priority: null, raisedBy: "Bobbi Morse", raisedDate: msRelIso(0), description: "A failed production release causes an outage because rollback is not tested.", treatment: "Controls defined at the process step; residual risk accepted and monitored." } },
+    { module: "risks", code: "RISK-0017", title: "A security incident escalates because detection and containment are too slow", status: "Monitored", owner: "Bobbi Morse", frameworks: [], elementId: riskEl.id, data: { category: "Quality Risks", source: "Business Process", processId: "PRC-0015", stepId: "PRC-0015-s3", issueCategory: "Process Risk", domains: [], methodology: "basic", likelihood: 3, impact: 4, level: 12, priority: null, raisedBy: "Bobbi Morse", raisedDate: msRelIso(0), description: "A security incident escalates because detection and containment are too slow.", treatment: "Controls defined at the process step; residual risk accepted and monitored." } },
+    { module: "risks", code: "RISK-0018", title: "Excessive privileges are granted because access requests are not verified against least-privilege", status: "Monitored", owner: "Bobbi Morse", frameworks: [], elementId: riskEl.id, data: { category: "Quality Risks", source: "Business Process", processId: "PRC-0017", stepId: "PRC-0017-s2", issueCategory: "Process Risk", domains: [], methodology: "basic", likelihood: 3, impact: 4, level: 12, priority: null, raisedBy: "Bobbi Morse", raisedDate: msRelIso(0), description: "Excessive privileges are granted because access requests are not verified against least-privilege.", treatment: "Controls defined at the process step; residual risk accepted and monitored." } },
+    { module: "risks", code: "RISK-0019", title: "A non-conforming or unapproved supplier is engaged because evaluation is bypassed", status: "Monitored", owner: "Bobbi Morse", frameworks: [], elementId: riskEl.id, data: { category: "Quality Risks", source: "Business Process", processId: "PRC-0024", stepId: "PRC-0024-s2", issueCategory: "Process Risk", domains: [], methodology: "basic", likelihood: 3, impact: 4, level: 12, priority: null, raisedBy: "Bobbi Morse", raisedDate: msRelIso(0), description: "A non-conforming or unapproved supplier is engaged because evaluation is bypassed.", treatment: "Controls defined at the process step; residual risk accepted and monitored." } },
+    { module: "risks", code: "RISK-0020", title: "An erroneous or unauthorized payment is made because segregation of duties is not enforced", status: "Monitored", owner: "Bobbi Morse", frameworks: [], elementId: riskEl.id, data: { category: "Quality Risks", source: "Business Process", processId: "PRC-0029", stepId: "PRC-0029-s2", issueCategory: "Process Risk", domains: [], methodology: "basic", likelihood: 3, impact: 4, level: 12, priority: null, raisedBy: "Bobbi Morse", raisedDate: msRelIso(0), description: "An erroneous or unauthorized payment is made because segregation of duties is not enforced.", treatment: "Controls defined at the process step; residual risk accepted and monitored." } },
+    // Objectives 1:1 with OD `objSeed` (core.js:8084) — five OBJ rows, same
+    // codes, titles, themes, owners, targets, baselines, sources and plans.
+    { module: "objectives", code: "OBJ-0001", title: "Achieve ≥ 92% training completion across the workforce", status: "Open", owner: "Bobbi Morse", frameworks: [], data: { theme: "Competence & Awareness", unit: "%", dir: "up", target: 92, baseline: 78, source: { kind: "indicator", indicator: "Training completion rate" }, period: "FY 2026", due: "2026-12-31", actions: "Publish the annual training calendar, assign role-based plans from competence gaps, and escalate overdue actions monthly.", resources: "LMS licences; line-manager review time.", createdBy: "Jennifer Susan Walters" } },
+    { module: "objectives", code: "OBJ-0002", title: "Raise awareness acknowledgment to ≥ 97%", status: "Open", owner: "Maria Rambeau", frameworks: [], data: { theme: "Competence & Awareness", unit: "%", dir: "up", target: 97, baseline: 88, source: { kind: "indicator", indicator: "Awareness acknowledgment rate" }, period: "FY 2026", due: "2026-12-31", actions: "Run quarterly awareness campaigns with reminder cycles and track acknowledgment per campaign.", resources: "Comms channel; awareness content authoring.", createdBy: "Jennifer Susan Walters" } },
+    { module: "objectives", code: "OBJ-0003", title: "Close ≥ 90% of internal audit findings on time", status: "Open", owner: "Daniel Rand", frameworks: [], data: { theme: "Risk & Compliance", unit: "%", dir: "up", target: 90, baseline: 70, source: { kind: "indicator", indicator: "Audit finding closure rate" }, period: "FY 2026", due: "2026-12-31", actions: "Assign corrective-action owners at the closing meeting; review open findings at each management review.", resources: "Auditor follow-up time.", createdBy: "Jennifer Susan Walters" } },
+    { module: "objectives", code: "OBJ-0004", title: "Maintain zero open High / Critical risks", status: "Open", owner: "Scott Edward Harris Lang", frameworks: [], data: { theme: "Risk & Compliance", unit: "#", dir: "down", target: 0, baseline: 2, source: { kind: "indicator", indicator: "Open High / Critical risks" }, period: "FY 2026", due: "2026-12-31", actions: "Prioritise treatment of elevated risks; verify residual level before monitoring.", resources: "Risk treatment budget; owner time.", createdBy: "Jennifer Susan Walters" } },
+    { module: "objectives", code: "OBJ-0005", title: "Reach a customer satisfaction score of ≥ 90%", status: "Open", owner: "Gwendolyne Maxine Stacy", frameworks: [], data: { theme: "Customer", unit: "%", dir: "up", target: 90, baseline: 84, actualManual: 88, source: { kind: "manual" }, period: "FY 2026", due: "2026-12-31", actions: "Run the half-yearly customer satisfaction survey; act on detractor feedback via improvement opportunities.", resources: "Survey tooling; account-management time.", createdBy: "Jennifer Susan Walters" } },
+    // Policies 1:1 with OD `polSeedIfNeeded` (core.js:12230): two Published
+    // High-Level policies and one Draft Specific policy, effective 4 days
+    // ago (`polEff`) with an annual review cycle (`polNext`).
+    { module: "policies", code: "POL-QMS-0001", title: "Quality Policy", status: "Published", owner: "Scott Edward Harris Lang", frameworks: ["ISO 9001:2015"], elementId: auditEl?.id ?? null, data: {
+      category: "High-Level Policy", approver: "Jennifer Susan Walters", reviewFreq: "Annually", version: "1", editingFormat: "structured",
+      effectiveDate: polEff, nextReview: polNext, approvedBy: "Jennifer Susan Walters", approvedDate: polEff, publishedBy: "Jennifer Susan Walters", publishedDate: polEff, createdBy: "Scott Edward Harris Lang",
+      statement: "PT Hammer Industries is committed to delivering products and services that meet customer requirements, applicable statutory and regulatory requirements, and agreed management system requirements.",
+      commitments: "PT Hammer Industries commits to maintaining an effective quality management system, improving business processes, monitoring performance, addressing risks and opportunities, and continually improving the suitability and effectiveness of the quality management system.",
+      scope: "This policy applies to all business processes, personnel, and externally provided services within the approved quality management system scope.",
+      roles: "Top management is responsible for establishing and maintaining this policy. Process owners are responsible for implementing relevant requirements. Personnel are responsible for following applicable procedures and contributing to continual improvement.",
+    } },
+    { module: "policies", code: "POL-ISMS-0001", title: "Information Security Policy", status: "Published", owner: "Gwendolyne Maxine Stacy", frameworks: ["ISO/IEC 27001:2022"], elementId: auditEl?.id ?? null, data: {
+      category: "High-Level Policy", approver: "Jennifer Susan Walters", reviewFreq: "Annually", version: "1", editingFormat: "structured",
+      effectiveDate: polEff, nextReview: polNext, approvedBy: "Jennifer Susan Walters", approvedDate: polEff, publishedBy: "Jennifer Susan Walters", publishedDate: polEff, createdBy: "Gwendolyne Maxine Stacy",
+      statement: "PT Hammer Industries is committed to protecting the confidentiality, integrity, and availability of information assets used in business operations, service delivery, and supporting systems.",
+      commitments: "PT Hammer Industries commits to identifying and managing information security risks, fulfilling applicable legal, regulatory, contractual, and security requirements, maintaining appropriate controls, and continually improving the information security management system.",
+      scope: "This policy applies to personnel, information assets, systems, SaaS applications, cloud infrastructure, business processes, and external dependencies within the approved information security management system scope.",
+      roles: "Top management is responsible for information security governance. System owners, process owners, and personnel are responsible for applying security requirements relevant to their roles.",
+    } },
+    { module: "policies", code: "POL-SEC-0001", title: "Access Control Policy", status: "Draft", owner: "Gwendolyne Maxine Stacy", frameworks: ["ISO/IEC 27001:2022"], elementId: auditEl?.id ?? null, data: {
+      category: "Specific Policy", approver: "Jennifer Susan Walters", reviewFreq: "Annually", version: "1", editingFormat: "structured", createdBy: "Gwendolyne Maxine Stacy",
+      statement: "Access to systems, applications, information assets, and services shall be controlled based on business needs, assigned responsibilities, and approved authorization.",
+      commitments: "PT Hammer Industries commits to applying least privilege, reviewing access rights periodically, removing access when no longer required, and protecting privileged access.",
+      scope: "This policy applies to employees, contractors, administrators, SaaS applications, cloud infrastructure, source code repositories, and other systems within the approved management system scope.",
+      roles: "System owners approve access. Administrators configure access. Users are responsible for protecting credentials and using access only for authorized purposes.",
+    } },
+    // OD `polSeedInflightIfNeeded` (core.js:12280) — three in-flight
     // specific policies at different approval stages, each stamped with its
     // own owner/approver/statement/commitments/scope/roles.
-    { module: "policies", code: "POL-0002", title: "Change Management Policy", status: "Under Review", owner: "Scott Edward Harris Lang", frameworks: ["ISO 9001:2015"], data: {
-      category: "Specific Policy", approver: "Jennifer Susan Walters", reviewFreq: "Annually", version: "1",
+    { module: "policies", code: "POL-OPS-0001", title: "Change Management Policy", status: "Under Review", owner: "Scott Edward Harris Lang", frameworks: ["ISO 9001:2015"], data: {
+      category: "Specific Policy", approver: "Jennifer Susan Walters", reviewFreq: "Annually", version: "1", editingFormat: "structured", createdBy: "Scott Edward Harris Lang",
       statement: "Changes to processes, systems, and documented information shall be planned, assessed for risk, approved, and verified before implementation.",
       commitments: "PT Hammer Industries commits to controlling change so that quality, information security, and operational continuity are preserved.",
       scope: "Applies to changes affecting management-system processes, infrastructure, and documented information within the approved scope.",
       roles: "Process owners raise change requests. The MS Team reviews. Top Management authorizes significant changes.",
     } },
-    { module: "policies", code: "POL-0003", title: "Information Classification Policy", status: "Pending Final Approval", owner: "Gwendolyne Maxine Stacy", frameworks: ["ISO/IEC 27001:2022"], data: {
-      category: "Specific Policy", approver: "Jennifer Susan Walters", reviewFreq: "Annually", version: "1",
+    { module: "policies", code: "POL-OPS-0002", title: "Information Classification Policy", status: "Pending Final Approval", owner: "Gwendolyne Maxine Stacy", frameworks: ["ISO/IEC 27001:2022"], data: {
+      category: "Specific Policy", approver: "Jennifer Susan Walters", reviewFreq: "Annually", version: "1", editingFormat: "structured", createdBy: "Gwendolyne Maxine Stacy",
       statement: "Information shall be classified according to its sensitivity, value, and legal or contractual requirements, and handled, labelled, and protected accordingly.",
       commitments: "PT Hammer Industries commits to consistent information classification and handling to preserve confidentiality, integrity, and availability.",
       scope: "Applies to all information assets, documents, and records created, processed, or stored within the approved management-system scope.",
       roles: "Information owners assign classifications. The MS Team reviews. Top Management gives final approval.",
     } },
-    { module: "policies", code: "POL-0004", title: "Acceptable Use Policy", status: "Under Review", owner: "Scott Edward Harris Lang", frameworks: ["ISO/IEC 27001:2022"], data: {
-      category: "Specific Policy", approver: "Jennifer Susan Walters", reviewFreq: "Annually", version: "1",
-      statement: "Information systems, devices, and services shall be used only for authorized purposes and in line with the organization's security and conduct requirements.",
+    { module: "policies", code: "POL-OPS-0003", title: "Acceptable Use Policy", status: "Under Review", owner: "Scott Edward Harris Lang", frameworks: ["ISO/IEC 27001:2022"], data: {
+      category: "Specific Policy", approver: "Jennifer Susan Walters", reviewFreq: "Annually", version: "1", editingFormat: "structured", createdBy: "Scott Edward Harris Lang",
+      statement: "Information systems, devices, and services shall be used only for authorized purposes and in line with the organization’s security and conduct requirements.",
       commitments: "PT Hammer Industries commits to clear acceptable-use expectations so that personnel handle systems and information responsibly.",
-      scope: "Applies to all personnel and contractors using the organization's information systems, devices, accounts, and services.",
+      scope: "Applies to all personnel and contractors using the organization’s information systems, devices, accounts, and services.",
       roles: "Personnel follow acceptable-use rules. The MS Team reviews. Top Management gives final approval.",
     } },
-    // Controlled document in the OD `cdocs` shape (type/category/access/reviewFreq + derived nextReview).
-    { module: "documents", code: "PROC-ISMS-0001", title: "Access Control Procedure", status: "Published", owner: "IT Lead", data: { type: "Procedure", category: "Information Security", version: "1.2", access: "Public within tenant", approver: "Tenant Administrator", reviewFreq: "Annually", effectiveDate: "2026-06-17T00:00:00.000Z", nextReview: "2027-06-17T00:00:00.000Z", changeSummary: "Initial issue", content: "This procedure defines how access to information systems is requested, approved, provisioned, reviewed, and revoked.", publishedBy: "Tenant Administrator", publishedDate: "2026-06-17T00:00:00.000Z", approvedBy: "Tenant Administrator", approvedDate: "2026-06-17T00:00:00.000Z" } },
+    // NOTE: controlled documents (`documents`) and external documents
+    // (`records` / `record-folders`) are seeded in section 14b2 below, after
+    // the Work Units they reference exist — 1:1 with OD `cdocSeedIfNeeded`
+    // (core.js:19538) and `edSeedIfNeeded` (core.js:19982).
     // NOTE: no `audits` clause-register seed row — the real Internal Audit
     // module is the dedicated `/internal-audit` surface, not this register
     // (the orphan `audits` register was removed; see registry.ts).
-    { module: "nonconformities", code: "NC-0002", title: "Backup restore test not performed", status: "Corrective Action", owner: "IT Lead", data: { source: "Internal Audit", severity: "Medium", rootCause: "No scheduled restore test.", correctiveAction: "Add quarterly restore test to the calendar." } },
+    // OD `impCasesSeed` NC-0002 (core.js:13343): Process NC, no CAP yet, due 14
+    // days out (OD `dstr(-14)`). Timestamps stay the loop's "now" default.
+    { module: "nonconformities", code: "NC-0002", title: "Change implemented without documented risk assessment", status: "Open", owner: "Daniel Rand", frameworks: ["ISO 9001:2015"], data: { category: "Process Nonconformity", process: "Change Management", site: "", workUnit: "", description: "Two production changes were implemented without a documented impact and risk assessment, contrary to the change control procedure.", evidence: "", confirmedBy: "Bobbi Morse", confirmedDate: msRelIso(11), pic: "Daniel Rand", due: msRelIso(-14).slice(0, 10), cap: null } },
     // OD `ipSeedIfNeeded` obligation-register seed (app.html:14455) —
     // the compliance-obligations link targets used by Interested Parties
     // requirements. `compliance` is the `registry.ts` module for OD's
     // `db.obligations` (`coNewId` → `COBL-`).
-    { module: "compliance", code: "COBL-0001", title: "Information Security & Privacy Obligations", status: "Active", owner: "Jennifer Susan Walters", frameworks: ["ISO/IEC 27001:2022", "ISO/IEC 27701:2025"], data: { source: "Compliance Obligations" } },
-    { module: "compliance", code: "COBL-0002", title: "Quality & Customer Obligations", status: "Active", owner: "Jennifer Susan Walters", frameworks: ["ISO 9001:2015"], data: { source: "Compliance Obligations" } },
-    { module: "compliance", code: "COBL-0003", title: "Environmental Compliance Obligations", status: "Active", owner: "Jennifer Susan Walters", frameworks: ["ISO 14001:2015"], data: { source: "Compliance Obligations" } },
+    { module: "compliance", code: "COBL-0001", title: "OH&S Legal Requirement Register", status: "Active", owner: "Jennifer Susan Walters", frameworks: ["ISO 45001:2018"], data: { source: "Compliance Obligations" } },
+    { module: "compliance", code: "COBL-0002", title: "Information Security & Privacy Obligations", status: "Active", owner: "Jennifer Susan Walters", frameworks: ["ISO/IEC 27001:2022", "ISO/IEC 27701:2025"], data: { source: "Compliance Obligations" } },
+    { module: "compliance", code: "COBL-0003", title: "Quality & Customer Obligations", status: "Active", owner: "Jennifer Susan Walters", frameworks: ["ISO 9001:2015"], data: { source: "Compliance Obligations" } },
+    { module: "compliance", code: "COBL-0004", title: "Environmental Compliance Obligations", status: "Active", owner: "Jennifer Susan Walters", frameworks: ["ISO 14001:2015"], data: { source: "Compliance Obligations" } },
   ];
   for (const m of msSeed) {
     await ImplementationRecord.findOrCreate({
@@ -644,6 +778,9 @@ export async function seed(): Promise<void> {
     const relDate = (n: number): Date => new Date(Date.now() - n * 86400000);
     const relIso = (n: number): string => relDate(n).toISOString();
     const jen = "Jennifer Susan Walters", tenantAdmin = "Tenant Administrator";
+    // OD `concernSeedIfNeeded` reviews the chain as `adm='Bobbi Morse'`, with
+    // Maria Rambeau reporting CON-0002.
+    const bobbi = "Bobbi Morse", maria = "Maria Rambeau";
     const dupReporter = "Process Owner – IT Infrastructure";
 
     const con1 = await ImplementationRecord.create({
@@ -653,7 +790,7 @@ export async function seed(): Promise<void> {
       data: {
         category: "Document issue", process: "Documented Information Management", site: "", workUnit: "",
         description: "The access control procedure has been uploaded, but no document owner is assigned and the review frequency is not defined.",
-        reportedBy: jen, evidence: "", reviewer: tenantAdmin, reviewDate: relIso(6),
+        reportedBy: jen, evidence: "", reviewer: bobbi, reviewDate: relIso(6),
         reviewNotes: "Confirmed missing document control attributes.",
         classification: "Nonconformity", routingDecision: "Create Nonconformity", routingNotes: "",
         routedTo: "nonconformities", routedRecordId: "", routedRecordCode: "",
@@ -668,7 +805,7 @@ export async function seed(): Promise<void> {
         sourceConcernId: con1.id, sourceConcernCode: con1.code,
         category: "Documented Information Nonconformity", process: "Documented Information Management", site: "", workUnit: "",
         description: "The access control procedure has no assigned document owner and no defined review frequency.",
-        evidence: "", confirmedBy: tenantAdmin, confirmedDate: relIso(6), pic: jen, due: "2026-07-15",
+        evidence: "", confirmedBy: bobbi, confirmedDate: relIso(6), pic: jen, due: "2026-07-15",
         cap: {
           id: "CAP-0001", rcaMethod: "5 Whys",
           rca: "Document ownership was not checked during document upload because the document registration checklist does not require owner and review frequency verification.",
@@ -690,7 +827,7 @@ export async function seed(): Promise<void> {
       data: {
         category: "Security issue", process: "", site: "", workUnit: "",
         description: "Several failed login attempts were detected for an administrator account outside normal working hours.",
-        reportedBy: tenantAdmin, evidence: "", reviewer: tenantAdmin, reviewDate: relIso(6),
+        reportedBy: maria, evidence: "", reviewer: bobbi, reviewDate: relIso(6),
         reviewNotes: "Potential security event, route to incident handling.",
         classification: "Incident", routingDecision: "Create Incident", routingNotes: "",
         routedTo: "incidents", routedRecordId: "", routedRecordCode: "",
@@ -707,7 +844,7 @@ export async function seed(): Promise<void> {
         description: "Several failed login attempts were detected for an administrator account outside normal working hours.",
         incidentDate: relIso(7), site: "", process: "", workUnit: "", system: "Admin Portal",
         affected: "Administrator account", immediate: "Administrator password was reset and MFA status was verified.",
-        reportedBy: tenantAdmin, handler: "Tenant Administrator", investigation: "", rootCause: "", followups: "", evidence: "",
+        reportedBy: bobbi, handler: "Tenant Administrator", investigation: "", rootCause: "", followups: "", evidence: "",
       },
       createdAt: relDate(6), updatedAt: relDate(5),
     });
@@ -720,7 +857,7 @@ export async function seed(): Promise<void> {
       data: {
         category: "Process issue", process: "", site: "", workUnit: "",
         description: "Contractor onboarding currently relies on manual email confirmation and may benefit from a clearer checklist.",
-        reportedBy: jen, evidence: "", reviewer: tenantAdmin, reviewDate: relIso(5),
+        reportedBy: jen, evidence: "", reviewer: bobbi, reviewDate: relIso(5),
         reviewNotes: "Not a nonconformity; route as improvement.",
         classification: "Observation / Improvement", routingDecision: "Create Improvement Opportunity", routingNotes: "",
         routedTo: "improvements", routedRecordId: "", routedRecordCode: "",
@@ -749,7 +886,7 @@ export async function seed(): Promise<void> {
       data: {
         category: "Document issue", process: "", site: "", workUnit: "",
         description: "Another user reported that the access control procedure has no assigned owner.",
-        reportedBy: dupReporter, evidence: "", reviewer: tenantAdmin, reviewDate: relIso(5),
+        reportedBy: dupReporter, evidence: "", reviewer: bobbi, reviewDate: relIso(5),
         reviewNotes: "Same as CON-0001.", classification: "Duplicate", routingDecision: "Close as Duplicate",
         routingNotes: "", relatedExisting: con1.code, closureReason: `Duplicate of ${con1.code}.`,
       },
@@ -759,33 +896,33 @@ export async function seed(): Promise<void> {
     const activitySeed: { module: string; recordId: string; entries: { ts: Date; user: string; text: string }[] }[] = [
       { module: "concerns", recordId: con1.id, entries: [
         { ts: relDate(8), user: jen, text: "submitted this concern — Concern submitted" },
-        { ts: relDate(6), user: tenantAdmin, text: "classified the concern — Nonconformity" },
-        { ts: relDate(6), user: tenantAdmin, text: "routed the concern — Routed to NC-0001" },
+        { ts: relDate(6), user: bobbi, text: "classified the concern — Nonconformity" },
+        { ts: relDate(6), user: bobbi, text: "routed the concern — Routed to NC-0001" },
       ] },
       { module: "nonconformities", recordId: nc1.id, entries: [
-        { ts: relDate(6), user: tenantAdmin, text: "created this nonconformity — From concern CON-0001" },
+        { ts: relDate(6), user: bobbi, text: "created this nonconformity — From concern CON-0001" },
         { ts: relDate(5), user: jen, text: "created CAP — CAP-0001 · 5 Whys" },
       ] },
       { module: "concerns", recordId: con2.id, entries: [
-        { ts: relDate(7), user: tenantAdmin, text: "submitted this concern — Concern submitted" },
-        { ts: relDate(6), user: tenantAdmin, text: "classified the concern — Incident" },
-        { ts: relDate(6), user: tenantAdmin, text: "routed the concern — Routed to INC-0001" },
+        { ts: relDate(7), user: maria, text: "submitted this concern — Concern submitted" },
+        { ts: relDate(6), user: bobbi, text: "classified the concern — Incident" },
+        { ts: relDate(6), user: bobbi, text: "routed the concern — Routed to INC-0001" },
       ] },
       { module: "incidents", recordId: inc1.id, entries: [
-        { ts: relDate(6), user: tenantAdmin, text: "created this incident — From concern CON-0002" },
-        { ts: relDate(6), user: tenantAdmin, text: "assigned a handler — Tenant Administrator" },
+        { ts: relDate(6), user: bobbi, text: "created this incident — From concern CON-0002" },
+        { ts: relDate(6), user: bobbi, text: "assigned a handler — Tenant Administrator" },
       ] },
       { module: "concerns", recordId: con3.id, entries: [
         { ts: relDate(6), user: jen, text: "submitted this concern — Concern submitted" },
-        { ts: relDate(5), user: tenantAdmin, text: "classified the concern — Observation / Improvement" },
-        { ts: relDate(5), user: tenantAdmin, text: "routed the concern — Routed to IMP-0001" },
+        { ts: relDate(5), user: bobbi, text: "classified the concern — Observation / Improvement" },
+        { ts: relDate(5), user: bobbi, text: "routed the concern — Routed to IMP-0001" },
       ] },
       { module: "improvements", recordId: imp1.id, entries: [
-        { ts: relDate(5), user: tenantAdmin, text: "created this improvement opportunity — From concern CON-0003" },
+        { ts: relDate(5), user: bobbi, text: "created this improvement opportunity — From concern CON-0003" },
       ] },
       { module: "concerns", recordId: con4.id, entries: [
         { ts: relDate(5), user: dupReporter, text: "submitted this concern — Concern submitted" },
-        { ts: relDate(5), user: tenantAdmin, text: `closed the concern — Duplicate of ${con1.code}` },
+        { ts: relDate(5), user: bobbi, text: `closed the concern — Duplicate of ${con1.code}` },
       ] },
     ];
     for (const a of activitySeed) {
@@ -798,7 +935,7 @@ export async function seed(): Promise<void> {
   // 14a2. Phase 9a2 — Internal Audit programme/plan/session/finding/report
   //      content (OD `iauditSeedIfNeeded` + `iauditSeedExtra`,
   //      index.html:11780-11860): 6 audit programs spanning Q1–Q4 2026, their
-  //      6 plans, 19 sessions, 7 findings (IAF-0001/0002 plus the 5 from
+  //      8 plans, 19 sessions, 7 findings (IAF-0001/0002 plus the 5 from
   //      `iauditSeedExtra`), the IMP-0002 improvement routed from IAF-0002,
   //      and 2 generated reports (IAR-0001/0002), ported with OD's exact
   //      titles / dates-relative-to-now / statuses / criteria. Unlike the
@@ -811,6 +948,7 @@ export async function seed(): Promise<void> {
     const iaIso = (n: number): string => iaDate(n).toISOString();
     const jen = "Jennifer Susan Walters", tenantAdmin = "Tenant Administrator";
     const scott = "Scott Edward Harris Lang", gwen = "Gwendolyne Maxine Stacy";
+    const mon = "Monica Rambeau";
     const Q = "ISO 9001:2015", S = "ISO/IEC 27001:2022";
     const SD = "Software Development", IT = "IT Infrastructure";
     const iaMethods = ["Document review", "Interview", "Evidence review", "System walkthrough"];
@@ -819,29 +957,37 @@ export async function seed(): Promise<void> {
 
     type ProgSeed = {
       code: string; name: string; period: string; processes: string[]; workUnits: string[]; criteria: string[];
-      leadAuditor: string; status: string; createdAgo: number; updatedAgo: number;
+      leadAuditor: string; auditors?: string[]; status: string; createdAgo: number; updatedAgo: number;
+      scope?: string; objective?: string;
       extraActivity?: { ts: number; user: string; action: string; summary: string };
     };
+    // OD department teams (`TEAM_SD`/`TEAM_IT`, `deptTeam` in `iauditSeedExtra`).
+    const teamSD = [jen, scott, gwen];
+    const teamIT = [tenantAdmin, mon];
     const progSeeds: ProgSeed[] = [
       { code: "IAP-0001", name: "June 2026 Integrated Internal Audit Program", period: "2026-06",
         processes: ["Front End Development", "Back End Development", "Quality Assurance", "Database Administrator"],
-        workUnits: [SD, IT], criteria: [Q, S], leadAuditor: jen, status: "In Progress", createdAgo: 10, updatedAgo: 3,
+        workUnits: [SD, IT], criteria: [Q, S], leadAuditor: jen, auditors: [jen, scott, gwen, tenantAdmin, mon],
+        // OD `iauditSeedIfNeeded` gives the June program its own longer scope/objective.
+        scope: "This audit covers selected software development, quality assurance, and IT infrastructure processes within the approved management system scope.",
+        objective: "To determine whether the selected processes conform to applicable framework criteria and organizational requirements, and whether they are effectively implemented and maintained.",
+        status: "In Progress", createdAgo: 10, updatedAgo: 3,
         extraActivity: { ts: 9, user: tenantAdmin, action: "approved the program", summary: "Approved" } },
       { code: "IAP-0002", name: "Q1 2026 Software Development Internal Audit", period: "2026-02",
         processes: ["Front End Development", "Back End Development", "Business Process Analyst", "Quality Assurance"],
-        workUnits: [SD], criteria: [Q], leadAuditor: jen, status: "Completed", createdAgo: 150, updatedAgo: 120 },
+        workUnits: [SD], criteria: [Q], leadAuditor: jen, auditors: teamSD, status: "Completed", createdAgo: 150, updatedAgo: 120 },
       { code: "IAP-0003", name: "Q1 2026 IT Infrastructure & Information Security Audit", period: "2026-03",
         processes: ["Database Administrator", "Vulnerability Assessment"],
-        workUnits: [IT], criteria: [S], leadAuditor: tenantAdmin, status: "Report Generated", createdAgo: 120, updatedAgo: 95 },
+        workUnits: [IT], criteria: [S], leadAuditor: tenantAdmin, auditors: teamIT, status: "Report Generated", createdAgo: 120, updatedAgo: 95 },
       { code: "IAP-0004", name: "Q2 2026 Management & Delivery Processes Audit", period: "2026-05",
         processes: ["Product Management", "Project Management"],
-        workUnits: [SD], criteria: [Q], leadAuditor: scott, status: "Completed", createdAgo: 75, updatedAgo: 40 },
+        workUnits: [SD], criteria: [Q], leadAuditor: scott, auditors: teamSD, status: "Completed", createdAgo: 75, updatedAgo: 40 },
       { code: "IAP-0005", name: "Q3 2026 Software Development Surveillance Audit", period: "2026-09",
         processes: ["Front End Development", "Back End Development", "Quality Assurance"],
-        workUnits: [SD], criteria: [Q], leadAuditor: jen, status: "Approved", createdAgo: 20, updatedAgo: 10 },
+        workUnits: [SD], criteria: [Q], leadAuditor: jen, auditors: teamSD, status: "Approved", createdAgo: 20, updatedAgo: 10 },
       { code: "IAP-0006", name: "Q4 2026 Annual Integrated Internal Audit", period: "2026-11",
         processes: ["Front End Development", "Back End Development", "Business Process Analyst", "Database Administrator", "Quality Assurance", "Vulnerability Assessment", "Product Management", "Project Management"],
-        workUnits: [SD, IT, "Quality Assurance"], criteria: [Q, S], leadAuditor: jen, status: "Draft", createdAgo: 8, updatedAgo: 3 },
+        workUnits: [SD, IT, "Quality Assurance"], criteria: [Q, S], leadAuditor: jen, auditors: teamSD, status: "Draft", createdAgo: 8, updatedAgo: 3 },
     ];
     const iaProgramIdByCode = new Map<string, string>();
     for (const p of progSeeds) {
@@ -851,29 +997,34 @@ export async function seed(): Promise<void> {
       }
       const row = await IaProgram.create({
         orgId: tenant.id, code: p.code, name: p.name, period: p.period, processes: p.processes, workUnits: p.workUnits,
-        methods: iaMethods, criteria: p.criteria, scope: iaScope, objective: iaObjective,
-        leadAuditor: p.leadAuditor, auditors: [p.leadAuditor, tenantAdmin], independence: "Checked", overrideJust: null,
+        methods: iaMethods, criteria: p.criteria, scope: p.scope ?? iaScope, objective: p.objective ?? iaObjective,
+        leadAuditor: p.leadAuditor, auditors: p.auditors ?? [p.leadAuditor, tenantAdmin], independence: "Checked", overrideJust: null,
         duration: "2 days", status: p.status, notes: null, createdBy: p.leadAuditor, lastUpdatedBy: p.leadAuditor,
         activity, createdAt: iaDate(p.createdAgo), updatedAt: iaDate(p.updatedAgo),
       });
       iaProgramIdByCode.set(p.code, row.id);
     }
 
-    type PlanSeed = { code: string; programCode: string; name: string; processes: string[]; criteria: string[]; leadAuditor: string; status: string; createdAgo: number; updatedAgo: number };
+    type PlanSeed = { code: string; programCode: string; name: string; processes: string[]; criteria: string[]; leadAuditor: string; auditors?: string[]; status: string; createdAgo: number; updatedAgo: number };
     const planSeeds: PlanSeed[] = [
-      { code: "IAPL-0001", programCode: "IAP-0001", name: "June 2026 Software Development and IT Infrastructure Audit Plan", processes: ["Front End Development", "Back End Development", "Quality Assurance", "Database Administrator"], criteria: [Q, S], leadAuditor: jen, status: "Scheduled", createdAgo: 9, updatedAgo: 4 },
-      { code: "IAPL-0002", programCode: "IAP-0002", name: "Q1 2026 Software Development Audit Plan", processes: ["Front End Development", "Back End Development", "Business Process Analyst", "Quality Assurance"], criteria: [Q], leadAuditor: jen, status: "Completed", createdAgo: 148, updatedAgo: 118 },
-      { code: "IAPL-0003", programCode: "IAP-0003", name: "Q1 2026 IT Infrastructure Audit Plan", processes: ["Database Administrator", "Vulnerability Assessment"], criteria: [S], leadAuditor: tenantAdmin, status: "Completed", createdAgo: 118, updatedAgo: 93 },
-      { code: "IAPL-0004", programCode: "IAP-0004", name: "Q2 2026 Management Processes Audit Plan", processes: ["Product Management", "Project Management"], criteria: [Q], leadAuditor: scott, status: "Completed", createdAgo: 73, updatedAgo: 38 },
-      { code: "IAPL-0005", programCode: "IAP-0005", name: "Q3 2026 Surveillance Audit Plan", processes: ["Front End Development", "Back End Development", "Quality Assurance"], criteria: [Q], leadAuditor: jen, status: "Scheduled", createdAgo: 18, updatedAgo: 8 },
-      { code: "IAPL-0006", programCode: "IAP-0006", name: "Q4 2026 Annual Audit Plan", processes: ["Front End Development", "Database Administrator", "Vulnerability Assessment", "Project Management", "Product Management"], criteria: [Q, S], leadAuditor: jen, status: "Draft", createdAgo: 6, updatedAgo: 2 },
+      // OD `iauditSeedIfNeeded` splits June into two plans: IAPL-0001 (SD) and
+      // IAPL-0007 (IT), each with its department team.
+      { code: "IAPL-0001", programCode: "IAP-0001", name: "June 2026 Software Development Audit Plan", processes: ["Front End Development", "Back End Development", "Quality Assurance"], criteria: [Q], leadAuditor: jen, auditors: [jen, scott, gwen], status: "Scheduled", createdAgo: 9, updatedAgo: 4 },
+      { code: "IAPL-0007", programCode: "IAP-0001", name: "June 2026 IT Infrastructure Audit Plan", processes: ["Database Administrator", "Vulnerability Assessment"], criteria: [S], leadAuditor: tenantAdmin, auditors: [tenantAdmin, mon], status: "Scheduled", createdAgo: 9, updatedAgo: 4 },
+      { code: "IAPL-0002", programCode: "IAP-0002", name: "Q1 2026 Software Development Audit Plan", processes: ["Front End Development", "Back End Development", "Business Process Analyst", "Quality Assurance"], criteria: [Q], leadAuditor: jen, auditors: teamSD, status: "Completed", createdAgo: 148, updatedAgo: 118 },
+      { code: "IAPL-0003", programCode: "IAP-0003", name: "Q1 2026 IT Infrastructure Audit Plan", processes: ["Database Administrator", "Vulnerability Assessment"], criteria: [S], leadAuditor: tenantAdmin, auditors: teamIT, status: "Completed", createdAgo: 118, updatedAgo: 93 },
+      { code: "IAPL-0004", programCode: "IAP-0004", name: "Q2 2026 Management Processes Audit Plan", processes: ["Product Management", "Project Management"], criteria: [Q], leadAuditor: scott, auditors: teamSD, status: "Completed", createdAgo: 73, updatedAgo: 38 },
+      { code: "IAPL-0005", programCode: "IAP-0005", name: "Q3 2026 Surveillance Audit Plan", processes: ["Front End Development", "Back End Development", "Quality Assurance"], criteria: [Q], leadAuditor: jen, auditors: teamSD, status: "Scheduled", createdAgo: 18, updatedAgo: 8 },
+      // OD `iauditSeedExtra` splits Q4 into an SD plan (IAPL-0006) and an IT plan (IAPL-0008).
+      { code: "IAPL-0006", programCode: "IAP-0006", name: "Q4 2026 Software Development Audit Plan", processes: ["Front End Development", "Project Management", "Product Management"], criteria: [Q], leadAuditor: jen, auditors: teamSD, status: "Draft", createdAgo: 6, updatedAgo: 2 },
+      { code: "IAPL-0008", programCode: "IAP-0006", name: "Q4 2026 IT Infrastructure Audit Plan", processes: ["Database Administrator", "Vulnerability Assessment"], criteria: [S], leadAuditor: tenantAdmin, auditors: teamIT, status: "Draft", createdAgo: 6, updatedAgo: 2 },
     ];
     const iaPlanIdByCode = new Map<string, string>();
     const planProgramCode = new Map<string, string>();
     for (const p of planSeeds) {
       const row = await IaPlan.create({
         orgId: tenant.id, code: p.code, programId: iaProgramIdByCode.get(p.programCode)!, name: p.name,
-        processes: p.processes, criteria: p.criteria, leadAuditor: p.leadAuditor, auditors: [p.leadAuditor, tenantAdmin],
+        processes: p.processes, criteria: p.criteria, leadAuditor: p.leadAuditor, auditors: p.auditors ?? [p.leadAuditor, tenantAdmin],
         notes: null, status: p.status, createdBy: p.leadAuditor, lastUpdatedBy: p.leadAuditor,
         activity: [{ ts: iaIso(p.createdAgo), user: p.leadAuditor, action: "created this audit plan", summary: p.name }],
         createdAt: iaDate(p.createdAgo), updatedAt: iaDate(p.updatedAgo),
@@ -885,24 +1036,26 @@ export async function seed(): Promise<void> {
     type SessSeed = { code: string; planCode: string; title: string; date: string; start: string; end: string; auditor: string; criteria: string[]; process: string; workUnit: string; methods?: string[]; status: string; createdAgo: number; updatedAgo: number };
     const sessSeeds: SessSeed[] = [
       { code: "IAS-0001", planCode: "IAPL-0001", title: "Software Development Process Audit", date: "2026-06-18", start: "09:00", end: "11:00", auditor: jen, criteria: [Q, S], process: "Front End Development", workUnit: SD, methods: ["Interview", "Evidence review"], status: "Completed", createdAgo: 9, updatedAgo: 3 },
-      { code: "IAS-0002", planCode: "IAPL-0001", title: "IT Infrastructure and Access Control Audit", date: "2026-06-21", start: "10:00", end: "12:00", auditor: tenantAdmin, criteria: [S], process: "Database Administrator", workUnit: IT, methods: ["System walkthrough", "Evidence review"], status: "Scheduled", createdAgo: 9, updatedAgo: 3 },
-      { code: "IAS-0010", planCode: "IAPL-0002", title: "Front End Development Process Audit", date: "2026-02-10", start: "09:00", end: "11:00", auditor: jen, criteria: [Q], process: "Front End Development", workUnit: SD, status: "Completed", createdAgo: 148, updatedAgo: 148 },
-      { code: "IAS-0011", planCode: "IAPL-0002", title: "Back End Development Process Audit", date: "2026-02-12", start: "09:00", end: "11:00", auditor: scott, criteria: [Q], process: "Back End Development", workUnit: SD, status: "Completed", createdAgo: 146, updatedAgo: 146 },
-      { code: "IAS-0012", planCode: "IAPL-0002", title: "Business Process Analysis Audit", date: "2026-02-17", start: "13:00", end: "14:30", auditor: jen, criteria: [Q], process: "Business Process Analyst", workUnit: SD, status: "Completed", createdAgo: 141, updatedAgo: 141 },
-      { code: "IAS-0013", planCode: "IAPL-0002", title: "Quality Assurance Process Audit", date: "2026-02-19", start: "09:00", end: "11:00", auditor: gwen, criteria: [Q], process: "Quality Assurance", workUnit: SD, status: "Completed", createdAgo: 139, updatedAgo: 139 },
-      { code: "IAS-0014", planCode: "IAPL-0003", title: "Database Administration & Backup Audit", date: "2026-03-11", start: "10:00", end: "12:00", auditor: tenantAdmin, criteria: [S], process: "Database Administrator", workUnit: IT, status: "Completed", createdAgo: 118, updatedAgo: 118 },
-      { code: "IAS-0015", planCode: "IAPL-0003", title: "Vulnerability Management Audit", date: "2026-03-13", start: "10:00", end: "12:30", auditor: tenantAdmin, criteria: [S], process: "Vulnerability Assessment", workUnit: IT, status: "Completed", createdAgo: 116, updatedAgo: 116 },
-      { code: "IAS-0016", planCode: "IAPL-0004", title: "Product Management Process Audit", date: "2026-05-13", start: "09:00", end: "11:00", auditor: scott, criteria: [Q], process: "Product Management", workUnit: SD, status: "Completed", createdAgo: 73, updatedAgo: 73 },
-      { code: "IAS-0017", planCode: "IAPL-0004", title: "Project Management Process Audit", date: "2026-05-15", start: "09:00", end: "10:30", auditor: scott, criteria: [Q], process: "Project Management", workUnit: SD, status: "Completed", createdAgo: 71, updatedAgo: 71 },
-      { code: "IAS-0018", planCode: "IAPL-0001", title: "Quality Assurance Follow-up Audit", date: "2026-06-24", start: "09:00", end: "11:00", auditor: gwen, criteria: [Q], process: "Quality Assurance", workUnit: SD, status: "Scheduled", createdAgo: 5, updatedAgo: 5 },
-      { code: "IAS-0019", planCode: "IAPL-0001", title: "Back End Development Process Audit", date: "2026-06-26", start: "13:00", end: "15:00", auditor: jen, criteria: [Q], process: "Back End Development", workUnit: SD, status: "In Progress", createdAgo: 3, updatedAgo: 3 },
-      { code: "IAS-0020", planCode: "IAPL-0005", title: "Front End Development Surveillance Audit", date: "2026-09-15", start: "09:00", end: "11:00", auditor: jen, criteria: [Q], process: "Front End Development", workUnit: SD, status: "Scheduled", createdAgo: 18, updatedAgo: 18 },
-      { code: "IAS-0021", planCode: "IAPL-0005", title: "Back End Development Surveillance Audit", date: "2026-09-16", start: "09:00", end: "11:00", auditor: scott, criteria: [Q], process: "Back End Development", workUnit: SD, status: "Scheduled", createdAgo: 18, updatedAgo: 18 },
-      { code: "IAS-0022", planCode: "IAPL-0005", title: "Quality Assurance Surveillance Audit", date: "2026-09-18", start: "09:00", end: "11:00", auditor: gwen, criteria: [Q], process: "Quality Assurance", workUnit: SD, status: "Scheduled", createdAgo: 18, updatedAgo: 18 },
-      { code: "IAS-0023", planCode: "IAPL-0006", title: "Database Administration Audit", date: "2026-11-10", start: "10:00", end: "12:00", auditor: tenantAdmin, criteria: [S], process: "Database Administrator", workUnit: IT, status: "Scheduled", createdAgo: 6, updatedAgo: 6 },
-      { code: "IAS-0024", planCode: "IAPL-0006", title: "Vulnerability Management Audit", date: "2026-11-11", start: "10:00", end: "12:00", auditor: tenantAdmin, criteria: [S], process: "Vulnerability Assessment", workUnit: IT, status: "Scheduled", createdAgo: 6, updatedAgo: 6 },
-      { code: "IAS-0025", planCode: "IAPL-0006", title: "Project Management Audit", date: "2026-11-12", start: "09:00", end: "10:30", auditor: scott, criteria: [Q], process: "Project Management", workUnit: SD, status: "Scheduled", createdAgo: 6, updatedAgo: 6 },
-      { code: "IAS-0026", planCode: "IAPL-0006", title: "Product Management Audit", date: "2026-11-13", start: "09:00", end: "11:00", auditor: jen, criteria: [Q], process: "Product Management", workUnit: SD, status: "Scheduled", createdAgo: 6, updatedAgo: 6 },
+      { code: "IAS-0002", planCode: "IAPL-0007", title: "IT Infrastructure and Access Control Audit", date: "2026-06-21", start: "10:00", end: "12:00", auditor: tenantAdmin, criteria: [S], process: "Database Administrator", workUnit: IT, methods: ["System walkthrough", "Evidence review"], status: "Scheduled", createdAgo: 9, updatedAgo: 3 },
+      // `iauditSeedExtra` sessions: OD's `mkS` defaults `updatedAt` to d(30)
+      // for every extra session (none passes `u`), ported verbatim.
+      { code: "IAS-0010", planCode: "IAPL-0002", title: "Front End Development Process Audit", date: "2026-02-10", start: "09:00", end: "11:00", auditor: jen, criteria: [Q], process: "Front End Development", workUnit: SD, status: "Completed", createdAgo: 148, updatedAgo: 30 },
+      { code: "IAS-0011", planCode: "IAPL-0002", title: "Back End Development Process Audit", date: "2026-02-12", start: "09:00", end: "11:00", auditor: scott, criteria: [Q], process: "Back End Development", workUnit: SD, status: "Completed", createdAgo: 146, updatedAgo: 30 },
+      { code: "IAS-0012", planCode: "IAPL-0002", title: "Business Process Analysis Audit", date: "2026-02-17", start: "13:00", end: "14:30", auditor: jen, criteria: [Q], process: "Business Process Analyst", workUnit: SD, status: "Completed", createdAgo: 141, updatedAgo: 30 },
+      { code: "IAS-0013", planCode: "IAPL-0002", title: "Quality Assurance Process Audit", date: "2026-02-19", start: "09:00", end: "11:00", auditor: gwen, criteria: [Q], process: "Quality Assurance", workUnit: SD, status: "Completed", createdAgo: 139, updatedAgo: 30 },
+      { code: "IAS-0014", planCode: "IAPL-0003", title: "Database Administration & Backup Audit", date: "2026-03-11", start: "10:00", end: "12:00", auditor: tenantAdmin, criteria: [S], process: "Database Administrator", workUnit: IT, status: "Completed", createdAgo: 118, updatedAgo: 30 },
+      { code: "IAS-0015", planCode: "IAPL-0003", title: "Vulnerability Management Audit", date: "2026-03-13", start: "10:00", end: "12:30", auditor: mon, criteria: [S], process: "Vulnerability Assessment", workUnit: IT, status: "Completed", createdAgo: 116, updatedAgo: 30 },
+      { code: "IAS-0016", planCode: "IAPL-0004", title: "Product Management Process Audit", date: "2026-05-13", start: "09:00", end: "11:00", auditor: scott, criteria: [Q], process: "Product Management", workUnit: SD, status: "Completed", createdAgo: 73, updatedAgo: 30 },
+      { code: "IAS-0017", planCode: "IAPL-0004", title: "Project Management Process Audit", date: "2026-05-15", start: "09:00", end: "10:30", auditor: scott, criteria: [Q], process: "Project Management", workUnit: SD, status: "Completed", createdAgo: 71, updatedAgo: 30 },
+      { code: "IAS-0018", planCode: "IAPL-0001", title: "Quality Assurance Follow-up Audit", date: "2026-06-24", start: "09:00", end: "11:00", auditor: gwen, criteria: [Q], process: "Quality Assurance", workUnit: SD, status: "Scheduled", createdAgo: 5, updatedAgo: 30 },
+      { code: "IAS-0019", planCode: "IAPL-0001", title: "Back End Development Process Audit", date: "2026-06-26", start: "13:00", end: "15:00", auditor: jen, criteria: [Q], process: "Back End Development", workUnit: SD, status: "In Progress", createdAgo: 3, updatedAgo: 30 },
+      { code: "IAS-0020", planCode: "IAPL-0005", title: "Front End Development Surveillance Audit", date: "2026-09-15", start: "09:00", end: "11:00", auditor: jen, criteria: [Q], process: "Front End Development", workUnit: SD, status: "Scheduled", createdAgo: 18, updatedAgo: 30 },
+      { code: "IAS-0021", planCode: "IAPL-0005", title: "Back End Development Surveillance Audit", date: "2026-09-16", start: "09:00", end: "11:00", auditor: scott, criteria: [Q], process: "Back End Development", workUnit: SD, status: "Scheduled", createdAgo: 18, updatedAgo: 30 },
+      { code: "IAS-0022", planCode: "IAPL-0005", title: "Quality Assurance Surveillance Audit", date: "2026-09-18", start: "09:00", end: "11:00", auditor: gwen, criteria: [Q], process: "Quality Assurance", workUnit: SD, status: "Scheduled", createdAgo: 18, updatedAgo: 30 },
+      { code: "IAS-0023", planCode: "IAPL-0008", title: "Database Administration Audit", date: "2026-11-10", start: "10:00", end: "12:00", auditor: tenantAdmin, criteria: [S], process: "Database Administrator", workUnit: IT, status: "Scheduled", createdAgo: 6, updatedAgo: 30 },
+      { code: "IAS-0024", planCode: "IAPL-0008", title: "Vulnerability Management Audit", date: "2026-11-11", start: "10:00", end: "12:00", auditor: mon, criteria: [S], process: "Vulnerability Assessment", workUnit: IT, status: "Scheduled", createdAgo: 6, updatedAgo: 30 },
+      { code: "IAS-0025", planCode: "IAPL-0006", title: "Project Management Audit", date: "2026-11-12", start: "09:00", end: "10:30", auditor: scott, criteria: [Q], process: "Project Management", workUnit: SD, status: "Scheduled", createdAgo: 6, updatedAgo: 30 },
+      { code: "IAS-0026", planCode: "IAPL-0006", title: "Product Management Audit", date: "2026-11-13", start: "09:00", end: "11:00", auditor: jen, criteria: [Q], process: "Product Management", workUnit: SD, status: "Scheduled", createdAgo: 6, updatedAgo: 30 },
     ];
     const iaSessionIdByCode = new Map<string, string>();
     for (const s of sessSeeds) {
@@ -937,10 +1090,12 @@ export async function seed(): Promise<void> {
         evidence: "Reviewed during the audit session.", frameworks: f.frameworks, criteria: null,
         process: f.process, workUnit: f.workUnit, site: "", auditor: f.auditor, pic: f.pic, due: null,
         reviewRequired: true, reviewStatus: "Approved", reviewDecision: "Approve Finding", reviewNotes: null,
-        issueStatus: f.issueStatus, issuedTo: f.issueStatus === "Issued" ? f.pic : null, issuedDate: f.issueStatus === "Issued" ? iaIso(f.createdAgo) : null,
+        // OD `mkF` defaults: `issuedTo` empty, `issuedDate` at creation for every
+        // extra finding, `updatedAt` d(28) (no `u` passed) — ported verbatim.
+        issueStatus: f.issueStatus, issuedTo: null, issuedDate: iaIso(f.createdAgo),
         linkedNC: null, linkedImp: null, createdBy: f.auditor, lastUpdatedBy: f.auditor,
         activity: [{ ts: iaIso(f.createdAgo), user: f.auditor, action: "submitted this finding", summary: f.type }],
-        createdAt: iaDate(f.createdAgo), updatedAt: iaDate(f.createdAgo),
+        createdAt: iaDate(f.createdAgo), updatedAt: iaDate(28),
       });
     }
 
@@ -951,7 +1106,7 @@ export async function seed(): Promise<void> {
     // "Pending Lead Auditor Review" and IAF-0002 is issued and routed to an
     // improvement opportunity.
     const iaf1 = await IaFinding.create({
-      orgId: tenant.id, code: "IAF-0001", programId: iaProgramIdByCode.get("IAP-0001")!, planId: iaPlanIdByCode.get("IAPL-0001")!,
+      orgId: tenant.id, code: "IAF-0001", programId: iaProgramIdByCode.get("IAP-0001")!, planId: iaPlanIdByCode.get("IAPL-0007")!,
       sessionId: iaSessionIdByCode.get("IAS-0002")!, title: "Access control procedure missing document owner", type: "Nonconformity",
       description: "The access control procedure exists, but document owner and review frequency are not defined.",
       evidence: "Access control procedure record reviewed during audit session IAS-0002.",
@@ -1022,7 +1177,7 @@ export async function seed(): Promise<void> {
     // `IaPlan`/`IaSession`/`IaFinding` `.code` columns — not UUIDs.
     await IaReport.create({
       orgId: tenant.id, code: "IAR-0001", programId: iaProgramIdByCode.get("IAP-0001")!, period: "2026-06",
-      plans: ["IAPL-0001"], sessions: ["IAS-0001", "IAS-0002"], findings: [iaf1.code, iaf2.code],
+      plans: ["IAPL-0001", "IAPL-0007"], sessions: ["IAS-0001", "IAS-0002"], findings: [iaf1.code, iaf2.code],
       evidenceSummary: true, followupIncluded: true, summary: null,
       conclusion: "The internal audit determined that the audited processes are generally implemented and maintained. Several findings were identified requiring correction, corrective action, or improvement follow-up.",
       preparedBy: jen, approvedBy: null, reportDate: iaIso(2), status: "Draft",
@@ -1113,6 +1268,343 @@ export async function seed(): Promise<void> {
         envIds: w.envs.map((n) => envIdByName.get(n)).filter((x): x is string => Boolean(x)),
         depIds: w.deps.map((n) => depIdByName.get(n)).filter((x): x is string => Boolean(x)),
         createdBy: w.by, createdAt, updatedAt: createdAt,
+      },
+    });
+  }
+
+  // 14b1b. Business Process step flows — OD `bpSeedStepsIfNeeded` (core.js:9408,
+  //        the five governance flows with decision branches + Yes/No edge
+  //        labels), `bpControlSeedIfNeeded` (core.js:9794, pinned
+  //        responsible/resources/targets on four control steps) and
+  //        `bpSeedSteps44` (core.js:9468, a 4-step §4.4 flow for every other
+  //        process, responsible cycled from OD's 10-name pool in build order).
+  //        Steps live in each record's `data.steps[]` (the shape
+  //        process.service.ts reads); ids are deterministic `<code>-s<n>`,
+  //        `col` mirrors OD's grid column (order index) and `next`/`edgeLabels`
+  //        mirror the seeded connectors exactly. Idempotent: only fills a
+  //        record whose data has no steps (OD's `if(bp.steps.length)return`).
+  //        OD's step `roleId` is left "" here — the BE seeds no RoleTemplate
+  //        rows yet for it to reference. Mirrored in the FE mockClient seed.
+  const wuIdByName = new Map((await WorkUnit.findAll({ where: { orgId: tenant.id } })).map((w) => [w.name, w.id]));
+  const bpPool = ["Jennifer Susan Walters", "Bobbi Morse", "Scott Edward Harris Lang", "Daniel Rand", "Maria Rambeau", "Gwendolyne Maxine Stacy", "Peter Benjamin Parker", "Luke Cage", "Wanda Maximoff", "Matthew Michael Murdock"];
+  let bpPoolIdx = 0;
+  const bpNp = (): string => bpPool[bpPoolIdx++ % bpPool.length];
+  type BpStepSeed = { n: string; w?: string; t?: "decision"; nexts?: number[]; resp?: string; res?: string; tgt?: string };
+  const bpStepFlows: Record<string, Record<string, unknown>[]> = {};
+  const bpBuild = (name: string, wu: string, defs: BpStepSeed[]): void => {
+    const code = `PRC-${String(BP_NAMES.indexOf(name) + 1).padStart(4, "0")}`;
+    const ids = defs.map((_, i) => `${code}-s${i + 1}`);
+    bpStepFlows[name] = defs.map((d, i) => {
+      const next = d.nexts ? d.nexts.map((k) => ids[k]) : i < defs.length - 1 ? [ids[i + 1]] : [];
+      const step: Record<string, unknown> = {
+        id: ids[i], order: i + 1, col: i, name: d.n, description: "",
+        roleId: "", workUnitId: wuIdByName.get(d.w ?? wu) ?? "",
+        responsible: d.resp ?? bpNp(), resources: d.res ?? "", targets: d.tgt ?? "",
+        type: d.t ?? "task", next,
+      };
+      if (d.t === "decision" && next.length) step.edgeLabels = Object.fromEntries(next.map((tid, k) => [tid, k === 0 ? "Yes" : k === 1 ? "No" : `Path ${k + 1}`]));
+      return step;
+    });
+  };
+  // bpSeedSteps44's 27 builds, in OD call order (the pool depends on it).
+  bpBuild("Front End Development", "Software Development", [
+    { n: "Refine UI requirements", tgt: "100% of stories have approved designs before build", res: "Figma; design system; product-owner time" },
+    { n: "Implement components", tgt: "≥ 90% component test coverage; 0 critical accessibility defects", res: "React toolchain; shared component library; 2 FE engineers" },
+    { n: "Code review & merge", tgt: "100% of PRs peer-reviewed; review turnaround ≤ 1 day", res: "Git PR workflow; CI pipeline" },
+    { n: "Release to staging", tgt: "0 build-breaking merges; staging deploy ≤ 15 min", res: "CI/CD; staging environment" },
+  ]);
+  bpBuild("Back End Development", "Software Development", [
+    { n: "Design API contract", tgt: "100% of endpoints documented before implementation", res: "OpenAPI spec; architecture review" },
+    { n: "Implement services", tgt: "≥ 85% unit-test coverage; p95 latency ≤ 300 ms", res: "Service framework; 2 BE engineers; test data" },
+    { n: "Integration testing", tgt: "0 critical defects escaping to staging", res: "Integration test suite; CI runners" },
+    { n: "Deploy & monitor", tgt: "≥ 99.5% service availability; error rate ≤ 1%", res: "Observability stack; on-call rota" },
+  ]);
+  bpBuild("Business Process Analyst", "Software Development", [
+    { n: "Elicit process requirements", tgt: "100% of requirements traceable to a stakeholder need", res: "Interview guide; stakeholder time" },
+    { n: "Model as-is / to-be", tgt: "Every in-scope process modelled and validated", res: "BPMN tooling; process owners" },
+    { n: "Validate with stakeholders", tgt: "≥ 95% sign-off on documented processes", res: "Workshop facilitation; review sessions" },
+    { n: "Hand off to delivery", tgt: "0 requirements reopened after hand-off", res: "Backlog tooling; delivery lead" },
+  ]);
+  bpBuild("Database Administrator", "IT Infrastructure", [
+    { n: "Provision & configure database", tgt: "100% of instances configured to hardening baseline", res: "DB platform; configuration baseline" },
+    { n: "Backup & recovery", tgt: "100% of backups verified; RPO ≤ 1 h, RTO ≤ 4 h", res: "Backup tooling; off-site storage" },
+    { n: "Performance tuning", tgt: "p95 query time ≤ 200 ms; 0 unindexed hot queries", res: "Monitoring; query analyzer" },
+    { n: "Access & audit review", tgt: "100% of privileged access reviewed quarterly", res: "Access review workflow; audit log" },
+  ]);
+  bpBuild("Quality Assurance", "Quality Assurance", [
+    { n: "Define quality criteria", tgt: "Acceptance criteria defined for 100% of features", res: "Quality plan; test strategy" },
+    { n: "Prepare & run test cases", tgt: "≥ 95% planned test cases executed per release", res: "Test management tool; QA engineers" },
+    { n: "Log & triage defects", tgt: "100% of defects triaged within 1 business day", res: "Defect tracker; triage board" },
+    { n: "Release quality sign-off", tgt: "0 known critical defects released", res: "Release checklist; QM approval" },
+  ]);
+  bpBuild("Vulnerability Assessment", "Information Security", [
+    { n: "Scope & schedule scan", tgt: "100% of production assets in scope each quarter", res: "Asset inventory; scan schedule" },
+    { n: "Run vulnerability scan", tgt: "Authenticated scans on ≥ 95% of assets", res: "Vulnerability scanner; scan credentials" },
+    { n: "Triage & prioritize findings", tgt: "Critical findings triaged ≤ 24 h", res: "CVSS scoring; risk register" },
+    { n: "Remediate & verify", tgt: "≥ 90% of critical findings closed within SLA", res: "Patch management; re-scan" },
+  ]);
+  bpBuild("Product Management", "Software Development", [
+    { n: "Capture & prioritize backlog", tgt: "Backlog prioritized against value every sprint", res: "Product backlog; stakeholder input" },
+    { n: "Define release scope", tgt: "100% of release items have acceptance criteria", res: "Roadmap; product-owner time" },
+    { n: "Coordinate delivery", tgt: "≥ 85% sprint commitment met", res: "Delivery team; sprint cadence" },
+    { n: "Review outcomes & feedback", tgt: "Feature adoption reviewed within 30 days of launch", res: "Analytics; customer feedback" },
+  ]);
+  bpBuild("Project Management", "Software Development", [
+    { n: "Initiate & plan project", tgt: "Approved plan & baseline before execution", res: "Project charter; schedule tooling" },
+    { n: "Execute & coordinate", tgt: "≥ 90% of milestones met on schedule", res: "Team; RAID log" },
+    { n: "Monitor & control", tgt: "Schedule/cost variance within ±10%", res: "Status reporting; steering reviews" },
+    { n: "Close & capture lessons", tgt: "Lessons learned recorded for 100% of projects", res: "Closure report; knowledge base" },
+  ]);
+  bpBuild("Mobile Development", "Software Development", [
+    { n: "Refine mobile requirements", tgt: "Designs approved for 100% of stories before build", res: "Design system; product owner" },
+    { n: "Build & test on devices", tgt: "Verified on top 90% device/OS coverage", res: "Device lab; CI; 2 mobile engineers" },
+    { n: "Code review & merge", tgt: "100% of PRs reviewed; ≤ 1 day turnaround", res: "Git workflow; CI" },
+    { n: "Store release", tgt: "0 rejected store submissions; crash-free ≥ 99.5%", res: "Store accounts; release checklist" },
+  ]);
+  bpBuild("Solution Architecture", "Software Development", [
+    { n: "Assess requirements & constraints", tgt: "Non-functional requirements defined for 100% of solutions", res: "Architecture intake; stakeholder time" },
+    { n: "Design target architecture", tgt: "Every design passes architecture review", res: "Reference architecture; modelling tools" },
+    { n: "Review & approve design", tgt: "100% of designs approved before build", res: "Architecture review board" },
+    { n: "Support implementation", tgt: "≤ 5% of build effort lost to design rework", res: "Delivery teams; design guidance" },
+  ]);
+  bpBuild("Systems Administration", "IT Infrastructure", [
+    { n: "Provision & harden systems", tgt: "100% of servers built to hardening baseline", res: "Config baseline; provisioning tooling" },
+    { n: "Patch & maintain", tgt: "≥ 95% of systems patched within SLA", res: "Patch management; maintenance windows" },
+    { n: "Monitor & respond", tgt: "≥ 99.5% infrastructure availability", res: "Monitoring; alerting; on-call" },
+    { n: "Capacity & housekeeping", tgt: "0 outages caused by capacity exhaustion", res: "Capacity dashboard; housekeeping jobs" },
+  ]);
+  bpBuild("Network Administration", "IT Infrastructure", [
+    { n: "Plan network changes", tgt: "100% of changes assessed before implementation", res: "Network design; change process" },
+    { n: "Configure & segment", tgt: "Segmentation baseline applied to 100% of zones", res: "Firewalls; switches; config templates" },
+    { n: "Monitor performance & security", tgt: "≥ 99.5% link availability; 0 undetected outages", res: "NMS; flow monitoring" },
+    { n: "Review & optimize", tgt: "Configuration reviewed against baseline quarterly", res: "Config audit; review checklist" },
+  ]);
+  bpBuild("Software Testing", "Quality Assurance", [
+    { n: "Plan test approach", tgt: "Test plan approved for 100% of releases", res: "Test strategy; risk-based plan" },
+    { n: "Author test cases", tgt: "≥ 95% requirement coverage by test cases", res: "Test management tool" },
+    { n: "Execute & record results", tgt: "≥ 95% planned cases executed; results logged", res: "Test environments; QA engineers" },
+    { n: "Report & regression", tgt: "Full regression before every production release", res: "Automation suite; CI" },
+  ]);
+  bpBuild("Release Management", "IT Infrastructure", [
+    { n: "Plan release", tgt: "Every release has an approved plan & rollback", res: "Release calendar; change board" },
+    { n: "Build & package", tgt: "100% of artifacts built from source control", res: "CI pipeline; artifact registry" },
+    { n: "Deploy to production", tgt: "≥ 98% of releases without rollback", res: "CD pipeline; maintenance window" },
+    { n: "Verify & close", tgt: "Post-release checks pass within 30 min", res: "Smoke tests; monitoring" },
+  ]);
+  bpBuild("Security Operations", "Information Security", [
+    { n: "Monitor security events", tgt: "≥ 95% of critical alerts triaged ≤ 30 min", res: "SIEM; 24×7 monitoring" },
+    { n: "Investigate alerts", tgt: "0 confirmed incidents undetected > 24 h", res: "Analyst playbooks; threat intel" },
+    { n: "Contain & escalate", tgt: "Containment of confirmed incidents ≤ 1 h", res: "Response runbooks; escalation matrix" },
+    { n: "Review & tune controls", tgt: "Detection rules reviewed monthly", res: "Rule tuning; lessons learned" },
+  ]);
+  bpBuild("Access Management", "Information Security", [
+    { n: "Receive access request", tgt: "100% of access requests logged & authorized", res: "Access request workflow; approver" },
+    { n: "Verify & approve", tgt: "Access granted on least-privilege basis", res: "Role matrix; approval workflow" },
+    { n: "Provision access", tgt: "Access provisioned ≤ 1 business day", res: "IAM tooling; directory services" },
+    { n: "Periodic access review", tgt: "100% of privileged access recertified quarterly", res: "Access recertification campaign" },
+  ]);
+  bpBuild("Requirements Management", "Software Development", [
+    { n: "Capture requirements", tgt: "100% of requirements uniquely identified", res: "Requirements repository; stakeholders" },
+    { n: "Analyze & baseline", tgt: "Baseline approved before development starts", res: "Analysis workshops; product owner" },
+    { n: "Trace & manage changes", tgt: "100% of requirements traceable to delivery", res: "Traceability matrix; change control" },
+    { n: "Validate delivery", tgt: "0 requirements reopened post-acceptance", res: "Acceptance testing; sign-off" },
+  ]);
+  bpBuild("Configuration Management", "Production Operations", [
+    { n: "Identify configuration items", tgt: "100% of production CIs recorded in the CMDB", res: "CMDB; discovery tooling" },
+    { n: "Control changes to CIs", tgt: "0 unauthorized changes to baselined CIs", res: "Change control; version control" },
+    { n: "Verify configuration", tgt: "≥ 98% CMDB accuracy on audit", res: "Configuration audit; reconciliation" },
+    { n: "Report & improve", tgt: "Configuration status reported monthly", res: "Reporting; review meeting" },
+  ]);
+  bpBuild("Technical Support", "Customer Service", [
+    { n: "Receive & log ticket", tgt: "100% of contacts logged as tickets", res: "Ticketing system; support desk" },
+    { n: "Diagnose issue", tgt: "≥ 80% resolved at first line", res: "Knowledge base; diagnostics" },
+    { n: "Resolve or escalate", tgt: "Priority-1 resolution ≤ 4 h", res: "Escalation path; specialist teams" },
+    { n: "Confirm & close", tgt: "≥ 90% customer satisfaction on closed tickets", res: "Satisfaction survey" },
+  ]);
+  bpBuild("Customer Support", "Customer Service", [
+    { n: "Receive customer enquiry", tgt: "100% of enquiries acknowledged ≤ 1 h", res: "Omni-channel desk; CRM" },
+    { n: "Assess & respond", tgt: "≥ 85% first-contact resolution", res: "Knowledge base; support agents" },
+    { n: "Escalate complex cases", tgt: "Escalations handled within SLA", res: "Escalation matrix; back office" },
+    { n: "Follow up & close", tgt: "≥ 90% CSAT; 0 cases closed without confirmation", res: "CSAT survey; CRM" },
+  ]);
+  bpBuild("Service Desk", "Customer Service", [
+    { n: "Log service request", tgt: "100% of requests logged & categorized", res: "ITSM tool; service catalogue" },
+    { n: "Classify & prioritize", tgt: "Correct priority set on ≥ 95% of tickets", res: "Priority matrix" },
+    { n: "Fulfil or route", tgt: "Standard requests fulfilled ≤ 2 business days", res: "Fulfilment teams; automation" },
+    { n: "Review & report", tgt: "SLA attainment ≥ 95% monthly", res: "SLA dashboard; reporting" },
+  ]);
+  bpBuild("Procurement", "Finance & Administration", [
+    { n: "Raise purchase requisition", tgt: "100% of purchases raised against a requisition", res: "Procurement system; budget owner" },
+    { n: "Source & evaluate suppliers", tgt: "≥ 2 quotes for purchases above threshold", res: "Approved supplier list; evaluation criteria" },
+    { n: "Approve & issue PO", tgt: "100% of POs approved per authority matrix", res: "Approval workflow; authority matrix" },
+    { n: "Receive & verify goods", tgt: "0 payments without verified receipt", res: "Goods receipt; three-way match" },
+  ]);
+  bpBuild("Vendor Management", "Finance & Administration", [
+    { n: "Onboard & qualify vendor", tgt: "100% of vendors qualified before first order", res: "Due-diligence checklist; contracts" },
+    { n: "Define SLAs & contracts", tgt: "Signed SLA in place for 100% of active vendors", res: "Contract templates; legal review" },
+    { n: "Monitor performance", tgt: "≥ 90% of vendors meeting SLA", res: "Vendor scorecard; review meetings" },
+    { n: "Review & renew", tgt: "Performance reviewed before every renewal", res: "Renewal calendar; evaluation" },
+  ]);
+  bpBuild("Human Resources", "Human Resources", [
+    { n: "Manage employee records", tgt: "100% of records complete & current", res: "HRIS; personnel files" },
+    { n: "Administer onboarding/offboarding", tgt: "Onboarding completed ≤ 5 days of start", res: "Onboarding checklist; IT & facilities" },
+    { n: "Handle HR requests", tgt: "≥ 95% of requests resolved within SLA", res: "HR service desk; policies" },
+    { n: "Compliance & reporting", tgt: "0 lapses in mandatory HR compliance", res: "Compliance calendar; audits" },
+  ]);
+  bpBuild("Recruitment", "Human Resources", [
+    { n: "Define role & approve vacancy", tgt: "Approved job description before sourcing", res: "Hiring manager; authority matrix" },
+    { n: "Source & screen candidates", tgt: "Shortlist delivered ≤ 10 business days", res: "ATS; sourcing channels" },
+    { n: "Interview & select", tgt: "Structured scorecard used for 100% of interviews", res: "Interview panel; scorecards" },
+    { n: "Offer & onboard", tgt: "≥ 90% offer acceptance; onboarding scheduled", res: "Offer workflow; HR onboarding" },
+  ]);
+  bpBuild("Training & Competence", "Human Resources", [
+    { n: "Identify competence needs", tgt: "Training needs identified for 100% of roles", res: "Competence matrix; gap analysis" },
+    { n: "Plan & schedule training", tgt: "Annual plan approved & communicated", res: "Training calendar; budget" },
+    { n: "Deliver & record training", tgt: "≥ 90% training completion on plan", res: "LMS; trainers; records" },
+    { n: "Evaluate effectiveness", tgt: "Effectiveness assessed for 100% of key training", res: "Post-training assessment; reassessment" },
+  ]);
+  bpBuild("Finance & Accounting", "Finance & Administration", [
+    { n: "Record transactions", tgt: "100% of transactions posted within period", res: "Accounting system; source documents" },
+    { n: "Approve payments", tgt: "100% of payments approved per authority matrix", res: "Approval workflow; segregation of duties" },
+    { n: "Reconcile accounts", tgt: "All key accounts reconciled monthly", res: "Reconciliation tooling; bank feeds" },
+    { n: "Report & close period", tgt: "Month-end close ≤ 5 business days", res: "Reporting pack; review" },
+  ]);
+  // The five governance flows (bpSeedStepsIfNeeded branches + bpSeedSteps44
+  // `back()` targets/resources + bpControlSeedIfNeeded pins), built after the
+  // 27 above so the responsible pool cycles like OD's backfill.
+  bpBuild("Internal Audit", "Quality Assurance", [
+    { n: "Plan audit programme", tgt: "Annual audit programme approved & communicated", res: "Audit programme; management input" },
+    { n: "Prepare audit plan & checklist", tgt: "Audit plan & checklist for 100% of audits", res: "Audit checklist; sampling plan" },
+    { n: "Conduct opening meeting", tgt: "Opening meeting held for every audit", res: "Opening meeting; attendance record" },
+    { n: "Gather audit evidence", resp: "Jennifer Susan Walters", tgt: "100% of planned audit scope covered; evidence logged for every finding.", res: "Audit checklist; sampling plan; auditor time." },
+    { n: "Findings raised?", t: "decision", nexts: [5, 6], tgt: "Findings graded consistently", res: "Grading criteria" },
+    { n: "Write nonconformities", tgt: "Nonconformities written with objective evidence", res: "NC template" },
+    { n: "Issue audit report", tgt: "Audit report issued ≤ 5 business days", res: "Report template" },
+    { n: "Review & approve report", tgt: "100% of reports reviewed & approved", res: "Quality Manager review" },
+  ]);
+  bpBuild("Document Control", "Quality Assurance", [
+    { n: "Draft document", tgt: "Drafts follow the controlled template", res: "Document template; authoring tool" },
+    { n: "Technical review", w: "IT Infrastructure", tgt: "100% of documents technically reviewed", res: "Reviewer time; review record" },
+    { n: "Approve for release", tgt: "0 documents released without approval", res: "Approval workflow" },
+    { n: "Publish & distribute", tgt: "Current version available to 100% of users", res: "Document register; distribution list" },
+    { n: "Periodic review", tgt: "≥ 95% of documents within review date", res: "Review schedule; reminders" },
+  ]);
+  bpBuild("Management Review", "Quality Assurance", [
+    { n: "Collect review inputs", tgt: "All required §9.3 inputs collected", res: "Review input pack" },
+    { n: "Compile performance data", tgt: "Performance data compiled for 100% of KPIs", res: "Performance dashboard" },
+    { n: "Conduct management review meeting", tgt: "Review held at planned interval", res: "Meeting; top management" },
+    { n: "Record decisions & outputs", tgt: "Decisions & outputs recorded for every review", res: "Minutes; action log" },
+    { n: "Assign improvement actions", tgt: "Improvement actions assigned with owners", res: "Action register" },
+    { n: "Track actions to closure", tgt: "≥ 90% of review actions closed on time", res: "Action tracking" },
+  ]);
+  bpBuild("Change Management", "IT Infrastructure", [
+    { n: "Raise change request", nexts: [1], tgt: "100% of changes raised as change requests", res: "Change request form" },
+    { n: "Assess impact & risk", nexts: [2], resp: "Bobbi Morse", tgt: "100% of changes risk-assessed before approval; assessment completed ≤ 2 business days.", res: "Change assessment template; security & impact checklist; ~0.5 day analyst time." },
+    { n: "Approve change?", t: "decision", nexts: [3, 5], resp: "Scott Edward Harris Lang", tgt: "0 unassessed changes approved; approval decision ≤ 1 business day.", res: "CAB approval record; change calendar." },
+    { n: "Implement change", nexts: [4], resp: "Luke Cage", tgt: "≥ 98% of changes implemented without rollback; 0 change-related incidents.", res: "Deployment runbook; rollback plan; maintenance window." },
+    { n: "Verify & close", nexts: [], tgt: "Post-implementation review on all changes", res: "Verification checklist" },
+    { n: "Reject & document", nexts: [], tgt: "Rejected changes documented with rationale", res: "Change record" },
+  ]);
+  bpBuild("Incident Response", "IT Infrastructure", [
+    { n: "Detect / report incident", tgt: "100% of incidents logged on detection", res: "Incident register; monitoring" },
+    { n: "Triage & classify", tgt: "Incidents triaged & classified ≤ 30 min", res: "Triage playbook" },
+    { n: "Contain", tgt: "Containment of confirmed incidents ≤ 1 h", res: "Containment runbook" },
+    { n: "Investigate root cause", tgt: "Root cause identified for 100% of major incidents", res: "RCA method" },
+    { n: "Eradicate & recover", tgt: "Recovery verified before closure", res: "Recovery checklist" },
+    { n: "Post-incident review", tgt: "Post-incident review within 5 business days", res: "Lessons-learned template" },
+  ]);
+  for (const [name, steps] of Object.entries(bpStepFlows)) {
+    const rec = await ImplementationRecord.findOne({ where: { orgId: tenant.id, module: "processes", title: name } });
+    if (!rec) continue;
+    const data = (rec.data ?? {}) as Record<string, unknown>;
+    if (!Array.isArray(data.steps) || data.steps.length === 0) {
+      await rec.update({ data: { ...data, steps } });
+    }
+  }
+
+  // 14b2. Controlled documents (OD `cdocSeedIfNeeded`, core.js:19538–19563) and
+  //       external-document folders + documents (OD `edSeedIfNeeded`,
+  //       core.js:19982–20021), 1:1 with the OD baseline: same codes, titles,
+  //       types, versions, statuses, view scoping, approvers, and relative day
+  //       offsets. Seeded after the Work Units above so `workUnit`/`viewUnits`
+  //       can hold real work-unit ids, the way OD's `wu()` lookup does.
+  //       OD's seed removes its own earlier seed ids before reseeding (SIDS
+  //       filter); the pre-parity PROC-ISMS-0001 row is removed the same way.
+  await ImplementationRecord.destroy({ where: { orgId: tenant.id, module: "documents", code: "PROC-ISMS-0001" } });
+  const cdAgo = (n: number): string => new Date(Date.now() - n * 86400000).toISOString();
+  const cdFut = (n: number): string => new Date(Date.now() + n * 86400000).toISOString();
+  const cdTm = "Jennifer Susan Walters", cdMst = "Monica Rambeau", cdMgr = "Scott Edward Harris Lang", cdMgr2 = "Gwendolyne Maxine Stacy";
+  const wuRows = await WorkUnit.findAll({ where: { orgId: tenant.id } });
+  const wuIdOf = (name: string): string => wuRows.find((w) => w.name === name)?.id ?? "";
+  const cdSeed: { code: string; title: string; status: string; frameworks: string[]; created: number; updated: number; data: Record<string, unknown> }[] = [
+    { code: "POL-QMS-0001", title: "Quality Policy", status: "Published", frameworks: ["ISO 9001:2015"], created: 140, updated: 5, data: { type: "Policy", version: "1.0", workUnit: wuIdOf("Quality Assurance"), finalReviewerMode: "tm", reviewFreq: "Annually", viewScope: "Everyone", publicLink: true, ackRequired: true, ackAudience: ["All Users"], effectiveDate: cdAgo(120), nextReview: cdFut(240), approvedBy: cdTm, approvedDate: cdAgo(122), publishedBy: cdTm, publishedDate: cdAgo(120), createdBy: cdMst, content: "PT Hammer Industries is committed to delivering products and services that consistently meet customer, statutory, and regulatory requirements.\n\nWe maintain a quality management system built on risk-based thinking, process ownership, and continual improvement. Top management demonstrates leadership by setting quality objectives, providing resources, and reviewing performance at planned intervals.\n\nEvery employee is responsible for the quality of their work and for raising opportunities for improvement." } },
+    { code: "POL-ISMS-0001", title: "Information Security Policy", status: "Published", frameworks: ["ISO/IEC 27001:2022"], created: 110, updated: 5, data: { type: "Policy", version: "1.0", workUnit: wuIdOf("Information Security"), finalReviewerMode: "tm", reviewFreq: "Annually", viewScope: "Everyone", ackRequired: true, ackAudience: ["All Users"], effectiveDate: cdAgo(90), nextReview: cdFut(275), approvedBy: cdTm, approvedDate: cdAgo(92), publishedBy: cdTm, publishedDate: cdAgo(90), createdBy: cdMst, content: "PT Hammer Industries protects the confidentiality, integrity, and availability of information assets across its business operations, products, and supporting systems.\n\nInformation security risks are identified, assessed, and treated in line with the approved risk methodology. Access to information is granted on a least-privilege, need-to-know basis.\n\nAll personnel and relevant external parties must comply with this policy and its supporting procedures." } },
+    { code: "MAN-QMS-0002", title: "Quality Manual", status: "Published", frameworks: ["ISO 9001:2015"], created: 75, updated: 5, data: { type: "Manual", version: "2.0", workUnit: wuIdOf("Quality Assurance"), lineageId: "MAN-QMS", prevVersionId: "MAN-QMS-0001", finalReviewerMode: "tm", reviewFreq: "Annually", viewScope: "Everyone", publicLink: true, ackRequired: true, ackAudience: ["All Users"], effectiveDate: cdAgo(60), nextReview: cdFut(300), changeSummary: "Updated scope to include the manufacturing sites and revised the process interaction map.", reasonForChange: "Annual review and organizational expansion.", approvedBy: cdTm, approvedDate: cdAgo(62), publishedBy: cdTm, publishedDate: cdAgo(60), createdBy: cdMst, content: "The Quality Manual defines the scope of the PT Hammer Industries quality management system, the sequence and interaction of its processes, and the responsibilities of process owners.\n\nThis version extends the scope to the Cikarang manufacturing and warehouse sites and aligns the process map with the current organizational structure." } },
+    { code: "MAN-QMS-0001", title: "Quality Manual", status: "Superseded", frameworks: ["ISO 9001:2015"], created: 420, updated: 60, data: { type: "Manual", version: "1.0", workUnit: wuIdOf("Quality Assurance"), lineageId: "MAN-QMS", supersededBy: "MAN-QMS-0002", finalReviewerMode: "tm", reviewFreq: "Annually", viewScope: "Everyone", effectiveDate: cdAgo(400), nextReview: cdAgo(35), approvedBy: cdTm, approvedDate: cdAgo(402), publishedBy: cdTm, publishedDate: cdAgo(400), createdBy: cdMst, content: "Version 1.0 of the Quality Manual describing the scope of the management system, process interactions, and governance. Superseded by version 2.0." } },
+    { code: "PROC-DOC-0001", title: "Documented Information Control Procedure", status: "Under Review", frameworks: ["ISO 9001:2015", "ISO/IEC 27001:2022"], created: 8, updated: 2, data: { type: "Procedure", version: "0.2", workUnit: wuIdOf("Quality Assurance"), finalReviewerMode: "tm", reviewFreq: "Annually", viewScope: "Everyone", submittedBy: cdMst, submittedDate: cdAgo(5), createdBy: cdMst, content: "This procedure defines how documented information is created, reviewed, approved, published, revised, distributed, retained, and archived within PT Hammer Industries.\n\nInitial review is performed by the assigned reviewers (PICs). Once all reviewers sign off, the document is escalated to Final Review by Top Management or an authorized user." } },
+    { code: "PROC-CHG-0001", title: "Change Management Procedure", status: "Under Review", frameworks: ["ISO 9001:2015", "ISO/IEC 27001:2022"], created: 4, updated: 1, data: { type: "Procedure", version: "0.1", workUnit: wuIdOf("Software Development"), finalReviewerMode: "user", approver: cdTm, reviewFreq: "Annually", viewScope: "Work Units", viewUnits: [wuIdOf("Software Development"), wuIdOf("IT Infrastructure")].filter(Boolean), submittedBy: cdMgr, submittedDate: cdAgo(2), createdBy: cdMgr, content: "This procedure governs how changes to systems, infrastructure, and documented information are requested, assessed, approved, implemented, and reviewed.\n\nChanges are classified by risk and routed for the appropriate level of approval before deployment." } },
+    { code: "PROC-AC-0001", title: "Access Control Procedure", status: "Approved", frameworks: ["ISO/IEC 27001:2022"], created: 14, updated: 4, data: { type: "Procedure", version: "1.0", workUnit: wuIdOf("Information Security"), finalReviewerMode: "tm", reviewFreq: "Annually", viewScope: "Work Units", viewUnits: [wuIdOf("Information Security"), wuIdOf("IT Infrastructure")].filter(Boolean), reviewDecision: "Approve", reviewComments: "Approved for publication.", submittedBy: cdMst, submittedDate: cdAgo(9), approvedBy: cdTm, approvedDate: cdAgo(4), createdBy: cdMst, content: "This procedure defines how logical access to information systems is requested, approved, provisioned, reviewed, and revoked following the least-privilege principle.\n\nAccess rights are reviewed at planned intervals and upon any change of role or employment status." } },
+    { code: "PROC-SUP-0001", title: "Supplier Management Procedure", status: "Published", frameworks: ["ISO 9001:2015"], created: 420, updated: 390, data: { type: "Procedure", version: "1.0", workUnit: wuIdOf("Procurement"), finalReviewerMode: "user", approver: cdTm, reviewFreq: "Annually", viewScope: "Work Units", viewUnits: [wuIdOf("Procurement")].filter(Boolean), effectiveDate: cdAgo(400), nextReview: cdAgo(12), approvedBy: cdTm, approvedDate: cdAgo(402), publishedBy: cdTm, publishedDate: cdAgo(400), createdBy: cdMst, content: "This procedure defines how external providers are selected, evaluated, approved, and monitored to ensure purchased products and services meet requirements.\n\nSuppliers are re-evaluated periodically based on performance scorecards and nonconformity history." } },
+    { code: "WI-HR-0001", title: "Employee Onboarding Work Instruction", status: "Draft", frameworks: ["ISO 9001:2015"], created: 3, updated: 1, data: { type: "Work Instruction", version: "0.1", workUnit: wuIdOf("Human Resources"), finalReviewerMode: "user", approver: cdMst, reviewFreq: "Annually", viewScope: "Specific Users", viewUsers: [cdMst, cdMgr], createdBy: cdMgr2, content: "Step-by-step instructions for onboarding a new employee: account creation, asset issuance, orientation, and competence baseline.\n\nThis draft is being prepared for review." } },
+    { code: "GDL-IR-0001", title: "Incident Response Guideline", status: "Revision Requested", frameworks: ["ISO/IEC 27001:2022"], created: 16, updated: 6, data: { type: "Guideline", version: "0.2", workUnit: wuIdOf("Information Security"), finalReviewerMode: "tm", reviewFreq: "Annually", viewScope: "Work Units", viewUnits: [wuIdOf("Information Security")].filter(Boolean), reviewDecision: "Request Revision", reviewComments: "Add escalation timelines and align severity levels with the risk matrix.", submittedBy: cdMgr, submittedDate: cdAgo(10), createdBy: cdMgr, content: "Guidance for detecting, reporting, containing, and recovering from information security incidents.\n\nReturned for revision to add escalation timelines and severity alignment." } },
+  ];
+  for (const c of cdSeed) {
+    await ImplementationRecord.findOrCreate({
+      where: { orgId: tenant.id, module: "documents", code: c.code },
+      defaults: { orgId: tenant.id, module: "documents", code: c.code, title: c.title, status: c.status, owner: null, data: c.data, elementId: null, frameworks: c.frameworks, createdAt: new Date(cdAgo(c.created)), updatedAt: new Date(cdAgo(c.updated)) },
+    });
+  }
+
+  // External-document folders (OD `edSeedIfNeeded` folder list, core.js:19988–20001).
+  const edAdm = "Tenant Administrator";
+  const edFolderSeed: [string, string][] = [
+    ["Standards", "International, national, or industry standards used as management system criteria or reference documents."],
+    ["Regulations", "Regulatory documents issued by authorities that may apply to the organization."],
+    ["Laws", "Legal instruments, acts, and statutory documents applicable to the organization."],
+    ["Government Guidelines", "Guidelines, circulars, and official guidance issued by government bodies."],
+    ["Official Letters", "Formal external correspondence, letters, notices, or decisions received from customers, regulators, authorities, or other external parties."],
+    ["Customer Requirements", "Customer-issued requirements, specifications, manuals, or contractual expectations."],
+    ["Supplier Documents", "Supplier-issued manuals, specifications, certifications, notices, or service documents."],
+    ["Accreditation Rules", "Accreditation body requirements, regulations, rules, or guidance documents."],
+    ["Certification Scheme Documents", "Certification scheme rules, scheme owner documents, certification requirements, and related guidance."],
+    ["Technical Manuals", "Externally issued manuals, equipment manuals, technical references, or operating instructions."],
+    ["Contracts", "External agreements, contracts, memoranda, or formal commitments relevant to the management system."],
+    ["Other References", "Other externally issued reference documents used by the organization."],
+  ];
+  const edFolderIds: Record<string, string> = {};
+  for (let i = 0; i < edFolderSeed.length; i++) {
+    const [name, description] = edFolderSeed[i];
+    const [folderRow] = await ImplementationRecord.findOrCreate({
+      where: { orgId: tenant.id, module: "record-folders", code: `EDF-${String(i + 1).padStart(4, "0")}` },
+      defaults: { orgId: tenant.id, module: "record-folders", code: `EDF-${String(i + 1).padStart(4, "0")}`, title: name, status: "Active", owner: null, data: { description, createdBy: edAdm }, elementId: null, frameworks: [], createdAt: new Date(cdAgo(30)), updatedAt: new Date(cdAgo(30)) },
+    });
+    edFolderIds[name] = folderRow.id;
+  }
+
+  // The 6 seeded external documents (OD `edSeedIfNeeded` mk() rows, core.js:20006–20015).
+  const edEff = "2026-06-17T00:00:00.000Z";
+  const edNext = "2027-06-17T00:00:00.000Z";
+  const edSeed: { code: string; folder: string; category: string; title: string; owner?: string; frameworks?: string[]; over?: Record<string, unknown> }[] = [
+    { code: "EXT-STD-0001", folder: "Standards", category: "Standard", title: "ISO 9001:2015 Quality Management Systems — Requirements", frameworks: ["ISO 9001:2015"], over: { issuer: "ISO", publisher: "International Organization for Standardization", number: "ISO 9001:2015", version: "2015", file: { name: "ISO-9001-2015.pdf", size: 1180000 } } },
+    { code: "EXT-STD-0002", folder: "Standards", category: "Standard", title: "ISO/IEC 27001:2022 Information Security Management Systems — Requirements", frameworks: ["ISO/IEC 27001:2022"], over: { issuer: "ISO / IEC", publisher: "International Organization for Standardization / International Electrotechnical Commission", number: "ISO/IEC 27001:2022", version: "2022", file: { name: "ISO-IEC-27001-2022.pdf", size: 1420000 } } },
+    { code: "EXT-LAW-0001", folder: "Laws", category: "Law", title: "Law No. 27 of 2022 on Personal Data Protection", frameworks: ["ISO/IEC 27001:2022"], over: { issuer: "Government of Indonesia", publisher: "Government of Indonesia", number: "UU 27/2022", version: "2022", file: { name: "UU-27-2022-PDP.pdf", size: 960000 }, obligations: ["Personal Data Protection Compliance"] } },
+    { code: "EXT-REG-0001", folder: "Regulations", category: "Regulation", title: "Government Regulation No. 71 of 2019 on Electronic Systems and Transactions", frameworks: [], over: { issuer: "Government of Indonesia", number: "PP 71/2019", version: "2019", file: { name: "PP-71-2019.pdf", size: 870000 } } },
+    { code: "EXT-LET-0001", folder: "Official Letters", category: "Official Letter", title: "Customer Information Security Requirement Letter", owner: cdTm, frameworks: ["ISO/IEC 27001:2022"], over: { issuer: "Key Customer", number: "CUS-SEC-REQ-2026-001", receivedDate: "2026-06-10T00:00:00.000Z", workUnits: ["Software Development"], file: { name: "customer-infosec-requirement.pdf", size: 240000 } } },
+    { code: "EXT-SUP-0001", folder: "Supplier Documents", category: "Supplier Document", title: "Cloud Hosting Service Security Whitepaper", frameworks: ["ISO/IEC 27001:2022"], over: { issuer: "Cloud Hosting Provider", version: "2026", workUnits: ["IT Infrastructure"], link: "https://cloud.example.com/security-whitepaper" } },
+  ];
+  for (const e of edSeed) {
+    await ImplementationRecord.findOrCreate({
+      where: { orgId: tenant.id, module: "records", code: e.code },
+      defaults: {
+        orgId: tenant.id, module: "records", code: e.code, title: e.title, status: "Active", owner: e.owner ?? edAdm, elementId: null, frameworks: e.frameworks ?? [],
+        data: {
+          folderId: edFolderIds[e.folder] ?? "", folder: e.folder, category: e.category,
+          issuer: "", publisher: "", number: "", version: "", effectiveDate: "", publishedDate: "", receivedDate: "", link: "", file: null,
+          reviewFreq: "Annually", lastChecked: edEff, nextReview: edNext, reviewStatus: "Current", monitorNotes: "",
+          clauses: [], obligations: [], processes: [], workUnits: [], notes: "", versionHistory: [], createdBy: edAdm,
+          ...(e.over ?? {}),
+        },
+        createdAt: new Date(cdAgo(20)), updatedAt: new Date(cdAgo(10)),
       },
     });
   }
