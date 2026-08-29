@@ -208,6 +208,7 @@ export async function seed(): Promise<void> {
       ACTIONS.ASSESSMENT_READ,
       ACTIONS.ASSESSMENT_RUN_READ,
       ACTIONS.MS_READ,
+      ACTIONS.PERFEVAL_READ,
       ACTIONS.LIMS_READ,
       ACTIONS.KB_READ,
     ],

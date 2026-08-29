@@ -475,6 +475,8 @@ export const MENU_SEED: SeedMenu[] = [
         actions: [
           { key: ACTIONS.MS_READ, name: "View clause registers" },
           { key: ACTIONS.MS_MANAGE, name: "Manage clause-register entries" },
+          { key: ACTIONS.PERFEVAL_READ, name: "View performance evaluation dashboard & records" },
+          { key: ACTIONS.PERFEVAL_MANAGE, name: "Record performance evaluations" },
         ],
       },
       {
