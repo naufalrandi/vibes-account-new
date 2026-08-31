@@ -142,7 +142,10 @@ const entLeadsDataSchema = z
     // `assertDeletable`'s B-2 guard (business.service.ts) refuses to delete a
     // lead stamped with a tenant workspace id — missing here, this field
     // never survives `parseInput`'s schema pass and the guard can never fire.
-    tenantId: z.string().optional(),
+    // Nullable: `leadData()` (fe-vibes-new/lib/sales/leads.ts) defaults an
+    // absent tenantId to `null`, not `undefined` — `.optional()` alone
+    // rejects that and 400s every manual lead/inquiry create.
+    tenantId: z.string().nullable().optional(),
   })
   .strict();
 
