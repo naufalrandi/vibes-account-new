@@ -42,6 +42,7 @@ import { grantEverythingExceptSpOnly } from "../../modules/iam/tenantGrants";
 import { seedComplianceEngine } from "./complianceEngine";
 import { seedIsraLibrary } from "./isra";
 import { seedCms } from "./cms";
+import { seedSaasLifecycle, seedSiteRequests, seedTenantRoles } from "./dataParity";
 import type { AgreementBlock, AgreementTemplateStatus } from "../models/agreementTemplate.model";
 import { generateStatementForPartner } from "../../modules/billing/billing.service";
 import { hashPassword } from "../../lib/password";
@@ -558,6 +559,19 @@ export async function seed(): Promise<void> {
   //      (pages/posts/media/menu), owned by the AXIA ServiceOwner org since
   //      it describes the VIBES marketing site itself (see src/db/seeders/cms.ts).
   await seedCms(so.id);
+
+  // 12d. SOF-389 (data parity) — the 5 OD `db.*` collections that map 1:1 to
+  //      an existing model but had zero seeded rows: saasSubs/saasWorkspaces/
+  //      saasPipeline (see src/db/seeders/dataParity.ts), siteRequests, and
+  //      tenantRoles. Reuses the tenant/distributor (Hammer persona) and
+  //      damageControl/stark (Damage Control persona) orgs from steps 7 & 11.
+  const dataParityOrgIds = {
+    hammerTenantId: tenant.id, hammerPartnerId: distributor.id,
+    dcTenantId: damageControl.id, dcPartnerId: stark.id,
+  };
+  await seedSaasLifecycle(dataParityOrgIds);
+  await seedSiteRequests(dataParityOrgIds);
+  await seedTenantRoles(tenant.id);
 
   // 13. Phase 8 — a finalized demo assessment for the tenant against ISO 27001.
   //     Internal Audit answered "mature" (score 5, no gap); Risk Assessment
