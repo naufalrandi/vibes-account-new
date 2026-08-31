@@ -1,0 +1,115 @@
+{
+ "count": 9,
+ "fields": [
+  "id",
+  "engagementId",
+  "title",
+  "severity",
+  "cvss",
+  "category",
+  "asset",
+  "status",
+  "createdAt"
+ ],
+ "sample": [
+  {
+   "id": "VF-0001",
+   "engagementId": "PT-0001",
+   "title": "Broken authentication on session token",
+   "severity": "Critical",
+   "cvss": 9.1,
+   "category": "A07 Identification & Auth",
+   "asset": "api.bank.example",
+   "status": "Open",
+   "createdAt": "2026-08-26T09:41:59.587Z"
+  },
+  {
+   "id": "VF-0002",
+   "engagementId": "PT-0001",
+   "title": "Sensitive data in mobile logs",
+   "severity": "High",
+   "cvss": 7.4,
+   "category": "A02 Cryptographic Failures",
+   "asset": "Android app",
+   "status": "Open",
+   "createdAt": "2026-08-26T09:41:59.587Z"
+  },
+  {
+   "id": "VF-0003",
+   "engagementId": "PT-0001",
+   "title": "Missing certificate pinning",
+   "severity": "Medium",
+   "cvss": 5.9,
+   "category": "A05 Security Misconfig",
+   "asset": "Mobile client",
+   "status": "Open",
+   "createdAt": "2026-08-26T09:41:59.587Z"
+  },
+  {
+   "id": "VF-0004",
+   "engagementId": "PT-0002",
+   "title": "Default SNMP community strings",
+   "severity": "High",
+   "cvss": 8.1,
+   "category": "A05 Security Misconfig",
+   "asset": "Core switch",
+   "status": "Open",
+   "createdAt": "2026-08-26T09:41:59.587Z"
+  },
+  {
+   "id": "VF-0005",
+   "engagementId": "PT-0002",
+   "title": "Unpatched SMB (EternalBlue)",
+   "severity": "Critical",
+   "cvss": 9.8,
+   "category": "A06 Vulnerable Components",
+   "asset": "File server",
+   "status": "Open",
+   "createdAt": "2026-08-26T09:41:59.587Z"
+  },
+  {
+   "id": "VF-0006",
+   "engagementId": "PT-0002",
+   "title": "Weak TLS ciphers enabled",
+   "severity": "Low",
+   "cvss": 3.7,
+   "category": "A02 Cryptographic Failures",
+   "asset": "Web gateway",
+   "status": "Fixed",
+   "createdAt": "2026-08-26T09:41:59.587Z"
+  },
+  {
+   "id": "VF-0007",
+   "engagementId": "PT-0003",
+   "title": "SQL injection in search endpoint",
+   "severity": "Critical",
+   "cvss": 9.4,
+   "category": "A03 Injection",
+   "asset": "/api/search",
+   "status": "Retested",
+   "createdAt": "2026-08-26T09:41:59.587Z"
+  },
+  {
+   "id": "VF-0008",
+   "engagementId": "PT-0003",
+   "title": "Stored XSS in product review",
+   "severity": "High",
+   "cvss": 7.2,
+   "category": "A03 Injection",
+   "asset": "Review form",
+   "status": "Fixed",
+   "createdAt": "2026-08-26T09:41:59.587Z"
+  },
+  {
+   "id": "VF-0009",
+   "engagementId": "PT-0003",
+   "title": "Missing security headers",
+   "severity": "Info",
+   "cvss": 0,
+   "category": "A05 Security Misconfig",
+   "asset": "All pages",
+   "status": "Fixed",
+   "createdAt": "2026-08-26T09:41:59.587Z"
+  }
+ ]
+}

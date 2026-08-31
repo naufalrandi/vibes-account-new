@@ -1,0 +1,1182 @@
+{
+ "count": 16,
+ "fields": [
+  "id",
+  "title",
+  "category",
+  "purpose",
+  "description",
+  "requester",
+  "method",
+  "kind",
+  "needBy",
+  "unit",
+  "qty",
+  "origCurrency",
+  "unitValue",
+  "exRate",
+  "currency",
+  "estCost",
+  "remarks",
+  "status",
+  "createdAt",
+  "activity",
+  "supplierName",
+  "supplier",
+  "quotes",
+  "poId",
+  "receipt",
+  "qc",
+  "invoice",
+  "department",
+  "requestType",
+  "rateBasis",
+  "duration"
+ ],
+ "sample": [
+  {
+   "id": "PR-3002",
+   "title": "Developer laptops — 16\", 32 GB RAM, SSD",
+   "category": "Electronics - Endpoint Devices",
+   "purpose": "Replace end-of-life developer laptops",
+   "description": "Developer laptops — 16\", 32 GB RAM, SSD",
+   "requester": "Matthew Michael Murdock",
+   "method": "Direct",
+   "kind": "Product",
+   "needBy": "2026-08-15",
+   "unit": "unit",
+   "qty": 3,
+   "origCurrency": "USD",
+   "unitValue": 1450,
+   "exRate": 17991.28,
+   "currency": "IDR",
+   "estCost": 78262068,
+   "remarks": "",
+   "status": "Pending LM Review",
+   "createdAt": "2026-07-14T09:40:00",
+   "activity": [
+    {
+     "ts": "2026-07-14T09:40:00",
+     "user": "Matthew Michael Murdock",
+     "action": "created Purchase Request",
+     "summary": "PR-3002"
+    },
+    {
+     "ts": "2026-07-14T09:48:00",
+     "user": "Matthew Michael Murdock",
+     "action": "submitted PR-3002 to Jennifer Susan Walters for review",
+     "summary": ""
+    }
+   ]
+  },
+  {
+   "id": "PR-3001",
+   "title": "Cloud backup subscription — 5 TB, encrypted offsite (annual)",
+   "category": "Software",
+   "purpose": "Annual cloud backup & disaster-recovery subscription",
+   "description": "Cloud backup subscription — 5 TB, encrypted offsite (annual)",
+   "requester": "Matthew Michael Murdock",
+   "method": "Direct",
+   "kind": "Service",
+   "needBy": "2026-08-01",
+   "unit": "subscription",
+   "qty": 1,
+   "origCurrency": "USD",
+   "unitValue": 1200,
+   "exRate": 17991.28,
+   "currency": "IDR",
+   "estCost": 21589536,
+   "remarks": "",
+   "status": "Completed",
+   "createdAt": "2026-07-02T09:15:00",
+   "activity": [
+    {
+     "ts": "2026-07-02T09:15:00",
+     "user": "Matthew Michael Murdock",
+     "action": "created Purchase Request",
+     "summary": "PR-3001"
+    },
+    {
+     "ts": "2026-07-02T09:22:00",
+     "user": "Matthew Michael Murdock",
+     "action": "submitted PR-3001 to Jennifer Susan Walters for review",
+     "summary": ""
+    },
+    {
+     "ts": "2026-07-03T14:05:00",
+     "user": "Jennifer Susan Walters",
+     "action": "requested revision",
+     "summary": "Clarify data-retention period and DR recovery-time objective"
+    },
+    {
+     "ts": "2026-07-03T16:40:00",
+     "user": "Matthew Michael Murdock",
+     "action": "revised and resubmitted",
+     "summary": "Added 12-month retention and 4-hour RTO → Pending LM Review"
+    },
+    {
+     "ts": "2026-07-04T10:10:00",
+     "user": "Jennifer Susan Walters",
+     "action": "approved",
+     "summary": "→ In Procurement"
+    },
+    {
+     "ts": "2026-07-04T11:30:00",
+     "user": "Cindy Moon",
+     "action": "proceeded to sourcing",
+     "summary": "Quotes required · → Sourcing & Quotation"
+    },
+    {
+     "ts": "2026-07-07T09:00:00",
+     "user": "Cindy Moon",
+     "action": "recorded quotation",
+     "summary": "Stark Industries Supply — USD 1,320"
+    },
+    {
+     "ts": "2026-07-07T15:20:00",
+     "user": "Cindy Moon",
+     "action": "recorded quotation",
+     "summary": "Alchemax Cloud — USD 1,180 (no 24×7 SLA)"
+    },
+    {
+     "ts": "2026-07-08T10:00:00",
+     "user": "Cindy Moon",
+     "action": "requested revised quote",
+     "summary": "Asked Stark to match encryption scope and SLA"
+    },
+    {
+     "ts": "2026-07-09T11:15:00",
+     "user": "Pepper Potts",
+     "action": "submitted revised quote",
+     "summary": "Stark Industries Supply — USD 1,200 incl. 24×7 SLA"
+    },
+    {
+     "ts": "2026-07-09T13:00:00",
+     "user": "Cindy Moon",
+     "action": "selected supplier",
+     "summary": "Stark Industries Supply — best value at USD 1,200"
+    },
+    {
+     "ts": "2026-07-09T13:30:00",
+     "user": "Cindy Moon",
+     "action": "submitted to Finance",
+     "summary": "→ Budget Review"
+    },
+    {
+     "ts": "2026-07-10T16:00:00",
+     "user": "Natalia Alianovna Romanova",
+     "action": "approved budget and value",
+     "summary": "Within FY26 OPEX · → Approved"
+    },
+    {
+     "ts": "2026-07-11T09:30:00",
+     "user": "Cindy Moon",
+     "action": "issued PO",
+     "summary": "PO-2044 to Stark Industries Supply"
+    },
+    {
+     "ts": "2026-07-11T14:00:00",
+     "user": "Cindy Moon",
+     "action": "sent PO to supplier",
+     "summary": "PO-2044 → Stark Industries Supply"
+    },
+    {
+     "ts": "2026-07-11T14:00:00",
+     "user": "Stark Industries Supply",
+     "action": "PO acknowledged by supplier",
+     "summary": "via confirmation link · PO-2044 → Receiving"
+    },
+    {
+     "ts": "2026-07-14T10:00:00",
+     "user": "Cindy Moon",
+     "action": "recorded delivery and acceptance",
+     "summary": "Service provisioned; console access verified"
+    },
+    {
+     "ts": "2026-07-14T15:00:00",
+     "user": "Cindy Moon",
+     "action": "accepted deliverable and handed over",
+     "summary": "→ Invoice & Payment"
+    },
+    {
+     "ts": "2026-07-15T09:00:00",
+     "user": "Natalia Alianovna Romanova",
+     "action": "recorded invoice",
+     "summary": "INV-8831 · IDR 21,589,536"
+    },
+    {
+     "ts": "2026-07-15T16:30:00",
+     "user": "Natalia Alianovna Romanova",
+     "action": "3-way match passed — payment approved",
+     "summary": "PO = Receipt = Invoice · → Completed"
+    }
+   ],
+   "supplierName": "Stark Industries Supply",
+   "supplier": "84-1",
+   "quotes": [
+    {
+     "supplierName": "Stark Industries Supply",
+     "supplierId": "84-1",
+     "amount": "21589536"
+    },
+    {
+     "supplierName": "Alchemax Logistics",
+     "supplierId": "84-6",
+     "amount": "21229710"
+    }
+   ],
+   "poId": "PO-2044",
+   "receipt": {
+    "id": "SDA-7003",
+    "kind": "Service Acceptance",
+    "date": "2026-07-11",
+    "by": "Cindy Moon",
+    "value": "21589536",
+    "condition": "Accepted",
+    "note": "Received and accepted."
+   },
+   "qc": {
+    "stage": "return",
+    "results": [
+     {
+      "key": "scope",
+      "label": "Deliverable meets scope / SOW",
+      "answer": "Fully met",
+      "tone": "ok"
+     },
+     {
+      "key": "crit",
+      "label": "Quality / acceptance criteria",
+      "answer": "Met",
+      "tone": "ok"
+     },
+     {
+      "key": "doc",
+      "label": "Documentation / report received",
+      "answer": "Received",
+      "tone": "ok"
+     }
+    ],
+    "decision": {
+     "v": "pass",
+     "label": "Accept deliverable",
+     "tone": "ok"
+    },
+    "passed": true,
+    "remarks": "",
+    "attachments": [],
+    "by": "Cindy Moon",
+    "ts": "2026-07-11"
+   },
+   "invoice": {
+    "id": "INV-8002",
+    "number": "STA-2026-2044",
+    "amount": "21589536",
+    "date": "2026-07-11",
+    "terms": "30",
+    "due": "2026-08-24",
+    "supplierName": "Stark Industries Supply"
+   }
+  },
+  {
+   "id": "PR-3003",
+   "title": "Ergonomic mesh office chairs — staff refresh",
+   "category": "Furniture and Fixtures",
+   "purpose": "Replace worn seating in the main office to meet ergonomic standards.",
+   "description": "Ergonomic mesh office chairs — staff refresh",
+   "requester": "Matthew Michael Murdock",
+   "department": "Facilities",
+   "method": "Direct",
+   "kind": "Product",
+   "requestType": "Purchase",
+   "needBy": "2026-09-15",
+   "unit": "unit",
+   "qty": 15,
+   "origCurrency": "IDR",
+   "unitValue": 2850000,
+   "exRate": 1,
+   "currency": "IDR",
+   "estCost": 42750000,
+   "rateBasis": "once",
+   "duration": 0,
+   "remarks": "",
+   "status": "Draft",
+   "createdAt": "2026-07-17T10:12:00",
+   "activity": [
+    {
+     "ts": "2026-07-17T10:12:00",
+     "user": "Matthew Michael Murdock",
+     "action": "saved a draft of Purchase Request",
+     "summary": "PR-3003"
+    }
+   ]
+  },
+  {
+   "id": "PR-3004",
+   "title": "Toyota Hiace commuter — field survey fleet",
+   "category": "Vehicle",
+   "purpose": "Temporary transport for the Q3 regional site-survey programme.",
+   "description": "Toyota Hiace commuter — field survey fleet",
+   "requester": "Matthew Michael Murdock",
+   "department": "Operations",
+   "method": "Direct",
+   "kind": "Product",
+   "requestType": "Rental",
+   "needBy": "2026-08-25",
+   "unit": "unit",
+   "qty": 2,
+   "origCurrency": "AUD",
+   "unitValue": 780,
+   "exRate": 11748.3,
+   "currency": "IDR",
+   "estCost": 384874308,
+   "rateBasis": "day",
+   "duration": 21,
+   "remarks": "",
+   "status": "Draft",
+   "createdAt": "2026-07-18T14:30:00",
+   "activity": [
+    {
+     "ts": "2026-07-18T14:30:00",
+     "user": "Matthew Michael Murdock",
+     "action": "saved a draft of Purchase Request",
+     "summary": "PR-3004"
+    }
+   ]
+  },
+  {
+   "id": "PR-3005",
+   "title": "ISO 27001 gap assessment & readiness consulting",
+   "category": "Professional Services",
+   "purpose": "Independent gap assessment ahead of the Stage 1 certification audit.",
+   "description": "ISO 27001 gap assessment & readiness consulting",
+   "requester": "Matthew Michael Murdock",
+   "department": "Information Security",
+   "method": "Order",
+   "kind": "Service",
+   "requestType": "Service",
+   "needBy": "2026-09-01",
+   "unit": "manday",
+   "qty": 18,
+   "origCurrency": "USD",
+   "unitValue": 420,
+   "exRate": 17991.28,
+   "currency": "IDR",
+   "estCost": 136014077,
+   "rateBasis": "once",
+   "duration": 0,
+   "remarks": "",
+   "status": "Draft",
+   "createdAt": "2026-07-19T09:05:00",
+   "activity": [
+    {
+     "ts": "2026-07-19T09:05:00",
+     "user": "Matthew Michael Murdock",
+     "action": "saved a draft of Purchase Request",
+     "summary": "PR-3005"
+    }
+   ]
+  },
+  {
+   "id": "PR-3006",
+   "title": "Exhibition booth build & signage — Trade Expo 2026",
+   "category": "Non-Electronics",
+   "purpose": "Custom booth and branded signage for the national trade exhibition.",
+   "description": "Exhibition booth build & signage — Trade Expo 2026",
+   "requester": "Matthew Michael Murdock",
+   "department": "Marketing",
+   "method": "Direct",
+   "kind": "Product",
+   "requestType": "Purchase",
+   "needBy": "2026-08-30",
+   "unit": "lot",
+   "qty": 1,
+   "origCurrency": "IDR",
+   "unitValue": 47500000,
+   "exRate": 1,
+   "currency": "IDR",
+   "estCost": 47500000,
+   "rateBasis": "once",
+   "duration": 0,
+   "remarks": "",
+   "status": "Needs Revision",
+   "createdAt": "2026-07-10T11:00:00",
+   "activity": [
+    {
+     "ts": "2026-07-10T11:00:00",
+     "user": "Matthew Michael Murdock",
+     "action": "created Purchase Request",
+     "summary": "PR-3006"
+    },
+    {
+     "ts": "2026-07-10T11:20:00",
+     "user": "Matthew Michael Murdock",
+     "action": "submitted PR-3006 to Jennifer Susan Walters for review",
+     "summary": ""
+    },
+    {
+     "ts": "2026-07-11T15:40:00",
+     "user": "Jennifer Susan Walters",
+     "action": "requested revision on PR-3006",
+     "summary": "Add an itemised breakdown and two comparative quotes before resubmitting"
+    }
+   ]
+  },
+  {
+   "id": "PR-3007",
+   "title": "Diesel standby generator — 250 kVA",
+   "category": "Machinery",
+   "purpose": "Backup power for the primary data room to meet uptime targets.",
+   "description": "Diesel standby generator — 250 kVA",
+   "requester": "Matthew Michael Murdock",
+   "department": "Facilities",
+   "method": "Direct",
+   "kind": "Product",
+   "requestType": "Purchase",
+   "needBy": "2026-10-01",
+   "unit": "unit",
+   "qty": 1,
+   "origCurrency": "IDR",
+   "unitValue": 385000000,
+   "exRate": 1,
+   "currency": "IDR",
+   "estCost": 385000000,
+   "rateBasis": "once",
+   "duration": 0,
+   "remarks": "",
+   "status": "In Procurement",
+   "createdAt": "2026-07-08T08:30:00",
+   "activity": [
+    {
+     "ts": "2026-07-08T08:30:00",
+     "user": "Matthew Michael Murdock",
+     "action": "created Purchase Request",
+     "summary": "PR-3007"
+    },
+    {
+     "ts": "2026-07-08T08:45:00",
+     "user": "Matthew Michael Murdock",
+     "action": "submitted PR-3007 to Jennifer Susan Walters for review",
+     "summary": ""
+    },
+    {
+     "ts": "2026-07-09T10:15:00",
+     "user": "Jennifer Susan Walters",
+     "action": "approved PR-3007",
+     "summary": "→ In Procurement"
+    }
+   ]
+  },
+  {
+   "id": "PR-3008",
+   "title": "Standard-issue staff laptops — 14\", 16 GB",
+   "category": "Electronics - Endpoint Devices",
+   "purpose": "Replacement laptops for the onboarding cohort.",
+   "description": "Standard-issue staff laptops — 14\", 16 GB",
+   "requester": "Matthew Michael Murdock",
+   "department": "Information Technology",
+   "method": "Direct",
+   "kind": "Product",
+   "requestType": "Purchase",
+   "needBy": "2026-09-05",
+   "unit": "unit",
+   "qty": 8,
+   "origCurrency": "USD",
+   "unitValue": 1180,
+   "exRate": 17991.28,
+   "currency": "IDR",
+   "estCost": 169837683,
+   "rateBasis": "once",
+   "duration": 0,
+   "remarks": "",
+   "status": "Sourcing & Quotation",
+   "createdAt": "2026-07-07T09:00:00",
+   "activity": [
+    {
+     "ts": "2026-07-07T09:00:00",
+     "user": "Matthew Michael Murdock",
+     "action": "created Purchase Request",
+     "summary": "PR-3008"
+    },
+    {
+     "ts": "2026-07-07T09:15:00",
+     "user": "Matthew Michael Murdock",
+     "action": "submitted PR-3008 to Jennifer Susan Walters for review",
+     "summary": ""
+    },
+    {
+     "ts": "2026-07-08T10:00:00",
+     "user": "Jennifer Susan Walters",
+     "action": "approved PR-3008",
+     "summary": "→ In Procurement"
+    },
+    {
+     "ts": "2026-07-08T14:20:00",
+     "user": "Cindy Moon",
+     "action": "started sourcing for PR-3008",
+     "summary": "Quotes required · → Sourcing & Quotation"
+    },
+    {
+     "ts": "2026-07-10T11:00:00",
+     "user": "Cindy Moon",
+     "action": "recorded quotation",
+     "summary": "Stark Industries Supply — USD 9,440"
+    },
+    {
+     "ts": "2026-07-10T15:30:00",
+     "user": "Cindy Moon",
+     "action": "recorded quotation",
+     "summary": "Pym Technologies — USD 9,800"
+    },
+    {
+     "ts": "2026-07-11T09:40:00",
+     "user": "Cindy Moon",
+     "action": "selected supplier",
+     "summary": "Stark Industries Supply — best value"
+    }
+   ],
+   "supplierName": "Stark Industries Supply",
+   "supplier": "84-1",
+   "quotes": [
+    {
+     "supplierName": "Stark Industries Supply",
+     "supplierId": "84-1",
+     "amount": "169837683"
+    },
+    {
+     "supplierName": "Pym Technologies",
+     "supplierId": "84-12",
+     "amount": "176314544"
+    }
+   ]
+  },
+  {
+   "id": "PR-3009",
+   "title": "Design suite — annual team licences",
+   "category": "Software",
+   "purpose": "Creative tooling for the in-house design team (annual subscription).",
+   "description": "Design suite — annual team licences",
+   "requester": "Matthew Michael Murdock",
+   "department": "Design",
+   "method": "Direct",
+   "kind": "Service",
+   "requestType": "Service",
+   "needBy": "2026-08-20",
+   "unit": "seat",
+   "qty": 12,
+   "origCurrency": "USD",
+   "unitValue": 320,
+   "exRate": 17991.28,
+   "currency": "IDR",
+   "estCost": 69086515,
+   "rateBasis": "year",
+   "duration": 1,
+   "remarks": "",
+   "status": "Budget Review",
+   "createdAt": "2026-07-06T10:00:00",
+   "activity": [
+    {
+     "ts": "2026-07-06T10:00:00",
+     "user": "Matthew Michael Murdock",
+     "action": "created Purchase Request",
+     "summary": "PR-3009"
+    },
+    {
+     "ts": "2026-07-06T10:10:00",
+     "user": "Matthew Michael Murdock",
+     "action": "submitted PR-3009 to Jennifer Susan Walters for review",
+     "summary": ""
+    },
+    {
+     "ts": "2026-07-07T09:30:00",
+     "user": "Jennifer Susan Walters",
+     "action": "approved PR-3009",
+     "summary": "→ In Procurement"
+    },
+    {
+     "ts": "2026-07-07T13:00:00",
+     "user": "Cindy Moon",
+     "action": "started sourcing for PR-3009",
+     "summary": "→ Sourcing & Quotation"
+    },
+    {
+     "ts": "2026-07-09T11:00:00",
+     "user": "Cindy Moon",
+     "action": "selected supplier",
+     "summary": "Kree Networks"
+    },
+    {
+     "ts": "2026-07-09T16:00:00",
+     "user": "Cindy Moon",
+     "action": "submitted to Finance for PR-3009",
+     "summary": "→ Budget Review"
+    }
+   ],
+   "supplierName": "Kree Networks",
+   "supplier": "84-13",
+   "quotes": [
+    {
+     "supplierName": "Kree Networks",
+     "supplierId": "84-13",
+     "amount": "69086515"
+    },
+    {
+     "supplierName": "Stark Industries Supply",
+     "supplierId": "84-1",
+     "amount": "74483899"
+    }
+   ]
+  },
+  {
+   "id": "PR-3010",
+   "title": "Reception & lounge furniture refresh",
+   "category": "Furniture and Fixtures",
+   "purpose": "Refresh the visitor reception and lounge area.",
+   "description": "Reception & lounge furniture refresh",
+   "requester": "Matthew Michael Murdock",
+   "department": "Facilities",
+   "method": "Direct",
+   "kind": "Product",
+   "requestType": "Purchase",
+   "needBy": "2026-09-10",
+   "unit": "lot",
+   "qty": 1,
+   "origCurrency": "IDR",
+   "unitValue": 62000000,
+   "exRate": 1,
+   "currency": "IDR",
+   "estCost": 62000000,
+   "rateBasis": "once",
+   "duration": 0,
+   "remarks": "",
+   "status": "Approved",
+   "createdAt": "2026-07-05T09:00:00",
+   "activity": [
+    {
+     "ts": "2026-07-05T09:00:00",
+     "user": "Matthew Michael Murdock",
+     "action": "created Purchase Request",
+     "summary": "PR-3010"
+    },
+    {
+     "ts": "2026-07-05T09:20:00",
+     "user": "Matthew Michael Murdock",
+     "action": "submitted PR-3010 to Jennifer Susan Walters for review",
+     "summary": ""
+    },
+    {
+     "ts": "2026-07-06T10:00:00",
+     "user": "Jennifer Susan Walters",
+     "action": "approved PR-3010",
+     "summary": "→ In Procurement"
+    },
+    {
+     "ts": "2026-07-06T14:00:00",
+     "user": "Cindy Moon",
+     "action": "started sourcing for PR-3010",
+     "summary": "→ Sourcing & Quotation"
+    },
+    {
+     "ts": "2026-07-08T15:00:00",
+     "user": "Cindy Moon",
+     "action": "selected supplier",
+     "summary": "Xavier Furnishings"
+    },
+    {
+     "ts": "2026-07-09T10:00:00",
+     "user": "Natalia Alianovna Romanova",
+     "action": "approved the budget for PR-3010",
+     "summary": "Within FY26 CAPEX · → Approved"
+    }
+   ],
+   "supplierName": "Xavier Furnishings",
+   "supplier": "84-11"
+  },
+  {
+   "id": "PR-3011",
+   "title": "Operational delivery vans — monthly rental",
+   "category": "Vehicle",
+   "purpose": "Last-mile delivery fleet for the pilot distribution route.",
+   "description": "Operational delivery vans — monthly rental",
+   "requester": "Matthew Michael Murdock",
+   "department": "Logistics",
+   "method": "Direct",
+   "kind": "Product",
+   "requestType": "Rental",
+   "needBy": "2026-08-01",
+   "unit": "unit",
+   "qty": 3,
+   "origCurrency": "IDR",
+   "unitValue": 6500000,
+   "exRate": 1,
+   "currency": "IDR",
+   "estCost": 234000000,
+   "rateBasis": "month",
+   "duration": 12,
+   "remarks": "",
+   "status": "PO Issued",
+   "createdAt": "2026-07-01T08:00:00",
+   "activity": [
+    {
+     "ts": "2026-07-01T08:00:00",
+     "user": "Matthew Michael Murdock",
+     "action": "created Purchase Request",
+     "summary": "PR-3011"
+    },
+    {
+     "ts": "2026-07-01T08:30:00",
+     "user": "Matthew Michael Murdock",
+     "action": "submitted PR-3011 to Jennifer Susan Walters for review",
+     "summary": ""
+    },
+    {
+     "ts": "2026-07-02T09:00:00",
+     "user": "Jennifer Susan Walters",
+     "action": "approved PR-3011",
+     "summary": "→ In Procurement"
+    },
+    {
+     "ts": "2026-07-02T13:00:00",
+     "user": "Cindy Moon",
+     "action": "started sourcing for PR-3011",
+     "summary": "→ Sourcing & Quotation"
+    },
+    {
+     "ts": "2026-07-04T10:00:00",
+     "user": "Cindy Moon",
+     "action": "selected supplier",
+     "summary": "Perisai Fleet & Rentals"
+    },
+    {
+     "ts": "2026-07-05T11:00:00",
+     "user": "Natalia Alianovna Romanova",
+     "action": "approved the budget for PR-3011",
+     "summary": "→ Approved"
+    },
+    {
+     "ts": "2026-07-06T09:30:00",
+     "user": "Cindy Moon",
+     "action": "issued PO",
+     "summary": "PO-2051 to Perisai Fleet & Rentals"
+    },
+    {
+     "ts": "2026-07-06T09:30:00",
+     "user": "Cindy Moon",
+     "action": "sent PO to supplier",
+     "summary": "PO-2051 → Perisai Fleet & Rentals"
+    }
+   ],
+   "supplierName": "Perisai Fleet & Rentals",
+   "supplier": "84-8",
+   "poId": "PO-2051"
+  },
+  {
+   "id": "PR-3012",
+   "title": "Core switch & rack infrastructure upgrade",
+   "category": "Electronics - Network and Infrastructure",
+   "purpose": "Upgrade the core network to support the new office floor.",
+   "description": "Core switch & rack infrastructure upgrade",
+   "requester": "Matthew Michael Murdock",
+   "department": "Information Technology",
+   "method": "Direct",
+   "kind": "Product",
+   "requestType": "Purchase",
+   "needBy": "2026-08-15",
+   "unit": "set",
+   "qty": 1,
+   "origCurrency": "USD",
+   "unitValue": 8900,
+   "exRate": 17991.28,
+   "currency": "IDR",
+   "estCost": 160122392,
+   "rateBasis": "once",
+   "duration": 0,
+   "remarks": "",
+   "status": "Receiving",
+   "createdAt": "2026-06-28T09:00:00",
+   "activity": [
+    {
+     "ts": "2026-06-28T09:00:00",
+     "user": "Matthew Michael Murdock",
+     "action": "created Purchase Request",
+     "summary": "PR-3012"
+    },
+    {
+     "ts": "2026-06-28T09:30:00",
+     "user": "Matthew Michael Murdock",
+     "action": "submitted PR-3012 to Jennifer Susan Walters for review",
+     "summary": ""
+    },
+    {
+     "ts": "2026-06-29T10:00:00",
+     "user": "Jennifer Susan Walters",
+     "action": "approved PR-3012",
+     "summary": "→ In Procurement"
+    },
+    {
+     "ts": "2026-06-29T14:00:00",
+     "user": "Cindy Moon",
+     "action": "started sourcing for PR-3012",
+     "summary": "→ Sourcing & Quotation"
+    },
+    {
+     "ts": "2026-07-01T11:00:00",
+     "user": "Cindy Moon",
+     "action": "selected supplier",
+     "summary": "Kree Networks"
+    },
+    {
+     "ts": "2026-07-02T10:00:00",
+     "user": "Natalia Alianovna Romanova",
+     "action": "approved the budget for PR-3012",
+     "summary": "→ Approved"
+    },
+    {
+     "ts": "2026-07-03T09:00:00",
+     "user": "Cindy Moon",
+     "action": "issued PO",
+     "summary": "PO-2049 to Kree Networks"
+    },
+    {
+     "ts": "2026-07-03T15:00:00",
+     "user": "Cindy Moon",
+     "action": "sent PO to supplier",
+     "summary": "PO-2049 → Kree Networks"
+    },
+    {
+     "ts": "2026-07-03T15:00:00",
+     "user": "Kree Networks",
+     "action": "PO acknowledged by supplier",
+     "summary": "via confirmation link · PO-2049 → Receiving"
+    }
+   ],
+   "supplierName": "Kree Networks",
+   "supplier": "84-13",
+   "poId": "PO-2049"
+  },
+  {
+   "id": "PR-3013",
+   "title": "Warehouse handheld barcode scanners",
+   "category": "Electronics - Endpoint Devices",
+   "purpose": "Inventory scanning for the distribution centre.",
+   "description": "Warehouse handheld barcode scanners",
+   "requester": "Matthew Michael Murdock",
+   "department": "Logistics",
+   "method": "Direct",
+   "kind": "Product",
+   "requestType": "Purchase",
+   "needBy": "2026-08-10",
+   "unit": "unit",
+   "qty": 20,
+   "origCurrency": "USD",
+   "unitValue": 210,
+   "exRate": 17991.28,
+   "currency": "IDR",
+   "estCost": 75563376,
+   "rateBasis": "once",
+   "duration": 0,
+   "remarks": "",
+   "status": "QC / Acceptance",
+   "createdAt": "2026-06-30T09:00:00",
+   "activity": [
+    {
+     "ts": "2026-06-30T09:00:00",
+     "user": "Matthew Michael Murdock",
+     "action": "created Purchase Request",
+     "summary": "PR-3013"
+    },
+    {
+     "ts": "2026-06-30T09:20:00",
+     "user": "Matthew Michael Murdock",
+     "action": "submitted PR-3013 to Jennifer Susan Walters for review",
+     "summary": ""
+    },
+    {
+     "ts": "2026-07-01T10:00:00",
+     "user": "Jennifer Susan Walters",
+     "action": "approved PR-3013",
+     "summary": "→ In Procurement"
+    },
+    {
+     "ts": "2026-07-01T14:00:00",
+     "user": "Cindy Moon",
+     "action": "selected supplier",
+     "summary": "Pym Technologies · → Approved"
+    },
+    {
+     "ts": "2026-07-02T09:00:00",
+     "user": "Cindy Moon",
+     "action": "issued PO",
+     "summary": "PO-2048 to Pym Technologies"
+    },
+    {
+     "ts": "2026-07-02T15:00:00",
+     "user": "Cindy Moon",
+     "action": "sent PO to supplier",
+     "summary": "PO-2048 → Pym Technologies"
+    },
+    {
+     "ts": "2026-07-02T15:00:00",
+     "user": "Pym Technologies",
+     "action": "PO acknowledged by supplier",
+     "summary": "via confirmation link · PO-2048 → Receiving"
+    },
+    {
+     "ts": "2026-07-15T10:30:00",
+     "user": "Cindy Moon",
+     "action": "recorded goods receipt",
+     "summary": "GRN-7001 · Good · → QC / Acceptance"
+    }
+   ],
+   "supplierName": "Pym Technologies",
+   "supplier": "84-12",
+   "receipt": {
+    "id": "GRN-7001",
+    "kind": "Goods Receipt Note",
+    "date": "2026-07-15",
+    "by": "Cindy Moon",
+    "condition": "Good",
+    "value": "75563376",
+    "note": "20 units received, all powered on and paired."
+   },
+   "poId": "PO-2048"
+  },
+  {
+   "id": "PR-3014",
+   "title": "External payroll & controls audit engagement",
+   "category": "Professional Services",
+   "purpose": "Independent audit of payroll controls for FY26.",
+   "description": "External payroll & controls audit engagement",
+   "requester": "Matthew Michael Murdock",
+   "department": "Finance",
+   "method": "Order",
+   "kind": "Service",
+   "requestType": "Service",
+   "needBy": "2026-07-31",
+   "unit": "manday",
+   "qty": 10,
+   "origCurrency": "USD",
+   "unitValue": 500,
+   "exRate": 17991.28,
+   "currency": "IDR",
+   "estCost": 89956400,
+   "rateBasis": "once",
+   "duration": 0,
+   "remarks": "",
+   "status": "Invoice & Payment",
+   "createdAt": "2026-06-20T09:00:00",
+   "activity": [
+    {
+     "ts": "2026-06-20T09:00:00",
+     "user": "Matthew Michael Murdock",
+     "action": "created Purchase Request",
+     "summary": "PR-3014"
+    },
+    {
+     "ts": "2026-06-20T09:30:00",
+     "user": "Matthew Michael Murdock",
+     "action": "submitted PR-3014 to Jennifer Susan Walters for review",
+     "summary": ""
+    },
+    {
+     "ts": "2026-06-21T10:00:00",
+     "user": "Jennifer Susan Walters",
+     "action": "approved PR-3014",
+     "summary": "→ In Procurement"
+    },
+    {
+     "ts": "2026-06-22T11:00:00",
+     "user": "Cindy Moon",
+     "action": "selected supplier",
+     "summary": "Nelson & Murdock Advisory"
+    },
+    {
+     "ts": "2026-06-23T10:00:00",
+     "user": "Natalia Alianovna Romanova",
+     "action": "approved the budget for PR-3014",
+     "summary": "→ Approved"
+    },
+    {
+     "ts": "2026-06-24T09:00:00",
+     "user": "Cindy Moon",
+     "action": "issued PO",
+     "summary": "PO-2046 to Nelson & Murdock Advisory"
+    },
+    {
+     "ts": "2026-06-24T14:00:00",
+     "user": "Cindy Moon",
+     "action": "sent PO to supplier",
+     "summary": "PO-2046 → Nelson & Murdock Advisory"
+    },
+    {
+     "ts": "2026-06-24T14:00:00",
+     "user": "Nelson & Murdock Advisory",
+     "action": "PO acknowledged by supplier",
+     "summary": "via confirmation link · PO-2046 → Receiving"
+    },
+    {
+     "ts": "2026-07-12T15:00:00",
+     "user": "Cindy Moon",
+     "action": "recorded service delivery",
+     "summary": "SDA-7002 · Accepted"
+    },
+    {
+     "ts": "2026-07-13T09:00:00",
+     "user": "Cindy Moon",
+     "action": "accepted and handed over PR-3014",
+     "summary": "→ Invoice & Payment"
+    },
+    {
+     "ts": "2026-07-14T11:00:00",
+     "user": "Natalia Alianovna Romanova",
+     "action": "recorded invoice",
+     "summary": "NMA-2026-114 · due 2026-08-25"
+    }
+   ],
+   "supplierName": "Nelson & Murdock Advisory",
+   "supplier": "84-14",
+   "receipt": {
+    "id": "SDA-7002",
+    "kind": "Service Acceptance",
+    "date": "2026-07-12",
+    "by": "Cindy Moon",
+    "condition": "Accepted",
+    "value": "89956400",
+    "note": "Final report delivered and accepted."
+   },
+   "invoice": {
+    "id": "INV-8001",
+    "number": "NMA-2026-114",
+    "amount": "89956400",
+    "date": "2026-07-14",
+    "terms": "30",
+    "due": "2026-08-25",
+    "supplierName": "Nelson & Murdock Advisory"
+   },
+   "poId": "PO-2046",
+   "qc": {
+    "stage": "return",
+    "results": [
+     {
+      "key": "scope",
+      "label": "Deliverable meets scope / SOW",
+      "answer": "Fully met",
+      "tone": "ok"
+     },
+     {
+      "key": "crit",
+      "label": "Quality / acceptance criteria",
+      "answer": "Met",
+      "tone": "ok"
+     },
+     {
+      "key": "doc",
+      "label": "Documentation / report received",
+      "answer": "Received",
+      "tone": "ok"
+     }
+    ],
+    "decision": {
+     "v": "pass",
+     "label": "Accept deliverable",
+     "tone": "ok"
+    },
+    "passed": true,
+    "remarks": "",
+    "attachments": [],
+    "by": "Cindy Moon",
+    "ts": "2026-07-12"
+   }
+  },
+  {
+   "id": "PR-3015",
+   "title": "Executive SUV — company car",
+   "category": "Vehicle",
+   "purpose": "Requested company vehicle for executive travel.",
+   "description": "Executive SUV — company car",
+   "requester": "Matthew Michael Murdock",
+   "department": "Executive Office",
+   "method": "Direct",
+   "kind": "Product",
+   "requestType": "Purchase",
+   "needBy": "2026-09-30",
+   "unit": "unit",
+   "qty": 1,
+   "origCurrency": "IDR",
+   "unitValue": 1250000000,
+   "exRate": 1,
+   "currency": "IDR",
+   "estCost": 1250000000,
+   "rateBasis": "once",
+   "duration": 0,
+   "remarks": "",
+   "status": "Rejected",
+   "createdAt": "2026-07-09T10:00:00",
+   "activity": [
+    {
+     "ts": "2026-07-09T10:00:00",
+     "user": "Matthew Michael Murdock",
+     "action": "created Purchase Request",
+     "summary": "PR-3015"
+    },
+    {
+     "ts": "2026-07-09T10:15:00",
+     "user": "Matthew Michael Murdock",
+     "action": "submitted PR-3015 to Jennifer Susan Walters for review",
+     "summary": ""
+    },
+    {
+     "ts": "2026-07-10T16:00:00",
+     "user": "Jennifer Susan Walters",
+     "action": "rejected PR-3015",
+     "summary": "Outside the current capital plan and vehicle policy ceiling"
+    }
+   ]
+  },
+  {
+   "id": "PR-3016",
+   "title": "Office stationery & consumables restock",
+   "category": "Non-Electronics",
+   "purpose": "Quarterly replenishment of office supplies.",
+   "description": "Office stationery & consumables restock",
+   "requester": "Matthew Michael Murdock",
+   "department": "Facilities",
+   "method": "Direct",
+   "kind": "Product",
+   "requestType": "Purchase",
+   "needBy": "2026-08-05",
+   "unit": "lot",
+   "qty": 1,
+   "origCurrency": "IDR",
+   "unitValue": 3200000,
+   "exRate": 1,
+   "currency": "IDR",
+   "estCost": 3200000,
+   "rateBasis": "once",
+   "duration": 0,
+   "remarks": "",
+   "status": "In Procurement",
+   "createdAt": "2026-07-16T09:00:00",
+   "activity": [
+    {
+     "ts": "2026-07-16T09:00:00",
+     "user": "Matthew Michael Murdock",
+     "action": "created Purchase Request",
+     "summary": "PR-3016"
+    },
+    {
+     "ts": "2026-07-16T09:10:00",
+     "user": "Matthew Michael Murdock",
+     "action": "submitted PR-3016 to Jennifer Susan Walters for review",
+     "summary": ""
+    },
+    {
+     "ts": "2026-07-16T14:00:00",
+     "user": "Jennifer Susan Walters",
+     "action": "approved PR-3016",
+     "summary": "Direct buy · → In Procurement"
+    }
+   ]
+  }
+ ]
+}

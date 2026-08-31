@@ -1,0 +1,638 @@
+{
+ "count": 20,
+ "fields": [
+  "id",
+  "leadId",
+  "leadName",
+  "service",
+  "serviceName",
+  "variant",
+  "status",
+  "sq",
+  "notes",
+  "createdAt",
+  "activity",
+  "lifecycle",
+  "source",
+  "co",
+  "ar",
+  "contactName",
+  "contactEmail",
+  "contactPhone"
+ ],
+ "sample": [
+  {
+   "id": "INQ-3001",
+   "leadId": "LD-2001",
+   "leadName": "PT Sinar Jaya Manufaktur",
+   "service": "impl",
+   "serviceName": "Framework Implementation",
+   "variant": "Full Consultancy",
+   "status": "Qualified",
+   "sq": {
+    "frameworks": "ISO 9001:2015, ISO 45001:2018",
+    "sites": "3",
+    "maturity": "Partial",
+    "targetCert": "2026-12-01",
+    "headcount": "450"
+   },
+   "notes": "Wants integrated QMS + OHS.",
+   "createdAt": "2026-08-31T09:40:42.251Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.251Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Framework Implementation"
+    },
+    {
+     "ts": "2026-08-31T09:40:42.251Z",
+     "user": "System",
+     "action": "completed questionnaire",
+     "summary": "Framework Implementation"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3002",
+   "leadId": "LD-2002",
+   "leadName": "Nusantara Logistics",
+   "service": "audit",
+   "serviceName": "Framework Audit",
+   "variant": "2nd-party (supplier)",
+   "status": "Cold Leads",
+   "sq": {},
+   "notes": "Auditing a key 3PL supplier.",
+   "createdAt": "2026-08-31T09:40:42.251Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.251Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Framework Audit"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3003",
+   "leadId": "LD-2003",
+   "leadName": "Garuda Tech Solutions",
+   "service": "comp",
+   "serviceName": "Competence Development",
+   "variant": "Personnel certification",
+   "status": "Proposal Sent",
+   "sq": {
+    "topic": "ISO 27001 Lead Implementer",
+    "headcount": "6",
+    "mode": "Virtual",
+    "dates": "Aug 2026",
+    "scheme": "PECB"
+   },
+   "notes": "",
+   "createdAt": "2026-08-31T09:40:42.251Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.251Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Competence Development"
+    },
+    {
+     "ts": "2026-08-31T09:40:42.251Z",
+     "user": "System",
+     "action": "completed questionnaire",
+     "summary": "Competence Development"
+    },
+    {
+     "ts": "2026-08-31T09:40:42.251Z",
+     "user": "System",
+     "action": "→ Proposal Sent",
+     "summary": ""
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3005",
+   "leadId": "LD-2004",
+   "service": "impl",
+   "variant": "Full Consultancy",
+   "status": "Qualified",
+   "sq": {
+    "timeline": "3–6 months",
+    "frameworks": "ISO 9001:2015",
+    "sites": "2",
+    "maturity": "Partial",
+    "targetCert": "2026-12-01",
+    "headcount": "220"
+   },
+   "notes": "Integrated QMS rollout across two sites.",
+   "leadName": "",
+   "serviceName": "Framework Implementation",
+   "createdAt": "2026-08-31T09:40:42.290Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.290Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Framework Implementation"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3006",
+   "leadId": "LD-2005",
+   "service": "audit",
+   "variant": "1st-party (internal)",
+   "status": "Potential",
+   "leadName": "",
+   "serviceName": "Framework Audit",
+   "sq": {},
+   "notes": "",
+   "createdAt": "2026-08-31T09:40:42.290Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.290Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Framework Audit"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3007",
+   "leadId": "LD-2101",
+   "service": "impl",
+   "variant": "Facilitated (client-led)",
+   "status": "Proposal Sent",
+   "sq": {
+    "timeline": "6–12 months",
+    "frameworks": "ISO/IEC 27001:2022",
+    "sites": "1",
+    "maturity": "Ad-hoc",
+    "targetCert": "2027-03-01",
+    "headcount": "90"
+   },
+   "notes": "ISMS implementation for SaaS platform.",
+   "leadName": "",
+   "serviceName": "Framework Implementation",
+   "createdAt": "2026-08-31T09:40:42.290Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.290Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Framework Implementation"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3008",
+   "leadId": "LD-2102",
+   "service": "comp",
+   "variant": "Personnel certification",
+   "status": "Negotiation",
+   "sq": {
+    "timeline": "1–3 months",
+    "topic": "ISO 27001 Lead Auditor",
+    "headcount": "4",
+    "mode": "Virtual",
+    "dates": "Sep 2026",
+    "scheme": "PECB"
+   },
+   "leadName": "",
+   "serviceName": "Competence Development",
+   "notes": "",
+   "createdAt": "2026-08-31T09:40:42.290Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.290Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Competence Development"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3009",
+   "leadId": "LD-2110",
+   "service": "assess",
+   "variant": "Maturity Assessment",
+   "status": "Cold Leads",
+   "leadName": "",
+   "serviceName": "Framework Assessment",
+   "sq": {},
+   "notes": "",
+   "createdAt": "2026-08-31T09:40:42.290Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.290Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Framework Assessment"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3010",
+   "leadId": "LD-2004",
+   "service": "comp",
+   "variant": "In-house training",
+   "status": "Acquired",
+   "sq": {
+    "timeline": "1–3 months",
+    "headcount": "12",
+    "mode": "On-site",
+    "scheme": "",
+    "window": "2026-08",
+    "venue": "Client site",
+    "venueCity": "",
+    "language": "Bahasa Indonesia"
+   },
+   "notes": "Auditor training bundled with the QMS project.",
+   "leadName": "",
+   "serviceName": "Competence Development",
+   "createdAt": "2026-08-31T09:40:42.290Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.290Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Competence Development"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3011",
+   "leadId": "LD-2001",
+   "service": "audit",
+   "variant": "2nd-party (supplier)",
+   "status": "Qualified",
+   "sq": {
+    "timeline": "1–3 months",
+    "frameworks": "ISO 9001:2015",
+    "scope": "Two key raw-material suppliers",
+    "objective": "Supplier assurance audit",
+    "auditorDays": "6"
+   },
+   "notes": "Second-party audit of critical suppliers.",
+   "leadName": "PT Sinar Jaya Manufaktur",
+   "serviceName": "Framework Audit",
+   "createdAt": "2026-08-31T09:40:42.327Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.327Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Framework Audit"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3012",
+   "leadId": "LD-2001",
+   "service": "assess",
+   "variant": "Maturity Assessment",
+   "status": "Potential",
+   "sq": {},
+   "leadName": "PT Sinar Jaya Manufaktur",
+   "serviceName": "Framework Assessment",
+   "notes": "",
+   "createdAt": "2026-08-31T09:40:42.327Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.327Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Framework Assessment"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3013",
+   "leadId": "LD-2002",
+   "service": "comp",
+   "variant": "Public training",
+   "status": "Proposal Sent",
+   "sq": {
+    "timeline": "1–3 months",
+    "topic": "ISO 45001 Awareness",
+    "headcount": "20",
+    "mode": "Hybrid",
+    "dates": "Oct 2026",
+    "scheme": ""
+   },
+   "notes": "OHS awareness for warehouse staff.",
+   "leadName": "Nusantara Logistics",
+   "serviceName": "Competence Development",
+   "createdAt": "2026-08-31T09:40:42.327Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.327Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Competence Development"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3004",
+   "leadId": "LD-2003",
+   "leadName": "Garuda Tech Solutions",
+   "service": "impl",
+   "serviceName": "Framework Implementation",
+   "variant": "Full Consultancy",
+   "status": "Acquired",
+   "sq": {
+    "timeline": "3–6 months",
+    "frameworks": "ISO 27001:2022",
+    "sites": "2",
+    "maturity": "Partial",
+    "targetCert": "2026-11-30",
+    "headcount": "180"
+   },
+   "notes": "ISMS implementation, 2 sites.",
+   "createdAt": "2026-08-31T09:40:42.571Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.571Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Framework Implementation"
+    },
+    {
+     "ts": "2026-08-31T09:40:42.571Z",
+     "user": "System",
+     "action": "→ Acquired",
+     "summary": ""
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3210",
+   "leadId": "LD-3201",
+   "leadName": "PT Andalan Karya Nusantara",
+   "variant": "In-house training",
+   "status": "Acquired",
+   "lifecycle": "Converted",
+   "sq": {
+    "headcount": "12",
+    "mode": "On-site",
+    "courseId": "crs-found",
+    "window": "2026-09",
+    "venue": "Client site",
+    "venueCity": "Bekasi",
+    "language": "Bahasa Indonesia"
+   },
+   "notes": "In-house delivery for the QA team.",
+   "co": "exelera",
+   "service": "comp",
+   "serviceName": "Competence Development",
+   "createdAt": "2026-08-31T09:40:43.793Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:41:45.000Z",
+     "user": "System",
+     "action": "→ Acquired",
+     "summary": "in-house training won"
+    },
+    {
+     "ts": "2026-08-31T09:40:43.793Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Competence Development"
+    }
+   ],
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3211",
+   "leadId": "LD-3202",
+   "leadName": "Sentra Medika Group",
+   "variant": "Public training",
+   "status": "Negotiation",
+   "lifecycle": "Open",
+   "sq": {
+    "topic": "Quality and Safety Awareness",
+    "headcount": "3",
+    "mode": "Virtual",
+    "dates": "Oct 2026"
+   },
+   "notes": "3 participants for the public batch.",
+   "co": "exelera",
+   "service": "comp",
+   "serviceName": "Competence Development",
+   "createdAt": "2026-08-31T09:40:43.793Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:43.793Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Competence Development"
+    }
+   ],
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3212",
+   "leadId": "LD-3203",
+   "leadName": "Borneo Energi Persada",
+   "variant": "In-house training",
+   "status": "Cold Leads",
+   "lifecycle": "Unassigned",
+   "sq": {},
+   "notes": "Early enquiry — awaiting scoping.",
+   "co": "exelera",
+   "service": "comp",
+   "serviceName": "Competence Development",
+   "createdAt": "2026-08-31T09:40:43.793Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:43.793Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Competence Development"
+    }
+   ],
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3201",
+   "co": "exelera",
+   "leadId": "LD-9001",
+   "leadName": "PT Nusa Prima Energi",
+   "service": "cert",
+   "serviceName": "Certification (ISO/IEC 17021)",
+   "variant": "Initial Certification",
+   "status": "Proposal Sent",
+   "source": "On-behalf",
+   "lifecycle": "Converted",
+   "sq": {
+    "timeline": "3–6 months",
+    "standards": "ISO 9001:2015, ISO 14001:2015",
+    "sites": "3",
+    "effectivePersonnel": "240",
+    "scope": "Power generation operations & maintenance across three plants."
+   },
+   "ar": {
+    "status": "Approved",
+    "standards": "ISO 9001:2015, ISO 14001:2015",
+    "sites": "3",
+    "personnel": "240",
+    "cx": "Standard",
+    "officer": "Rina Hartati (AR Officer)",
+    "manager": "Bambang Sujarwo (AR Manager)",
+    "requestedAt": "2026-08-31T09:40:48.314Z",
+    "mdIA": 14,
+    "mdSA": 4.5,
+    "mdTotal": 23
+   },
+   "notes": "Integrated QMS + EMS certification.",
+   "createdAt": "2026-08-31T09:40:48.314Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:48.314Z",
+     "user": "Sales",
+     "action": "created",
+     "summary": "Certification (ISO/IEC 17021)"
+    },
+    {
+     "ts": "2026-08-31T09:40:48.314Z",
+     "user": "Sales",
+     "action": "requested Application Review",
+     "summary": ""
+    },
+    {
+     "ts": "2026-08-31T09:40:48.314Z",
+     "user": "Rina Hartati",
+     "action": "application review completed",
+     "summary": "man-days"
+    },
+    {
+     "ts": "2026-08-31T09:40:48.314Z",
+     "user": "Bambang Sujarwo",
+     "action": "application review approved (AR Manager)",
+     "summary": ""
+    },
+    {
+     "ts": "2026-08-31T09:40:48.314Z",
+     "user": "Sales",
+     "action": "converted to proposal",
+     "summary": ""
+    }
+   ]
+  },
+  {
+   "id": "INQ-3101",
+   "leadName": "PT Cahaya Abadi Pangan",
+   "contactName": "Sri Wahyuni",
+   "contactEmail": "sri@cahayapangan.co.id",
+   "contactPhone": "+62 811 4101",
+   "service": "cert",
+   "variant": "Initial Certification",
+   "sq": {},
+   "status": "Cold Leads",
+   "lifecycle": "Unassigned",
+   "source": "Website",
+   "leadId": "",
+   "serviceName": "Certification (ISO/IEC 17021)",
+   "createdAt": "2026-08-31T09:41:36.354Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:41:36.354Z",
+     "user": "Website",
+     "action": "inquiry submitted (website)",
+     "summary": "Certification (ISO/IEC 17021)"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "INQ-3102",
+   "leadName": "Meridian Data Center",
+   "contactName": "Arif Nugroho",
+   "contactEmail": "arif@meridiandc.io",
+   "contactPhone": "+62 811 4102",
+   "service": "cert",
+   "variant": "Initial Certification",
+   "sq": {},
+   "status": "Cold Leads",
+   "lifecycle": "Unassigned",
+   "source": "Website",
+   "leadId": "",
+   "serviceName": "Certification (ISO/IEC 17021)",
+   "createdAt": "2026-08-31T09:41:36.354Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:41:36.354Z",
+     "user": "Website",
+     "action": "inquiry submitted (website)",
+     "summary": "Certification (ISO/IEC 17021)"
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "id": "INQ-3213",
+   "co": "exelera",
+   "leadId": "LD-9001",
+   "leadName": "PT Nusa Prima Energi",
+   "service": "comp",
+   "serviceName": "Competence Development",
+   "variant": "In-house training",
+   "status": "Qualified",
+   "source": "On-behalf",
+   "lifecycle": "Open",
+   "sq": {
+    "courseId": "crs-fw_dig57pn-l5",
+    "headcount": "16",
+    "window": "2026-11",
+    "mode": "On-site",
+    "venue": "Client site",
+    "venueCity": "Jakarta Selatan",
+    "language": "Bahasa Indonesia"
+   },
+   "notes": "In-house delivery for the QHSE work unit ahead of the ISO 9001 surveillance audit. Venue: head office, Jakarta Selatan.",
+   "createdAt": "2026-08-31T09:41:36.427Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:41:36.427Z",
+     "user": "Sales",
+     "action": "created",
+     "summary": "Competence Development"
+    },
+    {
+     "ts": "2026-08-31T09:41:36.427Z",
+     "user": "Sales",
+     "action": "qualified",
+     "summary": "ISO 9001 Audit"
+    }
+   ]
+  }
+ ]
+}

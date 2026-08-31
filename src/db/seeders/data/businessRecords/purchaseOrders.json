@@ -1,0 +1,183 @@
+{
+ "count": 5,
+ "fields": [
+  "id",
+  "prId",
+  "supplierId",
+  "supplierName",
+  "amount",
+  "currency",
+  "terms",
+  "payAnchor",
+  "payAdvance",
+  "payRetention",
+  "deliveryBy",
+  "status",
+  "issuedDate",
+  "activity",
+  "confirmToken",
+  "sentAt",
+  "sentCount",
+  "ack"
+ ],
+ "sample": [
+  {
+   "id": "PO-2044",
+   "prId": "PR-3001",
+   "supplierId": "84-1",
+   "supplierName": "Stark Industries Supply",
+   "amount": 21589536,
+   "currency": "IDR",
+   "terms": "30",
+   "payAnchor": "invoice",
+   "payAdvance": 0,
+   "payRetention": 0,
+   "deliveryBy": "2026-08-01",
+   "status": "Issued",
+   "issuedDate": "2026-07-11T09:30:00",
+   "activity": [
+    {
+     "ts": "2026-07-11T09:30:00",
+     "user": "Cindy Moon",
+     "action": "issued",
+     "summary": ""
+    }
+   ],
+   "confirmToken": "a0ws2e2044",
+   "sentAt": "2026-07-11T09:30:00",
+   "sentCount": 1,
+   "ack": {
+    "state": "Acknowledged",
+    "by": "Stark Industries Supply",
+    "at": "2026-07-11T09:30:00",
+    "note": "",
+    "manual": false
+   }
+  },
+  {
+   "id": "PO-2051",
+   "prId": "PR-3011",
+   "supplierId": "84-8",
+   "supplierName": "Perisai Fleet & Rentals",
+   "amount": 234000000,
+   "currency": "IDR",
+   "terms": "30",
+   "payAnchor": "invoice",
+   "payAdvance": 0,
+   "payRetention": 0,
+   "deliveryBy": "2026-08-01",
+   "status": "Issued",
+   "issuedDate": "2026-07-06T09:30:00",
+   "activity": [
+    {
+     "ts": "2026-07-06T09:30:00",
+     "user": "Cindy Moon",
+     "action": "issued",
+     "summary": ""
+    }
+   ],
+   "confirmToken": "nranjg2051",
+   "sentAt": "2026-07-06T09:30:00",
+   "sentCount": 1
+  },
+  {
+   "id": "PO-2049",
+   "prId": "PR-3012",
+   "supplierId": "84-13",
+   "supplierName": "Kree Networks",
+   "amount": 160122392,
+   "currency": "IDR",
+   "terms": "30",
+   "payAnchor": "invoice",
+   "payAdvance": 0,
+   "payRetention": 0,
+   "deliveryBy": "2026-08-15",
+   "status": "Issued",
+   "issuedDate": "2026-07-03T09:00:00",
+   "activity": [
+    {
+     "ts": "2026-07-03T09:00:00",
+     "user": "Cindy Moon",
+     "action": "issued",
+     "summary": ""
+    }
+   ],
+   "confirmToken": "lw8ph2049",
+   "sentAt": "2026-07-03T09:00:00",
+   "sentCount": 1,
+   "ack": {
+    "state": "Acknowledged",
+    "by": "Kree Networks",
+    "at": "2026-07-03T09:00:00",
+    "note": "",
+    "manual": false
+   }
+  },
+  {
+   "id": "PO-2048",
+   "prId": "PR-3013",
+   "supplierId": "84-12",
+   "supplierName": "Pym Technologies",
+   "amount": 75563376,
+   "currency": "IDR",
+   "terms": "30",
+   "payAnchor": "invoice",
+   "payAdvance": 0,
+   "payRetention": 0,
+   "deliveryBy": "2026-08-10",
+   "status": "Issued",
+   "issuedDate": "2026-07-02T09:00:00",
+   "activity": [
+    {
+     "ts": "2026-07-02T09:00:00",
+     "user": "Cindy Moon",
+     "action": "issued",
+     "summary": ""
+    }
+   ],
+   "confirmToken": "9ei8vh2048",
+   "sentAt": "2026-07-02T09:00:00",
+   "sentCount": 1,
+   "ack": {
+    "state": "Acknowledged",
+    "by": "Pym Technologies",
+    "at": "2026-07-02T09:00:00",
+    "note": "",
+    "manual": false
+   }
+  },
+  {
+   "id": "PO-2046",
+   "prId": "PR-3014",
+   "supplierId": "84-14",
+   "supplierName": "Nelson & Murdock Advisory",
+   "amount": 89956400,
+   "currency": "IDR",
+   "terms": "30",
+   "payAnchor": "invoice",
+   "payAdvance": 0,
+   "payRetention": 0,
+   "deliveryBy": "2026-07-31",
+   "status": "Issued",
+   "issuedDate": "2026-06-24T09:00:00",
+   "activity": [
+    {
+     "ts": "2026-06-24T09:00:00",
+     "user": "Cindy Moon",
+     "action": "issued",
+     "summary": ""
+    }
+   ],
+   "confirmToken": "wve8z22046",
+   "sentAt": "2026-06-24T09:00:00",
+   "sentCount": 1,
+   "ack": {
+    "state": "Acknowledged",
+    "by": "Nelson & Murdock Advisory",
+    "at": "2026-06-24T09:00:00",
+    "note": "",
+    "manual": false
+   }
+  }
+ ]
+}

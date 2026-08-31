@@ -1,0 +1,37 @@
+{
+ "count": 7,
+ "fields": [
+  "title",
+  "text"
+ ],
+ "sample": [
+  {
+   "title": "Delivery (Incoterms)",
+   "text": "DDP — Delivered Duty Paid to the delivery address stated above, unless otherwise agreed in writing."
+  },
+  {
+   "title": "Inspection & acceptance",
+   "text": "Goods and services are subject to inspection on receipt. Non-conforming items may be rejected within 7 business days and returned at the supplier’s cost."
+  },
+  {
+   "title": "Warranty",
+   "text": "The supplier warrants all goods and services against defects for 12 months from acceptance."
+  },
+  {
+   "title": "Late delivery",
+   "text": "Liquidated damages of 1% of the PO value per week of delay apply, capped at 5% of the PO value."
+  },
+  {
+   "title": "Taxes",
+   "text": "Prices are inclusive of PPN (VAT) where applicable. A valid tax invoice (Faktur Pajak) is required for payment."
+  },
+  {
+   "title": "PO reference",
+   "text": "This purchase order number must be quoted on all invoices, delivery notes and correspondence."
+  },
+  {
+   "title": "Governing law",
+   "text": "This order is governed by the laws of the Republic of Indonesia; disputes are subject to the courts of Jakarta."
+  }
+ ]
+}

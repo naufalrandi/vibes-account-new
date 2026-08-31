@@ -1,0 +1,83 @@
+{
+ "count": 4,
+ "fields": [
+  "id",
+  "typeId",
+  "country",
+  "localName",
+  "maxTermMonths",
+  "maxRenewals",
+  "probationCapDays",
+  "noticePeriodDays",
+  "expiryAlertDays",
+  "statutoryRef",
+  "ssPrograms"
+ ],
+ "sample": [
+  {
+   "id": "ctp-id-perm",
+   "typeId": "ct-perm",
+   "country": "ID",
+   "localName": "PKWTT",
+   "maxTermMonths": 0,
+   "maxRenewals": 0,
+   "probationCapDays": 90,
+   "noticePeriodDays": 30,
+   "expiryAlertDays": 0,
+   "statutoryRef": "UU 13/2003 · UU 6/2023 (Cipta Kerja)",
+   "ssPrograms": [
+    "JHT",
+    "JP",
+    "JKK",
+    "JKM"
+   ]
+  },
+  {
+   "id": "ctp-id-fixed",
+   "typeId": "ct-fixed",
+   "country": "ID",
+   "localName": "PKWT",
+   "maxTermMonths": 60,
+   "maxRenewals": 0,
+   "probationCapDays": 0,
+   "noticePeriodDays": 0,
+   "expiryAlertDays": 60,
+   "statutoryRef": "PP 35/2021 · UU 6/2023",
+   "ssPrograms": [
+    "JHT",
+    "JP",
+    "JKK",
+    "JKM"
+   ]
+  },
+  {
+   "id": "ctp-id-intern",
+   "typeId": "ct-intern",
+   "country": "ID",
+   "localName": "Magang",
+   "maxTermMonths": 12,
+   "maxRenewals": 0,
+   "probationCapDays": 0,
+   "noticePeriodDays": 0,
+   "expiryAlertDays": 30,
+   "statutoryRef": "Permenaker 6/2020",
+   "ssPrograms": [
+    "JKK",
+    "JKM"
+   ]
+  },
+  {
+   "id": "ctp-id-sow",
+   "typeId": "ct-sow",
+   "country": "ID",
+   "localName": "Perjanjian Kerja (SOW)",
+   "maxTermMonths": 12,
+   "maxRenewals": 0,
+   "probationCapDays": 0,
+   "noticePeriodDays": 14,
+   "expiryAlertDays": 30,
+   "statutoryRef": "KUH Perdata (civil contract)",
+   "ssPrograms": []
+  }
+ ]
+}

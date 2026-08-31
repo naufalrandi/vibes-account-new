@@ -1,0 +1,269 @@
+{
+ "count": 32,
+ "fields": [
+  "id",
+  "country",
+  "date",
+  "name",
+  "type",
+  "dayOff"
+ ],
+ "sample": [
+  {
+   "id": "HOL-6001",
+   "country": "ID",
+   "date": "2026-01-01",
+   "name": "New Year",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6002",
+   "country": "ID",
+   "date": "2026-02-17",
+   "name": "Chinese New Year",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6003",
+   "country": "ID",
+   "date": "2026-03-19",
+   "name": "Nyepi (Day of Silence)",
+   "type": "Religious",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6004",
+   "country": "ID",
+   "date": "2026-03-21",
+   "name": "Idul Fitri",
+   "type": "Religious",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6005",
+   "country": "ID",
+   "date": "2026-03-22",
+   "name": "Idul Fitri Holiday",
+   "type": "Religious",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6006",
+   "country": "ID",
+   "date": "2026-04-03",
+   "name": "Good Friday",
+   "type": "Religious",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6007",
+   "country": "ID",
+   "date": "2026-05-01",
+   "name": "Labour Day",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6008",
+   "country": "ID",
+   "date": "2026-05-14",
+   "name": "Ascension Day",
+   "type": "Religious",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6009",
+   "country": "ID",
+   "date": "2026-05-27",
+   "name": "Idul Adha",
+   "type": "Religious",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6010",
+   "country": "ID",
+   "date": "2026-06-01",
+   "name": "Pancasila Day",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6011",
+   "country": "ID",
+   "date": "2026-06-16",
+   "name": "Islamic New Year",
+   "type": "Religious",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6012",
+   "country": "ID",
+   "date": "2026-08-17",
+   "name": "Independence Day",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6013",
+   "country": "ID",
+   "date": "2026-08-25",
+   "name": "Maulid (Prophet Birthday)",
+   "type": "Religious",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6014",
+   "country": "ID",
+   "date": "2026-12-25",
+   "name": "Christmas",
+   "type": "Religious",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6015",
+   "country": "US",
+   "date": "2026-01-01",
+   "name": "New Year",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6016",
+   "country": "US",
+   "date": "2026-01-19",
+   "name": "Martin Luther King Jr. Day",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6017",
+   "country": "US",
+   "date": "2026-02-16",
+   "name": "Presidents’ Day",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6018",
+   "country": "US",
+   "date": "2026-05-25",
+   "name": "Memorial Day",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6019",
+   "country": "US",
+   "date": "2026-06-19",
+   "name": "Juneteenth",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6020",
+   "country": "US",
+   "date": "2026-07-03",
+   "name": "Independence Day (observed)",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6021",
+   "country": "US",
+   "date": "2026-09-07",
+   "name": "Labor Day",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6022",
+   "country": "US",
+   "date": "2026-11-11",
+   "name": "Veterans Day",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6023",
+   "country": "US",
+   "date": "2026-11-26",
+   "name": "Thanksgiving",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6024",
+   "country": "US",
+   "date": "2026-12-25",
+   "name": "Christmas",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6025",
+   "country": "GB",
+   "date": "2026-01-01",
+   "name": "New Year",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6026",
+   "country": "GB",
+   "date": "2026-04-03",
+   "name": "Good Friday",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6027",
+   "country": "GB",
+   "date": "2026-04-06",
+   "name": "Easter Monday",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6028",
+   "country": "GB",
+   "date": "2026-05-04",
+   "name": "Early May Bank Holiday",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6029",
+   "country": "GB",
+   "date": "2026-05-25",
+   "name": "Spring Bank Holiday",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6030",
+   "country": "GB",
+   "date": "2026-08-31",
+   "name": "Summer Bank Holiday",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6031",
+   "country": "GB",
+   "date": "2026-12-25",
+   "name": "Christmas",
+   "type": "Public",
+   "dayOff": true
+  },
+  {
+   "id": "HOL-6032",
+   "country": "GB",
+   "date": "2026-12-28",
+   "name": "Boxing Day (observed)",
+   "type": "Public",
+   "dayOff": true
+  }
+ ]
+}

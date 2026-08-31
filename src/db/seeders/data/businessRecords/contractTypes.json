@@ -1,0 +1,149 @@
+{
+ "count": 8,
+ "fields": [
+  "id",
+  "name",
+  "personnelType",
+  "hasEndDate",
+  "probationApplies",
+  "renewable",
+  "leaveEligible",
+  "conversionTarget",
+  "status",
+  "domain",
+  "defaultTerms"
+ ],
+ "sample": [
+  {
+   "id": "ct-perm",
+   "name": "Permanent",
+   "personnelType": "Permanent",
+   "hasEndDate": false,
+   "probationApplies": true,
+   "renewable": false,
+   "leaveEligible": true,
+   "conversionTarget": "",
+   "status": "Active",
+   "domain": "Employment"
+  },
+  {
+   "id": "ct-fixed",
+   "name": "Fixed Duration",
+   "personnelType": "Fixed Duration",
+   "hasEndDate": true,
+   "probationApplies": true,
+   "renewable": true,
+   "leaveEligible": true,
+   "conversionTarget": "Permanent",
+   "status": "Active",
+   "domain": "Employment"
+  },
+  {
+   "id": "ct-intern",
+   "name": "Internship",
+   "personnelType": "Intern",
+   "hasEndDate": true,
+   "probationApplies": false,
+   "renewable": false,
+   "leaveEligible": true,
+   "conversionTarget": "Permanent",
+   "status": "Active",
+   "domain": "Employment"
+  },
+  {
+   "id": "ct-sow",
+   "name": "Contractor (SOW)",
+   "personnelType": "Contractor",
+   "hasEndDate": true,
+   "probationApplies": false,
+   "renewable": true,
+   "leaveEligible": false,
+   "conversionTarget": "",
+   "status": "Active",
+   "domain": "Employment"
+  },
+  {
+   "id": "ct-svc-consult",
+   "name": "Consultancy & Implementation Agreement",
+   "domain": "Service",
+   "personnelType": "",
+   "hasEndDate": true,
+   "probationApplies": false,
+   "renewable": true,
+   "leaveEligible": false,
+   "conversionTarget": "",
+   "status": "Active",
+   "defaultTerms": [
+    "cl-svc-scope",
+    "cl-svc-deliv",
+    "cl-svc-fees",
+    "cl-svc-term",
+    "cl-svc-ip",
+    "cl-common-conf",
+    "cl-common-law"
+   ]
+  },
+  {
+   "id": "ct-svc-audit",
+   "name": "Audit Services Agreement",
+   "domain": "Service",
+   "personnelType": "",
+   "hasEndDate": true,
+   "probationApplies": false,
+   "renewable": true,
+   "leaveEligible": false,
+   "conversionTarget": "",
+   "status": "Active",
+   "defaultTerms": [
+    "cl-svc-scope",
+    "cl-svc-fees",
+    "cl-svc-term",
+    "cl-svc-liab",
+    "cl-common-conf",
+    "cl-common-law"
+   ]
+  },
+  {
+   "id": "ct-svc-training",
+   "name": "Training Services Agreement",
+   "domain": "Service",
+   "personnelType": "",
+   "hasEndDate": true,
+   "probationApplies": false,
+   "renewable": true,
+   "leaveEligible": false,
+   "conversionTarget": "",
+   "status": "Active",
+   "defaultTerms": [
+    "cl-svc-scope",
+    "cl-svc-deliv",
+    "cl-svc-fees",
+    "cl-svc-term",
+    "cl-common-conf",
+    "cl-common-law"
+   ]
+  },
+  {
+   "id": "ct-svc-msa",
+   "name": "Master Services Agreement",
+   "domain": "Service",
+   "personnelType": "",
+   "hasEndDate": true,
+   "probationApplies": false,
+   "renewable": true,
+   "leaveEligible": false,
+   "conversionTarget": "",
+   "status": "Active",
+   "defaultTerms": [
+    "cl-svc-scope",
+    "cl-svc-fees",
+    "cl-svc-term",
+    "cl-svc-ip",
+    "cl-svc-liab",
+    "cl-svc-warr",
+    "cl-common-conf",
+    "cl-common-law"
+   ]
+  }
+ ]
+}

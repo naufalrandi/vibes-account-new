@@ -43,10 +43,12 @@ import { seedComplianceEngine } from "./complianceEngine";
 import { seedIsraLibrary } from "./isra";
 import { seedCms } from "./cms";
 import { seedBpCatalog } from "./businessProcess";
+import { seedSaasLifecycle, seedSiteRequests, seedTenantRoles } from "./dataParity";
 import type { AgreementBlock, AgreementTemplateStatus } from "../models/agreementTemplate.model";
 import { generateStatementForPartner } from "../../modules/billing/billing.service";
 import { hashPassword } from "../../lib/password";
 import { ensureGlobalSeed as ensureScopeDatasetSeed } from "../../modules/scope/scopeDataset.service";
+import { seedBusinessRecords } from "./businessRecordsSeed";
 
 const DEFAULT_PASSWORD = "ChangeMe123";
 
@@ -564,6 +566,19 @@ export async function seed(): Promise<void> {
   //      385-row master catalog (`db.bpCatalog`), materialised into the demo
   //      tenant's ISO 4.4 process register (see src/db/seeders/businessProcess.ts).
   await seedBpCatalog(tenant.id);
+
+  // 12e. SOF-389 (data parity) — the 5 OD `db.*` collections that map 1:1 to
+  //      an existing model but had zero seeded rows: saasSubs/saasWorkspaces/
+  //      saasPipeline (see src/db/seeders/dataParity.ts), siteRequests, and
+  //      tenantRoles. Reuses the tenant/distributor (Hammer persona) and
+  //      damageControl/stark (Damage Control persona) orgs from steps 7 & 11.
+  const dataParityOrgIds = {
+    hammerTenantId: tenant.id, hammerPartnerId: distributor.id,
+    dcTenantId: damageControl.id, dcPartnerId: stark.id,
+  };
+  await seedSaasLifecycle(dataParityOrgIds);
+  await seedSiteRequests(dataParityOrgIds);
+  await seedTenantRoles(tenant.id);
 
   // 13. Phase 8 — a finalized demo assessment for the tenant against ISO 27001.
   //     Internal Audit answered "mature" (score 5, no gap); Risk Assessment
@@ -1777,6 +1792,11 @@ export async function seed(): Promise<void> {
       },
     });
   }
+  // SOF-38 — 39 OD business collections (Enterprise/Datana/Motoran/Exelera business units) into
+  // the generic `business_records` register. Runs after the tenant org (`tenant.id`) it seeds
+  // into already exists.
+  await seedBusinessRecords(tenant.id);
+
   const notifCount = await Notification.count({ where: { orgId: tenant.id } });
   if (notifCount === 0) {
     await Notification.bulkCreate([

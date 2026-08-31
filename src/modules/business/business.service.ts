@@ -202,7 +202,12 @@ function bizPrefix(module: string): string {
   return seg.replace(/[^a-z]/gi, "").toUpperCase().slice(0, 3) || "REC";
 }
 
-async function nextCode(orgId: string, area: BusinessArea, module: string, data?: Record<string, unknown>): Promise<string> {
+/**
+ * Exported (SOF-38 business-records seeder) so `businessRecordsSeed.ts` can mint the exact same
+ * codes a live `createBusiness` call would have produced, instead of re-deriving the
+ * prefix/base/pad scheme a second time — see `BIZ_CODE_CONFIG`'s header note.
+ */
+export async function nextCode(orgId: string, area: BusinessArea, module: string, data?: Record<string, unknown>): Promise<string> {
   const cfg = module === "ent-recruitment"
     ? (data?.entity === "candidate" ? RECRUITMENT_CANDIDATE_CFG : RECRUITMENT_OPENING_CFG)
     : BIZ_CODE_CONFIG[module];

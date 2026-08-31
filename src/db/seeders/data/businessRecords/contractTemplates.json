@@ -1,0 +1,261 @@
+{
+ "count": 4,
+ "fields": [
+  "id",
+  "typeId",
+  "country",
+  "name",
+  "items"
+ ],
+ "sample": [
+  {
+   "id": "tpl-ct-perm",
+   "typeId": "ct-perm",
+   "country": "ID",
+   "name": "PKWTT — Permanent Employment",
+   "items": [
+    {
+     "kind": "ref",
+     "clauseId": "cl-parties",
+     "include": true
+    },
+    {
+     "kind": "inline",
+     "title": "Position",
+     "category": "General",
+     "body": "<p>The Employee is engaged as <b>{{position}}</b> in the {{department}} department, based at {{site}}, commencing {{contract.start}}, for an indefinite term.</p>",
+     "include": true
+    },
+    {
+     "kind": "inline",
+     "title": "Remuneration",
+     "category": "Conditions",
+     "body": "<p>The Company shall pay a salary of <b>{{comp.currency}} {{comp.amount}}</b> per {{comp.frequency}}, less statutory deductions.</p>",
+     "include": true
+    },
+    {
+     "kind": "inline",
+     "title": "Probation",
+     "category": "Conditions",
+     "body": "<p>The Employee shall serve a probationary period: {{rule.probation}}. During probation either party may terminate with notice in accordance with law.</p>",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-hours",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-leave",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-ss",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-confid",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-ip",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-pdp",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-conduct",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-law",
+     "include": true
+    }
+   ]
+  },
+  {
+   "id": "tpl-ct-fixed",
+   "typeId": "ct-fixed",
+   "country": "ID",
+   "name": "PKWT — Fixed-Term Employment",
+   "items": [
+    {
+     "kind": "ref",
+     "clauseId": "cl-parties",
+     "include": true
+    },
+    {
+     "kind": "inline",
+     "title": "Position",
+     "category": "General",
+     "body": "<p>The Employee is engaged as <b>{{position}}</b> in the {{department}} department, based at {{site}}.</p>",
+     "include": true
+    },
+    {
+     "kind": "inline",
+     "title": "Term",
+     "category": "General",
+     "body": "<p>This is a fixed-term agreement from <b>{{contract.start}}</b> to <b>{{contract.end}}</b>. The total term shall not exceed {{rule.maxTermMonths}} under prevailing law. No probationary period applies ({{rule.probation}}).</p>",
+     "include": true
+    },
+    {
+     "kind": "inline",
+     "title": "Remuneration",
+     "category": "Conditions",
+     "body": "<p>The Company shall pay a salary of <b>{{comp.currency}} {{comp.amount}}</b> per {{comp.frequency}}, less statutory deductions.</p>",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-hours",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-leave",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-ss",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-confid",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-ip",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-pdp",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-conduct",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-law",
+     "include": true
+    }
+   ]
+  },
+  {
+   "id": "tpl-ct-intern",
+   "typeId": "ct-intern",
+   "country": "ID",
+   "name": "Magang — Internship Agreement",
+   "items": [
+    {
+     "kind": "ref",
+     "clauseId": "cl-parties",
+     "include": true
+    },
+    {
+     "kind": "inline",
+     "title": "Internship",
+     "category": "General",
+     "body": "<p>The Employee is engaged as an intern (<b>{{position}}</b>) in the {{department}} department from <b>{{contract.start}}</b> to <b>{{contract.end}}</b>.</p>",
+     "include": true
+    },
+    {
+     "kind": "inline",
+     "title": "Stipend",
+     "category": "Conditions",
+     "body": "<p>A monthly stipend of <b>{{comp.currency}} {{comp.amount}}</b> shall be paid.</p>",
+     "include": true
+    },
+    {
+     "kind": "inline",
+     "title": "Conversion",
+     "category": "General",
+     "body": "<p>Subject to performance, the internship may be considered for conversion to permanent employment.</p>",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-ss",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-confid",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-ip",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-pdp",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-law",
+     "include": true
+    }
+   ]
+  },
+  {
+   "id": "tpl-ct-sow",
+   "typeId": "ct-sow",
+   "country": "ID",
+   "name": "Statement of Work — Contractor",
+   "items": [
+    {
+     "kind": "ref",
+     "clauseId": "cl-parties",
+     "include": true
+    },
+    {
+     "kind": "inline",
+     "title": "Scope of Work",
+     "category": "General",
+     "body": "<p>The Contractor (<b>{{employee.fullName}}</b>) shall provide services as <b>{{position}}</b> for the engagement period from <b>{{contract.start}}</b> to <b>{{contract.end}}</b>.</p>",
+     "include": true
+    },
+    {
+     "kind": "inline",
+     "title": "Fees",
+     "category": "Conditions",
+     "body": "<p>Fees of <b>{{comp.currency}} {{comp.amount}}</b> per {{comp.frequency}} shall be payable against approved deliverables. The Contractor is responsible for their own taxes and self-registered social security (BPU).</p>",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-confid",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-ip",
+     "include": true
+    },
+    {
+     "kind": "ref",
+     "clauseId": "cl-law",
+     "include": true
+    }
+   ]
+  }
+ ]
+}

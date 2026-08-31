@@ -1,0 +1,75 @@
+{
+ "count": 2,
+ "fields": [
+  "id",
+  "contractId",
+  "inqId",
+  "leadId",
+  "client",
+  "service",
+  "serviceName",
+  "variant",
+  "currency",
+  "value",
+  "deliver",
+  "status",
+  "startDate",
+  "endDate",
+  "createdAt",
+  "activity",
+  "co"
+ ],
+ "sample": [
+  {
+   "id": "PRJ-6001",
+   "contractId": "SC-5001",
+   "inqId": "INQ-3004",
+   "leadId": "LD-2003",
+   "client": "Garuda Tech Solutions",
+   "service": "impl",
+   "serviceName": "Framework Implementation",
+   "variant": "Full Consultancy",
+   "currency": "IDR",
+   "value": 230325000,
+   "deliver": "Framework Implementation delivery",
+   "status": "Active",
+   "startDate": "2026-07-15",
+   "endDate": "2026-12-15",
+   "createdAt": "2026-08-31T09:40:42.571Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.571Z",
+     "user": "System",
+     "action": "project created",
+     "summary": "from SC-5001"
+    }
+   ]
+  },
+  {
+   "id": "PRJ-6210",
+   "co": "exelera",
+   "contractId": "SC-5210",
+   "inqId": "INQ-3210",
+   "leadId": "LD-3201",
+   "client": "PT Andalan Karya Nusantara",
+   "service": "comp",
+   "serviceName": "Competence Development",
+   "variant": "In-house training",
+   "currency": "IDR",
+   "value": 19980000,
+   "deliver": "Training & certification delivery",
+   "status": "Active",
+   "startDate": "2026-09-01",
+   "endDate": "2026-09-05",
+   "createdAt": "2026-08-31T09:41:45.000Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:41:45.000Z",
+     "user": "System",
+     "action": "project created",
+     "summary": "from SC-5210"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,150 @@
+{
+ "count": 11,
+ "fields": [
+  "id",
+  "name",
+  "type",
+  "calc",
+  "rate",
+  "frequency",
+  "taxable",
+  "ssBase",
+  "country",
+  "default",
+  "cap",
+  "capPeriod",
+  "categories"
+ ],
+ "sample": [
+  {
+   "id": "pc-base",
+   "name": "Base Salary",
+   "type": "Base",
+   "calc": "fixed",
+   "rate": "",
+   "frequency": "Monthly",
+   "taxable": true,
+   "ssBase": true,
+   "country": ""
+  },
+  {
+   "id": "pc-transport",
+   "name": "Transport Allowance",
+   "type": "Allowance",
+   "calc": "fixed",
+   "rate": "",
+   "frequency": "Monthly",
+   "taxable": true,
+   "ssBase": false,
+   "country": "",
+   "default": true
+  },
+  {
+   "id": "pc-meal",
+   "name": "Meal Allowance",
+   "type": "Allowance",
+   "calc": "fixed",
+   "rate": "",
+   "frequency": "Monthly",
+   "taxable": true,
+   "ssBase": false,
+   "country": "",
+   "default": true
+  },
+  {
+   "id": "pc-position",
+   "name": "Position Allowance",
+   "type": "Allowance",
+   "calc": "fixed",
+   "rate": "",
+   "frequency": "Monthly",
+   "taxable": true,
+   "ssBase": false,
+   "country": ""
+  },
+  {
+   "id": "pc-overtime",
+   "name": "Overtime",
+   "type": "Allowance",
+   "calc": "fixed",
+   "rate": "",
+   "frequency": "Monthly",
+   "taxable": true,
+   "ssBase": false,
+   "country": ""
+  },
+  {
+   "id": "pc-thr",
+   "name": "THR (Religious Holiday Allowance)",
+   "type": "Bonus",
+   "calc": "pct",
+   "rate": "100",
+   "frequency": "Annual",
+   "taxable": true,
+   "ssBase": false,
+   "country": "ID"
+  },
+  {
+   "id": "pc-perf",
+   "name": "Performance Bonus",
+   "type": "Bonus",
+   "calc": "fixed",
+   "rate": "",
+   "frequency": "Annual",
+   "taxable": true,
+   "ssBase": false,
+   "country": ""
+  },
+  {
+   "id": "pc-health",
+   "name": "Private Health Insurance",
+   "type": "Benefit",
+   "calc": "fixed",
+   "rate": "",
+   "frequency": "Monthly",
+   "taxable": false,
+   "ssBase": false,
+   "country": "",
+   "default": true
+  },
+  {
+   "id": "pc-wellness",
+   "name": "Wellness Allowance",
+   "type": "Flexible Benefit",
+   "calc": "fixed",
+   "rate": "",
+   "frequency": "Annual",
+   "cap": "2000000",
+   "capPeriod": "Year",
+   "categories": "Gym, Spa, Salon, Massage",
+   "taxable": false,
+   "ssBase": false,
+   "country": ""
+  },
+  {
+   "id": "pc-learning",
+   "name": "Learning & Development Fund",
+   "type": "Flexible Benefit",
+   "calc": "fixed",
+   "rate": "",
+   "frequency": "Annual",
+   "cap": "5000000",
+   "capPeriod": "Year",
+   "categories": "Courses, Books, Certifications, Conferences",
+   "taxable": false,
+   "ssBase": false,
+   "country": ""
+  },
+  {
+   "id": "pc-pension",
+   "name": "Supplementary Pension",
+   "type": "Deduction",
+   "calc": "pct",
+   "rate": "2",
+   "frequency": "Monthly",
+   "taxable": false,
+   "ssBase": false,
+   "country": ""
+  }
+ ]
+}

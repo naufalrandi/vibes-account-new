@@ -1,0 +1,87 @@
+{
+ "count": 5,
+ "fields": [
+  "id",
+  "name",
+  "email",
+  "phone",
+  "org",
+  "interest",
+  "source",
+  "status",
+  "notes",
+  "coursesJoined",
+  "co",
+  "createdAt"
+ ],
+ "sample": [
+  {
+   "id": "PL-201",
+   "name": "Budi Santoso",
+   "email": "budi.santoso@gmail.com",
+   "phone": "+62 812 7701",
+   "org": "PT Andalan Karya Nusantara",
+   "interest": "ISO 9001 Lead Auditor (public class)",
+   "source": "Website",
+   "status": "New",
+   "notes": "Enquired about the September public batch.",
+   "coursesJoined": 2,
+   "co": "exelera",
+   "createdAt": "2026-08-31T09:40:43.383Z"
+  },
+  {
+   "id": "PL-202",
+   "name": "Maya Lestari",
+   "email": "maya.lestari@outlook.com",
+   "phone": "+62 813 7702",
+   "org": "",
+   "interest": "ISO/IEC 27001 Foundation (self-study)",
+   "source": "Referral",
+   "status": "Contacted",
+   "notes": "Prefers e-learning.",
+   "coursesJoined": 1,
+   "co": "exelera",
+   "createdAt": "2026-08-31T09:40:43.383Z"
+  },
+  {
+   "id": "PL-203",
+   "name": "Reza Firmansyah",
+   "email": "reza.firmansyah@yahoo.com",
+   "phone": "+62 811 7703",
+   "org": "Sentra Medika Group",
+   "interest": "ISO 45001 Internal Auditor",
+   "source": "Social",
+   "status": "Qualified",
+   "notes": "In-house batch of 4 possible.",
+   "coursesJoined": 3,
+   "co": "exelera",
+   "createdAt": "2026-08-31T09:40:43.383Z"
+  },
+  {
+   "id": "PL-001",
+   "name": "Andi Pratama",
+   "email": "andi.pratama@gmail.com",
+   "phone": "+62 812 5501",
+   "org": "PT Sinar Jaya Manufaktur",
+   "interest": "ISO 9001 Lead Auditor (public class)",
+   "source": "Website",
+   "status": "New",
+   "notes": "Asked about the September public cohort.",
+   "co": "axia",
+   "createdAt": "2026-08-31T09:40:48.457Z"
+  },
+  {
+   "id": "PL-002",
+   "name": "Siti Rahmawati",
+   "email": "siti.rahma@outlook.com",
+   "phone": "+62 813 5502",
+   "org": "",
+   "interest": "ISO/IEC 27001 Foundation (self-study)",
+   "source": "Referral",
+   "status": "Contacted",
+   "notes": "",
+   "co": "axia",
+   "createdAt": "2026-08-31T09:40:48.457Z"
+  }
+ ]
+}

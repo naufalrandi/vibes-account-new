@@ -1,0 +1,357 @@
+{
+ "count": 9,
+ "fields": [
+  "id",
+  "openingId",
+  "fullName",
+  "email",
+  "phone",
+  "source",
+  "stage",
+  "appliedDate",
+  "rating",
+  "education",
+  "experience",
+  "interviews",
+  "tests",
+  "offer",
+  "contract",
+  "notes",
+  "personId"
+ ],
+ "sample": [
+  {
+   "id": "CAN-2001",
+   "openingId": "JOB-1001",
+   "fullName": "Peter Benjamin Parker",
+   "email": "peter.parker@example.com",
+   "phone": "+62 811 2001",
+   "source": "Advert",
+   "stage": "Interview",
+   "appliedDate": "2026-06-03",
+   "rating": 4,
+   "education": [
+    {
+     "level": "Bachelor",
+     "field": "Quality Engineering",
+     "institution": "Universitas Indonesia",
+     "year": "2019"
+    }
+   ],
+   "experience": [
+    {
+     "title": "QA Analyst",
+     "org": "Oscorp",
+     "from": "2019",
+     "to": "2025"
+    }
+   ],
+   "interviews": [
+    {
+     "date": "2026-06-09",
+     "type": "HR Screen",
+     "interviewer": "Nicholas Joseph Fury",
+     "outcome": "Pass",
+     "note": "Strong communication."
+    }
+   ],
+   "tests": [],
+   "offer": {},
+   "contract": {},
+   "notes": "",
+   "personId": null
+  },
+  {
+   "id": "CAN-2002",
+   "openingId": "JOB-1001",
+   "fullName": "Gwendolyne Maxine Stacy",
+   "email": "gwen.stacy@example.com",
+   "phone": "+62 811 2002",
+   "source": "Referral",
+   "stage": "Assessment",
+   "appliedDate": "2026-06-03",
+   "rating": 5,
+   "education": [
+    {
+     "level": "Master",
+     "field": "Industrial Engineering",
+     "institution": "ITB",
+     "year": "2020"
+    }
+   ],
+   "experience": [
+    {
+     "title": "Lead Auditor",
+     "org": "Daily Bugle Group",
+     "from": "2020",
+     "to": "2026"
+    }
+   ],
+   "interviews": [
+    {
+     "date": "2026-06-08",
+     "type": "Technical",
+     "interviewer": "Matthew Michael Murdock",
+     "outcome": "Pass",
+     "note": "Excellent audit knowledge."
+    }
+   ],
+   "tests": [
+    {
+     "name": "ISO 19011 Knowledge Test",
+     "date": "2026-06-11",
+     "score": 88,
+     "max": 100,
+     "result": "Pass"
+    }
+   ],
+   "offer": {},
+   "contract": {},
+   "notes": "",
+   "personId": null
+  },
+  {
+   "id": "CAN-2003",
+   "openingId": "JOB-1001",
+   "fullName": "Harold Theopolis Osborn",
+   "email": "harry.osborn@example.com",
+   "phone": "+62 811 2003",
+   "source": "Advert",
+   "stage": "Screening",
+   "appliedDate": "2026-06-05",
+   "rating": 3,
+   "education": [],
+   "experience": [],
+   "interviews": [],
+   "tests": [],
+   "offer": {},
+   "contract": {},
+   "notes": "",
+   "personId": null
+  },
+  {
+   "id": "CAN-2004",
+   "openingId": "JOB-1001",
+   "fullName": "Otto Gunther Octavius",
+   "email": "otto.octavius@example.com",
+   "phone": "+62 811 2004",
+   "source": "Advert",
+   "stage": "Rejected",
+   "appliedDate": "2026-06-04",
+   "rating": 2,
+   "education": [],
+   "experience": [],
+   "interviews": [],
+   "tests": [],
+   "offer": {},
+   "contract": {},
+   "notes": "Not enough audit experience.",
+   "personId": null
+  },
+  {
+   "id": "CAN-2005",
+   "openingId": "JOB-1002",
+   "fullName": "Miles Gonzalo Morales",
+   "email": "miles.morales@example.com",
+   "phone": "+62 811 2005",
+   "source": "Advert",
+   "stage": "Offer",
+   "appliedDate": "2026-06-07",
+   "rating": 4,
+   "education": [
+    {
+     "level": "Bachelor (ongoing)",
+     "field": "Computer Science",
+     "institution": "Binus",
+     "year": "2027"
+    }
+   ],
+   "experience": [
+    {
+     "title": "IT Helpdesk",
+     "org": "Visions Academy",
+     "from": "2024",
+     "to": "2026"
+    }
+   ],
+   "interviews": [
+    {
+     "date": "2026-06-12",
+     "type": "Panel",
+     "interviewer": "Nicholas Joseph Fury",
+     "outcome": "Pass",
+     "note": "Good fit."
+    }
+   ],
+   "tests": [
+    {
+     "name": "Support Scenario Test",
+     "date": "2026-06-13",
+     "score": 79,
+     "max": 100,
+     "result": "Pass"
+    }
+   ],
+   "offer": {
+    "position": "Technical Support Specialist",
+    "amount": "9,500,000",
+    "currency": "IDR",
+    "frequency": "Monthly",
+    "start": "2026-07-15",
+    "expiry": "2026-07-08",
+    "status": "Sent"
+   },
+   "contract": {},
+   "notes": "",
+   "personId": null
+  },
+  {
+   "id": "CAN-2006",
+   "openingId": "JOB-1002",
+   "fullName": "Cindy Moon",
+   "email": "cindy.moon@example.com",
+   "phone": "+62 811 2006",
+   "source": "Advert",
+   "stage": "Applied",
+   "appliedDate": "2026-06-09",
+   "rating": 0,
+   "education": [],
+   "experience": [],
+   "interviews": [],
+   "tests": [],
+   "offer": {},
+   "contract": {},
+   "notes": "",
+   "personId": null
+  },
+  {
+   "id": "CAN-2007",
+   "openingId": "JOB-1003",
+   "fullName": "Felicia Sara Hardy",
+   "email": "felicia.hardy@example.com",
+   "phone": "+62 811 2007",
+   "source": "Direct",
+   "stage": "Contract",
+   "appliedDate": "2026-06-11",
+   "rating": 5,
+   "education": [
+    {
+     "level": "Bachelor",
+     "field": "Information Security",
+     "institution": "Universitas Gadjah Mada",
+     "year": "2015"
+    }
+   ],
+   "experience": [
+    {
+     "title": "Security Consultant",
+     "org": "Black Cat Security",
+     "from": "2017",
+     "to": "Present"
+    }
+   ],
+   "interviews": [
+    {
+     "date": "2026-06-13",
+     "type": "Technical",
+     "interviewer": "Ororo Munroe",
+     "outcome": "Pass",
+     "note": "Top-tier cloud security skills."
+    }
+   ],
+   "tests": [
+    {
+     "name": "Cloud Security Assessment",
+     "date": "2026-06-14",
+     "score": 94,
+     "max": 100,
+     "result": "Pass"
+    }
+   ],
+   "offer": {
+    "position": "Cloud Security Consultant",
+    "amount": "2,800,000",
+    "currency": "IDR",
+    "frequency": "Per day",
+    "start": "2026-07-20",
+    "expiry": "2026-07-12",
+    "status": "Accepted"
+   },
+   "contract": {
+    "type": "Statement of Work",
+    "start": "2026-07-20",
+    "end": "2026-12-19",
+    "document": "SOW — Cloud Security Review.pdf",
+    "signed": false
+   },
+   "notes": "",
+   "personId": null
+  },
+  {
+   "id": "CAN-2008",
+   "openingId": null,
+   "fullName": "Edward Charles Brock",
+   "email": "eddie.brock@example.com",
+   "phone": "+62 811 2008",
+   "source": "Talent Pool",
+   "stage": "Talent Pool",
+   "appliedDate": "2026-06-01",
+   "rating": 3,
+   "education": [
+    {
+     "level": "Bachelor",
+     "field": "Journalism",
+     "institution": "ESU",
+     "year": "2014"
+    }
+   ],
+   "experience": [
+    {
+     "title": "Investigative Reporter",
+     "org": "Daily Globe",
+     "from": "2015",
+     "to": "2025"
+    }
+   ],
+   "interviews": [],
+   "tests": [],
+   "offer": {},
+   "contract": {},
+   "notes": "Strong but no QMS background — keep warm.",
+   "personId": null
+  },
+  {
+   "id": "CAN-2009",
+   "openingId": null,
+   "fullName": "Mary Jane Watson",
+   "email": "mj.watson@example.com",
+   "phone": "+62 811 2009",
+   "source": "Talent Pool",
+   "stage": "Talent Pool",
+   "appliedDate": "2026-06-02",
+   "rating": 4,
+   "education": [
+    {
+     "level": "Bachelor",
+     "field": "Communications",
+     "institution": "Universitas Padjadjaran",
+     "year": "2018"
+    }
+   ],
+   "experience": [
+    {
+     "title": "Account Manager",
+     "org": "Stark Media",
+     "from": "2019",
+     "to": "2026"
+    }
+   ],
+   "interviews": [],
+   "tests": [],
+   "offer": {},
+   "contract": {},
+   "notes": "",
+   "personId": null
+  }
+ ]
+}

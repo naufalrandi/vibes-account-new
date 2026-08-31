@@ -1,0 +1,29 @@
+{
+ "count": 2,
+ "fields": [
+  "id",
+  "customer",
+  "subject",
+  "priority",
+  "status",
+  "createdAt"
+ ],
+ "sample": [
+  {
+   "id": "TK-0001",
+   "customer": "Liam Anderson",
+   "subject": "Flat tyre near Uluwatu",
+   "priority": "High",
+   "status": "Open",
+   "createdAt": "2026-08-30T09:41:59.701Z"
+  },
+  {
+   "id": "TK-0002",
+   "customer": "Sophie Dubois",
+   "subject": "Requesting helmet size M",
+   "priority": "Low",
+   "status": "Resolved",
+   "createdAt": "2026-08-29T09:41:59.701Z"
+  }
+ ]
+}

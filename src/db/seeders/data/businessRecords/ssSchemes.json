@@ -1,0 +1,162 @@
+{
+ "count": 3,
+ "fields": [
+  "id",
+  "country",
+  "name",
+  "ref",
+  "programs"
+ ],
+ "sample": [
+  {
+   "id": "ss-id",
+   "country": "ID",
+   "name": "BPJS Ketenagakerjaan",
+   "ref": "PP 44/2015 · PP 45/2015 · PP 46/2015 · PP 60/2015",
+   "programs": [
+    {
+     "code": "JHT",
+     "name": "Jaminan Hari Tua (Old-Age)",
+     "method": "percent",
+     "employerPct": 3.7,
+     "employeePct": 2,
+     "base": "gross",
+     "capAmount": 0,
+     "note": ""
+    },
+    {
+     "code": "JP",
+     "name": "Jaminan Pensiun (Pension)",
+     "method": "percent",
+     "employerPct": 2,
+     "employeePct": 1,
+     "base": "capped",
+     "capAmount": 10042300,
+     "note": "Wage cap indexed annually"
+    },
+    {
+     "code": "JKK",
+     "name": "Jaminan Kecelakaan Kerja (Work Accident)",
+     "method": "percent",
+     "employerPct": 0.24,
+     "employeePct": 0,
+     "base": "gross",
+     "capAmount": 0,
+     "note": "Risk class I (0.24–1.74%)"
+    },
+    {
+     "code": "JKM",
+     "name": "Jaminan Kematian (Death)",
+     "method": "percent",
+     "employerPct": 0.3,
+     "employeePct": 0,
+     "base": "gross",
+     "capAmount": 0,
+     "note": ""
+    }
+   ]
+  },
+  {
+   "id": "ss-sg",
+   "country": "SG",
+   "name": "CPF (Central Provident Fund)",
+   "ref": "CPF Act · age-banded rates · OW ceiling S$7,400",
+   "programs": [
+    {
+     "code": "CPF",
+     "name": "CPF contribution",
+     "method": "percent",
+     "rateBy": "age",
+     "base": "capped",
+     "capAmount": 7400,
+     "ageBands": [
+      {
+       "ageMax": 55,
+       "employerPct": 17,
+       "employeePct": 20
+      },
+      {
+       "ageMax": 60,
+       "employerPct": 15.5,
+       "employeePct": 16.5
+      },
+      {
+       "ageMax": 65,
+       "employerPct": 12,
+       "employeePct": 10.5
+      },
+      {
+       "ageMax": 70,
+       "employerPct": 9,
+       "employeePct": 7.5
+      },
+      {
+       "ageMax": null,
+       "employerPct": 7.5,
+       "employeePct": 5
+      }
+     ],
+     "note": "Rates step down with age"
+    },
+    {
+     "code": "SDL",
+     "name": "Skills Development Levy",
+     "method": "percent",
+     "employerPct": 0.25,
+     "employeePct": 0,
+     "base": "capped",
+     "capAmount": 4500,
+     "minContribution": 2,
+     "maxContribution": 11.25,
+     "note": "Min S$2, max S$11.25"
+    }
+   ]
+  },
+  {
+   "id": "ss-us",
+   "country": "US",
+   "name": "FICA (US payroll taxes)",
+   "ref": "FICA · IRC; wage base & thresholds set annually",
+   "programs": [
+    {
+     "code": "OASDI",
+     "name": "Social Security (OASDI)",
+     "method": "percent",
+     "employerPct": 6.2,
+     "employeePct": 6.2,
+     "base": "capped",
+     "capAmount": 168600,
+     "note": "Wage base (2024)"
+    },
+    {
+     "code": "HI",
+     "name": "Medicare",
+     "method": "percent",
+     "employerPct": 1.45,
+     "employeePct": 1.45,
+     "base": "gross",
+     "note": "No wage cap"
+    },
+    {
+     "code": "ADDL",
+     "name": "Additional Medicare",
+     "method": "tiered",
+     "base": "gross",
+     "bands": [
+      {
+       "upTo": 200000,
+       "employerPct": 0,
+       "employeePct": 0
+      },
+      {
+       "upTo": null,
+       "employerPct": 0,
+       "employeePct": 0.9
+      }
+     ],
+     "note": "Employee only · wages over $200,000"
+    }
+   ]
+  }
+ ]
+}

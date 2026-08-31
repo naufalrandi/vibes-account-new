@@ -1,0 +1,35 @@
+{
+ "count": 5,
+ "fields": [
+  "id",
+  "name",
+  "order"
+ ],
+ "sample": [
+  {
+   "id": "cd-qs",
+   "name": "Quality and Safety",
+   "order": 1
+  },
+  {
+   "id": "cd-ee",
+   "name": "Environmental and Energy",
+   "order": 2
+  },
+  {
+   "id": "cd-isp",
+   "name": "Information Security and Privacy",
+   "order": 3
+  },
+  {
+   "id": "cd-it",
+   "name": "Information Technology",
+   "order": 4
+  },
+  {
+   "id": "cd-gr",
+   "name": "Governance and Risk",
+   "order": 5
+  }
+ ]
+}

@@ -1,0 +1,157 @@
+{
+ "count": 18,
+ "fields": [
+  "id",
+  "country",
+  "name",
+  "code",
+  "swift",
+  "type"
+ ],
+ "sample": [
+  {
+   "id": "BNK-9001",
+   "country": "ID",
+   "name": "Bank Mandiri",
+   "code": "008",
+   "swift": "BMRIIDJA",
+   "type": "State"
+  },
+  {
+   "id": "BNK-9002",
+   "country": "ID",
+   "name": "Bank Rakyat Indonesia (BRI)",
+   "code": "002",
+   "swift": "BRINIDJA",
+   "type": "State"
+  },
+  {
+   "id": "BNK-9003",
+   "country": "ID",
+   "name": "Bank Negara Indonesia (BNI)",
+   "code": "009",
+   "swift": "BNINIDJA",
+   "type": "State"
+  },
+  {
+   "id": "BNK-9004",
+   "country": "ID",
+   "name": "Bank Central Asia (BCA)",
+   "code": "014",
+   "swift": "CENAIDJA",
+   "type": "Commercial"
+  },
+  {
+   "id": "BNK-9005",
+   "country": "ID",
+   "name": "Bank CIMB Niaga",
+   "code": "022",
+   "swift": "BNIAIDJA",
+   "type": "Commercial"
+  },
+  {
+   "id": "BNK-9006",
+   "country": "ID",
+   "name": "Bank Danamon",
+   "code": "011",
+   "swift": "BDINIDJA",
+   "type": "Commercial"
+  },
+  {
+   "id": "BNK-9007",
+   "country": "ID",
+   "name": "Bank Permata",
+   "code": "013",
+   "swift": "BBBAIDJA",
+   "type": "Commercial"
+  },
+  {
+   "id": "BNK-9008",
+   "country": "ID",
+   "name": "Bank Syariah Indonesia (BSI)",
+   "code": "451",
+   "swift": "BSMDIDJA",
+   "type": "Islamic"
+  },
+  {
+   "id": "BNK-9009",
+   "country": "ID",
+   "name": "Bank Jago",
+   "code": "542",
+   "swift": "JAGOIDJA",
+   "type": "Digital"
+  },
+  {
+   "id": "BNK-9010",
+   "country": "ID",
+   "name": "Bank Tabungan Negara (BTN)",
+   "code": "200",
+   "swift": "BTANIDJA",
+   "type": "State"
+  },
+  {
+   "id": "BNK-9011",
+   "country": "US",
+   "name": "JPMorgan Chase",
+   "code": "021000021",
+   "swift": "CHASUS33",
+   "type": "Commercial"
+  },
+  {
+   "id": "BNK-9012",
+   "country": "US",
+   "name": "Bank of America",
+   "code": "026009593",
+   "swift": "BOFAUS3N",
+   "type": "Commercial"
+  },
+  {
+   "id": "BNK-9013",
+   "country": "US",
+   "name": "Wells Fargo",
+   "code": "121000248",
+   "swift": "WFBIUS6S",
+   "type": "Commercial"
+  },
+  {
+   "id": "BNK-9014",
+   "country": "US",
+   "name": "Citibank",
+   "code": "021000089",
+   "swift": "CITIUS33",
+   "type": "Commercial"
+  },
+  {
+   "id": "BNK-9015",
+   "country": "GB",
+   "name": "Barclays",
+   "code": "20-00-00",
+   "swift": "BARCGB22",
+   "type": "Commercial"
+  },
+  {
+   "id": "BNK-9016",
+   "country": "GB",
+   "name": "HSBC UK",
+   "code": "40-02-50",
+   "swift": "HBUKGB4B",
+   "type": "Commercial"
+  },
+  {
+   "id": "BNK-9017",
+   "country": "GB",
+   "name": "Lloyds Bank",
+   "code": "30-96-26",
+   "swift": "LOYDGB21",
+   "type": "Commercial"
+  },
+  {
+   "id": "BNK-9018",
+   "country": "GB",
+   "name": "NatWest",
+   "code": "60-00-01",
+   "swift": "NWBKGB2L",
+   "type": "Commercial"
+  }
+ ]
+}

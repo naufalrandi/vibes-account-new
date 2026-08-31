@@ -1,0 +1,99 @@
+{
+ "count": 2,
+ "fields": [
+  "id",
+  "inqId",
+  "propId",
+  "leadId",
+  "leadName",
+  "service",
+  "serviceName",
+  "variant",
+  "currency",
+  "value",
+  "startDate",
+  "endDate",
+  "status",
+  "notes",
+  "createdAt",
+  "activity",
+  "co"
+ ],
+ "sample": [
+  {
+   "id": "SC-5001",
+   "inqId": "INQ-3004",
+   "propId": "PRO-4002",
+   "leadId": "LD-2003",
+   "leadName": "Garuda Tech Solutions",
+   "service": "impl",
+   "serviceName": "Framework Implementation",
+   "variant": "Full Consultancy",
+   "currency": "IDR",
+   "value": 230325000,
+   "startDate": "2026-07-15",
+   "endDate": "2026-12-15",
+   "status": "Signed",
+   "notes": "",
+   "createdAt": "2026-08-31T09:40:42.571Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.571Z",
+     "user": "System",
+     "action": "contract created",
+     "summary": ""
+    },
+    {
+     "ts": "2026-08-31T09:40:42.571Z",
+     "user": "System",
+     "action": "issued",
+     "summary": ""
+    },
+    {
+     "ts": "2026-08-31T09:40:42.571Z",
+     "user": "System",
+     "action": "signed",
+     "summary": ""
+    }
+   ]
+  },
+  {
+   "id": "SC-5210",
+   "co": "exelera",
+   "inqId": "INQ-3210",
+   "propId": "PRO-4210",
+   "leadId": "LD-3201",
+   "leadName": "PT Andalan Karya Nusantara",
+   "service": "comp",
+   "serviceName": "Competence Development",
+   "variant": "In-house training",
+   "currency": "IDR",
+   "value": 19980000,
+   "startDate": "2026-08-15",
+   "endDate": "2026-09-30",
+   "status": "Signed",
+   "notes": "",
+   "createdAt": "2026-08-31T09:41:45.000Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:41:45.000Z",
+     "user": "System",
+     "action": "signed",
+     "summary": ""
+    },
+    {
+     "ts": "2026-08-31T09:41:45.000Z",
+     "user": "System",
+     "action": "issued",
+     "summary": ""
+    },
+    {
+     "ts": "2026-08-31T09:41:45.000Z",
+     "user": "System",
+     "action": "contract created",
+     "summary": "from PRO-4210"
+    }
+   ]
+  }
+ ]
+}

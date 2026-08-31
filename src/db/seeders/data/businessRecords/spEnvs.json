@@ -1,0 +1,167 @@
+{
+ "count": 26,
+ "fields": [
+  "id",
+  "name",
+  "description",
+  "status"
+ ],
+ "sample": [
+  {
+   "id": "SDENV-0001",
+   "name": "Production Environment",
+   "description": "Live environment serving real users and production data.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0002",
+   "name": "Development Environment",
+   "description": "Environment used by engineers to build and iterate on features.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0003",
+   "name": "Testing / Staging Environment",
+   "description": "Pre-production environment for integration and regression testing.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0004",
+   "name": "User Acceptance Testing Environment",
+   "description": "Environment where business users validate functionality before release.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0005",
+   "name": "Sandbox Environment",
+   "description": "Isolated environment for experimentation without affecting other systems.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0006",
+   "name": "Disaster Recovery Environment",
+   "description": "Standby environment used to restore operations after a major disruption.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0007",
+   "name": "Backup Environment",
+   "description": "Environment holding backup copies of systems and data.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0008",
+   "name": "Cloud Infrastructure",
+   "description": "Cloud-hosted compute, storage, and networking resources.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0009",
+   "name": "SaaS Applications",
+   "description": "Third-party software-as-a-service applications used by the organization.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0010",
+   "name": "Internal SaaS Workspace",
+   "description": "The organization’s own tenant or workspace within a shared SaaS platform.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0011",
+   "name": "Customer Portal",
+   "description": "External-facing portal used by customers to access services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0012",
+   "name": "Admin Portal",
+   "description": "Administrative portal for managing the platform or service.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0013",
+   "name": "Internal Admin Portal",
+   "description": "Internal-only administrative console.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0014",
+   "name": "Source Code Repository",
+   "description": "System that stores and version-controls application source code.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0015",
+   "name": "CI/CD Pipeline",
+   "description": "Automated build, test, and deployment pipeline.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0016",
+   "name": "Ticketing System",
+   "description": "System for logging and tracking issues or service requests.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0017",
+   "name": "Document Repository",
+   "description": "Central store for controlled documents and records.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0018",
+   "name": "Knowledge Base",
+   "description": "Repository of articles, guidance, and reference material.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0019",
+   "name": "Data Warehouse",
+   "description": "Central repository for integrated and historical data.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0020",
+   "name": "Analytics Platform",
+   "description": "Platform for reporting, dashboards, and data analysis.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0021",
+   "name": "Identity Provider",
+   "description": "System managing authentication and user identities (SSO).",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0022",
+   "name": "Email System",
+   "description": "Corporate email and messaging service.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0023",
+   "name": "Collaboration Platform",
+   "description": "Platform for team communication and collaboration.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0024",
+   "name": "Monitoring Platform",
+   "description": "System monitoring availability and performance of services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0025",
+   "name": "Logging Platform",
+   "description": "Centralized log collection and analysis platform.",
+   "status": "Active"
+  },
+  {
+   "id": "SDENV-0026",
+   "name": "Endpoint Management Platform",
+   "description": "System for managing and securing endpoint devices.",
+   "status": "Active"
+  }
+ ]
+}
