@@ -8,6 +8,7 @@ import {
   type AssessReqResult, type ProfileItem, type ProfileRequirement,
 } from "../../db/models/competence.models";
 import type { AuthContext } from "../../lib/scope";
+import { resolveCompany } from "../business/business.service";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
 import { assertMayApprove } from "../approvals/approval.service";
@@ -63,8 +64,8 @@ const ocTrunc = (s: string, n: number): string => (s.length > n ? `${s.slice(0, 
 // "enterprise"` is how the Enterprise Roles screen (ServiceOwner-only, RBAC
 // already gates the route) asks for just the null-org roles instead of the
 // unrestricted cross-tenant view ServiceOwner otherwise gets everywhere else.
-export async function listRoles(auth: AuthContext, scope?: "enterprise") {
-  if (scope === "enterprise") return (await CompetenceRole.findAll({ where: { orgId: null }, order: [["createdAt", "DESC"]] })).map((r) => r.get({ plain: true }));
+export async function listRoles(auth: AuthContext, scope?: "enterprise", company?: string) {
+  if (scope === "enterprise") return (await CompetenceRole.findAll({ where: { orgId: null, company: resolveCompany(company) }, order: [["createdAt", "DESC"]] })).map((r) => r.get({ plain: true }));
   const ids = await visibleTenantOrgIds(auth);
   const where = ids === null ? {} : { orgId: { [Op.in]: ids } };
   return (await CompetenceRole.findAll({ where, order: [["createdAt", "DESC"]] })).map((r) => r.get({ plain: true }));
@@ -93,22 +94,25 @@ export async function createRole(auth: AuthContext, input: Record<string, unknow
   // SP-global roles (org === null) have no per-org settings row, so `12` applies.
   const defaultReassess = org ? (await getCompSettings(org)).defaultReassess : 12;
   const row = await CompetenceRole.create({
-    orgId: org, name, description: str(input.description), status: optionalRoleStatus(input) ?? "Draft",
+    orgId: org, company: resolveCompany(str(input.company) ?? undefined), name, description: str(input.description), status: optionalRoleStatus(input) ?? "Draft",
     reviewFreq: str(input.reviewFreq) || String(defaultReassess), eduMinLevelId: str(input.eduMinLevelId), eduCountry: str(input.eduCountry),
     eduFields: arr(input.eduFields) as string[], expReqs: arr(input.expReqs) as never, responsibilities: arr(input.responsibilities) as never, authorities: arr(input.authorities) as never,
   });
   await audit(auth, org ?? auth.orgId, "competence.role.created", "CompetenceRole", row.id, ip);
   return row.get({ plain: true });
 }
-async function requireRole(auth: AuthContext, id: string): Promise<CompetenceRole> {
+async function requireRole(auth: AuthContext, id: string, company?: string): Promise<CompetenceRole> {
   const row = await CompetenceRole.findByPk(id);
   if (!row) throw new NotFoundError("Role not found", "ROLE_NOT_FOUND");
   if (row.orgId !== null) await targetOrg(auth, row.orgId);
   else if (auth.orgType !== "ServiceOwner") throw new ForbiddenError();
+  // Enterprise roles are further partitioned per operating company (SOF-265) —
+  // a caller acting as one company must not reach into another's role.
+  else if (row.company !== resolveCompany(company)) throw new NotFoundError("Role not found", "ROLE_NOT_FOUND");
   return row;
 }
-export async function updateRole(auth: AuthContext, id: string, input: Record<string, unknown>, ip: string | null) {
-  const row = await requireRole(auth, id);
+export async function updateRole(auth: AuthContext, id: string, input: Record<string, unknown>, ip: string | null, company?: string) {
+  const row = await requireRole(auth, id, company);
   const rec = row as unknown as Record<string, unknown>;
   for (const k of ROLE_STR) if (input[k] !== undefined) rec[k] = str(input[k]);
   for (const k of ROLE_JSON) if (input[k] !== undefined) rec[k] = arr(input[k]);
@@ -118,16 +122,16 @@ export async function updateRole(auth: AuthContext, id: string, input: Record<st
   await audit(auth, row.orgId ?? auth.orgId, "competence.role.updated", "CompetenceRole", row.id, ip);
   return row.get({ plain: true });
 }
-export async function setRoleStatus(auth: AuthContext, id: string, status: string, ip: string | null) {
+export async function setRoleStatus(auth: AuthContext, id: string, status: string, ip: string | null, company?: string) {
   if (!ROLE_STATUS.includes(status as never)) throw new BadRequestError(`Invalid role status "${status}"`, "INVALID_STATUS");
-  const row = await requireRole(auth, id);
+  const row = await requireRole(auth, id, company);
   row.status = status;
   await row.save();
   await audit(auth, row.orgId ?? auth.orgId, "competence.role.status", "CompetenceRole", row.id, ip);
   return row.get({ plain: true });
 }
-export async function deleteRole(auth: AuthContext, id: string, ip: string | null) {
-  const row = await requireRole(auth, id);
+export async function deleteRole(auth: AuthContext, id: string, ip: string | null, company?: string) {
+  const row = await requireRole(auth, id, company);
   const org = row.orgId ?? auth.orgId;
   await row.destroy();
   await audit(auth, org, "competence.role.deleted", "CompetenceRole", id, ip);

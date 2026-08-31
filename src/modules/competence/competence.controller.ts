@@ -38,11 +38,15 @@ export const getCompetenceSettings = wrap(async (req, res) => sendOk(res, await 
 export const putCompetenceSettings = wrap(async (req, res) => sendOk(res, await service.setCompSettings(guard(req), body.parse(req.body), ip(req))));
 
 // Roles (competence profiles)
-export const listRoles = wrap(async (req, res) => { const d = await assess.listRoles(guard(req), req.query.scope === "enterprise" ? "enterprise" : undefined); sendOk(res, d, 200, listMeta(d)); });
+// `company` (SOF-265): read from `?company=` for lookups, mirroring
+// business.controller's `resolveCompanyParam` — the Enterprise Roles screen
+// selects the caller's active operating company the same way.
+const roleCompany = (req: Request) => (req.query.company as string) || undefined;
+export const listRoles = wrap(async (req, res) => { const d = await assess.listRoles(guard(req), req.query.scope === "enterprise" ? "enterprise" : undefined, roleCompany(req)); sendOk(res, d, 200, listMeta(d)); });
 export const createRole = wrap(async (req, res) => sendOk(res, await assess.createRole(guard(req), body.parse(req.body), ip(req)), 201));
-export const updateRole = wrap(async (req, res) => sendOk(res, await assess.updateRole(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
-export const setRoleStatus = wrap(async (req, res) => sendOk(res, await assess.setRoleStatus(guard(req), req.params.id as string, statusSchema.parse(req.body).status, ip(req))));
-export const deleteRole = wrap(async (req, res) => { await assess.deleteRole(guard(req), req.params.id as string, ip(req)); sendOk(res, { id: req.params.id }); });
+export const updateRole = wrap(async (req, res) => sendOk(res, await assess.updateRole(guard(req), req.params.id as string, body.parse(req.body), ip(req), roleCompany(req))));
+export const setRoleStatus = wrap(async (req, res) => sendOk(res, await assess.setRoleStatus(guard(req), req.params.id as string, statusSchema.parse(req.body).status, ip(req), roleCompany(req))));
+export const deleteRole = wrap(async (req, res) => { await assess.deleteRole(guard(req), req.params.id as string, ip(req), roleCompany(req)); sendOk(res, { id: req.params.id }); });
 
 // Assignments
 export const listAssignments = wrap(async (req, res) => { const d = await assess.listAssignments(guard(req), req.query.scope === "enterprise" ? "enterprise" : undefined); sendOk(res, d, 200, listMeta(d)); });

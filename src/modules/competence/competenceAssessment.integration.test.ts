@@ -144,6 +144,40 @@ describe("competence assessments (scoring engine)", () => {
     expect(spRoles.map((r: { name: string }) => r.name)).toEqual(["Lead Auditor"]);
   });
 
+  // SOF-265: Enterprise Roles are further partitioned per operating company —
+  // AXIA and every sister company (Exelera) keep separate role-profile lists,
+  // same as `BusinessRecord.company` for the other Enterprise screens.
+  it("partitions Enterprise roles per operating company", async () => {
+    const sp = await (async () => {
+      const org = await Organization.create({ name: "SPCO2", code: "SPCO2", type: "ServiceOwner", status: "Active", parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null });
+      await User.create({ orgId: org.id, tenantId: null, fullName: "SP", username: "ca7-sp", email: "ca7-sp@x.io", passwordHash: await hashPassword("ChangeMe123"), status: "Active", position: null, workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null });
+      const role = await Role.create({ name: "R-ca7-sp", tierScope: "ServiceOwner", orgId: org.id, isSuperAdmin: false, status: true });
+      const u = await User.findOne({ where: { username: "ca7-sp" } });
+      await (u as unknown as { setRoles: (r: Role[]) => Promise<unknown> }).setRoles([role]);
+      await grantActions(role.id, CO);
+      const login = await request(app).post("/v1/auth/login").send({ identifier: "ca7-sp", password: "ChangeMe123" });
+      return { token: login.body.data.accessToken as string };
+    })();
+
+    const axiaRole = (await request(app).post("/v1/competence/roles").set(authed(sp.token)).send({ name: "AXIA Auditor" })).body.data;
+    const exeleraRole = (await request(app).post("/v1/competence/roles?company=exelera").set(authed(sp.token)).send({ name: "Exelera Auditor", company: "exelera" })).body.data;
+
+    const axiaRoles = (await request(app).get("/v1/competence/roles?scope=enterprise").set(authed(sp.token))).body.data;
+    expect(axiaRoles.map((r: { name: string }) => r.name)).toEqual(["AXIA Auditor"]);
+
+    const exeleraRoles = (await request(app).get("/v1/competence/roles?scope=enterprise&company=exelera").set(authed(sp.token))).body.data;
+    expect(exeleraRoles.map((r: { name: string }) => r.name)).toEqual(["Exelera Auditor"]);
+
+    // Cross-company reach (update/status/delete) is rejected as not found.
+    expect((await request(app).put(`/v1/competence/roles/${exeleraRole.id}`).set(authed(sp.token)).send({ name: "x" })).status).toBe(404);
+    expect((await request(app).put(`/v1/competence/roles/${axiaRole.id}?company=exelera`).set(authed(sp.token)).send({ name: "x" })).status).toBe(404);
+    expect((await request(app).delete(`/v1/competence/roles/${exeleraRole.id}`).set(authed(sp.token))).status).toBe(404);
+
+    const updated = await request(app).put(`/v1/competence/roles/${exeleraRole.id}?company=exelera`).set(authed(sp.token)).send({ name: "Exelera Auditor II" });
+    expect(updated.status).toBe(200);
+    expect(updated.body.data.name).toBe("Exelera Auditor II");
+  });
+
   // Assignments/assessments/gaps carry a NOT NULL orgId, so "Enterprise" for
   // them means the Service Provider's own org. Without an explicit scope a
   // ServiceOwner read is unrestricted — which would put every tenant's records

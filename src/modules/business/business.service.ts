@@ -85,7 +85,7 @@ function validateCompany(company: string): OperatingCompany {
  * this (or `validateCompany` directly) rather than reading `company`
  * un-normalized.
  */
-function resolveCompany(company?: string): OperatingCompany {
+export function resolveCompany(company?: string): OperatingCompany {
   if (!company || !company.trim()) return defaultCompany();
   return validateCompany(company);
 }
