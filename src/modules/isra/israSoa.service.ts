@@ -29,6 +29,7 @@ export async function getSoa(auth: AuthContext) {
       ref: s.ref,
       name: s.name,
       category: s.category,
+      csf: s.csf,
       type: s.type,
       description: s.description,
       isCustom: false,
@@ -39,6 +40,7 @@ export async function getSoa(auth: AuthContext) {
       ref: o.ref,
       name: o.name,
       category: o.category,
+      csf: o.csf,
       type: o.type,
       description: o.description,
       isCustom: o.custom,
@@ -166,16 +168,7 @@ export async function getSoa(auth: AuthContext) {
  * exactly OD's `db.israControls` custom-entry shape (name/category/csf/type/
  * description + a sequential `CUS-###` ref).
  */
-export async function listControlCatalog(auth: AuthContext) {
-  const standard = await IsraAnnexAControl.findAll({ order: [["ref", "ASC"]] });
-  const org = await IsraOrgControl.findAll({ where: { orgId: auth.orgId }, order: [["ref", "ASC"]] });
-  return [
-    ...standard.map((s) => ({ ref: s.ref, name: s.name, category: s.category, csf: s.csf, type: s.type, description: s.description, custom: false })),
-    ...org.map((o) => ({ ref: o.ref, name: o.name, category: o.category, csf: o.csf, type: o.type, description: o.description, custom: o.custom })),
-  ];
-}
-
-export async function createControlCatalogEntry(auth: AuthContext, input: Record<string, unknown>, ip: string | null) {
+export async function createCustomControl(auth: AuthContext, input: Record<string, unknown>, ip: string | null) {
   const name = str(input.name);
   if (!name) throw new BadRequestError("Control name is required", "NAME_REQUIRED");
 
@@ -203,7 +196,19 @@ export async function createControlCatalogEntry(auth: AuthContext, input: Record
     result: "Success",
   });
 
-  return row.get({ plain: true });
+  return {
+    ref: row.ref,
+    name: row.name,
+    category: row.category,
+    csf: row.csf,
+    type: row.type,
+    description: row.description,
+    isCustom: true,
+    applicable: false,
+    scenariosCount: 0,
+    scenarios: [] as { id: string; code: string; title: string }[],
+    justification: "",
+  };
 }
 
 export async function saveSoaJustification(

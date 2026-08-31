@@ -248,12 +248,12 @@ describe("ISRA control catalog (SOF-351)", () => {
   beforeAll(() => initModels());
   afterEach(() => resetDb());
 
-  it("lists the Annex A baseline and lets an org add a custom control", async () => {
+  it("lists the Annex A baseline and lets an org add a custom control, surfaced through the SoA", async () => {
     const { token } = await makeTenant("isra_ctlcat", "ORG_ISRA_CTLCAT");
 
-    const before = await request(app).get("/v1/isra/soa/controls").set(authed(token));
+    const before = await request(app).get("/v1/isra/soa").set(authed(token));
     expect(before.status).toBe(200);
-    expect(before.body.data.every((c: any) => c.custom === false)).toBe(true);
+    expect(before.body.data.every((c: any) => c.isCustom === false)).toBe(true);
     const baselineCount = before.body.data.length;
 
     const createRes = await request(app)
@@ -262,12 +262,12 @@ describe("ISRA control catalog (SOF-351)", () => {
       .send({ name: "Vendor screening questionnaire", category: "Supplier Security", csf: "Identify", type: "Preventive", description: "Pre-onboarding vendor risk screen" });
     expect(createRes.status).toBe(201);
     expect(createRes.body.data.ref).toBe("CUS-001");
-    expect(createRes.body.data.custom).toBe(true);
+    expect(createRes.body.data.isCustom).toBe(true);
 
-    const after = await request(app).get("/v1/isra/soa/controls").set(authed(token));
+    const after = await request(app).get("/v1/isra/soa").set(authed(token));
     expect(after.body.data.length).toBe(baselineCount + 1);
     const custom = after.body.data.find((c: any) => c.ref === "CUS-001");
-    expect(custom).toMatchObject({ name: "Vendor screening questionnaire", category: "Supplier Security", csf: "Identify", type: "Preventive", custom: true });
+    expect(custom).toMatchObject({ name: "Vendor screening questionnaire", category: "Supplier Security", csf: "Identify", type: "Preventive", isCustom: true });
   });
 
   it("rejects a custom control without a name", async () => {
