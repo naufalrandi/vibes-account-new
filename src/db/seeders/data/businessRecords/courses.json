@@ -1,0 +1,679 @@
+{
+ "count": 15,
+ "fields": [
+  "id",
+  "code",
+  "title",
+  "category",
+  "level",
+  "summary",
+  "active",
+  "createdAt",
+  "maxPax",
+  "durationVal",
+  "durationUnit",
+  "cpdHours",
+  "delivery",
+  "credential",
+  "language",
+  "price",
+  "objectives",
+  "outline",
+  "audience",
+  "prereqText",
+  "prereqIds",
+  "format",
+  "elearnMedia",
+  "elearnSupport",
+  "disciplineId",
+  "frameworkId",
+  "scheme"
+ ],
+ "sample": [
+  {
+   "id": "crs-found",
+   "code": "7001",
+   "title": "Management System Essentials (ISO Foundation)",
+   "category": "MS",
+   "level": 1,
+   "summary": "ISO history, the Annex SL high-level structure, and how management systems work.",
+   "active": true,
+   "createdAt": "2026-08-31T09:40:42.646Z",
+   "maxPax": 30,
+   "durationVal": 0.5,
+   "durationUnit": "day",
+   "cpdHours": 4,
+   "delivery": [
+    "public",
+    "inhouse",
+    "selfstudy"
+   ],
+   "credential": "attendance",
+   "language": "English",
+   "price": {
+    "public": 1500000,
+    "inhouse": 12000000,
+    "selfstudy": 750000
+   },
+   "objectives": [
+    "Explain what a management system is and why organizations certify",
+    "Describe the Annex SL / High-Level Structure shared by ISO MS standards",
+    "Interpret core terms and the Plan-Do-Check-Act cycle",
+    "Outline how a certification & surveillance audit works"
+   ],
+   "outline": [
+    {
+     "title": "Why management systems — value & the certification landscape",
+     "mins": 45
+    },
+    {
+     "title": "Annex SL / High-Level Structure explained",
+     "mins": 45
+    },
+    {
+     "title": "Key terms, definitions & the PDCA cycle",
+     "mins": 60
+    },
+    {
+     "title": "How certification & surveillance audits work",
+     "mins": 30
+    }
+   ],
+   "audience": "Anyone new to management systems — new team members, auditees, and staff supporting certification.",
+   "prereqText": "",
+   "prereqIds": [],
+   "format": [
+    "onsite",
+    "virtual"
+   ],
+   "elearnMedia": [
+    "reading",
+    "video"
+   ],
+   "elearnSupport": [
+    "selfguided",
+    "mentored"
+   ]
+  },
+  {
+   "id": "crs-aw-cd-qs",
+   "code": "7101",
+   "title": "Quality and Safety Awareness",
+   "category": "MS",
+   "level": 2,
+   "disciplineId": "cd-qs",
+   "summary": "Awareness of the quality and safety discipline and the standards within it.",
+   "active": true,
+   "createdAt": "2026-08-31T09:40:42.646Z",
+   "maxPax": 30,
+   "durationVal": 1,
+   "durationUnit": "day",
+   "cpdHours": 7,
+   "delivery": [
+    "public",
+    "inhouse",
+    "selfstudy"
+   ],
+   "credential": "attendance",
+   "language": "English",
+   "price": {
+    "public": 2500000,
+    "inhouse": 18000000,
+    "selfstudy": 1200000
+   },
+   "objectives": [],
+   "outline": [],
+   "audience": "",
+   "prereqText": "",
+   "prereqIds": [],
+   "format": [
+    "onsite",
+    "virtual"
+   ],
+   "elearnMedia": [
+    "reading"
+   ],
+   "elearnSupport": [
+    "selfguided"
+   ]
+  },
+  {
+   "id": "crs-fw_dig57pn-l3",
+   "code": "7200",
+   "title": "ISO 9001 Requirements",
+   "category": "MS",
+   "level": 3,
+   "frameworkId": "fw_dig57pn",
+   "summary": "Course on the requirements of ISO 9001.",
+   "active": true,
+   "createdAt": "2026-08-31T09:40:42.646Z",
+   "maxPax": 25,
+   "durationVal": 2,
+   "durationUnit": "day",
+   "cpdHours": 14,
+   "delivery": [
+    "public",
+    "inhouse"
+   ],
+   "credential": "completion",
+   "language": "English",
+   "price": {
+    "public": 4500000,
+    "inhouse": 35000000,
+    "selfstudy": 0
+   },
+   "objectives": [],
+   "outline": [],
+   "audience": "",
+   "prereqText": "",
+   "prereqIds": [],
+   "format": [
+    "onsite",
+    "virtual"
+   ],
+   "elearnMedia": [
+    "reading"
+   ],
+   "elearnSupport": [
+    "selfguided"
+   ]
+  },
+  {
+   "id": "crs-fw_dig57pn-l4",
+   "code": "7300",
+   "title": "ISO 9001 Implementation",
+   "category": "MS",
+   "level": 4,
+   "frameworkId": "fw_dig57pn",
+   "summary": "Course on implementing ISO 9001.",
+   "active": true,
+   "createdAt": "2026-08-31T09:40:42.646Z",
+   "maxPax": 20,
+   "durationVal": 3,
+   "durationUnit": "day",
+   "cpdHours": 21,
+   "delivery": [
+    "public",
+    "inhouse"
+   ],
+   "credential": "completion",
+   "language": "English",
+   "price": {
+    "public": 6500000,
+    "inhouse": 55000000,
+    "selfstudy": 0
+   },
+   "objectives": [],
+   "outline": [],
+   "audience": "",
+   "prereqText": "",
+   "prereqIds": [],
+   "format": [
+    "onsite",
+    "virtual"
+   ],
+   "elearnMedia": [
+    "reading"
+   ],
+   "elearnSupport": [
+    "selfguided"
+   ]
+  },
+  {
+   "id": "crs-fw_dig57pn-l5",
+   "code": "7400",
+   "title": "ISO 9001 Audit",
+   "category": "MS",
+   "level": 5,
+   "frameworkId": "fw_dig57pn",
+   "summary": "Course on auditing ISO 9001.",
+   "active": true,
+   "createdAt": "2026-08-31T09:40:42.646Z",
+   "maxPax": 16,
+   "durationVal": 5,
+   "durationUnit": "day",
+   "cpdHours": 40,
+   "delivery": [
+    "public",
+    "inhouse"
+   ],
+   "credential": "certification",
+   "scheme": "Exemplar Global / IRCA",
+   "language": "English",
+   "price": {
+    "public": 9500000,
+    "inhouse": 85000000,
+    "selfstudy": 0
+   },
+   "objectives": [],
+   "outline": [],
+   "audience": "",
+   "prereqText": "",
+   "prereqIds": [],
+   "format": [
+    "onsite",
+    "virtual"
+   ],
+   "elearnMedia": [
+    "reading"
+   ],
+   "elearnSupport": [
+    "selfguided"
+   ]
+  },
+  {
+   "id": "crs-fw_m47qbu4-l3",
+   "code": "7201",
+   "title": "ISO 45001 Requirements",
+   "category": "MS",
+   "level": 3,
+   "frameworkId": "fw_m47qbu4",
+   "summary": "Course on the requirements of ISO 45001.",
+   "active": true,
+   "createdAt": "2026-08-31T09:40:42.646Z",
+   "maxPax": 25,
+   "durationVal": 2,
+   "durationUnit": "day",
+   "cpdHours": 14,
+   "delivery": [
+    "public",
+    "inhouse"
+   ],
+   "credential": "completion",
+   "language": "English",
+   "price": {
+    "public": 4500000,
+    "inhouse": 35000000,
+    "selfstudy": 0
+   },
+   "objectives": [],
+   "outline": [],
+   "audience": "",
+   "prereqText": "",
+   "prereqIds": [],
+   "format": [
+    "onsite",
+    "virtual"
+   ],
+   "elearnMedia": [
+    "reading"
+   ],
+   "elearnSupport": [
+    "selfguided"
+   ]
+  },
+  {
+   "id": "crs-fw_m47qbu4-l4",
+   "code": "7301",
+   "title": "ISO 45001 Implementation",
+   "category": "MS",
+   "level": 4,
+   "frameworkId": "fw_m47qbu4",
+   "summary": "Course on implementing ISO 45001.",
+   "active": true,
+   "createdAt": "2026-08-31T09:40:42.646Z",
+   "maxPax": 20,
+   "durationVal": 3,
+   "durationUnit": "day",
+   "cpdHours": 21,
+   "delivery": [
+    "public",
+    "inhouse"
+   ],
+   "credential": "completion",
+   "language": "English",
+   "price": {
+    "public": 6500000,
+    "inhouse": 55000000,
+    "selfstudy": 0
+   },
+   "objectives": [],
+   "outline": [],
+   "audience": "",
+   "prereqText": "",
+   "prereqIds": [],
+   "format": [
+    "onsite",
+    "virtual"
+   ],
+   "elearnMedia": [
+    "reading"
+   ],
+   "elearnSupport": [
+    "selfguided"
+   ]
+  },
+  {
+   "id": "crs-fw_m47qbu4-l5",
+   "code": "7401",
+   "title": "ISO 45001 Audit",
+   "category": "MS",
+   "level": 5,
+   "frameworkId": "fw_m47qbu4",
+   "summary": "Course on auditing ISO 45001.",
+   "active": true,
+   "createdAt": "2026-08-31T09:40:42.646Z",
+   "maxPax": 16,
+   "durationVal": 5,
+   "durationUnit": "day",
+   "cpdHours": 40,
+   "delivery": [
+    "public",
+    "inhouse"
+   ],
+   "credential": "certification",
+   "scheme": "Exemplar Global / IRCA",
+   "language": "English",
+   "price": {
+    "public": 9500000,
+    "inhouse": 85000000,
+    "selfstudy": 0
+   },
+   "objectives": [],
+   "outline": [],
+   "audience": "",
+   "prereqText": "",
+   "prereqIds": [],
+   "format": [
+    "onsite",
+    "virtual"
+   ],
+   "elearnMedia": [
+    "reading"
+   ],
+   "elearnSupport": [
+    "selfguided"
+   ]
+  },
+  {
+   "id": "crs-aw-cd-isp",
+   "code": "7102",
+   "title": "Information Security and Privacy Awareness",
+   "category": "MS",
+   "level": 2,
+   "disciplineId": "cd-isp",
+   "summary": "Awareness of the information security and privacy discipline and the standards within it.",
+   "active": true,
+   "createdAt": "2026-08-31T09:40:42.646Z",
+   "maxPax": 30,
+   "durationVal": 1,
+   "durationUnit": "day",
+   "cpdHours": 7,
+   "delivery": [
+    "public",
+    "inhouse",
+    "selfstudy"
+   ],
+   "credential": "attendance",
+   "language": "English",
+   "price": {
+    "public": 2500000,
+    "inhouse": 18000000,
+    "selfstudy": 1200000
+   },
+   "objectives": [],
+   "outline": [],
+   "audience": "",
+   "prereqText": "",
+   "prereqIds": [],
+   "format": [
+    "onsite",
+    "virtual"
+   ],
+   "elearnMedia": [
+    "reading"
+   ],
+   "elearnSupport": [
+    "selfguided"
+   ]
+  },
+  {
+   "id": "crs-fw_a2qeo46-l3",
+   "code": "7202",
+   "title": "ISO/IEC 27001 Requirements",
+   "category": "MS",
+   "level": 3,
+   "frameworkId": "fw_a2qeo46",
+   "summary": "Course on the requirements of ISO/IEC 27001.",
+   "active": true,
+   "createdAt": "2026-08-31T09:40:42.646Z",
+   "maxPax": 25,
+   "durationVal": 2,
+   "durationUnit": "day",
+   "cpdHours": 14,
+   "delivery": [
+    "public",
+    "inhouse"
+   ],
+   "credential": "completion",
+   "language": "English",
+   "price": {
+    "public": 4500000,
+    "inhouse": 35000000,
+    "selfstudy": 0
+   },
+   "objectives": [],
+   "outline": [],
+   "audience": "",
+   "prereqText": "",
+   "prereqIds": [],
+   "format": [
+    "onsite",
+    "virtual"
+   ],
+   "elearnMedia": [
+    "reading"
+   ],
+   "elearnSupport": [
+    "selfguided"
+   ]
+  },
+  {
+   "id": "crs-fw_a2qeo46-l4",
+   "code": "7302",
+   "title": "ISO/IEC 27001 Implementation",
+   "category": "MS",
+   "level": 4,
+   "frameworkId": "fw_a2qeo46",
+   "summary": "Course on implementing ISO/IEC 27001.",
+   "active": true,
+   "createdAt": "2026-08-31T09:40:42.646Z",
+   "maxPax": 20,
+   "durationVal": 3,
+   "durationUnit": "day",
+   "cpdHours": 21,
+   "delivery": [
+    "public",
+    "inhouse"
+   ],
+   "credential": "completion",
+   "language": "English",
+   "price": {
+    "public": 6500000,
+    "inhouse": 55000000,
+    "selfstudy": 0
+   },
+   "objectives": [],
+   "outline": [],
+   "audience": "",
+   "prereqText": "",
+   "prereqIds": [],
+   "format": [
+    "onsite",
+    "virtual"
+   ],
+   "elearnMedia": [
+    "reading"
+   ],
+   "elearnSupport": [
+    "selfguided"
+   ]
+  },
+  {
+   "id": "crs-fw_a2qeo46-l5",
+   "code": "7402",
+   "title": "ISO/IEC 27001 Audit",
+   "category": "MS",
+   "level": 5,
+   "frameworkId": "fw_a2qeo46",
+   "summary": "Course on auditing ISO/IEC 27001.",
+   "active": true,
+   "createdAt": "2026-08-31T09:40:42.646Z",
+   "maxPax": 16,
+   "durationVal": 5,
+   "durationUnit": "day",
+   "cpdHours": 40,
+   "delivery": [
+    "public",
+    "inhouse"
+   ],
+   "credential": "certification",
+   "scheme": "Exemplar Global / IRCA",
+   "language": "English",
+   "price": {
+    "public": 9500000,
+    "inhouse": 85000000,
+    "selfstudy": 0
+   },
+   "objectives": [],
+   "outline": [],
+   "audience": "",
+   "prereqText": "",
+   "prereqIds": [],
+   "format": [
+    "onsite",
+    "virtual"
+   ],
+   "elearnMedia": [
+    "reading"
+   ],
+   "elearnSupport": [
+    "selfguided"
+   ]
+  },
+  {
+   "id": "crs-fw_jl2ypan-l3",
+   "code": "7203",
+   "title": "ISO/IEC 27701 Requirements",
+   "category": "MS",
+   "level": 3,
+   "frameworkId": "fw_jl2ypan",
+   "summary": "Course on the requirements of ISO/IEC 27701.",
+   "active": true,
+   "createdAt": "2026-08-31T09:40:42.646Z",
+   "maxPax": 25,
+   "durationVal": 2,
+   "durationUnit": "day",
+   "cpdHours": 14,
+   "delivery": [
+    "public",
+    "inhouse"
+   ],
+   "credential": "completion",
+   "language": "English",
+   "price": {
+    "public": 4500000,
+    "inhouse": 35000000,
+    "selfstudy": 0
+   },
+   "objectives": [],
+   "outline": [],
+   "audience": "",
+   "prereqText": "",
+   "prereqIds": [],
+   "format": [
+    "onsite",
+    "virtual"
+   ],
+   "elearnMedia": [
+    "reading"
+   ],
+   "elearnSupport": [
+    "selfguided"
+   ]
+  },
+  {
+   "id": "crs-fw_jl2ypan-l4",
+   "code": "7303",
+   "title": "ISO/IEC 27701 Implementation",
+   "category": "MS",
+   "level": 4,
+   "frameworkId": "fw_jl2ypan",
+   "summary": "Course on implementing ISO/IEC 27701.",
+   "active": true,
+   "createdAt": "2026-08-31T09:40:42.646Z",
+   "maxPax": 20,
+   "durationVal": 3,
+   "durationUnit": "day",
+   "cpdHours": 21,
+   "delivery": [
+    "public",
+    "inhouse"
+   ],
+   "credential": "completion",
+   "language": "English",
+   "price": {
+    "public": 6500000,
+    "inhouse": 55000000,
+    "selfstudy": 0
+   },
+   "objectives": [],
+   "outline": [],
+   "audience": "",
+   "prereqText": "",
+   "prereqIds": [],
+   "format": [
+    "onsite",
+    "virtual"
+   ],
+   "elearnMedia": [
+    "reading"
+   ],
+   "elearnSupport": [
+    "selfguided"
+   ]
+  },
+  {
+   "id": "crs-fw_jl2ypan-l5",
+   "code": "7403",
+   "title": "ISO/IEC 27701 Audit",
+   "category": "MS",
+   "level": 5,
+   "frameworkId": "fw_jl2ypan",
+   "summary": "Course on auditing ISO/IEC 27701.",
+   "active": true,
+   "createdAt": "2026-08-31T09:40:42.646Z",
+   "maxPax": 16,
+   "durationVal": 5,
+   "durationUnit": "day",
+   "cpdHours": 40,
+   "delivery": [
+    "public",
+    "inhouse"
+   ],
+   "credential": "certification",
+   "scheme": "Exemplar Global / IRCA",
+   "language": "English",
+   "price": {
+    "public": 9500000,
+    "inhouse": 85000000,
+    "selfstudy": 0
+   },
+   "objectives": [],
+   "outline": [],
+   "audience": "",
+   "prereqText": "",
+   "prereqIds": [],
+   "format": [
+    "onsite",
+    "virtual"
+   ],
+   "elearnMedia": [
+    "reading"
+   ],
+   "elearnSupport": [
+    "selfguided"
+   ]
+  }
+ ]
+}

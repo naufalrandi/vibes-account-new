@@ -1,0 +1,55 @@
+{
+ "count": 2,
+ "fields": [
+  "id",
+  "requester",
+  "type",
+  "start",
+  "end",
+  "reason",
+  "status",
+  "createdAt",
+  "activity",
+  "days"
+ ],
+ "sample": [
+  {
+   "id": "LV-4001",
+   "requester": "Peter Benjamin Parker",
+   "type": "Annual",
+   "start": "2026-07-20",
+   "end": "2026-07-24",
+   "reason": "",
+   "status": "Pending Approval",
+   "createdAt": "2026-08-31T09:41:51.044Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:41:51.044Z",
+     "user": "Peter Benjamin Parker",
+     "action": "submitted",
+     "summary": "Annual"
+    }
+   ],
+   "days": 5
+  },
+  {
+   "id": "LV-4002",
+   "requester": "Cindy Moon",
+   "type": "Sick",
+   "start": "2026-07-08",
+   "end": "2026-07-09",
+   "reason": "",
+   "status": "Approved",
+   "createdAt": "2026-08-31T09:41:51.047Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:41:51.047Z",
+     "user": "Cindy Moon",
+     "action": "submitted",
+     "summary": "Sick"
+    }
+   ],
+   "days": 2
+  }
+ ]
+}

@@ -1,0 +1,61 @@
+{
+ "count": 3,
+ "fields": [
+  "id",
+  "roleName",
+  "title",
+  "department",
+  "type",
+  "site",
+  "headcount",
+  "visibility",
+  "status",
+  "openedDate",
+  "link",
+  "description"
+ ],
+ "sample": [
+  {
+   "id": "JOB-1001",
+   "roleName": "Internal Auditor",
+   "title": "Internal Auditor",
+   "department": "Quality",
+   "type": "Permanent",
+   "site": "AXIA HQ",
+   "headcount": 1,
+   "visibility": "Public",
+   "status": "Open",
+   "openedDate": "2026-06-02",
+   "link": "axia.io/careers/internal-auditor",
+   "description": "Conduct internal audits across the management system; ISO 19011 competence required."
+  },
+  {
+   "id": "JOB-1002",
+   "roleName": "Support Specialist",
+   "title": "Technical Support Specialist",
+   "department": "Support",
+   "type": "Fixed Duration",
+   "site": "AXIA HQ",
+   "headcount": 2,
+   "visibility": "Public",
+   "status": "Open",
+   "openedDate": "2026-06-06",
+   "link": "axia.io/careers/support-specialist",
+   "description": "Tier-1/2 customer support for the platform; 12-month contract."
+  },
+  {
+   "id": "JOB-1003",
+   "roleName": "Cloud Security Consultant",
+   "title": "Cloud Security Consultant (Contract)",
+   "department": "Security",
+   "type": "Contractor",
+   "site": "Remote",
+   "headcount": 1,
+   "visibility": "Private link",
+   "status": "Open",
+   "openedDate": "2026-06-10",
+   "link": "axia.io/apply/x7f2a9",
+   "description": "Individual contractor for a cloud security review engagement."
+  }
+ ]
+}

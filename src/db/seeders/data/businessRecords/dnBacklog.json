@@ -1,0 +1,68 @@
+{
+ "count": 6,
+ "fields": [
+  "id",
+  "projectId",
+  "kind",
+  "title",
+  "priority",
+  "status",
+  "createdAt"
+ ],
+ "sample": [
+  {
+   "id": "BL-0001",
+   "projectId": "SD-0001",
+   "kind": "Feature",
+   "title": "Seller onboarding flow",
+   "priority": "High",
+   "status": "In Progress",
+   "createdAt": "2026-08-28T09:41:59.589Z"
+  },
+  {
+   "id": "BL-0002",
+   "projectId": "SD-0001",
+   "kind": "Feature",
+   "title": "Payment gateway (Midtrans) integration",
+   "priority": "High",
+   "status": "Todo",
+   "createdAt": "2026-08-28T09:41:59.589Z"
+  },
+  {
+   "id": "BL-0003",
+   "projectId": "SD-0001",
+   "kind": "Bug",
+   "title": "Cart total miscalculates with promo",
+   "priority": "Medium",
+   "status": "In Progress",
+   "createdAt": "2026-08-28T09:41:59.589Z"
+  },
+  {
+   "id": "BL-0004",
+   "projectId": "SD-0002",
+   "kind": "Bug",
+   "title": "Push notifications not firing on iOS",
+   "priority": "High",
+   "status": "In Progress",
+   "createdAt": "2026-08-28T09:41:59.589Z"
+  },
+  {
+   "id": "BL-0005",
+   "projectId": "SD-0002",
+   "kind": "Feature",
+   "title": "Reschedule appointment",
+   "priority": "Medium",
+   "status": "Done",
+   "createdAt": "2026-08-28T09:41:59.589Z"
+  },
+  {
+   "id": "BL-0006",
+   "projectId": "SD-0003",
+   "kind": "Feature",
+   "title": "Live driver ETA on map",
+   "priority": "Medium",
+   "status": "Done",
+   "createdAt": "2026-08-28T09:41:59.589Z"
+  }
+ ]
+}

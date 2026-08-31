@@ -1,0 +1,452 @@
+{
+ "count": 9,
+ "fields": [
+  "id",
+  "inqId",
+  "leadId",
+  "leadName",
+  "service",
+  "serviceName",
+  "variant",
+  "currency",
+  "items",
+  "discount",
+  "taxPct",
+  "validUntil",
+  "notes",
+  "status",
+  "createdAt",
+  "activity",
+  "contractTypeId",
+  "termIds",
+  "co"
+ ],
+ "sample": [
+  {
+   "id": "PRO-4001",
+   "inqId": "INQ-3003",
+   "leadId": "LD-2003",
+   "leadName": "Garuda Tech Solutions",
+   "service": "comp",
+   "serviceName": "Competence Development",
+   "variant": "Personnel certification",
+   "currency": "IDR",
+   "items": [
+    {
+     "id": "pimth1spzh4295",
+     "desc": "ISO 27001 Lead Implementer — certification (PECB)",
+     "qty": 6,
+     "unit": 9500000
+    },
+    {
+     "id": "pimth1spzh9595",
+     "desc": "Exam & certification fees",
+     "qty": 6,
+     "unit": 3500000
+    }
+   ],
+   "discount": 5000000,
+   "taxPct": 11,
+   "validUntil": "2026-08-31",
+   "notes": "Group rate for 6 participants, virtual delivery.",
+   "status": "Sent",
+   "createdAt": "2026-08-31T09:40:42.506Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.506Z",
+     "user": "System",
+     "action": "proposal created",
+     "summary": ""
+    },
+    {
+     "ts": "2026-08-31T09:40:42.506Z",
+     "user": "System",
+     "action": "sent proposal",
+     "summary": ""
+    }
+   ],
+   "contractTypeId": "ct-svc-training",
+   "termIds": [
+    "cl-svc-scope",
+    "cl-svc-deliv",
+    "cl-svc-fees",
+    "cl-svc-term",
+    "cl-common-conf",
+    "cl-common-law"
+   ]
+  },
+  {
+   "id": "PRO-4002",
+   "inqId": "INQ-3004",
+   "leadId": "LD-2003",
+   "leadName": "Garuda Tech Solutions",
+   "service": "impl",
+   "serviceName": "Framework Implementation",
+   "variant": "Full Consultancy",
+   "currency": "IDR",
+   "items": [
+    {
+     "id": "pimth1sq187528",
+     "desc": "ISO 27001 implementation consultancy",
+     "qty": 1,
+     "unit": 185000000
+    },
+    {
+     "id": "pimth1sq18718",
+     "desc": "Internal auditor training (5 pax)",
+     "qty": 5,
+     "unit": 4500000
+    }
+   ],
+   "discount": 0,
+   "taxPct": 11,
+   "validUntil": "2026-07-31",
+   "notes": "",
+   "status": "Accepted",
+   "createdAt": "2026-08-31T09:40:42.571Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.571Z",
+     "user": "System",
+     "action": "proposal created",
+     "summary": ""
+    },
+    {
+     "ts": "2026-08-31T09:40:42.571Z",
+     "user": "System",
+     "action": "proposal accepted",
+     "summary": ""
+    }
+   ],
+   "contractTypeId": "ct-svc-consult",
+   "termIds": [
+    "cl-svc-scope",
+    "cl-svc-deliv",
+    "cl-svc-fees",
+    "cl-svc-term",
+    "cl-svc-ip",
+    "cl-common-conf",
+    "cl-common-law"
+   ]
+  },
+  {
+   "id": "PRO-4210",
+   "inqId": "INQ-3210",
+   "leadId": "LD-3201",
+   "leadName": "PT Andalan Karya Nusantara",
+   "variant": "In-house training",
+   "currency": "IDR",
+   "items": [
+    {
+     "id": "pimth1sqz73147",
+     "courseId": "crs-found",
+     "courseCode": "7001",
+     "desc": "Management System Essentials (ISO Foundation)",
+     "qty": 12,
+     "unit": 1500000
+    }
+   ],
+   "validUntil": "2026-09-30",
+   "notes": "In-house, 12 pax.",
+   "status": "Accepted",
+   "co": "exelera",
+   "service": "comp",
+   "serviceName": "Competence Development",
+   "createdAt": "2026-08-31T09:40:43.793Z",
+   "taxPct": 11,
+   "discount": 0,
+   "contractTypeId": "ct-svc-training",
+   "termIds": [
+    "cl-svc-scope",
+    "cl-svc-deliv",
+    "cl-svc-fees",
+    "cl-svc-term",
+    "cl-common-conf",
+    "cl-common-law"
+   ],
+   "activity": [
+    {
+     "ts": "2026-08-31T09:41:45.000Z",
+     "user": "System",
+     "action": "proposal accepted",
+     "summary": ""
+    },
+    {
+     "ts": "2026-08-31T09:40:43.793Z",
+     "user": "System",
+     "action": "proposal created",
+     "summary": ""
+    }
+   ]
+  },
+  {
+   "id": "PRO-4211",
+   "inqId": "INQ-3211",
+   "leadId": "LD-3202",
+   "leadName": "Sentra Medika Group",
+   "variant": "Public training",
+   "currency": "IDR",
+   "items": [
+    {
+     "id": "pimth1sqza4220",
+     "courseId": "crs-aw-cd-qs",
+     "courseCode": "7101",
+     "desc": "Quality and Safety Awareness",
+     "qty": 3,
+     "unit": 2500000
+    }
+   ],
+   "validUntil": "2026-10-31",
+   "notes": "3 seats, public batch.",
+   "status": "Accepted",
+   "co": "exelera",
+   "service": "comp",
+   "serviceName": "Competence Development",
+   "createdAt": "2026-08-31T09:40:43.793Z",
+   "taxPct": 11,
+   "discount": 0,
+   "contractTypeId": "ct-svc-training",
+   "termIds": [
+    "cl-svc-scope",
+    "cl-svc-deliv",
+    "cl-svc-fees",
+    "cl-svc-term",
+    "cl-common-conf",
+    "cl-common-law"
+   ],
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:43.793Z",
+     "user": "System",
+     "action": "proposal created",
+     "summary": ""
+    }
+   ]
+  },
+  {
+   "id": "PRO-4212",
+   "co": "exelera",
+   "inqId": "INQ-3201",
+   "leadId": "LD-9001",
+   "leadName": "PT Nusa Prima Energi",
+   "service": "cert",
+   "serviceName": "Certification (ISO/IEC 17021)",
+   "variant": "Initial Certification",
+   "currency": "IDR",
+   "items": [
+    {
+     "id": "pimth1sugt1225",
+     "desc": "Initial certification audit (Stage 1 + Stage 2)",
+     "qty": 14,
+     "unit": 8000000
+    },
+    {
+     "id": "pimth1sugt9212",
+     "desc": "Surveillance audit 1",
+     "qty": 4.5,
+     "unit": 8000000
+    },
+    {
+     "id": "pimth1sugt7736",
+     "desc": "Surveillance audit 2",
+     "qty": 4.5,
+     "unit": 8000000
+    }
+   ],
+   "discount": 0,
+   "taxPct": 11,
+   "validUntil": "",
+   "notes": "Audit time: IA 14 + SA 4.5×2 = 23 md @ IDR 8,000,000/md (MD5, IMS +55%/standard).",
+   "status": "Submitted",
+   "contractTypeId": "ct-svc-audit",
+   "termIds": [
+    "cl-svc-scope",
+    "cl-svc-fees",
+    "cl-svc-term",
+    "cl-svc-liab",
+    "cl-common-conf",
+    "cl-common-law"
+   ],
+   "createdAt": "2026-08-31T09:40:48.314Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:48.314Z",
+     "user": "Sales",
+     "action": "proposal created (auto-priced)",
+     "summary": "23 md"
+    },
+    {
+     "ts": "2026-08-31T09:40:48.314Z",
+     "user": "Sales Manager",
+     "action": "Sales Manager approved · issued to client",
+     "summary": ""
+    }
+   ]
+  },
+  {
+   "id": "PRO-4213",
+   "inqId": "INQ-3007",
+   "leadId": "LD-2101",
+   "leadName": "",
+   "service": "impl",
+   "serviceName": "Framework Implementation",
+   "variant": "Facilitated (client-led)",
+   "contractTypeId": "ct-svc-consult",
+   "termIds": [
+    "cl-svc-scope",
+    "cl-svc-deliv",
+    "cl-svc-fees",
+    "cl-svc-term",
+    "cl-svc-ip",
+    "cl-common-conf",
+    "cl-common-law"
+   ],
+   "currency": "IDR",
+   "items": [
+    {
+     "id": "pimth1tzev665",
+     "desc": "Framework Implementation — Facilitated (client-led)",
+     "qty": 1,
+     "unit": 165000000
+    }
+   ],
+   "discount": 0,
+   "taxPct": 11,
+   "validUntil": "",
+   "notes": "",
+   "status": "Sent",
+   "createdAt": "2026-08-31T09:41:41.382Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:41:41.382Z",
+     "user": "System",
+     "action": "proposal created",
+     "summary": ""
+    }
+   ]
+  },
+  {
+   "id": "PRO-4214",
+   "inqId": "INQ-3008",
+   "leadId": "LD-2102",
+   "leadName": "",
+   "service": "comp",
+   "serviceName": "Competence Development",
+   "variant": "Personnel certification",
+   "contractTypeId": "ct-svc-training",
+   "termIds": [
+    "cl-svc-scope",
+    "cl-svc-deliv",
+    "cl-svc-fees",
+    "cl-svc-term",
+    "cl-common-conf",
+    "cl-common-law"
+   ],
+   "currency": "IDR",
+   "items": [
+    {
+     "id": "pimth1tzev3870",
+     "desc": "Competence Development — Personnel certification",
+     "qty": 4,
+     "unit": 6500000
+    }
+   ],
+   "discount": 0,
+   "taxPct": 11,
+   "validUntil": "",
+   "notes": "",
+   "status": "Accepted",
+   "createdAt": "2026-08-31T09:41:41.382Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:41:41.382Z",
+     "user": "System",
+     "action": "proposal created",
+     "summary": ""
+    }
+   ]
+  },
+  {
+   "id": "PRO-4215",
+   "inqId": "INQ-3010",
+   "leadId": "LD-2004",
+   "leadName": "",
+   "service": "comp",
+   "serviceName": "Competence Development",
+   "variant": "In-house training",
+   "contractTypeId": "ct-svc-training",
+   "termIds": [
+    "cl-svc-scope",
+    "cl-svc-deliv",
+    "cl-svc-fees",
+    "cl-svc-term",
+    "cl-common-conf",
+    "cl-common-law"
+   ],
+   "currency": "IDR",
+   "items": [
+    {
+     "id": "pimth1tzev2109",
+     "desc": "Competence Development — In-house training",
+     "qty": 12,
+     "unit": 6500000
+    }
+   ],
+   "discount": 0,
+   "taxPct": 11,
+   "validUntil": "",
+   "notes": "",
+   "status": "Accepted",
+   "createdAt": "2026-08-31T09:41:41.382Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:41:41.382Z",
+     "user": "System",
+     "action": "proposal created",
+     "summary": ""
+    }
+   ]
+  },
+  {
+   "id": "PRO-4216",
+   "inqId": "INQ-3013",
+   "leadId": "LD-2002",
+   "leadName": "Nusantara Logistics",
+   "service": "comp",
+   "serviceName": "Competence Development",
+   "variant": "Public training",
+   "contractTypeId": "ct-svc-training",
+   "termIds": [
+    "cl-svc-scope",
+    "cl-svc-deliv",
+    "cl-svc-fees",
+    "cl-svc-term",
+    "cl-common-conf",
+    "cl-common-law"
+   ],
+   "currency": "IDR",
+   "items": [
+    {
+     "id": "pimth1tzev5433",
+     "desc": "Competence Development — Public training",
+     "qty": 20,
+     "unit": 6500000
+    }
+   ],
+   "discount": 0,
+   "taxPct": 11,
+   "validUntil": "",
+   "notes": "",
+   "status": "Sent",
+   "createdAt": "2026-08-31T09:41:41.382Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:41:41.382Z",
+     "user": "System",
+     "action": "proposal created",
+     "summary": ""
+    }
+   ]
+  }
+ ]
+}

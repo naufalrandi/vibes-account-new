@@ -1,0 +1,53 @@
+{
+ "count": 3,
+ "fields": [
+  "id",
+  "clientId",
+  "name",
+  "type",
+  "stack",
+  "status",
+  "progress",
+  "start",
+  "target",
+  "createdAt"
+ ],
+ "sample": [
+  {
+   "id": "SD-0001",
+   "clientId": "DNC-0002",
+   "name": "Marketplace Platform Rebuild",
+   "type": "Web",
+   "stack": "Next.js · Node · PostgreSQL",
+   "status": "Build",
+   "progress": 55,
+   "start": "2026-06-02T09:41:59.589Z",
+   "target": "2026-10-30T09:41:59.589Z",
+   "createdAt": "2026-06-02T09:41:59.589Z"
+  },
+  {
+   "id": "SD-0002",
+   "clientId": "DNC-0004",
+   "name": "Clinic Booking Mobile App",
+   "type": "Mobile",
+   "stack": "Flutter · Firebase",
+   "status": "UAT",
+   "progress": 85,
+   "start": "2026-05-03T09:41:59.589Z",
+   "target": "2026-09-15T09:41:59.589Z",
+   "createdAt": "2026-05-03T09:41:59.589Z"
+  },
+  {
+   "id": "SD-0003",
+   "clientId": "DNC-0005",
+   "name": "Fleet & Delivery Tracking",
+   "type": "Web",
+   "stack": "React · Go · PostGIS",
+   "status": "Live",
+   "progress": 100,
+   "start": "2026-01-03T09:41:59.589Z",
+   "target": "2026-08-01T09:41:59.589Z",
+   "createdAt": "2026-01-03T09:41:59.589Z"
+  }
+ ]
+}

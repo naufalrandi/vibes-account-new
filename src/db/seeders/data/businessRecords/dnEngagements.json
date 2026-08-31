@@ -1,0 +1,53 @@
+{
+ "count": 3,
+ "fields": [
+  "id",
+  "clientId",
+  "name",
+  "testType",
+  "scope",
+  "status",
+  "start",
+  "end",
+  "value",
+  "createdAt"
+ ],
+ "sample": [
+  {
+   "id": "PT-0001",
+   "clientId": "DNC-0001",
+   "name": "Mobile Banking App Assessment",
+   "testType": "Mobile / API",
+   "scope": "",
+   "status": "Testing",
+   "start": "2026-08-25T09:41:59.586Z",
+   "end": "2026-09-08T09:41:59.586Z",
+   "value": 0,
+   "createdAt": "2026-08-25T09:41:59.586Z"
+  },
+  {
+   "id": "PT-0002",
+   "clientId": "DNC-0003",
+   "name": "Government Network Infrastructure",
+   "testType": "Network",
+   "scope": "",
+   "status": "Reporting",
+   "start": "2026-08-11T09:41:59.586Z",
+   "end": "2026-08-28T09:41:59.586Z",
+   "value": 0,
+   "createdAt": "2026-08-11T09:41:59.586Z"
+  },
+  {
+   "id": "PT-0003",
+   "clientId": "DNC-0002",
+   "name": "Marketplace Web Application",
+   "testType": "Web App",
+   "scope": "",
+   "status": "Retest",
+   "start": "2026-07-27T09:41:59.586Z",
+   "end": "2026-08-21T09:41:59.586Z",
+   "value": 0,
+   "createdAt": "2026-07-27T09:41:59.587Z"
+  }
+ ]
+}

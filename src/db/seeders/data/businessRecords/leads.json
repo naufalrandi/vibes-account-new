@@ -1,0 +1,2072 @@
+{
+ "count": 17,
+ "fields": [
+  "id",
+  "company",
+  "contact",
+  "email",
+  "phone",
+  "source",
+  "industry",
+  "status",
+  "owner",
+  "createdAt",
+  "activity",
+  "country",
+  "city",
+  "contacts",
+  "locations",
+  "processes",
+  "workUnits",
+  "co",
+  "tenantId",
+  "legal"
+ ],
+ "sample": [
+  {
+   "id": "LD-2001",
+   "company": "PT Sinar Jaya Manufaktur",
+   "contact": "Andi Wijaya",
+   "email": "andi@sinarjaya.co.id",
+   "phone": "+62 811 3001",
+   "source": "Website",
+   "industry": "Manufacturing",
+   "status": "Qualified",
+   "owner": "System",
+   "createdAt": "2026-08-31T09:40:42.251Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.251Z",
+     "user": "System",
+     "action": "created",
+     "summary": ""
+    }
+   ],
+   "country": "ID",
+   "city": "Bekasi",
+   "contacts": [
+    {
+     "id": "lcmth1sthj3087",
+     "name": "Andi Wijaya",
+     "role": "Primary contact",
+     "email": "andi@sinarjaya.co.id",
+     "phone": "+62 811 3001",
+     "primary": true,
+     "billing": true
+    }
+   ],
+   "locations": [
+    {
+     "id": "llmth1sthj6800",
+     "label": "Head office",
+     "country": "ID",
+     "city": "Bekasi",
+     "address": "",
+     "primary": true
+    }
+   ],
+   "processes": [],
+   "workUnits": [
+    {
+     "id": "lwumth1stlt3384",
+     "name": "Operations",
+     "pic": "Andi Wijaya",
+     "locationId": "llmth1sthj6800",
+     "desc": "",
+     "processes": [
+      "BPC-1027",
+      "BPC-1028",
+      "BPC-1031"
+     ]
+    },
+    {
+     "id": "lwumth1stlz9228",
+     "name": "Human Resources",
+     "pic": "Andi Wijaya",
+     "locationId": "llmth1sthj6800",
+     "desc": "",
+     "processes": [
+      "BPC-1045",
+      "BPC-1046",
+      "BPC-1047",
+      "BPC-1048"
+     ]
+    },
+    {
+     "id": "lwumth1stlz9818",
+     "name": "Finance & Accounting",
+     "pic": "Andi Wijaya",
+     "locationId": "llmth1sthj6800",
+     "desc": "",
+     "processes": [
+      "BPC-1051",
+      "BPC-1052",
+      "BPC-1053",
+      "BPC-1054"
+     ]
+    },
+    {
+     "id": "lwumth1stlz4677",
+     "name": "Quality & Compliance",
+     "pic": "Andi Wijaya",
+     "locationId": "llmth1sthj6800",
+     "desc": "",
+     "processes": [
+      "BPC-1021",
+      "BPC-1024",
+      "BPC-1020",
+      "BPC-1022"
+     ]
+    },
+    {
+     "id": "lwumth1stlz8228",
+     "name": "Procurement & Supply Chain",
+     "pic": "Andi Wijaya",
+     "locationId": "llmth1sthj6800",
+     "desc": "",
+     "processes": [
+      "BPC-1040",
+      "BPC-1041",
+      "BPC-1042",
+      "BPC-1043"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "LD-2002",
+   "company": "Nusantara Logistics",
+   "contact": "Bella Sari",
+   "email": "bella@nusalog.co.id",
+   "phone": "+62 811 3002",
+   "source": "Referral",
+   "industry": "Logistics",
+   "status": "Qualifying",
+   "owner": "System",
+   "createdAt": "2026-08-31T09:40:42.251Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.251Z",
+     "user": "System",
+     "action": "created",
+     "summary": ""
+    }
+   ],
+   "country": "ID",
+   "city": "Surabaya",
+   "contacts": [
+    {
+     "id": "lcmth1stlz2049",
+     "name": "Bella Sari",
+     "role": "Primary contact",
+     "email": "bella@nusalog.co.id",
+     "phone": "+62 811 3002",
+     "primary": true,
+     "billing": true
+    }
+   ],
+   "locations": [
+    {
+     "id": "llmth1stlz9276",
+     "label": "Head office",
+     "country": "ID",
+     "city": "Surabaya",
+     "address": "",
+     "primary": true
+    }
+   ],
+   "processes": [],
+   "workUnits": [
+    {
+     "id": "lwumth1stna7925",
+     "name": "Operations",
+     "pic": "Bella Sari",
+     "locationId": "llmth1stlz9276",
+     "desc": "",
+     "processes": [
+      "BPC-1027",
+      "BPC-1028",
+      "BPC-1031"
+     ]
+    },
+    {
+     "id": "lwumth1stna8296",
+     "name": "Human Resources",
+     "pic": "Bella Sari",
+     "locationId": "llmth1stlz9276",
+     "desc": "",
+     "processes": [
+      "BPC-1045",
+      "BPC-1046",
+      "BPC-1047",
+      "BPC-1048"
+     ]
+    },
+    {
+     "id": "lwumth1stna3546",
+     "name": "Finance & Accounting",
+     "pic": "Bella Sari",
+     "locationId": "llmth1stlz9276",
+     "desc": "",
+     "processes": [
+      "BPC-1051",
+      "BPC-1052",
+      "BPC-1053",
+      "BPC-1054"
+     ]
+    },
+    {
+     "id": "lwumth1stna4160",
+     "name": "Quality & Compliance",
+     "pic": "Bella Sari",
+     "locationId": "llmth1stlz9276",
+     "desc": "",
+     "processes": [
+      "BPC-1021",
+      "BPC-1024",
+      "BPC-1020",
+      "BPC-1022"
+     ]
+    },
+    {
+     "id": "lwumth1stnb8794",
+     "name": "Logistics & Warehousing",
+     "pic": "Bella Sari",
+     "locationId": "llmth1stlz9276",
+     "desc": "",
+     "processes": [
+      "BPC-1043",
+      "BPC-1042",
+      "BPC-1044"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "LD-2003",
+   "company": "Garuda Tech Solutions",
+   "contact": "Citra Dewi",
+   "email": "citra@garudatech.io",
+   "phone": "+62 811 3003",
+   "source": "Event",
+   "industry": "Technology",
+   "status": "Customer",
+   "owner": "System",
+   "createdAt": "2026-08-31T09:40:42.251Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.251Z",
+     "user": "System",
+     "action": "created",
+     "summary": ""
+    }
+   ],
+   "country": "ID",
+   "city": "Jakarta",
+   "workUnits": [
+    {
+     "id": "lwumth1st3p664",
+     "name": "Software Development",
+     "desc": "Product engineering and delivery.",
+     "processes": [
+      "BPC-1001",
+      "BPC-1002",
+      "BPC-1006",
+      "BPC-1007"
+     ]
+    },
+    {
+     "id": "lwumth1st3p5525",
+     "name": "Information Security",
+     "desc": "ISMS operations and monitoring.",
+     "processes": [
+      "BPC-1015",
+      "BPC-1014",
+      "BPC-1017",
+      "BPC-1016"
+     ]
+    },
+    {
+     "id": "lwumth1st3q1278",
+     "name": "Finance & HR",
+     "desc": "Corporate support functions.",
+     "processes": [
+      "BPC-1051",
+      "BPC-1052",
+      "BPC-1048"
+     ]
+    }
+   ],
+   "contacts": [
+    {
+     "id": "lcmth1sub06219",
+     "name": "Citra Dewi",
+     "role": "Primary contact",
+     "email": "citra@garudatech.io",
+     "phone": "+62 811 3003",
+     "primary": true,
+     "billing": true
+    }
+   ],
+   "locations": [
+    {
+     "id": "llmth1sub08020",
+     "label": "Head office",
+     "country": "ID",
+     "city": "Jakarta",
+     "address": "",
+     "primary": true
+    }
+   ],
+   "processes": []
+  },
+  {
+   "id": "LD-3201",
+   "company": "PT Andalan Karya Nusantara",
+   "contact": "Hendra Gunawan",
+   "email": "hendra@andalankarya.co.id",
+   "phone": "+62 21 5550 3201",
+   "source": "Website",
+   "industry": "Manufacturing",
+   "status": "Qualified",
+   "country": "ID",
+   "city": "Bekasi",
+   "co": "exelera",
+   "owner": "System",
+   "createdAt": "2026-08-31T09:40:43.383Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:43.383Z",
+     "user": "System",
+     "action": "created",
+     "summary": ""
+    }
+   ],
+   "contacts": [
+    {
+     "id": "lcmth1stnb2833",
+     "name": "Hendra Gunawan",
+     "role": "Primary contact",
+     "email": "hendra@andalankarya.co.id",
+     "phone": "+62 21 5550 3201",
+     "primary": true,
+     "billing": true
+    }
+   ],
+   "locations": [
+    {
+     "id": "llmth1stnb3430",
+     "label": "Head office",
+     "country": "ID",
+     "city": "Bekasi",
+     "address": "",
+     "primary": true
+    }
+   ],
+   "processes": [],
+   "workUnits": [
+    {
+     "id": "lwumth1stps5944",
+     "name": "Operations",
+     "pic": "Hendra Gunawan",
+     "locationId": "llmth1stnb3430",
+     "desc": "",
+     "processes": [
+      "BPC-1027",
+      "BPC-1028",
+      "BPC-1031"
+     ]
+    },
+    {
+     "id": "lwumth1stpt3154",
+     "name": "Human Resources",
+     "pic": "Hendra Gunawan",
+     "locationId": "llmth1stnb3430",
+     "desc": "",
+     "processes": [
+      "BPC-1045",
+      "BPC-1046",
+      "BPC-1047",
+      "BPC-1048"
+     ]
+    },
+    {
+     "id": "lwumth1stpt7348",
+     "name": "Finance & Accounting",
+     "pic": "Hendra Gunawan",
+     "locationId": "llmth1stnb3430",
+     "desc": "",
+     "processes": [
+      "BPC-1051",
+      "BPC-1052",
+      "BPC-1053",
+      "BPC-1054"
+     ]
+    },
+    {
+     "id": "lwumth1stpt6182",
+     "name": "Quality & Compliance",
+     "pic": "Hendra Gunawan",
+     "locationId": "llmth1stnb3430",
+     "desc": "",
+     "processes": [
+      "BPC-1021",
+      "BPC-1024",
+      "BPC-1020",
+      "BPC-1022"
+     ]
+    },
+    {
+     "id": "lwumth1stpt406",
+     "name": "Procurement & Supply Chain",
+     "pic": "Hendra Gunawan",
+     "locationId": "llmth1stnb3430",
+     "desc": "",
+     "processes": [
+      "BPC-1040",
+      "BPC-1041",
+      "BPC-1042",
+      "BPC-1043"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "LD-3202",
+   "company": "Sentra Medika Group",
+   "contact": "dr. Lidya Wibowo",
+   "email": "lidya@sentramedika.co.id",
+   "phone": "+62 21 5550 3202",
+   "source": "Event",
+   "industry": "Healthcare",
+   "status": "Qualifying",
+   "country": "ID",
+   "city": "Jakarta",
+   "co": "exelera",
+   "owner": "System",
+   "createdAt": "2026-08-31T09:40:43.383Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:43.383Z",
+     "user": "System",
+     "action": "created",
+     "summary": ""
+    }
+   ],
+   "contacts": [
+    {
+     "id": "lcmth1stpu1596",
+     "name": "dr. Lidya Wibowo",
+     "role": "Primary contact",
+     "email": "lidya@sentramedika.co.id",
+     "phone": "+62 21 5550 3202",
+     "primary": true,
+     "billing": true
+    }
+   ],
+   "locations": [
+    {
+     "id": "llmth1stpu40",
+     "label": "Head office",
+     "country": "ID",
+     "city": "Jakarta",
+     "address": "",
+     "primary": true
+    }
+   ],
+   "processes": [],
+   "workUnits": [
+    {
+     "id": "lwumth1stuc9202",
+     "name": "Operations",
+     "pic": "dr. Lidya Wibowo",
+     "locationId": "llmth1stpu40",
+     "desc": "",
+     "processes": [
+      "BPC-1027",
+      "BPC-1028",
+      "BPC-1031"
+     ]
+    },
+    {
+     "id": "lwumth1stuc2836",
+     "name": "Human Resources",
+     "pic": "dr. Lidya Wibowo",
+     "locationId": "llmth1stpu40",
+     "desc": "",
+     "processes": [
+      "BPC-1045",
+      "BPC-1046",
+      "BPC-1047",
+      "BPC-1048"
+     ]
+    },
+    {
+     "id": "lwumth1stuc7340",
+     "name": "Finance & Accounting",
+     "pic": "dr. Lidya Wibowo",
+     "locationId": "llmth1stpu40",
+     "desc": "",
+     "processes": [
+      "BPC-1051",
+      "BPC-1052",
+      "BPC-1053",
+      "BPC-1054"
+     ]
+    },
+    {
+     "id": "lwumth1stuc6859",
+     "name": "Quality & Compliance",
+     "pic": "dr. Lidya Wibowo",
+     "locationId": "llmth1stpu40",
+     "desc": "",
+     "processes": [
+      "BPC-1021",
+      "BPC-1024",
+      "BPC-1020",
+      "BPC-1022"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "LD-3203",
+   "company": "Borneo Energi Persada",
+   "contact": "Yusuf Ramadhan",
+   "email": "yusuf@borneoenergi.co.id",
+   "phone": "+62 542 5550 3203",
+   "source": "Referral",
+   "industry": "Energy",
+   "status": "New",
+   "country": "ID",
+   "city": "Balikpapan",
+   "co": "exelera",
+   "owner": "System",
+   "createdAt": "2026-08-31T09:40:43.383Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:43.383Z",
+     "user": "System",
+     "action": "created",
+     "summary": ""
+    }
+   ],
+   "contacts": [
+    {
+     "id": "lcmth1stuc8775",
+     "name": "Yusuf Ramadhan",
+     "role": "Primary contact",
+     "email": "yusuf@borneoenergi.co.id",
+     "phone": "+62 542 5550 3203",
+     "primary": true,
+     "billing": true
+    }
+   ],
+   "locations": [
+    {
+     "id": "llmth1stuc9889",
+     "label": "Head office",
+     "country": "ID",
+     "city": "Balikpapan",
+     "address": "",
+     "primary": true
+    }
+   ],
+   "processes": [],
+   "workUnits": [
+    {
+     "id": "lwumth1su0i268",
+     "name": "Operations",
+     "pic": "Yusuf Ramadhan",
+     "locationId": "llmth1stuc9889",
+     "desc": "",
+     "processes": [
+      "BPC-1027",
+      "BPC-1028",
+      "BPC-1031"
+     ]
+    },
+    {
+     "id": "lwumth1su0l9101",
+     "name": "Human Resources",
+     "pic": "Yusuf Ramadhan",
+     "locationId": "llmth1stuc9889",
+     "desc": "",
+     "processes": [
+      "BPC-1045",
+      "BPC-1046",
+      "BPC-1047",
+      "BPC-1048"
+     ]
+    },
+    {
+     "id": "lwumth1su0m1401",
+     "name": "Finance & Accounting",
+     "pic": "Yusuf Ramadhan",
+     "locationId": "llmth1stuc9889",
+     "desc": "",
+     "processes": [
+      "BPC-1051",
+      "BPC-1052",
+      "BPC-1053",
+      "BPC-1054"
+     ]
+    },
+    {
+     "id": "lwumth1su0m3837",
+     "name": "Quality & Compliance",
+     "pic": "Yusuf Ramadhan",
+     "locationId": "llmth1stuc9889",
+     "desc": "",
+     "processes": [
+      "BPC-1021",
+      "BPC-1024",
+      "BPC-1020",
+      "BPC-1022"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "LD-3204",
+   "company": "PT Damage Control",
+   "contact": "Janet van Dyne",
+   "email": "janet.dyne@damagecontrol.co.id",
+   "phone": "+62 21 5550 1000",
+   "source": "Tenant",
+   "industry": "",
+   "status": "Customer",
+   "country": "ID",
+   "city": "",
+   "tenantId": "idtn1",
+   "owner": "System",
+   "createdAt": "2026-05-02T03:00:00.000Z",
+   "activity": [
+    {
+     "ts": "2026-05-02T03:00:00.000Z",
+     "user": "System",
+     "action": "linked from tenant",
+     "summary": "TEN-1001"
+    }
+   ],
+   "contacts": [
+    {
+     "id": "lcmth1srf14966",
+     "name": "Janet van Dyne",
+     "role": "Primary contact",
+     "email": "janet.dyne@damagecontrol.co.id",
+     "phone": "+62 21 5550 1000",
+     "primary": true,
+     "billing": true
+    }
+   ],
+   "locations": [
+    {
+     "id": "llmth1srf16794",
+     "label": "Head Office",
+     "country": "ID",
+     "city": "",
+     "address": "",
+     "primary": true,
+     "addressLine": "",
+     "state": "",
+     "postalCode": "",
+     "personnel": []
+    },
+    {
+     "id": "llmth1srf12719",
+     "label": "Bekasi Factory",
+     "country": "ID",
+     "city": "",
+     "address": "",
+     "primary": false,
+     "addressLine": "",
+     "state": "",
+     "postalCode": "",
+     "personnel": []
+    }
+   ],
+   "processes": [],
+   "workUnits": [
+    {
+     "id": "lwumth1su0m411",
+     "name": "Operations",
+     "pic": "Janet van Dyne",
+     "locationId": "llmth1srf16794",
+     "desc": "",
+     "processes": [
+      "BPC-1027",
+      "BPC-1028",
+      "BPC-1031"
+     ]
+    },
+    {
+     "id": "lwumth1su0m9022",
+     "name": "Human Resources",
+     "pic": "Janet van Dyne",
+     "locationId": "llmth1srf16794",
+     "desc": "",
+     "processes": [
+      "BPC-1045",
+      "BPC-1046",
+      "BPC-1047",
+      "BPC-1048"
+     ]
+    },
+    {
+     "id": "lwumth1su0m2530",
+     "name": "Finance & Accounting",
+     "pic": "Janet van Dyne",
+     "locationId": "llmth1srf16794",
+     "desc": "",
+     "processes": [
+      "BPC-1051",
+      "BPC-1052",
+      "BPC-1053",
+      "BPC-1054"
+     ]
+    },
+    {
+     "id": "lwumth1su0m4631",
+     "name": "Quality & Compliance",
+     "pic": "Janet van Dyne",
+     "locationId": "llmth1srf16794",
+     "desc": "",
+     "processes": [
+      "BPC-1021",
+      "BPC-1024",
+      "BPC-1020",
+      "BPC-1022"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "LD-3205",
+   "company": "PT Alchemax",
+   "contact": "Samuel Thomas Wilson",
+   "email": "samuel.wilson@alchemax.co.id",
+   "phone": "+62 31 5550 2000",
+   "source": "Tenant",
+   "industry": "",
+   "status": "Customer",
+   "country": "ID",
+   "city": "",
+   "tenantId": "idtn2",
+   "owner": "System",
+   "createdAt": "2026-05-04T03:00:00.000Z",
+   "activity": [
+    {
+     "ts": "2026-05-04T03:00:00.000Z",
+     "user": "System",
+     "action": "linked from tenant",
+     "summary": "TEN-1002"
+    }
+   ],
+   "contacts": [
+    {
+     "id": "lcmth1srj91412",
+     "name": "Samuel Thomas Wilson",
+     "role": "Primary contact",
+     "email": "samuel.wilson@alchemax.co.id",
+     "phone": "+62 31 5550 2000",
+     "primary": true,
+     "billing": true
+    }
+   ],
+   "locations": [
+    {
+     "id": "llmth1srj95911",
+     "label": "Surabaya HQ",
+     "country": "ID",
+     "city": "",
+     "address": "",
+     "primary": true,
+     "addressLine": "",
+     "state": "",
+     "postalCode": "",
+     "personnel": []
+    },
+    {
+     "id": "llmth1srj97724",
+     "label": "Semarang Warehouse",
+     "country": "ID",
+     "city": "",
+     "address": "",
+     "primary": false,
+     "addressLine": "",
+     "state": "",
+     "postalCode": "",
+     "personnel": []
+    },
+    {
+     "id": "llmth1srj96787",
+     "label": "Makassar Branch",
+     "country": "ID",
+     "city": "",
+     "address": "",
+     "primary": false,
+     "addressLine": "",
+     "state": "",
+     "postalCode": "",
+     "personnel": []
+    }
+   ],
+   "processes": [],
+   "workUnits": [
+    {
+     "id": "lwumth1su0m1581",
+     "name": "Operations",
+     "pic": "Samuel Thomas Wilson",
+     "locationId": "llmth1srj95911",
+     "desc": "",
+     "processes": [
+      "BPC-1027",
+      "BPC-1028",
+      "BPC-1031"
+     ]
+    },
+    {
+     "id": "lwumth1su0m9149",
+     "name": "Human Resources",
+     "pic": "Samuel Thomas Wilson",
+     "locationId": "llmth1srj95911",
+     "desc": "",
+     "processes": [
+      "BPC-1045",
+      "BPC-1046",
+      "BPC-1047",
+      "BPC-1048"
+     ]
+    },
+    {
+     "id": "lwumth1su0m986",
+     "name": "Finance & Accounting",
+     "pic": "Samuel Thomas Wilson",
+     "locationId": "llmth1srj95911",
+     "desc": "",
+     "processes": [
+      "BPC-1051",
+      "BPC-1052",
+      "BPC-1053",
+      "BPC-1054"
+     ]
+    },
+    {
+     "id": "lwumth1su0n4339",
+     "name": "Quality & Compliance",
+     "pic": "Samuel Thomas Wilson",
+     "locationId": "llmth1srj95911",
+     "desc": "",
+     "processes": [
+      "BPC-1021",
+      "BPC-1024",
+      "BPC-1020",
+      "BPC-1022"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "LD-3206",
+   "company": "PT Brand Corporation",
+   "contact": "Elizabeth Ross",
+   "email": "elizabeth.ross@brandcorp.co.id",
+   "phone": "+62 22 5550 3000",
+   "source": "Tenant",
+   "industry": "",
+   "status": "Customer",
+   "country": "ID",
+   "city": "",
+   "tenantId": "idtn3",
+   "owner": "System",
+   "createdAt": "2026-05-14T03:00:00.000Z",
+   "activity": [
+    {
+     "ts": "2026-05-14T03:00:00.000Z",
+     "user": "System",
+     "action": "linked from tenant",
+     "summary": "TEN-1003"
+    }
+   ],
+   "contacts": [
+    {
+     "id": "lcmth1srp8955",
+     "name": "Elizabeth Ross",
+     "role": "Primary contact",
+     "email": "elizabeth.ross@brandcorp.co.id",
+     "phone": "+62 22 5550 3000",
+     "primary": true,
+     "billing": true
+    }
+   ],
+   "locations": [
+    {
+     "id": "llmth1srp87766",
+     "label": "Bandung Plant",
+     "country": "ID",
+     "city": "",
+     "address": "",
+     "primary": true,
+     "addressLine": "",
+     "state": "",
+     "postalCode": "",
+     "personnel": []
+    }
+   ],
+   "processes": [],
+   "workUnits": [
+    {
+     "id": "lwumth1su0u1197",
+     "name": "Operations",
+     "pic": "Elizabeth Ross",
+     "locationId": "llmth1srp87766",
+     "desc": "",
+     "processes": [
+      "BPC-1027",
+      "BPC-1028",
+      "BPC-1031"
+     ]
+    },
+    {
+     "id": "lwumth1su0u3507",
+     "name": "Human Resources",
+     "pic": "Elizabeth Ross",
+     "locationId": "llmth1srp87766",
+     "desc": "",
+     "processes": [
+      "BPC-1045",
+      "BPC-1046",
+      "BPC-1047",
+      "BPC-1048"
+     ]
+    },
+    {
+     "id": "lwumth1su0u2865",
+     "name": "Finance & Accounting",
+     "pic": "Elizabeth Ross",
+     "locationId": "llmth1srp87766",
+     "desc": "",
+     "processes": [
+      "BPC-1051",
+      "BPC-1052",
+      "BPC-1053",
+      "BPC-1054"
+     ]
+    },
+    {
+     "id": "lwumth1su0u576",
+     "name": "Quality & Compliance",
+     "pic": "Elizabeth Ross",
+     "locationId": "llmth1srp87766",
+     "desc": "",
+     "processes": [
+      "BPC-1021",
+      "BPC-1024",
+      "BPC-1020",
+      "BPC-1022"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "LD-3207",
+   "company": "PT Cross Technological Enterprises",
+   "contact": "Clinton Francis Barton",
+   "email": "clinton.barton@cte.co.id",
+   "phone": "+62 361 5550 4000",
+   "source": "Tenant",
+   "industry": "",
+   "status": "Customer",
+   "country": "ID",
+   "city": "",
+   "tenantId": "idtn4",
+   "owner": "System",
+   "createdAt": "2026-05-01T03:00:00.000Z",
+   "activity": [
+    {
+     "ts": "2026-05-01T03:00:00.000Z",
+     "user": "System",
+     "action": "linked from tenant",
+     "summary": "TEN-1004"
+    }
+   ],
+   "contacts": [
+    {
+     "id": "lcmth1sryk614",
+     "name": "Clinton Francis Barton",
+     "role": "Primary contact",
+     "email": "clinton.barton@cte.co.id",
+     "phone": "+62 361 5550 4000",
+     "primary": true,
+     "billing": true
+    }
+   ],
+   "locations": [
+    {
+     "id": "llmth1sryk8175",
+     "label": "Semarang HQ",
+     "country": "ID",
+     "city": "",
+     "address": "",
+     "primary": true,
+     "addressLine": "",
+     "state": "",
+     "postalCode": "",
+     "personnel": []
+    },
+    {
+     "id": "llmth1sryk9297",
+     "label": "Solo Factory",
+     "country": "ID",
+     "city": "",
+     "address": "",
+     "primary": false,
+     "addressLine": "",
+     "state": "",
+     "postalCode": "",
+     "personnel": []
+    }
+   ],
+   "processes": [],
+   "workUnits": [
+    {
+     "id": "lwumth1su0u6938",
+     "name": "Operations",
+     "pic": "Clinton Francis Barton",
+     "locationId": "llmth1sryk8175",
+     "desc": "",
+     "processes": [
+      "BPC-1027",
+      "BPC-1028",
+      "BPC-1031"
+     ]
+    },
+    {
+     "id": "lwumth1su0u5044",
+     "name": "Human Resources",
+     "pic": "Clinton Francis Barton",
+     "locationId": "llmth1sryk8175",
+     "desc": "",
+     "processes": [
+      "BPC-1045",
+      "BPC-1046",
+      "BPC-1047",
+      "BPC-1048"
+     ]
+    },
+    {
+     "id": "lwumth1su0u1876",
+     "name": "Finance & Accounting",
+     "pic": "Clinton Francis Barton",
+     "locationId": "llmth1sryk8175",
+     "desc": "",
+     "processes": [
+      "BPC-1051",
+      "BPC-1052",
+      "BPC-1053",
+      "BPC-1054"
+     ]
+    },
+    {
+     "id": "lwumth1su0u1316",
+     "name": "Quality & Compliance",
+     "pic": "Clinton Francis Barton",
+     "locationId": "llmth1sryk8175",
+     "desc": "",
+     "processes": [
+      "BPC-1021",
+      "BPC-1024",
+      "BPC-1020",
+      "BPC-1022"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "LD-3208",
+   "company": "PT Hammer Industries",
+   "contact": "Jennifer Susan Walters",
+   "email": "jennifer.walters@hammerind.co.id",
+   "phone": "+62 21 5550 5000",
+   "source": "Tenant",
+   "industry": "",
+   "status": "Customer",
+   "country": "ID",
+   "city": "Jakarta",
+   "tenantId": "idtn5",
+   "owner": "System",
+   "createdAt": "2026-05-01T03:00:00.000Z",
+   "activity": [
+    {
+     "ts": "2026-05-01T03:00:00.000Z",
+     "user": "System",
+     "action": "linked from tenant",
+     "summary": "TEN-1005"
+    }
+   ],
+   "contacts": [
+    {
+     "id": "lcmth1ss8a6355",
+     "name": "Jennifer Susan Walters",
+     "role": "Primary contact",
+     "email": "jennifer.walters@hammerind.co.id",
+     "phone": "+62 21 5550 5000",
+     "primary": true,
+     "billing": false
+    },
+    {
+     "id": "lcmth1ss8a8899",
+     "name": "Scott Edward Harris Lang",
+     "role": "Site Manager",
+     "email": "scott.lang@hammerind.co.id",
+     "phone": "",
+     "primary": false,
+     "billing": true
+    },
+    {
+     "id": "lcmth1ss8a6731",
+     "name": "Gwendolyne Maxine Stacy",
+     "role": "Site Manager",
+     "email": "gwendolyne.stacy@hammerind.co.id",
+     "phone": "",
+     "primary": false,
+     "billing": false
+    },
+    {
+     "id": "lcmth1ss8a8193",
+     "name": "Monica Rambeau",
+     "role": "Administrator",
+     "email": "monica.rambeau@hammerind.co.id",
+     "phone": "",
+     "primary": false,
+     "billing": false
+    }
+   ],
+   "locations": [
+    {
+     "id": "llmth1ss8a4939",
+     "label": "Head Office",
+     "country": "ID",
+     "city": "Jakarta",
+     "address": "Jl. Industri Pulogadung 12",
+     "primary": true,
+     "addressLine": "Jl. Industri Pulogadung 12",
+     "state": "DKI Jakarta",
+     "postalCode": "13260",
+     "personnel": [
+      {
+       "id": "lpicmth1ss9f7405",
+       "name": "Jennifer Susan Walters",
+       "role": "Site contact",
+       "email": "jennifer.walters@hammerind.co.id",
+       "phone": "+62 21 5550 5000",
+       "pic": true
+      },
+      {
+       "id": "lpicmth1ss9f6360",
+       "name": "Monica Rambeau",
+       "role": "Administrator",
+       "email": "monica.rambeau@hammerind.co.id",
+       "phone": "",
+       "pic": false
+      }
+     ]
+    },
+    {
+     "id": "llmth1ss8a4831",
+     "label": "Factory A",
+     "country": "ID",
+     "city": "Bekasi",
+     "address": "Kawasan Industri MM2100",
+     "primary": false,
+     "addressLine": "Kawasan Industri MM2100",
+     "state": "Jawa Barat",
+     "postalCode": "17520",
+     "personnel": [
+      {
+       "id": "lpicmth1ss9f633",
+       "name": "Scott Edward Harris Lang",
+       "role": "Site contact",
+       "email": "scott.lang@hammerind.co.id",
+       "phone": "+62 21 5550 5010",
+       "pic": true
+      }
+     ]
+    },
+    {
+     "id": "llmth1ss8a105",
+     "label": "Warehouse",
+     "country": "ID",
+     "city": "Bekasi",
+     "address": "Jl. Raya Cakung 88",
+     "primary": false,
+     "addressLine": "Jl. Raya Cakung 88",
+     "state": "Jawa Barat",
+     "postalCode": "17530",
+     "personnel": [
+      {
+       "id": "lpicmth1ss9f9906",
+       "name": "Gwendolyne Maxine Stacy",
+       "role": "Site contact",
+       "email": "gwendolyne.stacy@hammerind.co.id",
+       "phone": "+62 21 5550 5020",
+       "pic": true
+      }
+     ]
+    }
+   ],
+   "processes": [],
+   "workUnits": [
+    {
+     "id": "lwumth1su0v766",
+     "name": "Operations",
+     "pic": "Jennifer Susan Walters",
+     "locationId": "llmth1ss8a4939",
+     "desc": "",
+     "processes": [
+      "BPC-1027",
+      "BPC-1028",
+      "BPC-1031"
+     ]
+    },
+    {
+     "id": "lwumth1su0v3215",
+     "name": "Human Resources",
+     "pic": "Jennifer Susan Walters",
+     "locationId": "llmth1ss8a4939",
+     "desc": "",
+     "processes": [
+      "BPC-1045",
+      "BPC-1046",
+      "BPC-1047",
+      "BPC-1048"
+     ]
+    },
+    {
+     "id": "lwumth1su0v1687",
+     "name": "Finance & Accounting",
+     "pic": "Jennifer Susan Walters",
+     "locationId": "llmth1ss8a4939",
+     "desc": "",
+     "processes": [
+      "BPC-1051",
+      "BPC-1052",
+      "BPC-1053",
+      "BPC-1054"
+     ]
+    },
+    {
+     "id": "lwumth1su0v5076",
+     "name": "Quality & Compliance",
+     "pic": "Jennifer Susan Walters",
+     "locationId": "llmth1ss8a4939",
+     "desc": "",
+     "processes": [
+      "BPC-1021",
+      "BPC-1024",
+      "BPC-1020",
+      "BPC-1022"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "LD-2101",
+   "company": "Meridian Systems Inc.",
+   "contact": "Laura Mitchell",
+   "email": "laura@meridiansys.com",
+   "phone": "+1 415 555 0110",
+   "source": "Website",
+   "industry": "Technology",
+   "status": "Qualified",
+   "country": "US",
+   "city": "San Francisco",
+   "owner": "System",
+   "createdAt": "2026-08-31T09:40:45.603Z",
+   "legal": {
+    "orgType": "Inc. (C-Corp)",
+    "legalName": "Meridian Systems, Inc.",
+    "regNo": "C-4821990",
+    "taxId": "84-2211903"
+   },
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:45.603Z",
+     "user": "System",
+     "action": "created",
+     "summary": ""
+    }
+   ],
+   "contacts": [
+    {
+     "id": "lcmth1su0v9488",
+     "name": "Laura Mitchell",
+     "role": "Primary contact",
+     "email": "laura@meridiansys.com",
+     "phone": "+1 415 555 0110",
+     "primary": true,
+     "billing": true
+    }
+   ],
+   "locations": [
+    {
+     "id": "llmth1su0v556",
+     "label": "Head office",
+     "country": "US",
+     "city": "San Francisco",
+     "address": "",
+     "primary": true
+    }
+   ],
+   "processes": [],
+   "workUnits": [
+    {
+     "id": "lwumth1su6u4970",
+     "name": "Operations",
+     "pic": "Laura Mitchell",
+     "locationId": "llmth1su0v556",
+     "desc": "",
+     "processes": [
+      "BPC-1027",
+      "BPC-1028",
+      "BPC-1031"
+     ]
+    },
+    {
+     "id": "lwumth1su6v5554",
+     "name": "Human Resources",
+     "pic": "Laura Mitchell",
+     "locationId": "llmth1su0v556",
+     "desc": "",
+     "processes": [
+      "BPC-1045",
+      "BPC-1046",
+      "BPC-1047",
+      "BPC-1048"
+     ]
+    },
+    {
+     "id": "lwumth1su6v8677",
+     "name": "Finance & Accounting",
+     "pic": "Laura Mitchell",
+     "locationId": "llmth1su0v556",
+     "desc": "",
+     "processes": [
+      "BPC-1051",
+      "BPC-1052",
+      "BPC-1053",
+      "BPC-1054"
+     ]
+    },
+    {
+     "id": "lwumth1su6v2526",
+     "name": "Quality & Compliance",
+     "pic": "Laura Mitchell",
+     "locationId": "llmth1su0v556",
+     "desc": "",
+     "processes": [
+      "BPC-1021",
+      "BPC-1024",
+      "BPC-1020",
+      "BPC-1022"
+     ]
+    },
+    {
+     "id": "lwumth1su6v3299",
+     "name": "Software Development",
+     "pic": "Laura Mitchell",
+     "locationId": "llmth1su0v556",
+     "desc": "",
+     "processes": [
+      "BPC-1001",
+      "BPC-1002",
+      "BPC-1006",
+      "BPC-1007"
+     ]
+    },
+    {
+     "id": "lwumth1su6v9721",
+     "name": "IT & Security",
+     "pic": "Laura Mitchell",
+     "locationId": "llmth1su0v556",
+     "desc": "",
+     "processes": [
+      "BPC-1011",
+      "BPC-1014",
+      "BPC-1017",
+      "BPC-1015"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "LD-2102",
+   "company": "Lorong Technologies Pte Ltd",
+   "contact": "Wei Ling Tan",
+   "email": "weiling@lorongtech.sg",
+   "phone": "+65 6555 0120",
+   "source": "Referral",
+   "industry": "Financial Services",
+   "status": "Qualifying",
+   "country": "SG",
+   "city": "Singapore",
+   "owner": "System",
+   "createdAt": "2026-08-31T09:40:45.603Z",
+   "legal": {
+    "orgType": "Pte Ltd",
+    "legalName": "Lorong Technologies Pte. Ltd.",
+    "regNo": "201934567K",
+    "taxId": "M90387654X"
+   },
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:45.603Z",
+     "user": "System",
+     "action": "created",
+     "summary": ""
+    }
+   ],
+   "contacts": [
+    {
+     "id": "lcmth1su6v7468",
+     "name": "Wei Ling Tan",
+     "role": "Primary contact",
+     "email": "weiling@lorongtech.sg",
+     "phone": "+65 6555 0120",
+     "primary": true,
+     "billing": true
+    }
+   ],
+   "locations": [
+    {
+     "id": "llmth1su6v3892",
+     "label": "Head office",
+     "country": "SG",
+     "city": "Singapore",
+     "address": "",
+     "primary": true
+    }
+   ],
+   "processes": [],
+   "workUnits": [
+    {
+     "id": "lwumth1su7q896",
+     "name": "Operations",
+     "pic": "Wei Ling Tan",
+     "locationId": "llmth1su6v3892",
+     "desc": "",
+     "processes": [
+      "BPC-1027",
+      "BPC-1028",
+      "BPC-1031"
+     ]
+    },
+    {
+     "id": "lwumth1su7q6167",
+     "name": "Human Resources",
+     "pic": "Wei Ling Tan",
+     "locationId": "llmth1su6v3892",
+     "desc": "",
+     "processes": [
+      "BPC-1045",
+      "BPC-1046",
+      "BPC-1047",
+      "BPC-1048"
+     ]
+    },
+    {
+     "id": "lwumth1su7q3354",
+     "name": "Finance & Accounting",
+     "pic": "Wei Ling Tan",
+     "locationId": "llmth1su6v3892",
+     "desc": "",
+     "processes": [
+      "BPC-1051",
+      "BPC-1052",
+      "BPC-1053",
+      "BPC-1054"
+     ]
+    },
+    {
+     "id": "lwumth1su7q2482",
+     "name": "Quality & Compliance",
+     "pic": "Wei Ling Tan",
+     "locationId": "llmth1su6v3892",
+     "desc": "",
+     "processes": [
+      "BPC-1021",
+      "BPC-1024",
+      "BPC-1020",
+      "BPC-1022"
+     ]
+    },
+    {
+     "id": "lwumth1su7q7107",
+     "name": "IT & Security",
+     "pic": "Wei Ling Tan",
+     "locationId": "llmth1su6v3892",
+     "desc": "",
+     "processes": [
+      "BPC-1011",
+      "BPC-1014",
+      "BPC-1017",
+      "BPC-1016"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "LD-2103",
+   "company": "Rheinwerk GmbH",
+   "contact": "Stefan Bauer",
+   "email": "s.bauer@rheinwerk.de",
+   "phone": "+49 30 5550130",
+   "source": "Event",
+   "industry": "Manufacturing",
+   "status": "New",
+   "country": "DE",
+   "city": "Berlin",
+   "owner": "System",
+   "createdAt": "2026-08-31T09:40:45.603Z",
+   "legal": {
+    "orgType": "GmbH",
+    "legalName": "Rheinwerk GmbH",
+    "regNo": "HRB 210945 B",
+    "taxId": "DE307654321"
+   },
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:45.603Z",
+     "user": "System",
+     "action": "created",
+     "summary": ""
+    }
+   ],
+   "contacts": [
+    {
+     "id": "lcmth1su7q6184",
+     "name": "Stefan Bauer",
+     "role": "Primary contact",
+     "email": "s.bauer@rheinwerk.de",
+     "phone": "+49 30 5550130",
+     "primary": true,
+     "billing": true
+    }
+   ],
+   "locations": [
+    {
+     "id": "llmth1su7q1014",
+     "label": "Head office",
+     "country": "DE",
+     "city": "Berlin",
+     "address": "",
+     "primary": true
+    }
+   ],
+   "processes": [],
+   "workUnits": [
+    {
+     "id": "lwumth1su8n7603",
+     "name": "Operations",
+     "pic": "Stefan Bauer",
+     "locationId": "llmth1su7q1014",
+     "desc": "",
+     "processes": [
+      "BPC-1027",
+      "BPC-1028",
+      "BPC-1031"
+     ]
+    },
+    {
+     "id": "lwumth1su8n8464",
+     "name": "Human Resources",
+     "pic": "Stefan Bauer",
+     "locationId": "llmth1su7q1014",
+     "desc": "",
+     "processes": [
+      "BPC-1045",
+      "BPC-1046",
+      "BPC-1047",
+      "BPC-1048"
+     ]
+    },
+    {
+     "id": "lwumth1su8n537",
+     "name": "Finance & Accounting",
+     "pic": "Stefan Bauer",
+     "locationId": "llmth1su7q1014",
+     "desc": "",
+     "processes": [
+      "BPC-1051",
+      "BPC-1052",
+      "BPC-1053",
+      "BPC-1054"
+     ]
+    },
+    {
+     "id": "lwumth1su8n3909",
+     "name": "Quality & Compliance",
+     "pic": "Stefan Bauer",
+     "locationId": "llmth1su7q1014",
+     "desc": "",
+     "processes": [
+      "BPC-1021",
+      "BPC-1024",
+      "BPC-1020",
+      "BPC-1022"
+     ]
+    },
+    {
+     "id": "lwumth1su8n6918",
+     "name": "Procurement & Supply Chain",
+     "pic": "Stefan Bauer",
+     "locationId": "llmth1su7q1014",
+     "desc": "",
+     "processes": [
+      "BPC-1040",
+      "BPC-1041",
+      "BPC-1042",
+      "BPC-1043"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "LD-2104",
+   "company": "Coral Bay Pty Ltd",
+   "contact": "Olivia Harris",
+   "email": "olivia@coralbay.com.au",
+   "phone": "+61 2 5550 0140",
+   "source": "Outbound",
+   "industry": "Logistics",
+   "status": "Qualified",
+   "country": "AU",
+   "city": "Sydney",
+   "owner": "System",
+   "createdAt": "2026-08-31T09:40:45.603Z",
+   "legal": {
+    "orgType": "Pty Ltd",
+    "legalName": "Coral Bay Pty Ltd",
+    "regNo": "ACN 632 118 447",
+    "taxId": "54 632 118 447"
+   },
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:45.603Z",
+     "user": "System",
+     "action": "created",
+     "summary": ""
+    }
+   ],
+   "contacts": [
+    {
+     "id": "lcmth1su8n1233",
+     "name": "Olivia Harris",
+     "role": "Primary contact",
+     "email": "olivia@coralbay.com.au",
+     "phone": "+61 2 5550 0140",
+     "primary": true,
+     "billing": true
+    }
+   ],
+   "locations": [
+    {
+     "id": "llmth1su8n6483",
+     "label": "Head office",
+     "country": "AU",
+     "city": "Sydney",
+     "address": "",
+     "primary": true
+    }
+   ],
+   "processes": [],
+   "workUnits": [
+    {
+     "id": "lwumth1su9d9003",
+     "name": "Operations",
+     "pic": "Olivia Harris",
+     "locationId": "llmth1su8n6483",
+     "desc": "",
+     "processes": [
+      "BPC-1027",
+      "BPC-1028",
+      "BPC-1031"
+     ]
+    },
+    {
+     "id": "lwumth1su9d9104",
+     "name": "Human Resources",
+     "pic": "Olivia Harris",
+     "locationId": "llmth1su8n6483",
+     "desc": "",
+     "processes": [
+      "BPC-1045",
+      "BPC-1046",
+      "BPC-1047",
+      "BPC-1048"
+     ]
+    },
+    {
+     "id": "lwumth1su9d7204",
+     "name": "Finance & Accounting",
+     "pic": "Olivia Harris",
+     "locationId": "llmth1su8n6483",
+     "desc": "",
+     "processes": [
+      "BPC-1051",
+      "BPC-1052",
+      "BPC-1053",
+      "BPC-1054"
+     ]
+    },
+    {
+     "id": "lwumth1su9d4231",
+     "name": "Quality & Compliance",
+     "pic": "Olivia Harris",
+     "locationId": "llmth1su8n6483",
+     "desc": "",
+     "processes": [
+      "BPC-1021",
+      "BPC-1024",
+      "BPC-1020",
+      "BPC-1022"
+     ]
+    },
+    {
+     "id": "lwumth1su9d793",
+     "name": "Logistics & Warehousing",
+     "pic": "Olivia Harris",
+     "locationId": "llmth1su8n6483",
+     "desc": "",
+     "processes": [
+      "BPC-1043",
+      "BPC-1042",
+      "BPC-1044"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "LD-2110",
+   "company": "PT Bahana Sentosa Tbk",
+   "contact": "Ratna Kusuma",
+   "email": "ratna@bahanasentosa.co.id",
+   "phone": "+62 21 5550 2210",
+   "source": "Referral",
+   "industry": "Financial Services",
+   "status": "Qualified",
+   "country": "ID",
+   "city": "Jakarta",
+   "owner": "System",
+   "createdAt": "2026-08-31T09:40:45.798Z",
+   "legal": {
+    "orgType": "PT Tbk",
+    "legalName": "PT Bahana Sentosa Tbk",
+    "regNo": "8120021456789",
+    "taxId": "01.234.567.8-901.000"
+   },
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:45.798Z",
+     "user": "System",
+     "action": "created",
+     "summary": ""
+    }
+   ],
+   "contacts": [
+    {
+     "id": "lcmth1su9d2062",
+     "name": "Ratna Kusuma",
+     "role": "Primary contact",
+     "email": "ratna@bahanasentosa.co.id",
+     "phone": "+62 21 5550 2210",
+     "primary": true,
+     "billing": true
+    }
+   ],
+   "locations": [
+    {
+     "id": "llmth1su9d3195",
+     "label": "Head office",
+     "country": "ID",
+     "city": "Jakarta",
+     "address": "",
+     "primary": true
+    }
+   ],
+   "processes": [],
+   "workUnits": [
+    {
+     "id": "lwumth1su9w1858",
+     "name": "Operations",
+     "pic": "Ratna Kusuma",
+     "locationId": "llmth1su9d3195",
+     "desc": "",
+     "processes": [
+      "BPC-1027",
+      "BPC-1028",
+      "BPC-1031"
+     ]
+    },
+    {
+     "id": "lwumth1su9w4360",
+     "name": "Human Resources",
+     "pic": "Ratna Kusuma",
+     "locationId": "llmth1su9d3195",
+     "desc": "",
+     "processes": [
+      "BPC-1045",
+      "BPC-1046",
+      "BPC-1047",
+      "BPC-1048"
+     ]
+    },
+    {
+     "id": "lwumth1su9w1463",
+     "name": "Finance & Accounting",
+     "pic": "Ratna Kusuma",
+     "locationId": "llmth1su9d3195",
+     "desc": "",
+     "processes": [
+      "BPC-1051",
+      "BPC-1052",
+      "BPC-1053",
+      "BPC-1054"
+     ]
+    },
+    {
+     "id": "lwumth1su9w1970",
+     "name": "Quality & Compliance",
+     "pic": "Ratna Kusuma",
+     "locationId": "llmth1su9d3195",
+     "desc": "",
+     "processes": [
+      "BPC-1021",
+      "BPC-1024",
+      "BPC-1020",
+      "BPC-1022"
+     ]
+    },
+    {
+     "id": "lwumth1su9w2483",
+     "name": "IT & Security",
+     "pic": "Ratna Kusuma",
+     "locationId": "llmth1su9d3195",
+     "desc": "",
+     "processes": [
+      "BPC-1011",
+      "BPC-1014",
+      "BPC-1017",
+      "BPC-1016"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "LD-9001",
+   "co": "exelera",
+   "company": "PT Nusa Prima Energi",
+   "contact": "Bagus Pratama",
+   "email": "bagus@nusaprima.co.id",
+   "phone": "+62 811 9001",
+   "source": "Referral",
+   "industry": "Energy",
+   "status": "Qualified",
+   "owner": "Sales",
+   "createdAt": "2026-08-31T09:40:48.314Z",
+   "locations": [
+    {
+     "id": "ll-9001-ho",
+     "label": "Head Office",
+     "addressLine": "Gedung Energi, Jl. Jenderal Sudirman Kav. 52",
+     "country": "ID",
+     "state": "DKI Jakarta",
+     "city": "Jakarta Selatan",
+     "postalCode": "12190",
+     "primary": true,
+     "personnel": [
+      {
+       "id": "ho-p1",
+       "name": "Bagus Pratama",
+       "role": "General Manager",
+       "email": "bagus@nusaprima.co.id",
+       "phone": "+62 811 9001",
+       "pic": true
+      },
+      {
+       "id": "ho-p2",
+       "name": "Sri Wahyuni",
+       "role": "Finance Director",
+       "email": "sri.wahyuni@nusaprima.co.id",
+       "phone": "+62 811 9002",
+       "pic": false
+      },
+      {
+       "id": "ho-p3",
+       "name": "Dewi Lestari",
+       "role": "HR Manager",
+       "email": "dewi.lestari@nusaprima.co.id",
+       "phone": "+62 811 9003",
+       "pic": false
+      },
+      {
+       "id": "ho-p4",
+       "name": "Rizky Ramadhan",
+       "role": "Legal Counsel",
+       "email": "rizky.ramadhan@nusaprima.co.id",
+       "phone": "+62 811 9004",
+       "pic": false
+      },
+      {
+       "id": "ho-p5",
+       "name": "Andi Nugroho",
+       "role": "QHSE Manager",
+       "email": "andi.nugroho@nusaprima.co.id",
+       "phone": "+62 811 9005",
+       "pic": false
+      }
+     ],
+     "workUnits": []
+    },
+    {
+     "id": "ll-9001-wh",
+     "label": "Logistics Warehouse",
+     "addressLine": "Kawasan Industri Kariangau, Blok C-12",
+     "country": "ID",
+     "state": "Kalimantan Timur",
+     "city": "Kota Balikpapan",
+     "postalCode": "76127",
+     "primary": false,
+     "personnel": [
+      {
+       "id": "wh-p1",
+       "name": "Slamet Riyadi",
+       "role": "Warehouse Manager",
+       "email": "slamet.riyadi@nusaprima.co.id",
+       "phone": "+62 812 7601",
+       "pic": true
+      },
+      {
+       "id": "wh-p2",
+       "name": "Joko Susilo",
+       "role": "Logistics Supervisor",
+       "email": "joko.susilo@nusaprima.co.id",
+       "phone": "+62 812 7602",
+       "pic": false
+      },
+      {
+       "id": "wh-p3",
+       "name": "Agus Salim",
+       "role": "Inventory Controller",
+       "email": "agus.salim@nusaprima.co.id",
+       "phone": "+62 812 7603",
+       "pic": false
+      },
+      {
+       "id": "wh-p4",
+       "name": "Budi Hartono",
+       "role": "Shift Supervisor",
+       "email": "budi.hartono@nusaprima.co.id",
+       "phone": "+62 812 7604",
+       "pic": false
+      },
+      {
+       "id": "wh-p5",
+       "name": "Eko Prasetyo",
+       "role": "Safety Officer (HSE)",
+       "email": "eko.prasetyo@nusaprima.co.id",
+       "phone": "+62 812 7605",
+       "pic": false
+      },
+      {
+       "id": "wh-p6",
+       "name": "Hendra Wijaya",
+       "role": "Forklift Operator",
+       "email": "hendra.wijaya@nusaprima.co.id",
+       "phone": "+62 812 7606",
+       "pic": false
+      },
+      {
+       "id": "wh-p7",
+       "name": "Rudi Hartanto",
+       "role": "Dispatch Coordinator",
+       "email": "rudi.hartanto@nusaprima.co.id",
+       "phone": "+62 812 7607",
+       "pic": false
+      },
+      {
+       "id": "wh-p8",
+       "name": "Wahyu Setiawan",
+       "role": "Maintenance Technician",
+       "email": "wahyu.setiawan@nusaprima.co.id",
+       "phone": "+62 812 7608",
+       "pic": false
+      },
+      {
+       "id": "wh-p9",
+       "name": "Fajar Nugraha",
+       "role": "Security Lead",
+       "email": "fajar.nugraha@nusaprima.co.id",
+       "phone": "+62 812 7609",
+       "pic": false
+      },
+      {
+       "id": "wh-p10",
+       "name": "Bambang Kurniawan",
+       "role": "Quality Inspector",
+       "email": "bambang.kurniawan@nusaprima.co.id",
+       "phone": "+62 812 7610",
+       "pic": false
+      }
+     ],
+     "workUnits": []
+    }
+   ],
+   "workUnits": [
+    {
+     "id": "wu-9001-fin",
+     "name": "Finance & Accounting",
+     "pic": "Sri Wahyuni",
+     "locationId": "ll-9001-ho",
+     "desc": "Financial control, treasury, tax & reporting.",
+     "processes": []
+    },
+    {
+     "id": "wu-9001-hr",
+     "name": "Human Resources",
+     "pic": "Dewi Lestari",
+     "locationId": "ll-9001-ho",
+     "desc": "Recruitment, people development & industrial relations.",
+     "processes": []
+    },
+    {
+     "id": "wu-9001-qhse",
+     "name": "QHSE",
+     "pic": "Andi Nugroho",
+     "locationId": "ll-9001-ho",
+     "desc": "Quality, health, safety & environmental management.",
+     "processes": []
+    },
+    {
+     "id": "wu-9001-wh",
+     "name": "Warehouse & Logistics",
+     "pic": "Slamet Riyadi",
+     "locationId": "ll-9001-wh",
+     "desc": "Inbound/outbound logistics, inventory & dispatch.",
+     "processes": []
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:48.314Z",
+     "user": "Sales",
+     "action": "created",
+     "summary": "referral"
+    }
+   ],
+   "country": "ID",
+   "city": "Jakarta Selatan"
+  }
+ ]
+}

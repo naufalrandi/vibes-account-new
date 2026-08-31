@@ -1,0 +1,417 @@
+{
+ "count": 4,
+ "fields": [
+  "id",
+  "co",
+  "courseId",
+  "courseCode",
+  "courseTitle",
+  "type",
+  "projectId",
+  "mode",
+  "capacity",
+  "facilitator",
+  "start",
+  "end",
+  "currency",
+  "price",
+  "priceBasis",
+  "status",
+  "createdAt",
+  "activity",
+  "roster",
+  "arrange",
+  "materials",
+  "posts"
+ ],
+ "sample": [
+  {
+   "id": "SESS-7001",
+   "co": "axia",
+   "courseId": "crs-fw_dig57pn-l3",
+   "courseCode": "7200",
+   "courseTitle": "ISO 9001 Requirements",
+   "type": "public",
+   "projectId": null,
+   "mode": "elearning",
+   "capacity": null,
+   "facilitator": "",
+   "start": "",
+   "end": "",
+   "currency": "IDR",
+   "price": 0,
+   "priceBasis": "per seat",
+   "status": "Running",
+   "createdAt": "2026-08-31T09:40:48.509Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:48.509Z",
+     "user": "System",
+     "action": "e-Learning enrolment opened",
+     "summary": ""
+    }
+   ]
+  },
+  {
+   "id": "SESS-7002",
+   "co": "axia",
+   "courseId": "crs-found",
+   "courseCode": "7001",
+   "courseTitle": "Management System Essentials (ISO Foundation)",
+   "type": "public",
+   "projectId": null,
+   "mode": "onsite",
+   "capacity": 20,
+   "facilitator": "Rangga Mahardika",
+   "start": "2026-09-15",
+   "end": "2026-09-17",
+   "currency": "IDR",
+   "price": 1500000,
+   "priceBasis": "per participant",
+   "status": "Scheduled",
+   "createdAt": "2026-08-31T09:40:48.561Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:48.561Z",
+     "user": "System",
+     "action": "session scheduled",
+     "summary": ""
+    }
+   ]
+  },
+  {
+   "id": "SESS-7003",
+   "co": "axia",
+   "courseId": "crs-aw-cd-qs",
+   "courseCode": "7101",
+   "courseTitle": "Quality and Safety Awareness",
+   "type": "public",
+   "projectId": null,
+   "mode": "virtual",
+   "capacity": 25,
+   "facilitator": "Dewi Anggraini",
+   "start": "2026-10-06",
+   "end": "2026-10-07",
+   "currency": "IDR",
+   "price": 2500000,
+   "priceBasis": "per participant",
+   "status": "Draft",
+   "createdAt": "2026-08-31T09:40:48.561Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:48.561Z",
+     "user": "System",
+     "action": "session scheduled",
+     "summary": ""
+    }
+   ]
+  },
+  {
+   "id": "SESS-7004",
+   "co": "axia",
+   "courseId": "crs-aw-cd-isp",
+   "courseCode": "7102",
+   "courseTitle": "Information Security and Privacy Awareness",
+   "type": "private",
+   "projectId": null,
+   "mode": "onsite",
+   "capacity": 12,
+   "facilitator": "Rangga Mahardika",
+   "start": "2026-09-01",
+   "end": "2026-09-05",
+   "currency": "IDR",
+   "price": 18000000,
+   "priceBasis": "per class",
+   "status": "Running",
+   "createdAt": "2026-08-31T09:40:48.561Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:48.561Z",
+     "user": "System",
+     "action": "session scheduled",
+     "summary": ""
+    }
+   ],
+   "roster": [
+    {
+     "id": "ptmth1ugqu5020",
+     "name": "Bagus Prakoso",
+     "email": "bagus.prakoso@client.co.id",
+     "position": "QHSE Manager",
+     "dept": "Operations",
+     "status": "Confirmed",
+     "att": {
+      "2026-09-01": 1,
+      "2026-09-02": 1,
+      "2026-09-03": 1,
+      "2026-09-04": 1,
+      "2026-09-05": 1
+     },
+     "result": "",
+     "note": ""
+    },
+    {
+     "id": "ptmth1ugqu9316",
+     "name": "Salma Nurhaliza",
+     "email": "salma.n@client.co.id",
+     "position": "Internal Auditor",
+     "dept": "Quality Assurance",
+     "status": "Confirmed",
+     "att": {
+      "2026-09-01": 1,
+      "2026-09-02": 1,
+      "2026-09-03": 1,
+      "2026-09-04": 1,
+      "2026-09-05": 1
+     },
+     "result": "",
+     "note": ""
+    },
+    {
+     "id": "ptmth1ugqu4470",
+     "name": "Yudi Setiawan",
+     "email": "yudi.setiawan@client.co.id",
+     "position": "Production Supervisor",
+     "dept": "Manufacturing",
+     "status": "Confirmed",
+     "att": {
+      "2026-09-01": 1,
+      "2026-09-02": 1,
+      "2026-09-03": 1,
+      "2026-09-04": 1,
+      "2026-09-05": 1
+     },
+     "result": "",
+     "note": ""
+    },
+    {
+     "id": "ptmth1ugqu3077",
+     "name": "Rina Kusumawardani",
+     "email": "rina.k@client.co.id",
+     "position": "Document Controller",
+     "dept": "Quality Assurance",
+     "status": "Confirmed",
+     "att": {
+      "2026-09-01": 1,
+      "2026-09-02": 1,
+      "2026-09-03": 1,
+      "2026-09-04": 1,
+      "2026-09-05": 1
+     },
+     "result": "",
+     "note": ""
+    },
+    {
+     "id": "ptmth1ugqu3432",
+     "name": "Fajar Ramadhan",
+     "email": "fajar.r@client.co.id",
+     "position": "Maintenance Lead",
+     "dept": "Engineering",
+     "status": "Confirmed",
+     "att": {
+      "2026-09-01": 1,
+      "2026-09-02": 1,
+      "2026-09-04": 1,
+      "2026-09-05": 1
+     },
+     "result": "",
+     "note": ""
+    },
+    {
+     "id": "ptmth1ugqu8169",
+     "name": "Ayu Lestari",
+     "email": "ayu.lestari@client.co.id",
+     "position": "HR Business Partner",
+     "dept": "People & Culture",
+     "status": "Confirmed",
+     "att": {
+      "2026-09-01": 1,
+      "2026-09-02": 1,
+      "2026-09-03": 1,
+      "2026-09-04": 1,
+      "2026-09-05": 1
+     },
+     "result": "",
+     "note": ""
+    },
+    {
+     "id": "ptmth1ugqu2616",
+     "name": "Hendra Wijaya",
+     "email": "hendra.w@client.co.id",
+     "position": "Warehouse Manager",
+     "dept": "Logistics",
+     "status": "No-show",
+     "att": {
+      "2026-09-01": 1,
+      "2026-09-02": 1,
+      "2026-09-03": 1
+     },
+     "result": "",
+     "note": ""
+    },
+    {
+     "id": "ptmth1ugqu5939",
+     "name": "Nadia Puspita",
+     "email": "nadia.p@client.co.id",
+     "position": "QA Analyst",
+     "dept": "Quality Assurance",
+     "status": "Confirmed",
+     "att": {
+      "2026-09-01": 1,
+      "2026-09-02": 1,
+      "2026-09-03": 1,
+      "2026-09-04": 1,
+      "2026-09-05": 1
+     },
+     "result": "",
+     "note": ""
+    }
+   ],
+   "arrange": {
+    "venue": "Client training room — Plant 2",
+    "room": "Meeting Room Borobudur, 2nd floor",
+    "link": "",
+    "contact": "Bagus Prakoso",
+    "contactEmail": "bagus.prakoso@client.co.id",
+    "contactPhone": "",
+    "agenda": [
+     {
+      "id": "agmth1ugqx431",
+      "day": "2026-09-01",
+      "from": "09:00",
+      "to": "16:30",
+      "topic": "Context, scope and the audit programme",
+      "trainer": "Rangga Mahardika"
+     },
+     {
+      "id": "agmth1ugqx3772",
+      "day": "2026-09-02",
+      "from": "09:00",
+      "to": "16:30",
+      "topic": "Clause walkthrough and audit criteria",
+      "trainer": "Rangga Mahardika"
+     },
+     {
+      "id": "agmth1ugqx48",
+      "day": "2026-09-03",
+      "from": "09:00",
+      "to": "16:30",
+      "topic": "Planning: audit plan, checklist, sampling",
+      "trainer": "Rangga Mahardika"
+     },
+     {
+      "id": "agmth1ugqx2530",
+      "day": "2026-09-04",
+      "from": "09:00",
+      "to": "16:30",
+      "topic": "Fieldwork simulation and evidence handling",
+      "trainer": "Rangga Mahardika"
+     },
+     {
+      "id": "agmth1ugqx2522",
+      "day": "2026-09-05",
+      "from": "09:00",
+      "to": "16:30",
+      "topic": "Findings, reporting and closing meeting",
+      "trainer": "Rangga Mahardika"
+     }
+    ],
+    "logistics": [
+     {
+      "id": "lgmth1ugqx8816",
+      "label": "Projector and screen confirmed with client",
+      "done": true
+     },
+     {
+      "id": "lgmth1ugqx698",
+      "label": "Printed workbooks shipped (12 copies)",
+      "done": true
+     },
+     {
+      "id": "lgmth1ugqx6855",
+      "label": "Attendance sheet prepared",
+      "done": true
+     },
+     {
+      "id": "lgmth1ugqx1531",
+      "label": "Lunch and two coffee breaks arranged by client",
+      "done": false
+     },
+     {
+      "id": "lgmth1ugqx7418",
+      "label": "Site induction slot booked for trainer",
+      "done": false
+     }
+    ]
+   },
+   "materials": [
+    {
+     "id": "mtmth1ugqx3197",
+     "title": "Course workbook — participant edition",
+     "type": "handout",
+     "visibility": "Published",
+     "link": "",
+     "note": "PDF, distributed on day 1",
+     "qCount": null,
+     "passMark": null
+    },
+    {
+     "id": "mtmth1ugqx6223",
+     "title": "Day 1–2 slide deck",
+     "type": "slides",
+     "visibility": "Published",
+     "link": "",
+     "note": "",
+     "qCount": null,
+     "passMark": null
+    },
+    {
+     "id": "mtmth1ugqx1540",
+     "title": "Audit checklist template",
+     "type": "exercise",
+     "visibility": "Published",
+     "link": "",
+     "note": "Used in the day 3 planning exercise",
+     "qCount": null,
+     "passMark": null
+    },
+    {
+     "id": "mtmth1ugqx4655",
+     "title": "Day 3 knowledge check",
+     "type": "quiz",
+     "visibility": "Published",
+     "link": "",
+     "note": "",
+     "qCount": 15,
+     "passMark": 60
+    },
+    {
+     "id": "mtmth1ugqx345",
+     "title": "Final written examination",
+     "type": "exam",
+     "visibility": "Draft",
+     "link": "",
+     "note": "Released on the last day",
+     "qCount": 40,
+     "passMark": 70
+    }
+   ],
+   "posts": [
+    {
+     "id": "psmth1ugqx6157",
+     "ts": "2026-08-31T09:42:03.849Z",
+     "user": "Rangga Mahardika",
+     "body": "Day 3 is the planning workshop — please bring a recent internal audit report from your own area. We will use it as the working example.",
+     "pinned": false
+    },
+    {
+     "id": "psmth1ugqx6248",
+     "ts": "2026-08-31T09:42:03.849Z",
+     "user": "Training Coordinator",
+     "body": "Welcome, everyone. Sessions run 09:00–16:30 at the client training room, Plant 2. The workbook is issued on arrival; the final examination is on the last day.",
+     "pinned": true
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,148 @@
+{
+ "count": 5,
+ "fields": [
+  "id",
+  "name",
+  "legalName",
+  "sector",
+  "sites",
+  "personnel",
+  "standards",
+  "ims",
+  "scope",
+  "stage",
+  "leadAuditor",
+  "cycleStart",
+  "companyId",
+  "findings",
+  "certNo",
+  "validFrom",
+  "validTo",
+  "complexity"
+ ],
+ "sample": [
+  {
+   "id": "CB-1001",
+   "name": "PT Sinar Kimia Nusantara",
+   "legalName": "PT Sinar Kimia Nusantara",
+   "sector": "IAF 12 · Chemicals",
+   "sites": 1,
+   "personnel": 140,
+   "standards": [
+    "ISO 9001:2015"
+   ],
+   "ims": false,
+   "scope": "Manufacture and supply of industrial cleaning chemicals.",
+   "stage": "Certified",
+   "leadAuditor": "Rina Hartati",
+   "cycleStart": "2026-03-03",
+   "companyId": "exelera",
+   "findings": [],
+   "certNo": "EXL-1001-2026",
+   "validFrom": "2026-04-03",
+   "validTo": "2029-04-03"
+  },
+  {
+   "id": "CB-1002",
+   "name": "Garuda Steelworks",
+   "legalName": "PT Garuda Steelworks Tbk",
+   "sector": "IAF 17 · Basic metals",
+   "sites": 3,
+   "personnel": 420,
+   "standards": [
+    "ISO 9001:2015",
+    "ISO 14001:2015"
+   ],
+   "ims": true,
+   "scope": "Production of structural steel sections and fabrication.",
+   "stage": "Stage 2",
+   "leadAuditor": "Bambang Sujarwo",
+   "cycleStart": "2026-07-31",
+   "findings": [
+    {
+     "id": "NC-9001",
+     "audit": "Stage 2",
+     "clause": "8.5.1",
+     "grade": "Minor",
+     "desc": "Calibration records for two gauges overdue.",
+     "open": true,
+     "date": "2026-08-31"
+    }
+   ],
+   "companyId": "exelera"
+  },
+  {
+   "id": "CB-1003",
+   "name": "Bali Organik Foods",
+   "legalName": "CV Bali Organik Foods",
+   "sector": "IAF 3 · Food products",
+   "sites": 5,
+   "personnel": 85,
+   "standards": [
+    "ISO 9001:2015"
+   ],
+   "ims": false,
+   "scope": "Processing and packaging of organic food products across island sites.",
+   "stage": "Application",
+   "leadAuditor": "",
+   "cycleStart": "2026-08-31",
+   "companyId": "exelera",
+   "findings": []
+  },
+  {
+   "id": "CB-1004",
+   "name": "Meridian Logistics",
+   "legalName": "PT Meridian Logistik Indonesia",
+   "sector": "IAF 31 · Transport & storage",
+   "sites": 2,
+   "personnel": 260,
+   "standards": [
+    "ISO 45001:2018"
+   ],
+   "ims": false,
+   "scope": "Warehousing and third-party logistics operations.",
+   "stage": "Surveillance 1",
+   "leadAuditor": "Dewi Kartika",
+   "cycleStart": "2025-07-31",
+   "findings": [
+    {
+     "id": "NC-9002",
+     "audit": "Stage 2",
+     "clause": "7.2",
+     "grade": "Minor",
+     "desc": "Forklift operator competence evidence incomplete.",
+     "open": false,
+     "date": "2025-08-31"
+    }
+   ],
+   "companyId": "exelera",
+   "certNo": "EXL-1004-2025",
+   "validFrom": "2025-08-31",
+   "validTo": "2028-08-31"
+  },
+  {
+   "id": "CB-1005",
+   "companyId": "exelera",
+   "name": "Datana Cloud Services",
+   "legalName": "PT Datana Cloud Services",
+   "sector": "IAF 33 · Information technology",
+   "sites": 2,
+   "personnel": 260,
+   "standards": [
+    "ISO/IEC 27001:2022"
+   ],
+   "ims": false,
+   "scope": "Provision and operation of managed cloud hosting and SOC services.",
+   "stage": "Certified",
+   "leadAuditor": "Yusuf Rahman",
+   "cycleStart": "2026-05-01",
+   "findings": [],
+   "complexity": {
+    "ISO/IEC 27001:2022": "High"
+   },
+   "certNo": "EXL-1005-2026",
+   "validFrom": "2026-06-01",
+   "validTo": "2029-06-01"
+  }
+ ]
+}

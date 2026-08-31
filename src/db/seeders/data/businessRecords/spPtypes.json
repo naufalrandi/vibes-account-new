@@ -1,0 +1,35 @@
+{
+ "count": 4,
+ "fields": [
+  "id",
+  "name",
+  "description",
+  "status"
+ ],
+ "sample": [
+  {
+   "id": "SDPT-0001",
+   "name": "Employee (Permanent Contract)",
+   "description": "Directly employed staff on an open-ended, permanent employment contract.",
+   "status": "Active"
+  },
+  {
+   "id": "SDPT-0002",
+   "name": "Employee (Fixed-Duration Contract)",
+   "description": "Directly employed staff on a fixed-term / fixed-duration employment contract.",
+   "status": "Active"
+  },
+  {
+   "id": "SDPT-0003",
+   "name": "Intern",
+   "description": "Trainees or apprentices on an internship or work-placement arrangement — temporary and supervised.",
+   "status": "Active"
+  },
+  {
+   "id": "SDPT-0004",
+   "name": "Contractor",
+   "description": "External individuals or third-party personnel engaged under a service or contractor agreement, not on payroll.",
+   "status": "Active"
+  }
+ ]
+}

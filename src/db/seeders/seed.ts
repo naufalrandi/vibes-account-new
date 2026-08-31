@@ -47,6 +47,7 @@ import type { AgreementBlock, AgreementTemplateStatus } from "../models/agreemen
 import { generateStatementForPartner } from "../../modules/billing/billing.service";
 import { hashPassword } from "../../lib/password";
 import { ensureGlobalSeed as ensureScopeDatasetSeed } from "../../modules/scope/scopeDataset.service";
+import { seedBusinessRecords } from "./businessRecordsSeed";
 
 const DEFAULT_PASSWORD = "ChangeMe123";
 
@@ -1785,6 +1786,11 @@ export async function seed(): Promise<void> {
       },
     });
   }
+  // SOF-38 — 39 OD business collections (Enterprise/Datana/Motoran/Exelera business units) into
+  // the generic `business_records` register. Runs after the tenant org (`tenant.id`) it seeds
+  // into already exists.
+  await seedBusinessRecords(tenant.id);
+
   const notifCount = await Notification.count({ where: { orgId: tenant.id } });
   if (notifCount === 0) {
     await Notification.bulkCreate([

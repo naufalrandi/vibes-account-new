@@ -1,0 +1,59 @@
+{
+ "count": 5,
+ "fields": [
+  "id",
+  "name",
+  "industry",
+  "country",
+  "contact",
+  "status",
+  "createdAt"
+ ],
+ "sample": [
+  {
+   "id": "DNC-0001",
+   "name": "PT Bank Nusantara Digital",
+   "industry": "Banking",
+   "country": "Indonesia",
+   "contact": "",
+   "status": "Active",
+   "createdAt": "2026-05-03T09:41:59.586Z"
+  },
+  {
+   "id": "DNC-0002",
+   "name": "Tokopanda",
+   "industry": "E-commerce",
+   "country": "Indonesia",
+   "contact": "",
+   "status": "Active",
+   "createdAt": "2026-05-03T09:41:59.586Z"
+  },
+  {
+   "id": "DNC-0003",
+   "name": "Dinas Kominfo Bali",
+   "industry": "Government",
+   "country": "Indonesia",
+   "contact": "",
+   "status": "Active",
+   "createdAt": "2026-05-03T09:41:59.586Z"
+  },
+  {
+   "id": "DNC-0004",
+   "name": "Klinik Sehat Sentosa",
+   "industry": "Healthcare",
+   "country": "Indonesia",
+   "contact": "",
+   "status": "Active",
+   "createdAt": "2026-05-03T09:41:59.586Z"
+  },
+  {
+   "id": "DNC-0005",
+   "name": "PT Logistik Cepat",
+   "industry": "Logistics",
+   "country": "Indonesia",
+   "contact": "",
+   "status": "Active",
+   "createdAt": "2026-05-03T09:41:59.586Z"
+  }
+ ]
+}

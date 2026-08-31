@@ -1,0 +1,195 @@
+{
+ "count": 18,
+ "fields": [
+  "id",
+  "code",
+  "title",
+  "category",
+  "country",
+  "scope",
+  "body",
+  "domain"
+ ],
+ "sample": [
+  {
+   "id": "cl-parties",
+   "code": "CL-PARTIES",
+   "title": "Parties",
+   "category": "General",
+   "country": "ID",
+   "scope": "library",
+   "body": "<p>This Agreement is made between <b>{{org.legalName}}</b> (the Company) and <b>{{employee.fullName}}</b>, holder of identity number {{employee.govId}}, residing at {{employee.address}} (the Employee).</p>",
+   "domain": "Employment"
+  },
+  {
+   "id": "cl-conduct",
+   "code": "CL-CONDUCT",
+   "title": "Code of Conduct",
+   "category": "Obligations",
+   "country": "ID",
+   "scope": "library",
+   "body": "<p>The Employee shall comply with the Company policies, code of conduct and lawful instructions, and shall act with integrity and professionalism at all times.</p>",
+   "domain": "Employment"
+  },
+  {
+   "id": "cl-hours",
+   "code": "CL-HOURS",
+   "title": "Working Hours",
+   "category": "Conditions",
+   "country": "ID",
+   "scope": "library",
+   "body": "<p>Normal working hours are 40 hours per week, Monday to Friday, in accordance with Indonesian manpower law and Company arrangements.</p>",
+   "domain": "Employment"
+  },
+  {
+   "id": "cl-leave",
+   "code": "CL-LEAVE",
+   "title": "Annual Leave",
+   "category": "Conditions",
+   "country": "ID",
+   "scope": "library",
+   "body": "<p>The Employee is entitled to annual leave in accordance with prevailing law and Company policy.</p>",
+   "domain": "Employment"
+  },
+  {
+   "id": "cl-ss",
+   "code": "CL-SS",
+   "title": "Social Security",
+   "category": "Conditions",
+   "country": "ID",
+   "scope": "library",
+   "body": "<p>The Company shall enrol the Employee in <b>{{ss.scheme}}</b>, covering {{ss.programs}}, with contributions made in accordance with prevailing regulations.</p>",
+   "domain": "Employment"
+  },
+  {
+   "id": "cl-confid",
+   "code": "CL-CONFID",
+   "title": "Confidentiality",
+   "category": "Protective",
+   "country": "ID",
+   "scope": "library",
+   "body": "<p>The Employee shall keep confidential all proprietary and non-public information of the Company, during and after employment, and shall not disclose it without authorisation.</p>",
+   "domain": "Employment"
+  },
+  {
+   "id": "cl-ip",
+   "code": "CL-IP",
+   "title": "Intellectual Property",
+   "category": "Protective",
+   "country": "ID",
+   "scope": "library",
+   "body": "<p>All work product, inventions and materials created by the Employee in the course of employment are the exclusive property of the Company.</p>",
+   "domain": "Employment"
+  },
+  {
+   "id": "cl-pdp",
+   "code": "CL-PDP",
+   "title": "Personal Data Protection",
+   "category": "Protective",
+   "country": "ID",
+   "scope": "library",
+   "body": "<p>The parties shall process personal data in accordance with UU No. 27/2022 on Personal Data Protection and the Company privacy policy.</p>",
+   "domain": "Employment"
+  },
+  {
+   "id": "cl-law",
+   "code": "CL-LAW",
+   "title": "Governing Law & Dispute",
+   "category": "General",
+   "country": "ID",
+   "scope": "library",
+   "body": "<p>This Agreement is governed by the laws of the Republic of Indonesia. Disputes shall be resolved amicably and, failing that, through the competent Industrial Relations Court.</p>",
+   "domain": "Employment"
+  },
+  {
+   "id": "cl-common-conf",
+   "code": "CL-CONFIDENTIAL",
+   "title": "Confidentiality",
+   "category": "Protective",
+   "country": "",
+   "scope": "library",
+   "domain": "Common",
+   "body": "<p>Each party shall keep confidential all non-public information disclosed under this agreement and use it solely for the purpose of the engagement.</p>"
+  },
+  {
+   "id": "cl-common-law",
+   "code": "CL-GOVLAW",
+   "title": "Governing Law & Dispute Resolution",
+   "category": "General",
+   "country": "",
+   "scope": "library",
+   "domain": "Common",
+   "body": "<p>This agreement is governed by the laws of {{country}}. Disputes shall be resolved amicably, failing which through the competent courts or agreed arbitration.</p>"
+  },
+  {
+   "id": "cl-svc-scope",
+   "code": "CL-SVC-SCOPE",
+   "title": "Scope of Services",
+   "category": "Commercial",
+   "country": "",
+   "scope": "library",
+   "domain": "Service",
+   "body": "<p>The Provider shall deliver the services described in the proposal and any attached statement of work, in a professional and workmanlike manner.</p>"
+  },
+  {
+   "id": "cl-svc-deliv",
+   "code": "CL-SVC-DELIV",
+   "title": "Deliverables & Acceptance",
+   "category": "Commercial",
+   "country": "",
+   "scope": "library",
+   "domain": "Service",
+   "body": "<p>Deliverables shall be submitted per the agreed schedule. The Client shall review and accept, or provide written comments, within the agreed acceptance period.</p>"
+  },
+  {
+   "id": "cl-svc-fees",
+   "code": "CL-SVC-FEES",
+   "title": "Fees & Payment Terms",
+   "category": "Commercial",
+   "country": "",
+   "scope": "library",
+   "domain": "Service",
+   "body": "<p>Fees are as set out in the proposal quotation. Invoices are payable within 30 days of the invoice date unless otherwise agreed. Applicable taxes are added.</p>"
+  },
+  {
+   "id": "cl-svc-term",
+   "code": "CL-SVC-TERM",
+   "title": "Term & Termination",
+   "category": "General",
+   "country": "",
+   "scope": "library",
+   "domain": "Service",
+   "body": "<p>This agreement remains in force for the engagement term. Either party may terminate for material breach not remedied within 30 days of written notice.</p>"
+  },
+  {
+   "id": "cl-svc-ip",
+   "code": "CL-SVC-IP",
+   "title": "Intellectual Property",
+   "category": "Protective",
+   "country": "",
+   "scope": "library",
+   "domain": "Service",
+   "body": "<p>Deliverables prepared for the Client become the Client’s property upon full payment. The Provider retains rights to its pre-existing methodologies and tools.</p>"
+  },
+  {
+   "id": "cl-svc-liab",
+   "code": "CL-SVC-LIAB",
+   "title": "Limitation of Liability",
+   "category": "Protective",
+   "country": "",
+   "scope": "library",
+   "domain": "Service",
+   "body": "<p>Except for breach of confidentiality, each party’s aggregate liability is limited to the fees paid under this agreement. Neither party is liable for indirect or consequential loss.</p>"
+  },
+  {
+   "id": "cl-svc-warr",
+   "code": "CL-SVC-WARR",
+   "title": "Warranties & Service Levels",
+   "category": "General",
+   "country": "",
+   "scope": "library",
+   "domain": "Service",
+   "body": "<p>The Provider warrants that services will conform to the agreed scope and applicable professional standards, and will re-perform non-conforming services at no additional cost.</p>"
+  }
+ ]
+}

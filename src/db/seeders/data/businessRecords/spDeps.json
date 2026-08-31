@@ -1,0 +1,600 @@
+{
+ "count": 84,
+ "fields": [
+  "id",
+  "name",
+  "category",
+  "description",
+  "status"
+ ],
+ "sample": [
+  {
+   "id": "SDDEP-0001",
+   "name": "Cloud Hosting Provider",
+   "category": "Cloud and Infrastructure",
+   "description": "Hosts the organization’s applications and systems in the cloud.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0002",
+   "name": "Cloud Platform Provider",
+   "category": "Cloud and Infrastructure",
+   "description": "Provides the cloud platform and managed services used.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0003",
+   "name": "Data Center Provider",
+   "category": "Cloud and Infrastructure",
+   "description": "Provides data-center facilities, colocation, or hosting space.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0004",
+   "name": "Server Hosting Provider",
+   "category": "Cloud and Infrastructure",
+   "description": "Hosts physical or virtual servers for the organization.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0005",
+   "name": "Network Provider",
+   "category": "Cloud and Infrastructure",
+   "description": "Provides corporate network connectivity and transport.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0006",
+   "name": "Internet Service Provider",
+   "category": "Cloud and Infrastructure",
+   "description": "Provides internet connectivity for sites and users.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0007",
+   "name": "DNS Provider",
+   "category": "Cloud and Infrastructure",
+   "description": "Manages domain name resolution and DNS records.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0008",
+   "name": "CDN Provider",
+   "category": "Cloud and Infrastructure",
+   "description": "Delivers content via a content delivery network.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0009",
+   "name": "Backup Service Provider",
+   "category": "Cloud and Infrastructure",
+   "description": "Provides backup and data-protection services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0010",
+   "name": "Disaster Recovery Provider",
+   "category": "Cloud and Infrastructure",
+   "description": "Provides disaster-recovery capability and failover.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0011",
+   "name": "Infrastructure Monitoring Provider",
+   "category": "Cloud and Infrastructure",
+   "description": "Monitors infrastructure availability and performance.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0012",
+   "name": "SaaS Application Provider",
+   "category": "Software and SaaS",
+   "description": "Supplies a software-as-a-service application in use.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0013",
+   "name": "Business Application Provider",
+   "category": "Software and SaaS",
+   "description": "Supplies a core business application.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0014",
+   "name": "Identity Provider",
+   "category": "Software and SaaS",
+   "description": "Manages authentication, SSO, and user identities.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0015",
+   "name": "Email Service Provider",
+   "category": "Software and SaaS",
+   "description": "Provides corporate email and messaging.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0016",
+   "name": "Collaboration Tool Provider",
+   "category": "Software and SaaS",
+   "description": "Provides team collaboration and communication tools.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0017",
+   "name": "Ticketing System Provider",
+   "category": "Software and SaaS",
+   "description": "Provides the issue or service-ticketing system.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0018",
+   "name": "Document Management Provider",
+   "category": "Software and SaaS",
+   "description": "Provides document storage and management.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0019",
+   "name": "Source Code Repository Provider",
+   "category": "Software and SaaS",
+   "description": "Hosts and version-controls source code.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0020",
+   "name": "CI/CD Platform Provider",
+   "category": "Software and SaaS",
+   "description": "Provides build, test, and deployment automation.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0021",
+   "name": "Logging Platform Provider",
+   "category": "Software and SaaS",
+   "description": "Provides centralized log collection and analysis.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0022",
+   "name": "Analytics Platform Provider",
+   "category": "Software and SaaS",
+   "description": "Provides analytics, reporting, and dashboards.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0023",
+   "name": "Endpoint Management Provider",
+   "category": "Software and SaaS",
+   "description": "Manages and secures endpoint devices.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0024",
+   "name": "Security Monitoring Provider",
+   "category": "Information Security",
+   "description": "Monitors security events and alerts.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0025",
+   "name": "SOC Provider",
+   "category": "Information Security",
+   "description": "Operates a security operations center for the organization.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0026",
+   "name": "Vulnerability Assessment Provider",
+   "category": "Information Security",
+   "description": "Performs vulnerability scanning and assessment.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0027",
+   "name": "Penetration Testing Provider",
+   "category": "Information Security",
+   "description": "Conducts penetration-testing engagements.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0028",
+   "name": "Threat Intelligence Provider",
+   "category": "Information Security",
+   "description": "Supplies threat-intelligence feeds and analysis.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0029",
+   "name": "Endpoint Security Provider",
+   "category": "Information Security",
+   "description": "Provides endpoint protection and anti-malware.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0030",
+   "name": "Firewall / Network Security Provider",
+   "category": "Information Security",
+   "description": "Provides firewall and network-security services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0031",
+   "name": "IAM / SSO Provider",
+   "category": "Information Security",
+   "description": "Provides identity and access management / single sign-on.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0032",
+   "name": "Security Consultant",
+   "category": "Information Security",
+   "description": "Provides information-security advisory services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0033",
+   "name": "Incident Response Provider",
+   "category": "Information Security",
+   "description": "Provides incident-response and forensics support.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0034",
+   "name": "Consultant",
+   "category": "Professional Services",
+   "description": "Provides general advisory or consulting services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0035",
+   "name": "External Auditor",
+   "category": "Professional Services",
+   "description": "Conducts independent external audits.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0036",
+   "name": "Legal Advisor",
+   "category": "Professional Services",
+   "description": "Provides legal advice and counsel.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0037",
+   "name": "Tax Advisor",
+   "category": "Professional Services",
+   "description": "Provides tax advisory and compliance services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0038",
+   "name": "HR Consultant",
+   "category": "Professional Services",
+   "description": "Provides human-resources advisory services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0039",
+   "name": "Management System Consultant",
+   "category": "Professional Services",
+   "description": "Advises on management-system implementation.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0040",
+   "name": "Certification Body",
+   "category": "Professional Services",
+   "description": "Provides third-party certification and audits.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0041",
+   "name": "Training Provider",
+   "category": "Professional Services",
+   "description": "Delivers training and competence development.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0042",
+   "name": "Recruitment Provider",
+   "category": "Professional Services",
+   "description": "Provides recruitment and staffing services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0043",
+   "name": "Outsourced Developer",
+   "category": "Professional Services",
+   "description": "Provides outsourced software development.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0044",
+   "name": "Outsourced IT Support",
+   "category": "Professional Services",
+   "description": "Provides outsourced IT support services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0045",
+   "name": "Office Supplier",
+   "category": "Operational Suppliers",
+   "description": "Supplies office materials and consumables.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0046",
+   "name": "Equipment Supplier",
+   "category": "Operational Suppliers",
+   "description": "Supplies operational or production equipment.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0047",
+   "name": "Laboratory Equipment Supplier",
+   "category": "Operational Suppliers",
+   "description": "Supplies laboratory equipment and instruments.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0048",
+   "name": "Calibration Service Provider",
+   "category": "Operational Suppliers",
+   "description": "Provides equipment calibration services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0049",
+   "name": "Maintenance Service Provider",
+   "category": "Operational Suppliers",
+   "description": "Provides equipment or facility maintenance.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0050",
+   "name": "Facility Management Provider",
+   "category": "Operational Suppliers",
+   "description": "Manages facilities and building services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0051",
+   "name": "Cleaning Service Provider",
+   "category": "Operational Suppliers",
+   "description": "Provides cleaning and janitorial services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0052",
+   "name": "Security Guard Provider",
+   "category": "Operational Suppliers",
+   "description": "Provides physical security and guarding.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0053",
+   "name": "Courier / Logistics Provider",
+   "category": "Operational Suppliers",
+   "description": "Provides courier and logistics services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0054",
+   "name": "Transportation Provider",
+   "category": "Operational Suppliers",
+   "description": "Provides transportation of goods or people.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0055",
+   "name": "Payment Provider",
+   "category": "Customer and Service Delivery",
+   "description": "Processes payments for the organization.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0056",
+   "name": "Payment Gateway",
+   "category": "Customer and Service Delivery",
+   "description": "Provides online payment gateway services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0057",
+   "name": "Customer Support Provider",
+   "category": "Customer and Service Delivery",
+   "description": "Provides outsourced customer support.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0058",
+   "name": "Call Center Provider",
+   "category": "Customer and Service Delivery",
+   "description": "Operates call-center services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0059",
+   "name": "CRM Provider",
+   "category": "Customer and Service Delivery",
+   "description": "Provides customer relationship management software.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0060",
+   "name": "Marketing Platform Provider",
+   "category": "Customer and Service Delivery",
+   "description": "Provides marketing and campaign tools.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0061",
+   "name": "Survey Platform Provider",
+   "category": "Customer and Service Delivery",
+   "description": "Provides survey and feedback collection.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0062",
+   "name": "External Laboratory",
+   "category": "Customer and Service Delivery",
+   "description": "Performs external testing or analysis.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0063",
+   "name": "Inspection Provider",
+   "category": "Customer and Service Delivery",
+   "description": "Provides inspection services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0064",
+   "name": "Subcontracted Service Provider",
+   "category": "Customer and Service Delivery",
+   "description": "Delivers subcontracted services for the organization.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0065",
+   "name": "Data Processor",
+   "category": "Data and Privacy",
+   "description": "Processes personal data on the organization’s behalf.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0066",
+   "name": "Data Sub-processor",
+   "category": "Data and Privacy",
+   "description": "Processes personal data on behalf of a data processor.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0067",
+   "name": "Data Storage Provider",
+   "category": "Data and Privacy",
+   "description": "Stores organizational or personal data.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0068",
+   "name": "Data Analytics Provider",
+   "category": "Data and Privacy",
+   "description": "Performs data analytics on the organization’s data.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0069",
+   "name": "Personal Data Processing Vendor",
+   "category": "Data and Privacy",
+   "description": "Handles personal-data processing activities.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0070",
+   "name": "Records Retention Provider",
+   "category": "Data and Privacy",
+   "description": "Provides records-retention and archival services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0071",
+   "name": "Archiving Provider",
+   "category": "Data and Privacy",
+   "description": "Provides long-term archiving of data and records.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0072",
+   "name": "Licensing Authority",
+   "category": "Regulatory and Compliance Dependencies",
+   "description": "Issues licenses and permits the organization requires.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0073",
+   "name": "Regulatory Portal",
+   "category": "Regulatory and Compliance Dependencies",
+   "description": "Government portal for regulatory submissions.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0074",
+   "name": "Government Reporting System",
+   "category": "Regulatory and Compliance Dependencies",
+   "description": "System for mandatory government reporting.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0075",
+   "name": "Industry Association",
+   "category": "Regulatory and Compliance Dependencies",
+   "description": "Industry body providing standards or membership.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0076",
+   "name": "Accreditation Body",
+   "category": "Regulatory and Compliance Dependencies",
+   "description": "Accredits certification bodies or laboratories.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0077",
+   "name": "Certification Scheme Owner",
+   "category": "Regulatory and Compliance Dependencies",
+   "description": "Owns the certification scheme or standard.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0078",
+   "name": "Insurance Provider",
+   "category": "Other",
+   "description": "Provides insurance coverage.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0079",
+   "name": "Banking Provider",
+   "category": "Other",
+   "description": "Provides banking and financial services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0080",
+   "name": "Utility Provider",
+   "category": "Other",
+   "description": "Provides utilities such as power and water.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0081",
+   "name": "Emergency Response Provider",
+   "category": "Other",
+   "description": "Provides emergency-response services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0082",
+   "name": "Medical Service Provider",
+   "category": "Other",
+   "description": "Provides occupational-health or medical services.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0083",
+   "name": "Waste Management Provider",
+   "category": "Other",
+   "description": "Provides waste collection and disposal.",
+   "status": "Active"
+  },
+  {
+   "id": "SDDEP-0084",
+   "name": "Environmental Service Provider",
+   "category": "Other",
+   "description": "Provides environmental services.",
+   "status": "Active"
+  }
+ ]
+}

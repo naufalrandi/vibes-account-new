@@ -1,0 +1,17 @@
+{
+ "count": 2,
+ "fields": [
+  "id",
+  "name"
+ ],
+ "sample": [
+  {
+   "id": "grp_4noxt2u",
+   "name": "Standards"
+  },
+  {
+   "id": "grp_jfhm0bp",
+   "name": "Regulations"
+  }
+ ]
+}

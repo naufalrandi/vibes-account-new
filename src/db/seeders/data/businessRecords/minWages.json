@@ -1,0 +1,165 @@
+{
+ "count": 13,
+ "fields": [
+  "id",
+  "country",
+  "scope",
+  "region",
+  "amount",
+  "currency",
+  "unit",
+  "effective",
+  "note",
+  "city",
+  "ageMin",
+  "ageMax",
+  "sector"
+ ],
+ "sample": [
+  {
+   "id": "mw-id-jkt",
+   "country": "ID",
+   "scope": "Region",
+   "region": "DKI Jakarta",
+   "amount": "5396761",
+   "currency": "IDR",
+   "unit": "Month",
+   "effective": "2025-01-01",
+   "note": "UMP DKI Jakarta"
+  },
+  {
+   "id": "mw-id-jabar",
+   "country": "ID",
+   "scope": "Region",
+   "region": "Jawa Barat",
+   "amount": "2191232",
+   "currency": "IDR",
+   "unit": "Month",
+   "effective": "2025-01-01",
+   "note": "UMP Jawa Barat"
+  },
+  {
+   "id": "mw-id-jatim",
+   "country": "ID",
+   "scope": "Region",
+   "region": "Jawa Timur",
+   "amount": "2305985",
+   "currency": "IDR",
+   "unit": "Month",
+   "effective": "2025-01-01",
+   "note": "UMP Jawa Timur"
+  },
+  {
+   "id": "mw-id-bdg",
+   "country": "ID",
+   "scope": "City",
+   "city": "Bandung",
+   "amount": "4482914",
+   "currency": "IDR",
+   "unit": "Month",
+   "effective": "2025-01-01",
+   "note": "UMK Kota Bandung"
+  },
+  {
+   "id": "mw-id-sby",
+   "country": "ID",
+   "scope": "City",
+   "city": "Surabaya",
+   "amount": "4961753",
+   "currency": "IDR",
+   "unit": "Month",
+   "effective": "2025-01-01",
+   "note": "UMK Kota Surabaya"
+  },
+  {
+   "id": "mw-us-fed",
+   "country": "US",
+   "scope": "National",
+   "amount": "7.25",
+   "currency": "USD",
+   "unit": "Hour",
+   "effective": "2009-07-24",
+   "note": "Federal minimum wage"
+  },
+  {
+   "id": "mw-us-ca",
+   "country": "US",
+   "scope": "Region",
+   "region": "California",
+   "amount": "16.50",
+   "currency": "USD",
+   "unit": "Hour",
+   "effective": "2025-01-01",
+   "note": "California state minimum"
+  },
+  {
+   "id": "mw-us-wa",
+   "country": "US",
+   "scope": "Region",
+   "region": "Washington",
+   "amount": "16.66",
+   "currency": "USD",
+   "unit": "Hour",
+   "effective": "2025-01-01",
+   "note": "Washington state minimum"
+  },
+  {
+   "id": "mw-us-nyc",
+   "country": "US",
+   "scope": "City",
+   "city": "New York City",
+   "amount": "16.50",
+   "currency": "USD",
+   "unit": "Hour",
+   "effective": "2025-01-01",
+   "note": "New York City minimum"
+  },
+  {
+   "id": "mw-gb-21",
+   "country": "GB",
+   "scope": "AgeBand",
+   "ageMin": "21",
+   "ageMax": "",
+   "amount": "12.21",
+   "currency": "GBP",
+   "unit": "Hour",
+   "effective": "2025-04-01",
+   "note": "National Living Wage (21+)"
+  },
+  {
+   "id": "mw-gb-18",
+   "country": "GB",
+   "scope": "AgeBand",
+   "ageMin": "18",
+   "ageMax": "20",
+   "amount": "10.00",
+   "currency": "GBP",
+   "unit": "Hour",
+   "effective": "2025-04-01",
+   "note": "18–20 rate"
+  },
+  {
+   "id": "mw-gb-u18",
+   "country": "GB",
+   "scope": "AgeBand",
+   "ageMin": "0",
+   "ageMax": "17",
+   "amount": "7.55",
+   "currency": "GBP",
+   "unit": "Hour",
+   "effective": "2025-04-01",
+   "note": "Under-18 / apprentice rate"
+  },
+  {
+   "id": "mw-sg-clean",
+   "country": "SG",
+   "scope": "Sector",
+   "sector": "Cleaning",
+   "amount": "1740",
+   "currency": "SGD",
+   "unit": "Month",
+   "effective": "2025-07-01",
+   "note": "Progressive Wage Model — cleaning (no national minimum)"
+  }
+ ]
+}
