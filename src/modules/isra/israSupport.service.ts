@@ -98,8 +98,12 @@ export async function logAppetite(auth: AuthContext, input: Record<string, unkno
     version: count + 1,
     threshold: typeof input.threshold === "number" ? input.threshold : 9,
     effectiveDate: (input.effectiveDate as string) || new Date().toISOString().slice(0, 10),
-    approvedBy: auth.userId,
-    approvalDate: new Date().toISOString().slice(0, 10),
+    // isra2AppetiteForm (core.js:15763) — Effective date / Approved by /
+    // Approval date / Change rationale are all form-entered on every
+    // threshold change; fall back to the acting user/today only when the
+    // caller didn't supply them (e.g. older clients).
+    approvedBy: (input.approvedBy as string) || auth.userId,
+    approvalDate: (input.approvalDate as string) || new Date().toISOString().slice(0, 10),
     rationale: (input.rationale as string) || "Updated risk appetite threshold",
   });
 
