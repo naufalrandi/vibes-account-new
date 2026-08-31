@@ -149,7 +149,7 @@ function canViewDocument(
  */
 export async function filterViewableDocuments(auth: AuthContext, views: RecordView[]): Promise<RecordView[]> {
   if (views.length === 0 || auth.isSuperAdmin) return views;
-  const user = auth.userId ? await User.findByPk(auth.userId) : null;
+  const user = auth.userId ? await User.findOne({ where: { id: auth.userId, orgId: auth.orgId } }) : null;
   const viewer = { fullName: user?.fullName ?? null, workUnit: user?.workUnit ?? null, isSuperAdmin: auth.isSuperAdmin };
 
   const unitIds = new Set<string>();
@@ -159,7 +159,7 @@ export async function filterViewableDocuments(auth: AuthContext, views: RecordVi
   }
   const unitNameById = new Map<string, string>();
   if (unitIds.size > 0) {
-    const rows = await WorkUnit.findAll({ where: { id: [...unitIds] }, attributes: ["id", "name"] });
+    const rows = await WorkUnit.findAll({ where: { id: [...unitIds], orgId: auth.orgId }, attributes: ["id", "name"] });
     for (const r of rows) unitNameById.set(r.id, r.name);
   }
   return views.filter((v) => canViewDocument(viewer, { owner: v.owner, data: v.data as Record<string, unknown> }, unitNameById));
