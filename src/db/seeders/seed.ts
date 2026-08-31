@@ -44,6 +44,7 @@ import { seedIsraLibrary } from "./isra";
 import { seedCms } from "./cms";
 import { seedBpCatalog } from "./businessProcess";
 import { seedSaasLifecycle, seedSiteRequests, seedTenantRoles } from "./dataParity";
+import { seedCompetenceRolesAndAssignments } from "./competenceRoles";
 import type { AgreementBlock, AgreementTemplateStatus } from "../models/agreementTemplate.model";
 import { generateStatementForPartner } from "../../modules/billing/billing.service";
 import { hashPassword } from "../../lib/password";
@@ -579,6 +580,13 @@ export async function seed(): Promise<void> {
   await seedSaasLifecycle(dataParityOrgIds);
   await seedSiteRequests(dataParityOrgIds);
   await seedTenantRoles(tenant.id);
+
+  // 12f. SOF-399 (child of SOF-334/SOF-388) — db.roles/db.roleAssignments,
+  //      the mixed-shape collection split across CompetenceRole/RoleTemplate
+  //      per the SOF-388 mapping design (see src/db/seeders/competenceRoles.ts).
+  //      Must run after seedTenantRoles (needs its RoleTemplate rows for the
+  //      shape-B roleId resolution).
+  await seedCompetenceRolesAndAssignments(tenant.id, so.id);
 
   // 13. Phase 8 — a finalized demo assessment for the tenant against ISO 27001.
   //     Internal Audit answered "mature" (score 5, no gap); Risk Assessment
