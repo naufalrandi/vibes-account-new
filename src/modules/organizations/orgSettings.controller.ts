@@ -36,6 +36,9 @@ const updateSchema = z.object({
   email: z.string().email().nullish(),
   phone: z.string().nullish(),
   country: z.string().nullish(),
+  city: z.string().nullish(),
+  state: z.string().nullish(),
+  postalCode: z.string().nullish(),
   branding: brandingSchema.nullish(),
   defaults: defaultsSchema.nullish(),
 });

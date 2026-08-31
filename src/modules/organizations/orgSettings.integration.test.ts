@@ -111,11 +111,24 @@ describe("org-settings", () => {
     const res = await request(app)
       .patch("/v1/org-settings")
       .set("authorization", `Bearer ${token}`)
-      .send({ taxId: "01.234.567.8-901.000", website: "https://axia.io", phone: "+65 6000 0000", country: "SG", branding, defaults });
+      .send({
+        taxId: "01.234.567.8-901.000",
+        website: "https://axia.io",
+        phone: "+65 6000 0000",
+        country: "SG",
+        city: "Singapore",
+        state: "Central",
+        postalCode: "018989",
+        branding,
+        defaults,
+      });
     expect(res.status).toBe(200);
     expect(res.body.data.taxId).toBe("01.234.567.8-901.000");
     expect(res.body.data.website).toBe("https://axia.io");
     expect(res.body.data.country).toBe("SG");
+    expect(res.body.data.city).toBe("Singapore");
+    expect(res.body.data.state).toBe("Central");
+    expect(res.body.data.postalCode).toBe("018989");
     expect(res.body.data.branding).toEqual(branding);
     expect(res.body.data.defaults).toEqual(defaults);
 

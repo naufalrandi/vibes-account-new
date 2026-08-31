@@ -122,6 +122,9 @@ export interface OrgSettings {
   email: string | null;
   phone: string | null;
   country: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
   branding: OrgBranding | null;
   defaults: OrgSystemDefaults | null;
 }
@@ -141,6 +144,9 @@ export interface UpdateOrgSettingsInput {
   email?: string | null;
   phone?: string | null;
   country?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
   branding?: OrgBranding | null;
   defaults?: OrgSystemDefaults | null;
 }
@@ -161,6 +167,9 @@ function toOrgSettings(org: Organization): OrgSettings {
     email: org.email,
     phone: org.phone,
     country: org.country,
+    city: org.city,
+    state: org.state,
+    postalCode: org.postalCode,
     branding: org.branding,
     defaults: org.systemDefaults,
   };
@@ -206,6 +215,9 @@ export async function updateOrgSettings(
   if (input.email !== undefined) org.email = input.email;
   if (input.phone !== undefined) org.phone = input.phone;
   if (input.country !== undefined) org.country = input.country;
+  if (input.city !== undefined) org.city = input.city;
+  if (input.state !== undefined) org.state = input.state;
+  if (input.postalCode !== undefined) org.postalCode = input.postalCode;
   if (input.branding !== undefined) org.branding = input.branding;
   if (input.defaults !== undefined) org.systemDefaults = input.defaults;
 

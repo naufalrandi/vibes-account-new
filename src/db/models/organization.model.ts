@@ -33,6 +33,9 @@ export class Organization extends Model<InferAttributes<Organization>, InferCrea
   declare website: string | null;
   declare country: string | null;
   declare address: string | null;
+  declare city: string | null;
+  declare state: string | null;
+  declare postalCode: string | null;
   declare legalName: string | null;
   declare industry: string | null;
   declare contactName: string | null;
@@ -68,6 +71,9 @@ Organization.init(
     website: { type: DataTypes.STRING, allowNull: true },
     country: { type: DataTypes.STRING, allowNull: true },
     address: { type: DataTypes.STRING, allowNull: true },
+    city: { type: DataTypes.STRING, allowNull: true },
+    state: { type: DataTypes.STRING, allowNull: true },
+    postalCode: { type: DataTypes.STRING, allowNull: true, field: "postal_code" },
     legalName: { type: DataTypes.STRING, allowNull: true, field: "legal_name" },
     industry: { type: DataTypes.STRING, allowNull: true },
     contactName: { type: DataTypes.STRING, allowNull: true, field: "contact_name" },
