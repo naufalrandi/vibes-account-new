@@ -45,6 +45,8 @@ import { seedCms } from "./cms";
 import { seedBpCatalog } from "./businessProcess";
 import { seedSaasLifecycle, seedSiteRequests, seedTenantRoles } from "./dataParity";
 import { seedCompetenceRolesAndAssignments } from "./competenceRoles";
+import { seedOrgUnits } from "./orgUnits";
+import { seedDoaMatrix } from "./doaMatrix";
 import type { AgreementBlock, AgreementTemplateStatus } from "../models/agreementTemplate.model";
 import { generateStatementForPartner } from "../../modules/billing/billing.service";
 import { hashPassword } from "../../lib/password";
@@ -587,6 +589,14 @@ export async function seed(): Promise<void> {
   //      Must run after seedTenantRoles (needs its RoleTemplate rows for the
   //      shape-B roleId resolution).
   await seedCompetenceRolesAndAssignments(tenant.id, so.id);
+
+  // 12g. SOF-407 (design: SOF-386) — Enterprise org structure (32 `OrgUnit`
+  //      rows + synthetic lead roster) and the Delegation-of-Authority spend
+  //      matrix (22 `DoaMatrixEntry` rows). Demo tenant org only (not `so`,
+  //      the AXIA ServiceOwner org). seedOrgUnits must run first — doaMatrix's
+  //      Finance band looks up the tier-A/L1 CEO user it creates.
+  await seedOrgUnits(tenant.id);
+  await seedDoaMatrix(tenant.id);
 
   // 13. Phase 8 — a finalized demo assessment for the tenant against ISO 27001.
   //     Internal Audit answered "mature" (score 5, no gap); Risk Assessment
