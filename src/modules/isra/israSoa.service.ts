@@ -15,6 +15,8 @@ import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError } from "../../lib/errors";
 
+const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
+
 export async function getSoa(auth: AuthContext) {
   // 1. Load all Annex A controls & org custom controls
   const standardControls = await IsraAnnexAControl.findAll({ order: [["ref", "ASC"]] });
@@ -153,6 +155,55 @@ export async function getSoa(auth: AuthContext) {
   });
 
   return result;
+}
+
+/**
+ * Catalog-level custom control (SOF-351, replaces cancelled SOF-350) — OD's
+ * `israControlForm`/`israControlSave` (`app.html:17220`): a "New Custom
+ * Control" the org adds to its own control catalog, independent of any one
+ * scenario. Distinct from `IsraExistingControl` (a scenario's own applied
+ * control record) — this reuses `IsraOrgControl`, which already models
+ * exactly OD's `db.israControls` custom-entry shape (name/category/csf/type/
+ * description + a sequential `CUS-###` ref).
+ */
+export async function listControlCatalog(auth: AuthContext) {
+  const standard = await IsraAnnexAControl.findAll({ order: [["ref", "ASC"]] });
+  const org = await IsraOrgControl.findAll({ where: { orgId: auth.orgId }, order: [["ref", "ASC"]] });
+  return [
+    ...standard.map((s) => ({ ref: s.ref, name: s.name, category: s.category, csf: s.csf, type: s.type, description: s.description, custom: false })),
+    ...org.map((o) => ({ ref: o.ref, name: o.name, category: o.category, csf: o.csf, type: o.type, description: o.description, custom: o.custom })),
+  ];
+}
+
+export async function createControlCatalogEntry(auth: AuthContext, input: Record<string, unknown>, ip: string | null) {
+  const name = str(input.name);
+  if (!name) throw new BadRequestError("Control name is required", "NAME_REQUIRED");
+
+  const customCount = await IsraOrgControl.count({ where: { orgId: auth.orgId, custom: true } });
+  const ref = `CUS-${String(customCount + 1).padStart(3, "0")}`;
+
+  const row = await IsraOrgControl.create({
+    orgId: auth.orgId,
+    ref,
+    custom: true,
+    name,
+    category: str(input.category),
+    csf: str(input.csf),
+    type: str(input.type),
+    description: str(input.description),
+  });
+
+  await writeAudit({
+    actorUserId: auth.userId,
+    organizationId: auth.orgId,
+    action: "isra.controlCatalog.created",
+    entityType: "IsraOrgControl",
+    entityId: row.id,
+    sourceIp: ip,
+    result: "Success",
+  });
+
+  return row.get({ plain: true });
 }
 
 export async function saveSoaJustification(

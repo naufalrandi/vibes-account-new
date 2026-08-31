@@ -244,6 +244,39 @@ describe("ISRA Core: Asset Map, Scenarios, Method C Scoring & SoA (F-3 to F-6)",
   });
 });
 
+describe("ISRA control catalog (SOF-351)", () => {
+  beforeAll(() => initModels());
+  afterEach(() => resetDb());
+
+  it("lists the Annex A baseline and lets an org add a custom control", async () => {
+    const { token } = await makeTenant("isra_ctlcat", "ORG_ISRA_CTLCAT");
+
+    const before = await request(app).get("/v1/isra/soa/controls").set(authed(token));
+    expect(before.status).toBe(200);
+    expect(before.body.data.every((c: any) => c.custom === false)).toBe(true);
+    const baselineCount = before.body.data.length;
+
+    const createRes = await request(app)
+      .post("/v1/isra/soa/controls")
+      .set(authed(token))
+      .send({ name: "Vendor screening questionnaire", category: "Supplier Security", csf: "Identify", type: "Preventive", description: "Pre-onboarding vendor risk screen" });
+    expect(createRes.status).toBe(201);
+    expect(createRes.body.data.ref).toBe("CUS-001");
+    expect(createRes.body.data.custom).toBe(true);
+
+    const after = await request(app).get("/v1/isra/soa/controls").set(authed(token));
+    expect(after.body.data.length).toBe(baselineCount + 1);
+    const custom = after.body.data.find((c: any) => c.ref === "CUS-001");
+    expect(custom).toMatchObject({ name: "Vendor screening questionnaire", category: "Supplier Security", csf: "Identify", type: "Preventive", custom: true });
+  });
+
+  it("rejects a custom control without a name", async () => {
+    const { token } = await makeTenant("isra_ctlcat2", "ORG_ISRA_CTLCAT2");
+    const res = await request(app).post("/v1/isra/soa/controls").set(authed(token)).send({ category: "Physical" });
+    expect(res.status).toBe(400);
+  });
+});
+
 describe("ISRA gap-register Wave Q, task Q3 fixes", () => {
   beforeAll(() => initModels());
   afterEach(() => resetDb());

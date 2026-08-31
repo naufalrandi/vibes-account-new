@@ -20,6 +20,10 @@ const wrap = (fn: (req: Request, res: Response) => Promise<void>) =>
   };
 
 export const getSoa = wrap(async (req, res) => ok(res, await service.getSoa(guard(req))));
+export const listControlCatalog = wrap(async (req, res) => ok(res, await service.listControlCatalog(guard(req))));
+export const createControlCatalogEntry = wrap(async (req, res) =>
+  ok(res, await service.createControlCatalogEntry(guard(req), req.body, req.ip || null), 201)
+);
 export const saveSoaJustification = wrap(async (req, res) =>
   ok(res, await service.saveSoaJustification(guard(req), req.params.annexRef as string, req.body.justification, req.ip || null))
 );
