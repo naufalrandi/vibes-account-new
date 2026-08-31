@@ -41,6 +41,7 @@ import { ACTIONS, MENU_SEED, type SeedMenu } from "../../modules/iam/actions.cat
 import { grantEverythingExceptSpOnly } from "../../modules/iam/tenantGrants";
 import { seedComplianceEngine } from "./complianceEngine";
 import { seedIsraLibrary } from "./isra";
+import { seedCms } from "./cms";
 import type { AgreementBlock, AgreementTemplateStatus } from "../models/agreementTemplate.model";
 import { generateStatementForPartner } from "../../modules/billing/billing.service";
 import { hashPassword } from "../../lib/password";
@@ -552,6 +553,11 @@ export async function seed(): Promise<void> {
   //      publish-state singleton (see src/db/seeders/isra.ts). Global (no
   //      org_id) — no tenant/demo wiring needed here.
   await seedIsraLibrary();
+
+  // 12c. Marketing CMS (SOF-336) — OD's `cmsSeedIfNeeded()` demo content
+  //      (pages/posts/media/menu), owned by the AXIA ServiceOwner org since
+  //      it describes the VIBES marketing site itself (see src/db/seeders/cms.ts).
+  await seedCms(so.id);
 
   // 13. Phase 8 — a finalized demo assessment for the tenant against ISO 27001.
   //     Internal Audit answered "mature" (score 5, no gap); Risk Assessment
