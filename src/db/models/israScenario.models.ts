@@ -57,6 +57,10 @@ export class IsraScenario extends Model<InferAttributes<IsraScenario>, InferCrea
   declare cia: CreationOptional<IsraCia>;
   declare impactOverride: IsraImpactOverride | null;
   declare inherentL: CreationOptional<number>;
+  /** `isra2LikeNoteEdit`'s inherent-likelihood justification (core.js:14576). */
+  declare likelihoodNote: CreationOptional<string | null>;
+  /** `isra2CiaDescEdit`'s per-CIA-letter loss context (core.js:14515). */
+  declare ciaDesc: CreationOptional<{ c?: string; i?: string; a?: string }>;
   declare evalCycle: CreationOptional<number>;
   declare reviewDue: string | null;
   declare createdBy: string | null;
@@ -81,6 +85,8 @@ IsraScenario.init(
     cia: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
     impactOverride: { type: DataTypes.JSONB, allowNull: true, field: "impact_override" },
     inherentL: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1, field: "inherent_l" },
+    likelihoodNote: { type: DataTypes.TEXT, allowNull: true, field: "likelihood_note" },
+    ciaDesc: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "cia_desc" },
     evalCycle: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1, field: "eval_cycle" },
     reviewDue: { type: DataTypes.DATEONLY, allowNull: true, field: "review_due" },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
@@ -141,6 +147,8 @@ export class IsraExistingControl extends Model<InferAttributes<IsraExistingContr
   declare status: CreationOptional<string>;
   declare affects: string | null;
   declare objective: string | null;
+  /** `isra2ExcForm`'s free-text "Control owner" (core.js:14723, `C.owner`). */
+  declare owner: string | null;
   declare ceff: CreationOptional<IsraCeff>;
   declare maturity: CreationOptional<IsraMaturity>;
   declare maturityByRef: CreationOptional<Record<string, number>>;
@@ -162,6 +170,7 @@ IsraExistingControl.init(
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Planned" },
     affects: { type: DataTypes.STRING, allowNull: true },
     objective: { type: DataTypes.STRING, allowNull: true },
+    owner: { type: DataTypes.STRING, allowNull: true },
     ceff: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
     maturity: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
     maturityByRef: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "maturity_by_ref" },

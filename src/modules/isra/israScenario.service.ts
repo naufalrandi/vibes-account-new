@@ -610,6 +610,8 @@ export async function updateScenario(auth: AuthContext, id: string, input: Recor
   }
   if (input.cia !== undefined) scenario.cia = (input.cia as any) || scenario.cia;
   if (input.inherentL !== undefined && typeof input.inherentL === "number") scenario.inherentL = input.inherentL;
+  if (input.likelihoodNote !== undefined) scenario.likelihoodNote = str(input.likelihoodNote);
+  if (input.ciaDesc !== undefined) scenario.ciaDesc = (input.ciaDesc as any) || {};
   if (input.reviewDue !== undefined) scenario.reviewDue = str(input.reviewDue);
   if (input.impactOverride !== undefined) {
     const rawOverride = input.impactOverride as Record<string, unknown> | null;
@@ -713,6 +715,7 @@ export async function createExistingControl(auth: AuthContext, scenarioId: strin
     status: str(input.status) || "Implemented and Effective",
     affects: str(input.affects) || "likelihood",
     objective: str(input.objective),
+    owner: str(input.owner),
     maturity: (input.maturity as any) || null,
     maturityByRef: (input.maturityByRef as any) || {},
     verified: Boolean(input.verified),
@@ -742,6 +745,7 @@ export async function updateExistingControl(auth: AuthContext, controlId: string
   if (input.status !== undefined) control.status = str(input.status) || control.status;
   if (input.affects !== undefined) control.affects = str(input.affects) || control.affects;
   if (input.objective !== undefined) control.objective = str(input.objective);
+  if (input.owner !== undefined) control.owner = str(input.owner);
   if (input.maturity !== undefined) control.maturity = (input.maturity as any) || null;
   if (input.maturityByRef !== undefined) control.maturityByRef = (input.maturityByRef as any) || {};
   if (input.verified !== undefined) control.verified = Boolean(input.verified);
