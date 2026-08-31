@@ -146,6 +146,10 @@ const entLeadsDataSchema = z
     // absent tenantId to `null`, not `undefined` — `.optional()` alone
     // rejects that and 400s every manual lead/inquiry create.
     tenantId: z.string().nullable().optional(),
+    // `leadData()` (fe-vibes-new/lib/sales/leads.ts) always stamps this field
+    // on create; the backend never reads it, but `.strict()` 400s on any
+    // unrecognized key so it must be declared to accept the payload.
+    registeredBy: z.string().optional(),
   })
   .strict();
 
