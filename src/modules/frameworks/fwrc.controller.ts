@@ -9,10 +9,12 @@ const createSchema = z.object({
   requirementId: z.string().uuid(),
   responseId: z.string().uuid(),
   statement: z.string().min(1),
+  status: z.enum(["Active", "Inactive"]).optional(),
 });
 const updateSchema = z.object({
   responseId: z.string().uuid().optional(),
   statement: z.string().min(1).optional(),
+  status: z.enum(["Active", "Inactive"]).optional(),
 });
 
 const guard = (req: Request): AuthContext => { if (!req.auth) throw new UnauthorizedError(); return req.auth; };

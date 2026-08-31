@@ -25,12 +25,13 @@ export interface FwrcView {
   responseCode: string | null;
   responseText: string;
   statement: string;
+  status: "Active" | "Inactive";
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface CreateFwrcInput { requirementId: string; responseId: string; statement: string }
-export interface UpdateFwrcInput { statement?: string; responseId?: string }
+export interface CreateFwrcInput { requirementId: string; responseId: string; statement: string; status?: "Active" | "Inactive" }
+export interface UpdateFwrcInput { statement?: string; responseId?: string; status?: "Active" | "Inactive" }
 
 async function toView(f: Fwrc): Promise<FwrcView> {
   const [fw, req, el, q, resp] = await Promise.all([
@@ -46,7 +47,7 @@ async function toView(f: Fwrc): Promise<FwrcView> {
     elementId: f.elementId, elementCode: el?.code ?? "", elementName: el?.name ?? "",
     questionId: f.questionId, questionCode: q?.code ?? null, questionText: q?.text ?? null,
     responseId: f.responseId, responseCode: resp?.code ?? null, responseText: resp?.text ?? "",
-    statement: f.statement, createdAt: f.createdAt, updatedAt: f.updatedAt,
+    statement: f.statement, status: f.status as "Active" | "Inactive", createdAt: f.createdAt, updatedAt: f.updatedAt,
   };
 }
 
@@ -91,6 +92,7 @@ export async function createFwrc(auth: AuthContext, input: CreateFwrcInput, ip: 
     questionId: question.id,
     responseId: resp.id,
     statement: input.statement.trim(),
+    status: input.status ?? "Active",
   });
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "fwrc.created", entityType: "Fwrc", entityId: f.id, sourceIp: ip, result: "Success" });
   return toView(f);
@@ -116,6 +118,7 @@ export async function updateFwrc(auth: AuthContext, id: string, input: UpdateFwr
     if (!input.statement.trim()) throw new BadRequestError("A maturity statement is required", "STATEMENT_REQUIRED");
     f.statement = input.statement.trim();
   }
+  if (input.status !== undefined) f.status = input.status;
   await f.save();
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "fwrc.updated", entityType: "Fwrc", entityId: f.id, sourceIp: ip, result: "Success" });
   return toView(f);
