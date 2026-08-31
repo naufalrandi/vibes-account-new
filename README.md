@@ -11,7 +11,12 @@ Express + Sequelize + PostgreSQL modular monolith for OmniTenant User Management
 6. `npm run dev` → http://localhost:4000
 
 ## Test
-`npm run test` (requires `omnitenant_test`).
+`npm run test` (requires a reachable `omnitenant_test` Postgres DB). `test/setup.ts` loads
+`.env.test` (committed, points at `127.0.0.1:5432`) before any developer `.env`, so `npm test`
+boots without any local setup as long as Postgres is reachable at that address with the
+`omnitenant_test` DB migrated (`npm run db:migrate` against `DATABASE_URL_TEST`). No CI
+pipeline exists yet in this repo; when one is added it should provision Postgres the same way
+and either reuse `.env.test` or override `DATABASE_URL_TEST`/`JWT_*` secrets as CI env vars.
 
 ## Endpoints (v1)
 - `POST /v1/auth/login|refresh|logout|activate|password/forgot|password/reset`

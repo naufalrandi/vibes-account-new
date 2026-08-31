@@ -1,9 +1,14 @@
-import "dotenv/config";
+import { config as loadDotenv } from "dotenv";
 import { beforeAll, beforeEach, afterAll } from "vitest";
 import { resetRateLimits } from "../src/middleware/rateLimit";
 
 // Force test env before any DB module (env/sequelize/models) is evaluated.
 process.env.NODE_ENV = "test";
+
+// Committed local-DB defaults, loaded before a developer's own .env so ".env.test"
+// wins (dotenv never overrides an already-set var) -- see SOF-415.
+loadDotenv({ path: ".env.test" });
+loadDotenv();
 
 // The auth rate limiter is module-level and, with fileParallelism:false, shared
 // across the whole suite within one process. Reset it before every test so
