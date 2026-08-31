@@ -458,11 +458,15 @@ export async function deleteRisk(auth: AuthContext, id: string, ip: string | nul
 
 // ========================== WORKFLOW & RTP ================================
 
+/** Statuses OD's `apForm` offers at creation (Todo / In Progress / Done). */
+const AP_CREATE_STATUSES = ["Draft", "Planned", "In Progress", "Completed"];
+
 export async function assignOwner(
   auth: AuthContext,
   id: string,
   owner: string,
-  ip: string | null
+  ip: string | null,
+  note?: string
 ): Promise<RiskRecordView> {
   const rec = await ImplementationRecord.findOne({ where: { id, module: "risks" } });
   if (!rec) throw new NotFoundError("Risk not found", "RISK_NOT_FOUND");
@@ -476,12 +480,15 @@ export async function assignOwner(
     rec.status = "Assigned";
   }
 
+  // OD `riskAssignForm` (core.js:10484) appends the optional assignment note to
+  // the activity summary as `owner + ' · ' + note`.
+  const trimmedNote = (note || "").trim();
   const activity = (d.activity as RiskActivityEntry[]) || [];
   activity.unshift({
     ts: new Date().toISOString(),
     user: who,
     action: "Owner Assigned",
-    summary: `Risk assigned to ${owner}`,
+    summary: `Risk assigned to ${owner}${trimmedNote ? ` · ${trimmedNote}` : ""}`,
   });
   d.activity = activity;
   rec.data = d;
@@ -594,7 +601,7 @@ export async function generateRtp(auth: AuthContext, id: string, ip: string | nu
 export async function addActionPlan(
   auth: AuthContext,
   id: string,
-  input: { title: string; deadline?: string; resources?: ActionPlanResource[]; pics?: string[] },
+  input: { title: string; deadline?: string; resources?: ActionPlanResource[]; pics?: string[]; status?: string },
   ip: string | null
 ): Promise<RiskRecordView> {
   const rec = await ImplementationRecord.findOne({ where: { id, module: "risks" } });
@@ -603,6 +610,15 @@ export async function addActionPlan(
 
   if (!input.title || !input.title.trim()) {
     throw new BadRequestError("Action plan title is required", "TITLE_REQUIRED");
+  }
+  // OD `apForm` (core.js:10353) lets the plan be created directly in one of
+  // three states. "Verified" is not one of them — effectiveness verification is
+  // its own endpoint, so it can never be claimed at creation time.
+  if (input.status !== undefined && !AP_CREATE_STATUSES.includes(input.status)) {
+    throw new BadRequestError(
+      `Action plan status must be one of ${AP_CREATE_STATUSES.join(", ")}`,
+      "INVALID_ACTION_PLAN_STATUS"
+    );
   }
 
   const who = await actorName(auth);
@@ -622,7 +638,7 @@ export async function addActionPlan(
     deadline: input.deadline || "",
     resources: Array.isArray(input.resources) ? input.resources : [],
     pics: Array.isArray(input.pics) ? input.pics : [],
-    status: "Draft",
+    status: (input.status as RiskActionPlan["status"]) || "Draft",
     createdAt: new Date().toISOString(),
   };
 

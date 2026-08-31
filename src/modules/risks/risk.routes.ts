@@ -102,7 +102,13 @@ riskRoutes.post(
   "/:id/assign",
   wrap(async (req, res) => {
     const auth = guard(req);
-    const data = await svc.assignOwner(auth, req.params.id as string, String(req.body?.owner || ""), req.ip ?? null);
+    const data = await svc.assignOwner(
+      auth,
+      req.params.id as string,
+      String(req.body?.owner || ""),
+      req.ip ?? null,
+      req.body?.note === undefined ? undefined : String(req.body.note)
+    );
     ok(res, data);
   })
 );
