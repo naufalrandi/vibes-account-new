@@ -83,6 +83,9 @@ export class CompetenceRole extends Model<InferAttributes<CompetenceRole>, Infer
   declare id: CreationOptional<string>;
   /** null → Service-Provider / enterprise role; otherwise the owning tenant org. */
   declare orgId: string | null;
+  /** Enterprise (`orgId === null`) roles only — which operating company owns this
+   * role profile ("axia" | "exelera"), same partition as `BusinessRecord.company`. */
+  declare company: CreationOptional<string>;
   declare name: string;
   declare description: string | null;
   declare status: CreationOptional<string>;
@@ -103,6 +106,7 @@ CompetenceRole.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     orgId: { type: DataTypes.UUID, allowNull: true, field: "org_id" },
+    company: { type: DataTypes.STRING, allowNull: false, defaultValue: "axia" },
     name: { type: DataTypes.STRING, allowNull: false },
     description: { type: DataTypes.TEXT, allowNull: true },
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Draft" },
