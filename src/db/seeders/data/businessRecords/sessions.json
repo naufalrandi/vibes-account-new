@@ -27,7 +27,7 @@
  "sample": [
   {
    "id": "SESS-7001",
-   "co": "axia",
+   "co": "exelera",
    "courseId": "crs-fw_dig57pn-l3",
    "courseCode": "7200",
    "courseTitle": "ISO 9001 Requirements",
@@ -39,7 +39,7 @@
    "start": "",
    "end": "",
    "currency": "IDR",
-   "price": 0,
+   "price": 4500000,
    "priceBasis": "per seat",
    "status": "Running",
    "createdAt": "2026-08-31T09:40:48.509Z",
@@ -54,7 +54,7 @@
   },
   {
    "id": "SESS-7002",
-   "co": "axia",
+   "co": "exelera",
    "courseId": "crs-found",
    "courseCode": "7001",
    "courseTitle": "Management System Essentials (ISO Foundation)",
@@ -81,7 +81,7 @@
   },
   {
    "id": "SESS-7003",
-   "co": "axia",
+   "co": "exelera",
    "courseId": "crs-aw-cd-qs",
    "courseCode": "7101",
    "courseTitle": "Quality and Safety Awareness",
@@ -108,12 +108,12 @@
   },
   {
    "id": "SESS-7004",
-   "co": "axia",
+   "co": "exelera",
    "courseId": "crs-aw-cd-isp",
    "courseCode": "7102",
    "courseTitle": "Information Security and Privacy Awareness",
    "type": "private",
-   "projectId": null,
+   "projectId": "PRJ-6210",
    "mode": "onsite",
    "capacity": 12,
    "facilitator": "Rangga Mahardika",

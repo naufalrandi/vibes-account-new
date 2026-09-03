@@ -2,7 +2,12 @@ import {
   IsraAnnexAControl,
   IsraThreatLibrary,
   IsraVulnLibrary,
+  IsraPaGroup,
+  IsraPaSubgroup,
+  IsraSaGroup,
   IsraSaSubgroup,
+  IsraPrimaryAssetLibrary,
+  IsraSecondaryAssetLibrary,
   IsraKmSaThreat,
   IsraKmThreatVuln,
   IsraKmVulnControl,
@@ -16,12 +21,21 @@ import { ISRA_KM_SA_THREAT_SEED, type IsraKmSaThreatSeedRow } from "./isra.kmSaT
 import { ISRA_KM_THREAT_VULN_SEED, type IsraKmThreatVulnSeedRow } from "./isra.kmThreatVuln.data";
 import { ISRA_KM_VULN_CONTROL_SEED } from "./isra.kmVulnControl.data";
 import { ISRA_TREAT_TEMPLATES_SEED } from "./isra.treatTemplates.data";
+import {
+  ISRA_PA_GROUP_SEED,
+  ISRA_PA_SUBGROUP_SEED,
+  ISRA_SA_GROUP_SEED,
+  ISRA_SA_SUBGROUP_SEED,
+  ISRA_PRIMARY_ASSET_SEED,
+  ISRA_SECONDARY_ASSET_SEED,
+} from "./isra.assetTaxonomy.data";
 
 /**
  * ISRA + SoA (F-2b) — global reference-library seed: the 93-row Annex A
- * master, Threat/Vuln libraries, the re-derived V2 knowledge maps
- * (SA-subgroup→Threat, Threat→Vuln), the 269-row Vuln→Annex A map, the
- * generic RTP treatment templates, and the KM publish-state singleton.
+ * master, Threat/Vuln libraries, the Primary/Secondary asset taxonomy and
+ * its asset libraries, the re-derived V2 knowledge maps (SA-subgroup→Threat,
+ * Threat→Vuln), the 1,950-row Vuln→Annex A map, the generic RTP treatment
+ * templates, and the KM publish-state singleton.
  *
  * All of these are GLOBAL reference tables (no org_id) — same seeding shape
  * as `seedComplianceEngine()`: idempotent upsert by natural/business key, so
@@ -31,11 +45,12 @@ import { ISRA_TREAT_TEMPLATES_SEED } from "./isra.treatTemplates.data";
  * otherwise mean ~1,200 sequential network round trips to a remote database.
  *
  * `isra_km_sa_threat`/`isra_km_threat_vuln` carry FKs into
- * `isra_sa_subgroups`/`isra_sa_groups` (F-2a's territory — the Group→
- * Subgroup taxonomy, migration 0060, seeded independently). If those tables
- * are not yet seeded when this runs, the affected KM rows are skipped with a
- * warning rather than failing the whole seed — they converge automatically
- * the next time this seeder runs after F-2a's seed has landed.
+ * `isra_sa_subgroups`/`isra_sa_groups`. `seedAssetTaxonomy()` below now fills
+ * those tables from OD in the same pass and runs FIRST, so the partition
+ * guard should never skip a row. The guard stays because it is the only thing
+ * that turns a taxonomy gap into a loud warning instead of an FK crash mid-seed;
+ * a non-zero `skipped` after this ordering means the taxonomy data itself has
+ * drifted from the KM data, which is worth failing loudly on.
  */
 
 async function seedAnnexA(): Promise<void> {
@@ -53,8 +68,48 @@ async function seedVulnLibrary(): Promise<void> {
   await IsraVulnLibrary.bulkCreate([...ISRA_VULN_LIBRARY_SEED], { updateOnDuplicate: ["name", "category", "description", "status"] });
 }
 
+/**
+ * The asset taxonomy: Primary/Secondary asset Group→Subgroup trees and the
+ * seeded asset libraries hanging off them. OD's own ids are preserved
+ * (`PAG-`/`PSG-`/`SAG-`/`SSG-`/`PAL-`/`SAL-`) because the knowledge maps
+ * reference subgroups by exactly those strings.
+ *
+ * Groups go before subgroups, and both go before the libraries, so every FK
+ * target exists when its referrer is written.
+ */
+async function seedAssetTaxonomy(): Promise<{ paGroups: number; paSubgroups: number; saGroups: number; saSubgroups: number; primary: number; secondary: number }> {
+  await IsraPaGroup.bulkCreate([...ISRA_PA_GROUP_SEED], { updateOnDuplicate: ["name"] });
+  await IsraSaGroup.bulkCreate([...ISRA_SA_GROUP_SEED], { updateOnDuplicate: ["name"] });
+
+  await IsraPaSubgroup.bulkCreate(
+    ISRA_PA_SUBGROUP_SEED.map((spec) => ({ ...spec, examples: [...spec.examples] })),
+    { updateOnDuplicate: ["groupId", "name", "description", "examples"] },
+  );
+  await IsraSaSubgroup.bulkCreate(
+    ISRA_SA_SUBGROUP_SEED.map((spec) => ({ ...spec, examples: [...spec.examples] })),
+    { updateOnDuplicate: ["groupId", "name", "description", "examples", "status", "version"] },
+  );
+
+  await IsraPrimaryAssetLibrary.bulkCreate(
+    ISRA_PRIMARY_ASSET_SEED.map((spec) => ({ ...spec, cia: { ...spec.cia }, typicalSecondary: [...spec.typicalSecondary] })),
+    { updateOnDuplicate: ["name", "category", "groupId", "subgroupId", "cia", "privacy", "typicalSecondary"] },
+  );
+  await IsraSecondaryAssetLibrary.bulkCreate([...ISRA_SECONDARY_ASSET_SEED], {
+    updateOnDuplicate: ["name", "groupId", "subgroupId", "description"],
+  });
+
+  return {
+    paGroups: ISRA_PA_GROUP_SEED.length,
+    paSubgroups: ISRA_PA_SUBGROUP_SEED.length,
+    saGroups: ISRA_SA_GROUP_SEED.length,
+    saSubgroups: ISRA_SA_SUBGROUP_SEED.length,
+    primary: ISRA_PRIMARY_ASSET_SEED.length,
+    secondary: ISRA_SECONDARY_ASSET_SEED.length,
+  };
+}
+
 /** Subgroup ids that currently exist — used to skip KM rows whose taxonomy
- * FK target hasn't been seeded yet (F-2a runs independently). */
+ * FK target hasn't been seeded yet. */
 async function existingSubgroupIds(): Promise<Set<string>> {
   const rows = await IsraSaSubgroup.findAll({ attributes: ["id"] });
   return new Set(rows.map((r) => r.id));
@@ -135,6 +190,7 @@ export interface SeedIsraLibraryResult {
   annexA: number;
   threats: number;
   vulns: number;
+  taxonomy: { paGroups: number; paSubgroups: number; saGroups: number; saSubgroups: number; primary: number; secondary: number };
   kmSaThreat: { seeded: number; skipped: number };
   kmThreatVuln: { seeded: number; skipped: number };
   kmVulnControl: number;
@@ -145,6 +201,8 @@ export async function seedIsraLibrary(): Promise<SeedIsraLibraryResult> {
   await seedAnnexA();
   await seedThreatLibrary();
   await seedVulnLibrary();
+  // Before the KM seeds: they FK into the subgroups this creates.
+  const taxonomy = await seedAssetTaxonomy();
   await seedKmVulnControl();
   await seedTreatTemplates();
   await ensureKmMeta();
@@ -156,7 +214,8 @@ export async function seedIsraLibrary(): Promise<SeedIsraLibraryResult> {
     // eslint-disable-next-line no-console
     console.warn(
       `[seedIsraLibrary] skipped ${kmSaThreat.skipped} isra_km_sa_threat and ${kmThreatVuln.skipped} isra_km_threat_vuln rows — ` +
-        `isra_sa_subgroups is not yet seeded for their subgroup id(s). Re-run this seeder after the Group/Subgroup taxonomy seed lands.`,
+        `their subgroup id(s) are not in isra_sa_subgroups. seedAssetTaxonomy() runs first, so this means the ` +
+        `taxonomy data and the knowledge-map data have drifted apart — regenerate both with fe-vibes-new/tools/regen-od-data.cjs.`,
     );
   }
 
@@ -164,6 +223,7 @@ export async function seedIsraLibrary(): Promise<SeedIsraLibraryResult> {
     annexA: ISRA_ANNEXA_SEED.length,
     threats: ISRA_THREAT_LIBRARY_SEED.length,
     vulns: ISRA_VULN_LIBRARY_SEED.length,
+    taxonomy,
     kmSaThreat,
     kmThreatVuln,
     kmVulnControl: ISRA_KM_VULN_CONTROL_SEED.length,

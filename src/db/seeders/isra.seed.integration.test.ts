@@ -9,8 +9,12 @@ import {
   IsraKmVulnControl,
   IsraKmMeta,
   IsraTreatTemplate,
+  IsraPaGroup,
+  IsraPaSubgroup,
   IsraSaGroup,
   IsraSaSubgroup,
+  IsraPrimaryAssetLibrary,
+  IsraSecondaryAssetLibrary,
 } from "../models";
 import { seedIsraLibrary } from "./isra";
 import { ISRA_ANNEXA_SEED } from "./isra.annexA.data";
@@ -23,13 +27,14 @@ import { ISRA_KM_THREAT_VULN_SEED } from "./isra.kmThreatVuln.data";
  * that the seeder runs without throwing:
  *  - the 93-row Annex A master with P/D/C flags spot-checked against OD's
  *    `isra2DefProfile` type-based default (design doc §1, app.html:18140);
- *  - the 269-row `isra_km_vuln_control` CSV seed;
+ *  - the 1,950-row `isra_km_vuln_control` map (269 curated CSV edges plus
+ *    1,681 generated from OD's `ISRA_VULN_CTL_GEN`);
+ *  - the Primary/Secondary asset taxonomy, which the seeder now writes
+ *    itself, before the knowledge maps that FK into it;
  *  - the re-derived V2 knowledge maps (`isra_km_sa_threat`/
- *    `isra_km_threat_vuln`) — this seeder intentionally SKIPS any KM row
- *    whose Sub-group id isn't in `isra_sa_subgroups` yet (F-2a's taxonomy
- *    seed, which may not have landed when this runs), so this test proves
- *    both halves of that behavior: graceful skip when the taxonomy is
- *    absent, and correct insertion once a taxonomy row exists.
+ *    `isra_km_threat_vuln`) — with the taxonomy seeded in the same pass,
+ *    every row must now resolve, so a non-zero `skipped` means the taxonomy
+ *    and KM datasets have drifted apart.
  *
  * Purely additive (findOrCreate/upsert by natural key) — never truncates,
  * safe to run repeatedly against a shared database.
@@ -90,20 +95,63 @@ describe("ISRA reference-library seed (F-2b)", () => {
     expect(t2?.name).toBe("Account takeover");
   });
 
-  it("seeds exactly 269 isra_km_vuln_control rows verbatim from isra-vuln-control-map.csv", async () => {
-    expect(ISRA_KM_VULN_CONTROL_SEED.length).toBe(269);
+  it("seeds all 1,950 isra_km_vuln_control rows — 269 curated plus 1,681 generated", async () => {
+    // OD builds this map from two sources and renders both as live edges:
+    // the curated CSV (`source: "platform"`, enriched at runtime with
+    // role/affects/strength) and `_israVulnCtlGenV1`'s expansion of
+    // `ISRA_VULN_CTL_GEN` (`source: "vcatgen"`), which skips any vuln|annexRef
+    // pair the curated map already covers.
+    expect(ISRA_KM_VULN_CONTROL_SEED.length).toBe(1950);
+    const bySource = ISRA_KM_VULN_CONTROL_SEED.reduce<Record<string, number>>((acc, r) => {
+      const k = r.source ?? "(none)";
+      acc[k] = (acc[k] ?? 0) + 1;
+      return acc;
+    }, {});
+    expect(bySource).toEqual({ platform: 269, vcatgen: 1681 });
+
     const count = await IsraKmVulnControl.count();
-    expect(count).toBe(269);
+    expect(count).toBe(1950);
 
     const distinctVulns = new Set((await IsraKmVulnControl.findAll({ attributes: ["vulnId"] })).map((r) => r.vulnId));
-    expect(distinctVulns.size).toBe(126);
+    expect(distinctVulns.size).toBe(392);
     const distinctAnnex = new Set((await IsraKmVulnControl.findAll({ attributes: ["annexRef"] })).map((r) => r.annexRef));
-    expect(distinctAnnex.size).toBe(40);
+    expect(distinctAnnex.size).toBe(77);
 
-    // VUL-0143 "Absence of API rate limiting" maps to two controls in the CSV.
-    const edges = await IsraKmVulnControl.findAll({ where: { vulnId: "VUL-0143" } });
-    expect(edges.map((e) => e.annexRef).sort()).toEqual(["A.8.26", "A.8.28"]);
-    expect(edges.every((e) => e.status === "Published" && e.source === "isra-vuln-control-map.csv")).toBe(true);
+    // VUL-0143 "Absence of API rate limiting" is curated-only: two CSV edges,
+    // no generated ones, and OD's runtime enrichment applied.
+    const curated = await IsraKmVulnControl.findAll({ where: { vulnId: "VUL-0143" } });
+    expect(curated.map((e) => e.annexRef).sort()).toEqual(["A.8.26", "A.8.28"]);
+    expect(curated.every((e) => e.status === "Published" && e.source === "platform")).toBe(true);
+    expect(curated.every((e) => e.role !== null && e.affects !== null && e.strength !== null)).toBe(true);
+
+    // VUL-0001 "Unsupported hardware" is generated-only — the first row of
+    // OD's ISRA_VULN_CTL_GEN, fanned out to its eight Annex A refs.
+    const generated = await IsraKmVulnControl.findAll({ where: { vulnId: "VUL-0001" } });
+    expect(generated.map((e) => e.annexRef).sort()).toEqual(
+      ["A.5.15", "A.5.18", "A.5.9", "A.7.13", "A.7.8", "A.8.2", "A.8.3", "A.8.8"],
+    );
+    expect(generated.every((e) => e.source === "vcatgen")).toBe(true);
+  });
+
+  it("seeds the Primary/Secondary asset taxonomy the knowledge maps FK into", async () => {
+    const result = await seedIsraLibrary();
+    expect(result.taxonomy).toEqual({
+      paGroups: 5, paSubgroups: 16, saGroups: 10, saSubgroups: 39, primary: 10, secondary: 16,
+    });
+    expect(await IsraPaGroup.count()).toBe(5);
+    expect(await IsraPaSubgroup.count()).toBe(16);
+    expect(await IsraSaGroup.count()).toBe(10);
+    expect(await IsraSaSubgroup.count()).toBe(39);
+    expect(await IsraPrimaryAssetLibrary.count()).toBe(10);
+    expect(await IsraSecondaryAssetLibrary.count()).toBe(16);
+
+    // Spot-check the FK target every KM row in the fixtures points at.
+    const ssg020 = await IsraSaSubgroup.findByPk("SSG-020");
+    expect(ssg020).toMatchObject({ groupId: "SAG-007" });
+
+    // Primary assets carry OD's CIA summary and privacy flag.
+    const pal1 = await IsraPrimaryAssetLibrary.findByPk("PAL-001");
+    expect(pal1).toMatchObject({ name: "Customer Personal Data", privacy: true, groupId: "PAG-001" });
   });
 
   it("seeds the 3-row RTP treatment-template demo catalog with resolved vuln ids", async () => {
@@ -119,7 +167,7 @@ describe("ISRA reference-library seed (F-2b)", () => {
     expect(rows[0]).toMatchObject({ version: 1, status: "Published" });
   });
 
-  it("V2 knowledge-map derivation: skips rows whose Sub-group has no isra_sa_subgroups row yet, and inserts correctly once one exists", async () => {
+  it("V2 knowledge-map derivation resolves every row now the taxonomy is seeded in the same pass", async () => {
     // Confirm the derivation shape independent of the DB: 56/194 rows derived
     // from OD's 80/272 V1 rows, matching the exact resolve() algorithm ported
     // from app.html:20889-20907 (see isra.kmSaThreat.data.ts's header for the
@@ -130,33 +178,16 @@ describe("ISRA reference-library seed (F-2b)", () => {
     expect(kst1).toMatchObject({ subgroupId: "SSG-020", groupId: "SAG-007", threatId: "THR-0002" });
     expect(kst1?.sources).toEqual(["HR System", "Public Web Application", "SaaS Business Application"]);
 
-    // Before any isra_sa_subgroups row exists for SSG-020, the seeder must
-    // skip rather than fail on the FK.
-    await IsraKmSaThreat.destroy({ where: { subgroupId: "SSG-020" } });
-    await IsraKmThreatVuln.destroy({ where: { subgroupId: "SSG-020" } });
-    const beforeTaxonomy = await seedIsraLibrary();
-    expect(beforeTaxonomy.kmSaThreat.seeded).toBe(0);
-    expect(beforeTaxonomy.kmSaThreat.skipped).toBe(56);
-    expect(await IsraKmSaThreat.count()).toBe(0);
-    expect(await IsraKmThreatVuln.count()).toBe(0);
-
-    // Insert only the two taxonomy rows the KST2-0001/KTV2-0001 rows need
-    // (F-2a's own seed data, minimally reproduced here so this test is
-    // self-contained rather than depending on F-2a's seeder having run).
-    await IsraSaGroup.findOrCreate({ where: { id: "SAG-007" }, defaults: { id: "SAG-007", name: "Applications and Software" } });
-    await IsraSaSubgroup.findOrCreate({
-      where: { id: "SSG-020" },
-      defaults: { id: "SSG-020", groupId: "SAG-007", name: "Web and Mobile Applications", description: null, examples: [], status: "Approved", version: 1 },
-    });
-
-    const afterTaxonomy = await seedIsraLibrary();
-    // Only the 17 KST2 / 62 KTV2 rows keyed to SSG-020 now resolve; the other
-    // 5 Sub-groups (SSG-011/021/023/025/026) still have no taxonomy row, so
-    // their rows stay skipped — proving the skip is per-row, not all-or-nothing.
-    expect(afterTaxonomy.kmSaThreat.seeded).toBe(17);
-    expect(afterTaxonomy.kmSaThreat.skipped).toBe(56 - 17);
-    expect(afterTaxonomy.kmThreatVuln.seeded).toBe(62);
-    expect(afterTaxonomy.kmThreatVuln.skipped).toBe(194 - 62);
+    // `seedAssetTaxonomy()` runs before the KM seeds, so a full run must place
+    // every row. A non-zero `skipped` here is the drift alarm: it means a KM
+    // fixture references a Sub-group the taxonomy fixture no longer defines.
+    await IsraKmSaThreat.destroy({ where: {}, truncate: true });
+    await IsraKmThreatVuln.destroy({ where: {}, truncate: true });
+    const result = await seedIsraLibrary();
+    expect(result.kmSaThreat).toEqual({ seeded: 56, skipped: 0 });
+    expect(result.kmThreatVuln).toEqual({ seeded: 194, skipped: 0 });
+    expect(await IsraKmSaThreat.count()).toBe(56);
+    expect(await IsraKmThreatVuln.count()).toBe(194);
 
     const kst2001 = await IsraKmSaThreat.findByPk("KST2-0001");
     expect(kst2001).toMatchObject({ subgroupId: "SSG-020", groupId: "SAG-007", threatId: "THR-0002" });

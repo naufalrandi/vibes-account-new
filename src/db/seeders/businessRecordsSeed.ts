@@ -379,14 +379,6 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
     bump("mb-booking");
   }
 
-  for (const row of loadDump("sessions")) {
-    const courseId = row.courseId ? coursesMap.get(String(row.courseId)) ?? String(row.courseId) : undefined;
-    const projectId = row.projectId ? String(row.projectId) : undefined; // always null in the dump — no ent-projects link to resolve yet
-    const data = pickData("ent-training-sessions", row, { courseId, projectId });
-    await seedRow(orgId, "enterprise", "ent-training-sessions", str(row, "courseTitle"), str(row, "status", "Scheduled"), null, companyFor("enterprise", row), data);
-    bump("ent-training-sessions");
-  }
-
   // ---- Group C: depends on Group B ----------------------------------------------------------
 
   const proposalsMap = new Map<string, string>();
@@ -414,13 +406,28 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
 
   // ---- Group E: depends on Group D ------------------------------------------------------------
 
+  const projectsMap = new Map<string, string>();
   for (const row of loadDump("projects")) {
     const contractId = row.contractId ? serviceContractsMap.get(String(row.contractId)) ?? String(row.contractId) : undefined;
     const inqId = row.inqId ? inquiriesMap.get(String(row.inqId)) ?? String(row.inqId) : undefined;
     const leadId = row.leadId ? leadsMap.get(String(row.leadId)) ?? String(row.leadId) : undefined;
     const data = pickData("ent-projects", row, { contractId, inqId, leadId });
-    await seedRow(orgId, "enterprise", "ent-projects", str(row, "client") || str(row, "serviceName"), str(row, "status", "Planned"), null, companyFor("enterprise", row), data);
+    const r = await seedRow(orgId, "enterprise", "ent-projects", str(row, "client") || str(row, "serviceName"), str(row, "status", "Planned"), null, companyFor("enterprise", row), data);
+    projectsMap.set(String(row.id), r.id);
     bump("ent-projects");
+  }
+
+  // ---- Group F: training sessions, which depend on Group E --------------------------------
+  // A private (in-house) session carries the project it was booked under — OD's
+  // `mk(..., {projectId})` links SESS-7004 to the Exelera competence project PRJ-6210 and
+  // logs "linked to PRJ-6210" on the session. That FK is why this runs after projects
+  // rather than beside the other Group B collections.
+  for (const row of loadDump("sessions")) {
+    const courseId = row.courseId ? coursesMap.get(String(row.courseId)) ?? String(row.courseId) : undefined;
+    const projectId = row.projectId ? projectsMap.get(String(row.projectId)) ?? String(row.projectId) : undefined;
+    const data = pickData("ent-training-sessions", row, { courseId, projectId });
+    await seedRow(orgId, "enterprise", "ent-training-sessions", str(row, "courseTitle"), str(row, "status", "Scheduled"), null, companyFor("enterprise", row), data);
+    bump("ent-training-sessions");
   }
 
   // ---- Purchase Requests / Purchase Orders: mutually referential (PR.poId ↔ PO.prId) --------

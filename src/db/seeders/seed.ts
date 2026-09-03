@@ -554,11 +554,19 @@ export async function seed(): Promise<void> {
   const { iso27001, auditEl, riskEl, q1, q1r5, qRisk, qRiskR0, crit5, critR0 } = await seedComplianceEngine();
 
   // 12b. ISRA + SoA (F-2b) — global reference-library seed: the 93-row Annex A
-  //      master, Threat/Vuln libraries, the re-derived V2 knowledge maps, the
-  //      269-row Vuln→Annex A map, RTP treatment templates, and the KM
+  //      master, Threat/Vuln libraries, the Primary/Secondary asset taxonomy
+  //      and its asset libraries, the re-derived V2 knowledge maps, the
+  //      1,950-row Vuln→Annex A map, RTP treatment templates, and the KM
   //      publish-state singleton (see src/db/seeders/isra.ts). Global (no
   //      org_id) — no tenant/demo wiring needed here.
-  await seedIsraLibrary();
+  const isra = await seedIsraLibrary();
+  // eslint-disable-next-line no-console
+  console.log(
+    `[seed] ISRA — annexA ${isra.annexA}, threats ${isra.threats}, vulns ${isra.vulns}, ` +
+      `taxonomy pa ${isra.taxonomy.paGroups}/${isra.taxonomy.paSubgroups} sa ${isra.taxonomy.saGroups}/${isra.taxonomy.saSubgroups}, ` +
+      `assets ${isra.taxonomy.primary} primary / ${isra.taxonomy.secondary} secondary, ` +
+      `km ${isra.kmSaThreat.seeded}+${isra.kmThreatVuln.seeded}+${isra.kmVulnControl}, treatTemplates ${isra.treatTemplates}`,
+  );
 
   // 12c. Marketing CMS (SOF-336) — OD's `cmsSeedIfNeeded()` demo content
   //      (pages/posts/media/menu), owned by the AXIA ServiceOwner org since

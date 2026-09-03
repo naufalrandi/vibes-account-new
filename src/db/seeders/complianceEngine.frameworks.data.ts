@@ -1,8 +1,11 @@
 // GENERATED FILE — do not edit by hand.
-// Extracted programmatically from the OD prototype's seed code
-// (fe-vibes-new-od/index.html:2241-4326) by evaluating OD's own seed()
-// in Node and re-keying every row by natural keys. Regenerate with the
-// extraction + generator scripts (see docs in complianceEngine.ts).
+// Produced from the live Open-Design prototype by booting it headlessly and
+// reading its own seeded `db` (see fe-vibes-new/tools/od-boot.cjs). OD fills
+// most of these collections lazily, on first render of the owning screen, so
+// the boot harness walks every persona, company, area and client edition
+// before reading. Regenerate with:
+//
+//   cd fe-vibes-new && node tools/regen-od-data.cjs
 
 import type { CeFramework, CeRequirement, CeCriterion } from "./complianceEngine.types";
 
@@ -22,7 +25,7 @@ export const CE_FRAMEWORKS: readonly CeFramework[] = [
   {"name":"DORA","group":"Regulations","description":"Digital Operational Resilience Act.","jurisdictions":["EU"]},
 ];
 
-/** 408 framework requirements (56 Headers + 352 Assessable), full clause text. */
+/** 408 requirement rows across those 9 frameworks. */
 export const CE_REQUIREMENTS: readonly CeRequirement[] = [
   {"framework":"ISO 9001:2015","code":"4.1","subject":"Understanding the Organization and Its Context","description":"The organization shall determine external and internal issues relevant to its purpose and strategic direction that affect its ability to achieve the intended results of its quality management system.","type":"Assessable"},
   {"framework":"ISO 9001:2015","code":"4.2","subject":"Understanding the Needs and Expectations of Interested Parties","description":"The organization shall determine the interested parties relevant to the QMS and their relevant requirements, and shall monitor and review information about them.","type":"Assessable"},
@@ -434,7 +437,7 @@ export const CE_REQUIREMENTS: readonly CeRequirement[] = [
   {"framework":"DORA","code":"Article 5","subject":"ICT Governance","description":"The management body shall define, approve, oversee and be responsible for the implementation of the ICT risk management framework.","type":"Assessable"},
 ];
 
-/** OD's 6 seeded requirement criteria (ISO 9001 9.2.1 + ISO 27001 6.1.2, scores 0-2). */
+/** OD's 6 scored requirement criteria. */
 export const CE_CRITERIA: readonly CeCriterion[] = [
   {"framework":"ISO 9001:2015","requirement":"9.2.1","score":0,"description":"No internal audits are performed."},
   {"framework":"ISO 9001:2015","requirement":"9.2.1","score":1,"description":"Audits are occasional and informal."},

@@ -1,12 +1,15 @@
 // GENERATED FILE — do not edit by hand.
-// Extracted programmatically from the OD prototype's seed code
-// (fe-vibes-new-od/index.html:2241-4326) by evaluating OD's own seed()
-// in Node and re-keying every row by natural keys. Regenerate with the
-// extraction + generator scripts (see docs in complianceEngine.ts).
+// Produced from the live Open-Design prototype by booting it headlessly and
+// reading its own seeded `db` (see fe-vibes-new/tools/od-boot.cjs). OD fills
+// most of these collections lazily, on first render of the owning screen, so
+// the boot harness walks every persona, company, area and client edition
+// before reading. Regenerate with:
+//
+//   cd fe-vibes-new && node tools/regen-od-data.cjs
 
 import type { CeElement, CeQuestion, CeResponse } from "./complianceEngine.types";
 
-/** The 27 canonical FWEs (FWE-001..021 Core, FWE-022..027 Framework Extension). */
+/** The 31 canonical FWEs — FWE-001..FWE-021 Core, FWE-022..031 Framework Extension. */
 export const CE_ELEMENTS: readonly CeElement[] = [
   {"code":"FWE-001","name":"Organizational Context","description":"Identification and evaluation of internal and external issues that may affect the organization and its management systems.","category":"Core"},
   {"code":"FWE-002","name":"Interested Parties Management","description":"Identification, evaluation, monitoring, and review of interested parties and their relevant requirements.","category":"Core"},
@@ -35,9 +38,13 @@ export const CE_ELEMENTS: readonly CeElement[] = [
   {"code":"FWE-025","name":"Product and Service Design Management","description":"Planning, execution, control, validation, and maintenance of product and service design and development activities.","category":"Framework Extension"},
   {"code":"FWE-026","name":"Supplier Management","description":"Selection, evaluation, monitoring, and control of external providers, suppliers, and outsourced activities.","category":"Framework Extension"},
   {"code":"FWE-027","name":"Product and Service Provision Management","description":"Planning, execution, control, release, and management of products and services, including management of nonconforming outputs.","category":"Framework Extension"},
+  {"code":"FWE-028","name":"Monitoring and Measuring Resources","description":"Identification, calibration, verification, protection and maintenance of monitoring and measuring resources to ensure valid and reliable measurement results (ISO 9001 §7.1.5).","category":"Framework Extension"},
+  {"code":"FWE-029","name":"Hazard Identification and Risk Assessment","description":"Ongoing identification of workplace hazards, assessment of OH&S risks and opportunities, and determination of controls using the hierarchy of controls (ISO 45001 §6.1.2).","category":"Framework Extension"},
+  {"code":"FWE-030","name":"Statement of Applicability","description":"Justification for the inclusion or exclusion of Annex A information security controls and their implementation status (ISO/IEC 27001 Annex A).","category":"Framework Extension"},
+  {"code":"FWE-031","name":"Information Security Risk Assessment","description":"Identification, analysis and evaluation of information security risks against assets, threats and vulnerabilities, with risk treatment planning and acceptance (ISO/IEC 27001 §6.1.2, §8.2).","category":"Framework Extension"},
 ];
 
-/** 252 conformance questions (CQ) across the seeded FWEs. */
+/** 252 conformance questions (CQ), keyed by OD's CQ code. */
 export const CE_QUESTIONS: readonly CeQuestion[] = [
   {"element":"FWE-017","code":"CQ-017-01","title":"Is there an internal audit process?","text":"Is there an internal audit process?","category":"Process","dimension":"Coverage","order":1},
   {"element":"FWE-017","code":"CQ-017-02","title":"Is there an internal audit programme?","text":"Is there an internal audit programme?","category":"Process","dimension":"Coverage","order":2},
@@ -293,7 +300,7 @@ export const CE_QUESTIONS: readonly CeQuestion[] = [
   {"element":"FWE-008","code":"CQ-008-09","title":"Are compliance obligation results reviewed and used for management system improvement?","text":"Are compliance obligation results reviewed and used for management system improvement?","category":"Monitoring","dimension":"Maturity","order":9},
 ];
 
-/** 776 conformance responses (CQR); `child` marks framework-picker responses. */
+/** 776 conformance responses (CQR), keyed by OD's CQR code. */
 export const CE_RESPONSES: readonly CeResponse[] = [
   {"question":"CQ-017-01","code":"CQ-017-01-R1","text":"No internal audit process has been defined.","order":1,"child":false},
   {"question":"CQ-017-01","code":"CQ-017-01-R2","text":"An internal audit process has been defined, but it does not cover all applicable frameworks.","order":2,"child":true},
