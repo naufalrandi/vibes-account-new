@@ -1,0 +1,35 @@
+[
+ {
+  "id": "AWP-0001",
+  "tenantId": "idtn5",
+  "name": "2026 Integrated Management System Awareness Program",
+  "period": "2026",
+  "frameworks": [
+   "ISO 9001:2015",
+   "ISO/IEC 27001:2022"
+  ],
+  "owner": "Scott Edward Harris Lang",
+  "objective": "To ensure personnel understand applicable management system policies, objectives, responsibilities, contribution, reporting expectations, and consequences of nonconformity.",
+  "status": "Active",
+  "notes": "",
+  "createdBy": "Daniel Rand",
+  "createdDate": "2026-08-10T10:58:19.234Z",
+  "updatedAt": "2026-08-26T10:58:19.234Z",
+  "lastUpdatedBy": "Bobbi Morse",
+  "activity": [
+   {
+    "ts": "2026-08-10T10:58:19.234Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness program",
+    "summary": "2026 IMS Awareness"
+   },
+   {
+    "ts": "2026-08-14T10:58:19.234Z",
+    "user": "Tenant Administrator",
+    "action": "activated the program",
+    "summary": "Active"
+   }
+  ],
+  "comments": []
+ }
+]

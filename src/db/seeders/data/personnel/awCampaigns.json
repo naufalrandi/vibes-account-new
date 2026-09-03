@@ -1,0 +1,55 @@
+[
+ {
+  "id": "AWC-0001",
+  "tenantId": "idtn5",
+  "title": "June 2026 Information Security Awareness Campaign",
+  "programId": "AWP-0001",
+  "topics": [
+   "AWT-0002",
+   "AWT-0009"
+  ],
+  "focus": [
+   "Policy awareness",
+   "Incident / issue reporting"
+  ],
+  "audience": {
+   "type": "All Team Members",
+   "members": [],
+   "roles": [],
+   "workUnits": []
+  },
+  "message": "Please review the information security policy and incident reporting guide, then acknowledge your understanding.",
+  "delivery": [
+   "In-app announcement",
+   "Document acknowledgment"
+  ],
+  "startDate": "2026-06-10",
+  "due": "2026-06-30",
+  "owner": "Jennifer Susan Walters",
+  "ackRequired": true,
+  "evalRequired": true,
+  "evalMethod": [
+   "Quiz"
+  ],
+  "status": "Active",
+  "createdBy": "Bobbi Morse",
+  "createdDate": "2026-08-22T10:58:19.234Z",
+  "updatedAt": "2026-08-29T10:58:19.234Z",
+  "lastUpdatedBy": "Gwendolyne Maxine Stacy",
+  "activity": [
+   {
+    "ts": "2026-08-22T10:58:19.234Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness campaign",
+    "summary": "June 2026 IS Awareness"
+   },
+   {
+    "ts": "2026-08-23T10:58:19.234Z",
+    "user": "Tenant Administrator",
+    "action": "launched the campaign",
+    "summary": "Active"
+   }
+  ],
+  "comments": []
+ }
+]

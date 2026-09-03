@@ -1,0 +1,993 @@
+[
+ {
+  "id": "camtlevtka4567",
+  "tenantId": "idtn5",
+  "assignmentId": "asgmtlevtji4867",
+  "personId": "idtu5",
+  "roleId": "rolemtlevtij997",
+  "assessor": "Tenant Administrator",
+  "date": "2026-09-03",
+  "notes": "Baseline assessment \u2014 all required competences met.",
+  "requirements": [
+   {
+    "key": "edu",
+    "kind": "education",
+    "refId": "isced6",
+    "label": "Minimum education \u2014 Bachelor or equivalent",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "exp:wemtlevtji3347",
+    "kind": "experience",
+    "label": "Work experience \u2014 C \u2014 Manufacturing \u00b7 \u2265 5 years",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "training:trmtlevtfb6265",
+    "kind": "training",
+    "refId": "trmtlevtfb6265",
+    "label": "ISO 9001 Lead Auditor",
+    "necessity": "Required",
+    "evalType": "passfail",
+    "reqLevel": 0,
+    "reviewFreq": "",
+    "methods": [
+     "Training completion"
+    ],
+    "method": "Training completion",
+    "result": "Passed",
+    "assessedLevel": 0,
+    "note": ""
+   },
+   {
+    "key": "training:trmtlevtfb2139",
+    "kind": "training",
+    "refId": "trmtlevtfb2139",
+    "label": "ISO 9001 Lead Implementer",
+    "necessity": "Required",
+    "evalType": "passfail",
+    "reqLevel": 0,
+    "reviewFreq": "",
+    "methods": [
+     "Training completion"
+    ],
+    "method": "Training completion",
+    "result": "Passed",
+    "assessedLevel": 0,
+    "note": ""
+   },
+   {
+    "key": "training:tr-rca",
+    "kind": "training",
+    "refId": "tr-rca",
+    "label": "Root Cause Analysis",
+    "necessity": "Preferred",
+    "evalType": "passfail",
+    "reqLevel": 0,
+    "reviewFreq": "",
+    "methods": [
+     "Training completion"
+    ],
+    "method": "Training completion",
+    "result": "Passed",
+    "assessedLevel": 0,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtf97915",
+    "kind": "hard",
+    "refId": "skmtlevtf97915",
+    "label": "Audit planning",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtfa5250",
+    "kind": "hard",
+    "refId": "skmtlevtfa5250",
+    "label": "Corrective action planning",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtfa3511",
+    "kind": "hard",
+    "refId": "skmtlevtfa3511",
+    "label": "Document control",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtfa4903",
+    "kind": "hard",
+    "refId": "skmtlevtfa4903",
+    "label": "Process performance review",
+    "necessity": "Preferred",
+    "evalType": "proficiency",
+    "reqLevel": 2,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtf97089",
+    "kind": "hard",
+    "refId": "skmtlevtf97089",
+    "label": "Root cause analysis",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:sk5",
+    "kind": "soft",
+    "refId": "sk5",
+    "label": "Communication",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:skmtlevtfa953",
+    "kind": "soft",
+    "refId": "skmtlevtfa953",
+    "label": "Decision making",
+    "necessity": "Preferred",
+    "evalType": "proficiency",
+    "reqLevel": 2,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   }
+  ],
+  "score": 100,
+  "openGaps": 0,
+  "status": "Competent",
+  "validUntil": "2027-09-02",
+  "approvalState": "Approved",
+  "approvedBy": "Tenant Administrator",
+  "approvedDate": "2026-09-03",
+  "activity": [
+   {
+    "ts": "2026-09-03",
+    "user": "Tenant Administrator",
+    "action": "completed the assessment",
+    "summary": "Competent"
+   },
+   {
+    "ts": "2026-09-03",
+    "user": "Tenant Administrator",
+    "action": "signed off the assessment",
+    "summary": "Approved"
+   }
+  ],
+  "comments": [
+   {
+    "id": "cmmtlevtkb657",
+    "user": "Tenant Administrator",
+    "ts": "2026-09-03",
+    "text": "All required competences met \u2014 competent for the role."
+   }
+  ]
+ },
+ {
+  "id": "camtlevtkb6189",
+  "tenantId": "idtn5",
+  "assignmentId": "asgmtlevtji6736",
+  "personId": "idtu6",
+  "roleId": "rolemtlevtij7245",
+  "assessor": "Tenant Administrator",
+  "date": "2026-09-03",
+  "notes": "Baseline assessment \u2014 all required competences met.",
+  "requirements": [
+   {
+    "key": "edu",
+    "kind": "education",
+    "refId": "isced6",
+    "label": "Minimum education \u2014 Bachelor or equivalent",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "exp:wemtlevtji3985",
+    "kind": "experience",
+    "label": "Work experience \u2014 J \u2014 Information and communication \u00b7 \u2265 4 years",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "training:trmtlevtfb8216",
+    "kind": "training",
+    "refId": "trmtlevtfb8216",
+    "label": "ISO/IEC 27001 Lead Implementer",
+    "necessity": "Required",
+    "evalType": "passfail",
+    "reqLevel": 0,
+    "reviewFreq": "",
+    "methods": [
+     "Training completion"
+    ],
+    "method": "Training completion",
+    "result": "Passed",
+    "assessedLevel": 0,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtfa8367",
+    "kind": "hard",
+    "refId": "skmtlevtfa8367",
+    "label": "Control effectiveness review",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtfa5936",
+    "kind": "hard",
+    "refId": "skmtlevtfa5936",
+    "label": "Incident handling",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtfa2100",
+    "kind": "hard",
+    "refId": "skmtlevtfa2100",
+    "label": "ISO 45001 interpretation",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:sk2",
+    "kind": "hard",
+    "refId": "sk2",
+    "label": "Risk Assessment",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Portfolio review"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtfa8327",
+    "kind": "hard",
+    "refId": "skmtlevtfa8327",
+    "label": "Risk treatment planning",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtfa1525",
+    "kind": "hard",
+    "refId": "skmtlevtfa1525",
+    "label": "Security incident response",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:skmtlevtfa4633",
+    "kind": "soft",
+    "refId": "skmtlevtfa4633",
+    "label": "Analytical thinking",
+    "necessity": "Preferred",
+    "evalType": "proficiency",
+    "reqLevel": 2,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   },
+   {
+    "key": "soft:skmtlevtfa953",
+    "kind": "soft",
+    "refId": "skmtlevtfa953",
+    "label": "Decision making",
+    "necessity": "Preferred",
+    "evalType": "proficiency",
+    "reqLevel": 2,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   }
+  ],
+  "score": 100,
+  "openGaps": 0,
+  "status": "Competent",
+  "validUntil": "2027-09-02",
+  "approvalState": "Approved",
+  "approvedBy": "Tenant Administrator",
+  "approvedDate": "2026-09-03",
+  "activity": [
+   {
+    "ts": "2026-09-03",
+    "user": "Tenant Administrator",
+    "action": "completed the assessment",
+    "summary": "Competent"
+   },
+   {
+    "ts": "2026-09-03",
+    "user": "Tenant Administrator",
+    "action": "signed off the assessment",
+    "summary": "Approved"
+   }
+  ],
+  "comments": [
+   {
+    "id": "cmmtlevtkb8420",
+    "user": "Tenant Administrator",
+    "ts": "2026-09-03",
+    "text": "All required competences met \u2014 competent for the role."
+   }
+  ]
+ },
+ {
+  "id": "camtlevtkb5047",
+  "tenantId": "idtn5",
+  "assignmentId": "asgmtlevtji8344",
+  "personId": "idtu7",
+  "roleId": "rolemtlevtij2696",
+  "assessor": "Tenant Administrator",
+  "date": "2026-09-03",
+  "notes": "Overall competent; one development action required to fully meet the role.",
+  "requirements": [
+   {
+    "key": "edu",
+    "kind": "education",
+    "refId": "isced6",
+    "label": "Minimum education \u2014 Bachelor or equivalent",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "exp:wemtlevtji3448",
+    "kind": "experience",
+    "label": "Work experience \u2014 N \u2014 Administrative and support service activities \u00b7 \u2265 5 years",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtfa4390",
+    "kind": "hard",
+    "refId": "skmtlevtfa4390",
+    "label": "Competence assessment",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtfa7371",
+    "kind": "hard",
+    "refId": "skmtlevtfa7371",
+    "label": "Record management",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtfa2282",
+    "kind": "hard",
+    "refId": "skmtlevtfa2282",
+    "label": "Training needs analysis",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:sk5",
+    "kind": "soft",
+    "refId": "sk5",
+    "label": "Communication",
+    "necessity": "Preferred",
+    "evalType": "proficiency",
+    "reqLevel": 2,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   },
+   {
+    "key": "soft:skmtlevtfa953",
+    "kind": "soft",
+    "refId": "skmtlevtfa953",
+    "label": "Decision making",
+    "necessity": "Preferred",
+    "evalType": "proficiency",
+    "reqLevel": 2,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   }
+  ],
+  "score": 86,
+  "openGaps": 1,
+  "status": "Competent with conditions",
+  "validUntil": "2027-09-02",
+  "approvalState": "Approved",
+  "approvedBy": "Tenant Administrator",
+  "approvedDate": "2026-09-03",
+  "activity": [
+   {
+    "ts": "2026-09-03",
+    "user": "Tenant Administrator",
+    "action": "completed the assessment",
+    "summary": "Competent with conditions"
+   },
+   {
+    "ts": "2026-09-03",
+    "user": "Tenant Administrator",
+    "action": "signed off the assessment",
+    "summary": "Approved"
+   }
+  ],
+  "comments": [
+   {
+    "id": "cmmtlevtkc3257",
+    "user": "Tenant Administrator",
+    "ts": "2026-09-03",
+    "text": "Strong overall; one development action agreed to fully meet the role."
+   }
+  ]
+ },
+ {
+  "id": "camtlevtkc957",
+  "tenantId": "idtn5",
+  "assignmentId": "asgmtlevtji5328",
+  "personId": "idtu8",
+  "roleId": "rolemtlevtil1320",
+  "assessor": "Tenant Administrator",
+  "date": "2025-09-23",
+  "notes": "Baseline assessment \u2014 all required competences met.",
+  "requirements": [
+   {
+    "key": "edu",
+    "kind": "education",
+    "refId": "isced7",
+    "label": "Minimum education \u2014 Master or equivalent",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "exp:wemtlevtji3451",
+    "kind": "experience",
+    "label": "Work experience \u2014 C \u2014 Manufacturing \u00b7 \u2265 12 years",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "training:trmtlevtfb6171",
+    "kind": "training",
+    "refId": "trmtlevtfb6171",
+    "label": "ISO 9001 Awareness / Foundation",
+    "necessity": "Preferred",
+    "evalType": "passfail",
+    "reqLevel": 0,
+    "reviewFreq": "",
+    "methods": [
+     "Training completion"
+    ],
+    "method": "Training completion",
+    "result": "Passed",
+    "assessedLevel": 0,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtik8375",
+    "kind": "hard",
+    "refId": "skmtlevtik8375",
+    "label": "Financial acumen",
+    "necessity": "Preferred",
+    "evalType": "proficiency",
+    "reqLevel": 2,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtik9773",
+    "kind": "hard",
+    "refId": "skmtlevtik9773",
+    "label": "Management review",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtfa303",
+    "kind": "hard",
+    "refId": "skmtlevtfa303",
+    "label": "Resource planning",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtik7592",
+    "kind": "hard",
+    "refId": "skmtlevtik7592",
+    "label": "Strategic planning",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:sk5",
+    "kind": "soft",
+    "refId": "sk5",
+    "label": "Communication",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:skmtlevtfa953",
+    "kind": "soft",
+    "refId": "skmtlevtfa953",
+    "label": "Decision making",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:sk6",
+    "kind": "soft",
+    "refId": "sk6",
+    "label": "Leadership",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:sk8",
+    "kind": "soft",
+    "refId": "sk8",
+    "label": "Stakeholder Management",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Interview"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   }
+  ],
+  "score": 100,
+  "openGaps": 0,
+  "status": "Competent",
+  "validUntil": "2026-09-22",
+  "approvalState": "Approved",
+  "approvedBy": "Tenant Administrator",
+  "approvedDate": "2025-09-23",
+  "activity": [
+   {
+    "ts": "2025-09-23",
+    "user": "Tenant Administrator",
+    "action": "completed the assessment",
+    "summary": "Competent"
+   },
+   {
+    "ts": "2025-09-23",
+    "user": "Tenant Administrator",
+    "action": "signed off the assessment",
+    "summary": "Approved"
+   }
+  ],
+  "comments": [
+   {
+    "id": "cmmtlevtkc2171",
+    "user": "Tenant Administrator",
+    "ts": "2025-09-23",
+    "text": "All required competences met \u2014 competent for the role."
+   }
+  ]
+ },
+ {
+  "id": "camtlevtkd9688",
+  "tenantId": "__ENT__",
+  "assignmentId": "asgmtlevtkd1831",
+  "personId": "axia1",
+  "roleId": "rolemtlevtjj5966",
+  "assessor": "Service Provider Admin",
+  "date": "2026-09-03",
+  "notes": "Baseline internal competence assessment \u2014 all required competences met.",
+  "requirements": [
+   {
+    "key": "hard:skmtlevtf97915",
+    "kind": "hard",
+    "refId": "skmtlevtf97915",
+    "label": "Audit planning",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtf97603",
+    "kind": "hard",
+    "refId": "skmtlevtf97603",
+    "label": "Audit reporting",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:sk1",
+    "kind": "hard",
+    "refId": "sk1",
+    "label": "Internal Auditing",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtf98149",
+    "kind": "hard",
+    "refId": "skmtlevtf98149",
+    "label": "Nonconformity writing",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmtlevtf97089",
+    "kind": "hard",
+    "refId": "skmtlevtf97089",
+    "label": "Root cause analysis",
+    "necessity": "Preferred",
+    "evalType": "proficiency",
+    "reqLevel": 2,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   }
+  ],
+  "score": 100,
+  "openGaps": 0,
+  "status": "Competent",
+  "validUntil": "2027-09-02",
+  "approvalState": "Approved",
+  "approvedBy": "Service Provider Admin",
+  "approvedDate": "2026-09-03",
+  "activity": [
+   {
+    "ts": "2026-09-03",
+    "user": "Service Provider Admin",
+    "action": "completed the assessment",
+    "summary": "Competent"
+   },
+   {
+    "ts": "2026-09-03",
+    "user": "Service Provider Admin",
+    "action": "signed off the assessment",
+    "summary": "Approved"
+   }
+  ],
+  "comments": [
+   {
+    "id": "cmmtlevtkd8097",
+    "user": "Service Provider Admin",
+    "ts": "2026-09-03",
+    "text": "Baseline internal competence confirmed."
+   }
+  ]
+ }
+]

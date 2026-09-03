@@ -1,0 +1,726 @@
+[
+ {
+  "id": "AWT-0001",
+  "tenantId": "idtn5",
+  "title": "Quality Policy Awareness",
+  "category": "Policy",
+  "frameworks": [
+   "ISO 9001:2015"
+  ],
+  "description": "Awareness of Quality Policy for relevant personnel.",
+  "materials": [
+   {
+    "id": "AWM-0001",
+    "topicId": "AWT-0001",
+    "tenantId": "idtn5",
+    "title": "Quality Policy Awareness",
+    "description": "",
+    "fileName": "Quality Policy Awareness Deck.pdf",
+    "fileType": "PDF",
+    "fileSize": 840000,
+    "version": "1.0",
+    "uploadedBy": "Tenant Administrator",
+    "uploadedDate": "2026-08-14T10:58:19.233Z",
+    "status": "Active"
+   }
+  ],
+  "owner": "Gwendolyne Maxine Stacy",
+  "status": "Active",
+  "createdBy": "Daniel Rand",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Maria Rambeau",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Quality Policy Awareness"
+   },
+   {
+    "ts": "2026-08-14T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "uploaded awareness material",
+    "summary": "Quality Policy Awareness Deck.pdf"
+   },
+   {
+    "ts": "2026-08-14T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "activated the topic",
+    "summary": "Active"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0002",
+  "tenantId": "idtn5",
+  "title": "Information Security Policy Awareness",
+  "category": "Policy",
+  "frameworks": [
+   "ISO/IEC 27001:2022"
+  ],
+  "description": "Awareness of Information Security Policy for relevant personnel.",
+  "materials": [
+   {
+    "id": "AWM-0002",
+    "topicId": "AWT-0002",
+    "tenantId": "idtn5",
+    "title": "Information Security Policy Awareness",
+    "description": "",
+    "fileName": "Information Security Policy Awareness.pdf",
+    "fileType": "PDF",
+    "fileSize": 840000,
+    "version": "1.0",
+    "uploadedBy": "Tenant Administrator",
+    "uploadedDate": "2026-08-14T10:58:19.233Z",
+    "status": "Active"
+   }
+  ],
+  "owner": "Jennifer Susan Walters",
+  "status": "Active",
+  "createdBy": "Maria Rambeau",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Gwendolyne Maxine Stacy",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Information Security Policy Awareness"
+   },
+   {
+    "ts": "2026-08-14T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "uploaded awareness material",
+    "summary": "Information Security Policy Awareness.pdf"
+   },
+   {
+    "ts": "2026-08-14T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "activated the topic",
+    "summary": "Active"
+   }
+  ],
+  "comments": [],
+  "quiz": {
+   "passMark": 80,
+   "questions": [
+    {
+     "id": "awqmtlew34y1433",
+     "type": "single",
+     "text": "What should you do first if you suspect your work account password has been compromised?",
+     "points": 1,
+     "options": [
+      {
+       "id": "omtlew34y9103",
+       "text": "Change the password immediately and report it",
+       "correct": true
+      },
+      {
+       "id": "omtlew34y299",
+       "text": "Wait to see if anything happens",
+       "correct": false
+      },
+      {
+       "id": "omtlew34y9791",
+       "text": "Share a new password with a colleague for safekeeping",
+       "correct": false
+      }
+     ]
+    },
+    {
+     "id": "awqmtlew34y4677",
+     "type": "truefalse",
+     "text": "It is acceptable to reuse your personal email password for work accounts.",
+     "points": 1,
+     "answerTrue": false
+    },
+    {
+     "id": "awqmtlew34y4568",
+     "type": "single",
+     "text": "Where must confidential information be stored?",
+     "points": 1,
+     "options": [
+      {
+       "id": "omtlew34y3783",
+       "text": "On approved, access-controlled systems",
+       "correct": true
+      },
+      {
+       "id": "omtlew34y6137",
+       "text": "On any personal USB drive for convenience",
+       "correct": false
+      },
+      {
+       "id": "omtlew34y3148",
+       "text": "In a public shared folder",
+       "correct": false
+      }
+     ]
+    },
+    {
+     "id": "awqmtlew34y6865",
+     "type": "truefalse",
+     "text": "Clicking links in unexpected emails is safe as long as the sender name looks familiar.",
+     "points": 1,
+     "answerTrue": false
+    }
+   ]
+  }
+ },
+ {
+  "id": "AWT-0003",
+  "tenantId": "idtn5",
+  "title": "Privacy Awareness",
+  "category": "Privacy",
+  "frameworks": [
+   "ISO/IEC 27701:2025"
+  ],
+  "description": "Awareness of Privacy for relevant personnel.",
+  "materials": [],
+  "owner": "Scott Edward Harris Lang",
+  "status": "Draft",
+  "createdBy": "Gwendolyne Maxine Stacy",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Jennifer Susan Walters",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Privacy Awareness"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0004",
+  "tenantId": "idtn5",
+  "title": "Environmental Policy Awareness",
+  "category": "Policy",
+  "frameworks": [
+   "ISO 14001:2015"
+  ],
+  "description": "Awareness of Environmental Policy for relevant personnel.",
+  "materials": [],
+  "owner": "Bobbi Morse",
+  "status": "Draft",
+  "createdBy": "Jennifer Susan Walters",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Scott Edward Harris Lang",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Environmental Policy Awareness"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0005",
+  "tenantId": "idtn5",
+  "title": "OH&S Policy Awareness",
+  "category": "Policy",
+  "frameworks": [
+   "ISO 45001:2018"
+  ],
+  "description": "Awareness of OH&S Policy for relevant personnel.",
+  "materials": [],
+  "owner": "Daniel Rand",
+  "status": "Draft",
+  "createdBy": "Scott Edward Harris Lang",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Bobbi Morse",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "OH&S Policy Awareness"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0006",
+  "tenantId": "idtn5",
+  "title": "Management System Objectives Awareness",
+  "category": "Objective",
+  "frameworks": [
+   "ISO 9001:2015"
+  ],
+  "description": "Awareness of Management System Objectives for relevant personnel.",
+  "materials": [],
+  "owner": "Maria Rambeau",
+  "status": "Draft",
+  "createdBy": "Bobbi Morse",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Scott Edward Harris Lang",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Management System Objectives Awareness"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0007",
+  "tenantId": "idtn5",
+  "title": "Individual Contribution Awareness",
+  "category": "Individual Contribution",
+  "frameworks": [
+   "ISO 9001:2015"
+  ],
+  "description": "Awareness of Individual Contribution for relevant personnel.",
+  "materials": [],
+  "owner": "Gwendolyne Maxine Stacy",
+  "status": "Draft",
+  "createdBy": "Daniel Rand",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Bobbi Morse",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Individual Contribution Awareness"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0008",
+  "tenantId": "idtn5",
+  "title": "Consequences of Nonconformity",
+  "category": "Consequences of Nonconformity",
+  "frameworks": [
+   "ISO 9001:2015"
+  ],
+  "description": "Awareness of Consequences of Nonconformity for relevant personnel.",
+  "materials": [],
+  "owner": "Jennifer Susan Walters",
+  "status": "Draft",
+  "createdBy": "Bobbi Morse",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Daniel Rand",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Consequences of Nonconformity"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0009",
+  "tenantId": "idtn5",
+  "title": "Incident Reporting Awareness",
+  "category": "Incident / Issue Reporting",
+  "frameworks": [
+   "ISO/IEC 27001:2022"
+  ],
+  "description": "Awareness of Incident Reporting for relevant personnel.",
+  "materials": [
+   {
+    "id": "AWM-0003",
+    "topicId": "AWT-0009",
+    "tenantId": "idtn5",
+    "title": "Incident Reporting Awareness",
+    "description": "",
+    "fileName": "Incident Reporting Guide.pdf",
+    "fileType": "PDF",
+    "fileSize": 840000,
+    "version": "1.0",
+    "uploadedBy": "Tenant Administrator",
+    "uploadedDate": "2026-08-14T10:58:19.233Z",
+    "status": "Active"
+   }
+  ],
+  "owner": "Scott Edward Harris Lang",
+  "status": "Active",
+  "createdBy": "Daniel Rand",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Maria Rambeau",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Incident Reporting Awareness"
+   },
+   {
+    "ts": "2026-08-14T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "uploaded awareness material",
+    "summary": "Incident Reporting Guide.pdf"
+   },
+   {
+    "ts": "2026-08-14T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "activated the topic",
+    "summary": "Active"
+   }
+  ],
+  "comments": [],
+  "quiz": {
+   "passMark": 80,
+   "questions": [
+    {
+     "id": "awqmtlew34y6007",
+     "type": "single",
+     "text": "When should an information security incident be reported?",
+     "points": 1,
+     "options": [
+      {
+       "id": "omtlew34y8402",
+       "text": "As soon as it is detected or suspected",
+       "correct": true
+      },
+      {
+       "id": "omtlew34y6377",
+       "text": "Only after it is fully resolved",
+       "correct": false
+      },
+      {
+       "id": "omtlew34y5042",
+       "text": "Only if a manager asks about it",
+       "correct": false
+      }
+     ]
+    },
+    {
+     "id": "awqmtlew34y2080",
+     "type": "truefalse",
+     "text": "A near-miss with no actual data loss never needs to be reported.",
+     "points": 1,
+     "answerTrue": false
+    },
+    {
+     "id": "awqmtlew34y2791",
+     "type": "single",
+     "text": "Who is responsible for reporting a suspected incident?",
+     "points": 1,
+     "options": [
+      {
+       "id": "omtlew34y6878",
+       "text": "Any employee who detects or suspects it",
+       "correct": true
+      },
+      {
+       "id": "omtlew34y690",
+       "text": "Only the IT department",
+       "correct": false
+      },
+      {
+       "id": "omtlew34y5592",
+       "text": "Only top management",
+       "correct": false
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "AWT-0010",
+  "tenantId": "idtn5",
+  "title": "Risk Awareness",
+  "category": "Risk",
+  "frameworks": [
+   "ISO 9001:2015"
+  ],
+  "description": "Awareness of Risk for relevant personnel.",
+  "materials": [],
+  "owner": "Gwendolyne Maxine Stacy",
+  "status": "Draft",
+  "createdBy": "Gwendolyne Maxine Stacy",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Maria Rambeau",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Risk Awareness"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0011",
+  "tenantId": "idtn5",
+  "title": "Compliance Obligation Awareness",
+  "category": "Compliance Obligation",
+  "frameworks": [
+   "ISO 14001:2015"
+  ],
+  "description": "Awareness of Compliance Obligation for relevant personnel.",
+  "materials": [],
+  "owner": "Jennifer Susan Walters",
+  "status": "Draft",
+  "createdBy": "Jennifer Susan Walters",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Daniel Rand",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Compliance Obligation Awareness"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0012",
+  "tenantId": "idtn5",
+  "title": "Document Control Awareness",
+  "category": "Quality",
+  "frameworks": [
+   "ISO 9001:2015"
+  ],
+  "description": "Awareness of Document Control for relevant personnel.",
+  "materials": [],
+  "owner": "Scott Edward Harris Lang",
+  "status": "Draft",
+  "createdBy": "Scott Edward Harris Lang",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Maria Rambeau",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Document Control Awareness"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0013",
+  "tenantId": "idtn5",
+  "title": "Customer Focus Awareness",
+  "category": "Quality",
+  "frameworks": [
+   "ISO 9001:2015"
+  ],
+  "description": "Awareness of Customer Focus for relevant personnel.",
+  "materials": [],
+  "owner": "Bobbi Morse",
+  "status": "Draft",
+  "createdBy": "Bobbi Morse",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Gwendolyne Maxine Stacy",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Customer Focus Awareness"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0014",
+  "tenantId": "idtn5",
+  "title": "Supplier Control Awareness",
+  "category": "Quality",
+  "frameworks": [
+   "ISO 9001:2015"
+  ],
+  "description": "Awareness of Supplier Control for relevant personnel.",
+  "materials": [],
+  "owner": "Daniel Rand",
+  "status": "Draft",
+  "createdBy": "Daniel Rand",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Jennifer Susan Walters",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Supplier Control Awareness"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0015",
+  "tenantId": "idtn5",
+  "title": "Access Control Awareness",
+  "category": "Security",
+  "frameworks": [
+   "ISO/IEC 27001:2022"
+  ],
+  "description": "Awareness of Access Control for relevant personnel.",
+  "materials": [],
+  "owner": "Maria Rambeau",
+  "status": "Draft",
+  "createdBy": "Maria Rambeau",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Scott Edward Harris Lang",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Access Control Awareness"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0016",
+  "tenantId": "idtn5",
+  "title": "Data Protection Awareness",
+  "category": "Privacy",
+  "frameworks": [
+   "ISO/IEC 27701:2025"
+  ],
+  "description": "Awareness of Data Protection for relevant personnel.",
+  "materials": [],
+  "owner": "Gwendolyne Maxine Stacy",
+  "status": "Draft",
+  "createdBy": "Gwendolyne Maxine Stacy",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Bobbi Morse",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Data Protection Awareness"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0017",
+  "tenantId": "idtn5",
+  "title": "Emergency Preparedness Awareness",
+  "category": "Safety",
+  "frameworks": [
+   "ISO 45001:2018"
+  ],
+  "description": "Awareness of Emergency Preparedness for relevant personnel.",
+  "materials": [],
+  "owner": "Jennifer Susan Walters",
+  "status": "Draft",
+  "createdBy": "Jennifer Susan Walters",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Daniel Rand",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Emergency Preparedness Awareness"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0018",
+  "tenantId": "idtn5",
+  "title": "Continual Improvement Awareness",
+  "category": "Quality",
+  "frameworks": [
+   "ISO 9001:2015"
+  ],
+  "description": "Awareness of Continual Improvement for relevant personnel.",
+  "materials": [],
+  "owner": "Scott Edward Harris Lang",
+  "status": "Draft",
+  "createdBy": "Scott Edward Harris Lang",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Maria Rambeau",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Continual Improvement Awareness"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0019",
+  "tenantId": "idtn5",
+  "title": "Internal Audit Awareness",
+  "category": "Management System",
+  "frameworks": [
+   "ISO 9001:2015"
+  ],
+  "description": "Awareness of Internal Audit for relevant personnel.",
+  "materials": [],
+  "owner": "Bobbi Morse",
+  "status": "Draft",
+  "createdBy": "Bobbi Morse",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Daniel Rand",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Internal Audit Awareness"
+   }
+  ],
+  "comments": []
+ },
+ {
+  "id": "AWT-0020",
+  "tenantId": "idtn5",
+  "title": "Business Continuity Awareness",
+  "category": "Business Continuity",
+  "frameworks": [
+   "ISO 22301:2019"
+  ],
+  "description": "Awareness of Business Continuity for relevant personnel.",
+  "materials": [],
+  "owner": "Jennifer Susan Walters",
+  "status": "Draft",
+  "createdBy": "Maria Rambeau",
+  "createdDate": "2026-08-12T10:58:19.233Z",
+  "updatedAt": "2026-08-24T10:58:19.233Z",
+  "lastUpdatedBy": "Daniel Rand",
+  "activity": [
+   {
+    "ts": "2026-08-12T10:58:19.233Z",
+    "user": "Tenant Administrator",
+    "action": "created the awareness topic",
+    "summary": "Business Continuity Awareness"
+   }
+  ],
+  "comments": []
+ }
+]

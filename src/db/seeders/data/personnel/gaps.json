@@ -1,0 +1,24 @@
+[
+ {
+  "id": "gapmtlevtkc4818",
+  "tenantId": "idtn5",
+  "assessmentId": "camtlevtkb5047",
+  "assignmentId": "asgmtlevtji8344",
+  "personId": "idtu7",
+  "roleId": "rolemtlevtij2696",
+  "reqKey": "hard:skmtlevtfa4390",
+  "reqLabel": "Competence assessment",
+  "kind": "hard",
+  "evalType": "proficiency",
+  "currentLevel": 2,
+  "requiredLevel": 3,
+  "severity": "partial",
+  "action": "",
+  "owner": "",
+  "due": "",
+  "training": "",
+  "status": "Planned",
+  "createdDate": "2026-09-03",
+  "trainingPlanId": "TP-0001"
+ }
+]
