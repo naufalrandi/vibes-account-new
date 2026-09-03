@@ -52,3 +52,31 @@ describe("ISRA tenant demo snapshot", () => {
     expect(ISRA_DEMO_CONTROL_BASELINE.filter((b) => !annex.has(b.annexRef)).map((b) => b.annexRef)).toEqual([]);
   });
 });
+
+/**
+ * The first real `db:migrate:fresh` against Postgres aborted here:
+ *
+ *   invalid input syntax for type date: "Invalid date"
+ *   at seedIsraTenantDemo (israTenantDemo.ts:154)
+ *
+ * 785 of the 801 scenarios carry `reviewDue: ""`. An empty string is not
+ * nullish, so `?? null` handed it straight to a DATEONLY column. OD also writes
+ * several of these fields as full ISO timestamps, which a DATEONLY column will
+ * not take either.
+ */
+describe("ISRA tenant demo — date fields the seeder must normalise", () => {
+  const parses = (v: unknown) => typeof v === "string" && v !== "" && !Number.isNaN(new Date(v).getTime());
+
+  it("carries the empty reviewDue values that broke the first seed run", () => {
+    // Guards the fixture, so a future regeneration that "fixes" this upstream
+    // does not quietly make the seeder's normalisation look unnecessary.
+    expect(ISRA_DEMO_SCENARIOS.filter((s) => s.reviewDue === "").length).toBeGreaterThan(0);
+  });
+
+  it("never carries a date string that fails to parse", () => {
+    const broken = ISRA_DEMO_SCENARIOS.filter(
+      (s) => (s.reviewDue !== "" && s.reviewDue != null && !parses(s.reviewDue)) || !parses(s.createdAt),
+    );
+    expect(broken.map((s) => s.id)).toEqual([]);
+  });
+});

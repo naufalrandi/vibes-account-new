@@ -67,7 +67,31 @@ import {
 type DemoImpact = { perspective: string; severity: number; note: string };
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
-const date = (v: unknown): Date | null => (typeof v === "string" && v ? new Date(v) : null);
+/**
+ * A parsed timestamp, or null. Guards against two shapes OD emits that Postgres
+ * rejects outright: the empty string, and anything that parses to an Invalid
+ * Date. `new Date("")` is Invalid Date, which Sequelize stringifies to the
+ * literal "Invalid date" and the driver then refuses.
+ */
+const date = (v: unknown): Date | null => {
+  if (typeof v !== "string" || !v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+/**
+ * A `DATEONLY` value (`YYYY-MM-DD`), or null.
+ *
+ * 785 of OD's 801 scenarios carry `reviewDue: ""`. An empty string is not
+ * nullish, so `?? null` passes it through to a date column and the whole seed
+ * aborts on the first batch. OD also writes some of these as full ISO
+ * timestamps, which a DATEONLY column will not take either — both are narrowed
+ * to a plain date here.
+ */
+const dateOnly = (v: unknown): string | null => {
+  const d = date(v);
+  return d ? d.toISOString().slice(0, 10) : null;
+};
 const obj = (v: unknown): Record<string, unknown> | null =>
   v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 const arr = (v: unknown): Record<string, unknown>[] => (Array.isArray(v) ? (v as Record<string, unknown>[]) : []);
@@ -125,12 +149,12 @@ function scenarioRows(orgId: string, rows: IsraDemoScenarioRow[], idOf: Map<stri
     inherentL: s.inherentL ?? 1,
     likelihoodNote: s.likelihoodNote ?? null,
     evalCycle: s.evalCycle ?? 1,
-    reviewDue: s.reviewDue ?? null,
+    reviewDue: dateOnly(s.reviewDue),
     createdBy: s.createdBy ?? null,
     activity: s.activity ?? [],
     comments: [],
-    createdAt: new Date(s.createdAt),
-    updatedAt: new Date(s.updatedAt ?? s.createdAt),
+    createdAt: date(s.createdAt) ?? new Date(),
+    updatedAt: date(s.updatedAt) ?? date(s.createdAt) ?? new Date(),
   }));
   return scenarios;
 }
@@ -208,11 +232,11 @@ export async function seedIsraTenantDemo(orgId: string): Promise<IsraTenantDemoR
         option: str(t.option) ?? "Modify",
         rationale: str(t.rationale),
         decidedBy: str(t.decidedBy),
-        decisionDate: str(t.decisionDate),
+        decisionDate: dateOnly(t.decisionDate),
         approvalStatus: str(t.approvalStatus),
         approvedBy: str(t.approvedBy),
-        approvalDate: str(t.approvalDate),
-        reviewDate: str(t.reviewDate),
+        approvalDate: dateOnly(t.approvalDate),
+        reviewDate: dateOnly(t.reviewDate),
         acceptance: obj(t.acceptance),
         status: str(t.status) ?? "Planning",
         needsReview: t.needsReview === true,
@@ -276,7 +300,7 @@ export async function seedIsraTenantDemo(orgId: string): Promise<IsraTenantDemoR
           rtpId,
           action: String(a.action ?? ""),
           owners: str(a.owner) ? [String(a.owner)] : [],
-          targetDate: str(a.targetDate),
+          targetDate: dateOnly(a.targetDate),
           status: str(a.status) ?? "Planned",
           evidence: str(a.evidenceRequired) ? [String(a.evidenceRequired)] : [],
         });
@@ -306,7 +330,7 @@ export async function seedIsraTenantDemo(orgId: string): Promise<IsraTenantDemoR
         scenarioId,
         l: num(res.L), impact: num(res.impact), score: num(res.score), band: str(res.band),
         basis: str(res.basis),
-        assessmentDate: str(res.assessmentDate),
+        assessmentDate: dateOnly(res.assessmentDate),
         assessedBy: str(res.assessedBy),
         notes: str(res.rationale),
         adequacy: obj(res.adequacy),
@@ -359,8 +383,8 @@ export async function seedIsraTenantDemo(orgId: string): Promise<IsraTenantDemoR
       verifiedEffectiveness: null,
       evidence: [],
       createdBy: c.createdBy ?? null,
-      createdAt: new Date(c.createdAt),
-      updatedAt: new Date(c.updatedAt ?? c.createdAt),
+      createdAt: date(c.createdAt) ?? new Date(),
+      updatedAt: date(c.updatedAt) ?? date(c.createdAt) ?? new Date(),
     };
   });
   await IsraExistingControl.bulkCreate(excRows as never[]);
@@ -417,7 +441,7 @@ export async function seedIsraTenantDemo(orgId: string): Promise<IsraTenantDemoR
   await IsraAudit.bulkCreate(
     ISRA_DEMO_AUDIT.map((a) => ({
       orgId,
-      ts: new Date(a.ts),
+      ts: date(a.ts) ?? new Date(),
       // OD's audit row is `{event, next}`; `next` is the resulting value.
       event: a.event,
       prevValue: null,
@@ -432,7 +456,7 @@ export async function seedIsraTenantDemo(orgId: string): Promise<IsraTenantDemoR
   for (const i of ISRA_DEMO_INITIATIVES) {
     const row = await IsraInitiative.create({
       orgId, code: i.id, title: i.title, description: i.description,
-      owner: i.owner, status: i.status, createdAt: new Date(i.createdAt),
+      owner: i.owner, status: i.status, createdAt: date(i.createdAt) ?? new Date(),
     });
     initiatives++;
     await IsraInitiativeScenario.bulkCreate(
