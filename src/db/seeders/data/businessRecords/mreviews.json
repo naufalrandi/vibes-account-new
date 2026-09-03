@@ -1,0 +1,247 @@
+{
+ "count": 1,
+ "fields": [
+  "id",
+  "tenantId",
+  "title",
+  "frameworks",
+  "date",
+  "time",
+  "tz",
+  "format",
+  "link",
+  "location",
+  "chairperson",
+  "recorder",
+  "invited",
+  "external",
+  "agenda",
+  "prep",
+  "materials",
+  "topics",
+  "status",
+  "minutesSummary",
+  "finalizedBy",
+  "finalizedDate",
+  "version",
+  "createdBy",
+  "createdAt",
+  "postDate",
+  "updatedAt",
+  "lastUpdatedBy",
+  "activity",
+  "comments"
+ ],
+ "sample": [
+  {
+   "id": "MR-0001",
+   "tenantId": "idtn5",
+   "title": "2026 Annual Integrated Management Review",
+   "frameworks": [
+    "ISO 9001:2015",
+    "ISO/IEC 27001:2022"
+   ],
+   "date": "2026-06-25",
+   "time": "10:00",
+   "tz": "Asia/Jakarta",
+   "format": "Virtual",
+   "link": "https://meet.example.com/mr-2026",
+   "location": "",
+   "chairperson": "Tenant Administrator",
+   "recorder": "Jennifer Susan Walters",
+   "invited": [
+    {
+     "name": "Tenant Administrator",
+     "req": "Required",
+     "att": "Pending"
+    },
+    {
+     "name": "Jennifer Susan Walters",
+     "req": "Required",
+     "att": "Pending"
+    },
+    {
+     "name": "Process Owner – Software Development",
+     "req": "Required",
+     "att": "Pending"
+    },
+    {
+     "name": "Process Owner – IT Infrastructure",
+     "req": "Required",
+     "att": "Pending"
+    }
+   ],
+   "external": [],
+   "agenda": "",
+   "prep": "",
+   "materials": "",
+   "topics": [
+    {
+     "id": "MRI-0001",
+     "title": "Status of actions from previous management reviews",
+     "desc": "",
+     "frameworks": [],
+     "inputSummary": "",
+     "output": "",
+     "outputCategory": "",
+     "decisionStatus": "No Action Required",
+     "itemStatus": "Not Started",
+     "action": null,
+     "responsible": "",
+     "due": ""
+    },
+    {
+     "id": "MRI-0002",
+     "title": "Changes in external and internal issues",
+     "desc": "",
+     "frameworks": [],
+     "inputSummary": "",
+     "output": "",
+     "outputCategory": "",
+     "decisionStatus": "No Action Required",
+     "itemStatus": "Not Started",
+     "action": null,
+     "responsible": "",
+     "due": ""
+    },
+    {
+     "id": "MRI-0003",
+     "title": "Policy suitability",
+     "desc": "",
+     "frameworks": [],
+     "inputSummary": "",
+     "output": "",
+     "outputCategory": "",
+     "decisionStatus": "No Action Required",
+     "itemStatus": "Not Started",
+     "action": null,
+     "responsible": "",
+     "due": ""
+    },
+    {
+     "id": "MRI-0004",
+     "title": "Objective achievement",
+     "desc": "",
+     "frameworks": [],
+     "inputSummary": "",
+     "output": "",
+     "outputCategory": "",
+     "decisionStatus": "No Action Required",
+     "itemStatus": "Not Started",
+     "action": null,
+     "responsible": "",
+     "due": ""
+    },
+    {
+     "id": "MRI-0005",
+     "title": "Risk and opportunity status",
+     "desc": "",
+     "frameworks": [],
+     "inputSummary": "Risk review identified dependency on cloud hosting and SaaS providers as a continuing operational and information security concern.",
+     "output": "Management decided to maintain the existing cloud provider controls and perform supplier review for critical SaaS providers.",
+     "outputCategory": "Risk Treatment",
+     "decisionStatus": "Action Required",
+     "itemStatus": "Decision Recorded",
+     "action": {
+      "title": "Review critical SaaS provider controls",
+      "desc": "",
+      "owner": "Process Owner – IT Infrastructure",
+      "due": "2026-07-30",
+      "priority": "High",
+      "status": "Open"
+     },
+     "responsible": "Process Owner – IT Infrastructure",
+     "due": "2026-07-30"
+    },
+    {
+     "id": "MRI-0006",
+     "title": "Internal audit results",
+     "desc": "",
+     "frameworks": [],
+     "inputSummary": "Internal audit results showed that most management system processes are implemented, but several documented information controls require improvement.",
+     "output": "Management decided to improve documented information control by updating document ownership, review frequency, and version approval rules.",
+     "outputCategory": "Improvement Opportunity",
+     "decisionStatus": "Action Required",
+     "itemStatus": "Decision Recorded",
+     "action": {
+      "title": "Improve documented information control",
+      "desc": "",
+      "owner": "Jennifer Susan Walters",
+      "due": "2026-07-15",
+      "priority": "Medium",
+      "status": "Open"
+     },
+     "responsible": "Jennifer Susan Walters",
+     "due": "2026-07-15"
+    },
+    {
+     "id": "MRI-0007",
+     "title": "Nonconformities and corrective actions",
+     "desc": "",
+     "frameworks": [],
+     "inputSummary": "",
+     "output": "",
+     "outputCategory": "",
+     "decisionStatus": "No Action Required",
+     "itemStatus": "Not Started",
+     "action": null,
+     "responsible": "",
+     "due": ""
+    },
+    {
+     "id": "MRI-0008",
+     "title": "Resource adequacy",
+     "desc": "",
+     "frameworks": [],
+     "inputSummary": "",
+     "output": "",
+     "outputCategory": "",
+     "decisionStatus": "No Action Required",
+     "itemStatus": "Not Started",
+     "action": null,
+     "responsible": "",
+     "due": ""
+    },
+    {
+     "id": "MRI-0009",
+     "title": "Opportunities for improvement",
+     "desc": "",
+     "frameworks": [],
+     "inputSummary": "",
+     "output": "",
+     "outputCategory": "",
+     "decisionStatus": "No Action Required",
+     "itemStatus": "Not Started",
+     "action": null,
+     "responsible": "",
+     "due": ""
+    }
+   ],
+   "status": "Scheduled",
+   "minutesSummary": "",
+   "finalizedBy": "",
+   "finalizedDate": "",
+   "version": 1,
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-09-01T10:58:21.176Z",
+   "postDate": "2026-09-01T10:58:21.176Z",
+   "updatedAt": "2026-09-01T10:58:21.176Z",
+   "lastUpdatedBy": "Jennifer Susan Walters",
+   "activity": [
+    {
+     "ts": "2026-09-01T10:58:21.176Z",
+     "user": "Jennifer Susan Walters",
+     "action": "created this review",
+     "summary": "Management review drafted"
+    },
+    {
+     "ts": "2026-09-01T10:58:21.176Z",
+     "user": "Tenant Administrator",
+     "action": "scheduled the review",
+     "summary": "Status set to Scheduled"
+    }
+   ],
+   "comments": []
+  }
+ ]
+}

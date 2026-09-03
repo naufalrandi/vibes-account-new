@@ -46,13 +46,19 @@ import { seedCms } from "./cms";
 import { seedBpCatalog } from "./businessProcess";
 import { seedSaasLifecycle, seedSiteRequests, seedTenantRoles } from "./dataParity";
 import { seedCompetenceRolesAndAssignments } from "./competenceRoles";
+import { seedAwareness, seedCompetenceAssessmentsAndGaps, seedTrainingPlans } from "./personnelSeed";
 import { seedOrgUnits } from "./orgUnits";
 import { seedDoaMatrix } from "./doaMatrix";
 import type { AgreementBlock, AgreementTemplateStatus } from "../models/agreementTemplate.model";
 import { generateStatementForPartner } from "../../modules/billing/billing.service";
 import { hashPassword } from "../../lib/password";
 import { ensureGlobalSeed as ensureScopeDatasetSeed } from "../../modules/scope/scopeDataset.service";
-import { seedBusinessRecords, seedEnterpriseSuppliers, seedTenantSuppliers } from "./businessRecordsSeed";
+import {
+  seedBusinessRecords, seedEnterpriseSuppliers, seedTenantSuppliers,
+  seedCustomerSatisfaction, seedDesignItems, seedPsr, seedControlPlans,
+  seedInterestedParties, seedManagementReviews, seedMsScope,
+  seedCabClients, seedPcbPersons, seedLabScope, seedTenantSupplierPOs,
+} from "./businessRecordsSeed";
 
 const DEFAULT_PASSWORD = "ChangeMe123";
 
@@ -616,6 +622,19 @@ export async function seed(): Promise<void> {
   //      Must run after seedTenantRoles (needs its RoleTemplate rows for the
   //      shape-B roleId resolution).
   await seedCompetenceRolesAndAssignments(tenant.id, so.id);
+
+  // 12f-2. Personnel/Competence tenant registers (SOF-322 gap) — OD's `db.aw*` (Awareness
+  //        workspace: topics/programs/campaigns, with acks/evals nested into the campaign),
+  //        `db.trainingPlans` (Training Plan workspace), and `db.assessments`/`db.gaps`
+  //        (Competence Assessments/Gaps). `db.compTraining` is NOT seeded here — it's the
+  //        global training catalog already seeded lazily by `ensureTrainingCatalogSeed()`.
+  //        Must run after `seedCompetenceRolesAndAssignments` (needs its CompetenceAssignment
+  //        rows to resolve OD's personId -> assignment/role); assessments/gaps must seed before
+  //        training plans (the plan cross-links to the real gap/assessment id, and the gap in
+  //        turn is patched with the real training-plan id once it exists).
+  const { assessmentIdMap, gapIdMap } = await seedCompetenceAssessmentsAndGaps(tenant.id, so.id);
+  await seedTrainingPlans(tenant.id, so.id, assessmentIdMap, gapIdMap);
+  await seedAwareness(tenant.id, so.id);
 
   // 12g. SOF-407 (design: SOF-386) — Enterprise org structure (32 `OrgUnit`
   //      rows + synthetic lead roster) and the Delegation-of-Authority spend
@@ -1849,11 +1868,42 @@ export async function seed(): Promise<void> {
   // `suppliers`) since that register isn't a `business_records` module.
   await seedTenantSuppliers(tenant.id);
 
+  // OD's `tnPOs` (ISO §8.4.2/§8.4.3) nest inside a supplier's own `data.pos`
+  // (`SupplierWorkspace.tsx`), not a separate module — must run after
+  // `seedTenantSuppliers` so the supplier rows it matches against already
+  // exist. See `seedTenantSupplierPOs`'s header note in `businessRecordsSeed.ts`.
+  await seedTenantSupplierPOs(tenant.id);
+
   // Same SOF-322 gap, Enterprise side: `EnterpriseSuppliersPage.tsx` (`ent-suppliers` business
   // records) had a single non-OD stub row, not OD's 21. `SupplierData` (`lib/procurement/
   // suppliers.ts`) is the closer match to OD's row shape than the Tenant `ImplementationRecord`
   // payload above — see `seedEnterpriseSuppliers`'s header note for the field-by-field case.
   await seedEnterpriseSuppliers(tenant.id);
+
+  // Same SOF-322 gap, the four Tenant Quality-extension (ISO 9001) registers: OD's
+  // `db.custSat`/`db.designItems`/`db.psrCatalog`+`db.psrRecords`+`db.psrSpecTemplates`/
+  // `db.controlPlans` had no seed at all, so `/implementation/customer-satisfaction`,
+  // `/implementation/design`, `/implementation/psr`, and `/implementation/provision`
+  // rendered empty in every mode. See each seeder's own header note in
+  // `businessRecordsSeed.ts` for the field-by-field mapping against that register's
+  // bespoke workspace component.
+  await seedCustomerSatisfaction(tenant.id);
+  await seedDesignItems(tenant.id);
+  await seedPsr(tenant.id);
+  await seedControlPlans(tenant.id);
+
+  // Organization/edition-specific registers with no seed at all: Interested
+  // Parties (`IpParty`/`IpRequirement`, ISO 4.2), Management Review
+  // (`MReview`, ISO 9.3), Management System Scope (`MsScope`, the dedicated
+  // `/scope` document), and the three edition-specific `cab-clients`/
+  // `pcb-persons`/`lab-scope` registers. See each seeder's header note in
+  // `businessRecordsSeed.ts` for the field-by-field mapping.
+  await seedInterestedParties(tenant.id);
+  await seedManagementReviews(tenant.id);
+  await seedMsScope(tenant.id);
+  await seedCabClients(tenant.id);
+  await seedPcbPersons(tenant.id);
+  await seedLabScope(tenant.id);
 
   const notifCount = await Notification.count({ where: { orgId: tenant.id } });
   if (notifCount === 0) {

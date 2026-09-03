@@ -1,0 +1,75 @@
+{
+ "count": 4,
+ "fields": [
+  "id",
+  "tenantId",
+  "discipline",
+  "field",
+  "item",
+  "method",
+  "standard",
+  "range",
+  "cmc",
+  "status",
+  "createdAt",
+  "updatedAt"
+ ],
+ "sample": [
+  {
+   "id": "SCOPE-0001",
+   "tenantId": "idtn5",
+   "discipline": "Testing",
+   "field": "Chemical",
+   "item": "Drinking water",
+   "method": "Heavy metals by ICP-OES",
+   "standard": "SNI 6989.5:2009",
+   "range": "0.001 – 5 mg/L",
+   "cmc": "± 4%",
+   "status": "Accredited",
+   "createdAt": "2026-02-15T10:58:26.598Z",
+   "updatedAt": "2026-08-29T10:58:26.598Z"
+  },
+  {
+   "id": "SCOPE-0002",
+   "tenantId": "idtn5",
+   "discipline": "Testing",
+   "field": "Mechanical",
+   "item": "Steel reinforcing bar",
+   "method": "Tensile strength",
+   "standard": "ISO 6892-1",
+   "range": "5 – 1000 kN",
+   "cmc": "± 1.2%",
+   "status": "Accredited",
+   "createdAt": "2026-02-15T10:58:26.598Z",
+   "updatedAt": "2026-08-29T10:58:26.598Z"
+  },
+  {
+   "id": "SCOPE-0003",
+   "tenantId": "idtn5",
+   "discipline": "Calibration",
+   "field": "Mass",
+   "item": "Weights (E2 – M1)",
+   "method": "Comparison method",
+   "standard": "OIML R111",
+   "range": "1 mg – 20 kg",
+   "cmc": "0.05 mg – 30 mg",
+   "status": "Accredited",
+   "createdAt": "2026-02-15T10:58:26.598Z",
+   "updatedAt": "2026-08-29T10:58:26.598Z"
+  },
+  {
+   "id": "SCOPE-0004",
+   "tenantId": "idtn5",
+   "discipline": "Calibration",
+   "field": "Temperature",
+   "item": "Digital thermometer",
+   "method": "Comparison in liquid bath",
+   "standard": "ISO/IEC 17025",
+   "range": "-30 – 300 °C",
+   "cmc": "± 0.05 °C",
+   "status": "Pending",
+   "createdAt": "2026-02-15T10:58:26.598Z",
+   "updatedAt": "2026-08-29T10:58:26.598Z"
+  }
+ ]
+}

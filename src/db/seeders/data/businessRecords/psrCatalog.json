@@ -1,0 +1,329 @@
+{
+ "count": 5,
+ "fields": [
+  "activity",
+  "category",
+  "code",
+  "createdAt",
+  "createdBy",
+  "description",
+  "id",
+  "lastUpdatedBy",
+  "name",
+  "notes",
+  "owner",
+  "reviewDate",
+  "revision",
+  "spec",
+  "status",
+  "templateId",
+  "tenantId",
+  "type",
+  "updatedAt"
+ ],
+ "sample": [
+  {
+   "tenantId": "idtn5",
+   "code": "SEN-X-100",
+   "revision": "1.0",
+   "status": "Active",
+   "reviewDate": "2026-12-31",
+   "templateId": "SPEC-0001",
+   "spec": {
+    "part_no": {
+     "value": "SEN-X-100"
+    },
+    "part_name": {
+     "value": "Model X Sensor"
+    },
+    "revision": {
+     "value": "B"
+    },
+    "length": {
+     "value": 80,
+     "tol": "±0.2"
+    },
+    "diameter": {
+     "value": 18,
+     "tol": "±0.1"
+    },
+    "weight": {
+     "value": 0.35
+    },
+    "material": {
+     "value": "Stainless 304"
+    },
+    "finish": {
+     "value": "None"
+    },
+    "standard": {
+     "value": "IEC 61508"
+    },
+    "rohs": {
+     "value": true
+    },
+    "matcert": {
+     "value": true
+    },
+    "leadtime": {
+     "value": 4
+    },
+    "uom": {
+     "value": "Each"
+    }
+   },
+   "notes": "",
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-08-04T10:58:21.754Z",
+   "updatedAt": "2026-08-28T10:58:21.754Z",
+   "lastUpdatedBy": "Jennifer Susan Walters",
+   "activity": [
+    {
+     "ts": "2026-08-04T10:58:21.754Z",
+     "user": "Jennifer Susan Walters",
+     "action": "created this offering",
+     "summary": "Catalog item added"
+    }
+   ],
+   "id": "CAT-0001",
+   "name": "Model X Industrial Sensor",
+   "type": "Product",
+   "category": "Hardware",
+   "owner": "Scott Edward Harris Lang",
+   "description": "Precision industrial temperature & pressure sensor supplied to OEM customers."
+  },
+  {
+   "tenantId": "idtn5",
+   "code": "SVC-MIT-2",
+   "revision": "1.0",
+   "status": "Active",
+   "reviewDate": "2026-12-31",
+   "templateId": "SPEC-0002",
+   "spec": {
+    "svc_code": {
+     "value": "SVC-MIT-2"
+    },
+    "tier": {
+     "value": "Silver"
+    },
+    "availability": {
+     "value": 99.5
+    },
+    "p1_response": {
+     "value": 30
+    },
+    "resolution": {
+     "value": 4
+    },
+    "hours": {
+     "value": "8×5"
+    },
+    "channels": {
+     "value": "Portal, email, phone"
+    },
+    "dpa": {
+     "value": true
+    },
+    "billing": {
+     "value": "Monthly"
+    },
+    "term": {
+     "value": 12
+    }
+   },
+   "notes": "",
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-08-04T10:58:21.754Z",
+   "updatedAt": "2026-08-28T10:58:21.754Z",
+   "lastUpdatedBy": "Jennifer Susan Walters",
+   "activity": [
+    {
+     "ts": "2026-08-04T10:58:21.754Z",
+     "user": "Jennifer Susan Walters",
+     "action": "created this offering",
+     "summary": "Catalog item added"
+    }
+   ],
+   "id": "CAT-0002",
+   "name": "Managed IT Support — Tier 2",
+   "type": "Service",
+   "category": "Managed Services",
+   "owner": "Daniel Rand",
+   "description": "Remote and on-site second-line IT support delivered under a monthly service agreement."
+  },
+  {
+   "tenantId": "idtn5",
+   "code": "SVC-ISO-9001",
+   "revision": "1.0",
+   "status": "Active",
+   "reviewDate": "2026-12-31",
+   "templateId": "SPEC-0003",
+   "spec": {
+    "reference": {
+     "value": "SVC-ISO-9001"
+    },
+    "summary": {
+     "value": "16-week engagement: gap analysis, documented information, process design, internal audit prep, management review facilitation."
+    },
+    "key_char": {
+     "value": "0 major nonconformities at readiness review"
+    }
+   },
+   "notes": "",
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-08-04T10:58:21.754Z",
+   "updatedAt": "2026-08-28T10:58:21.754Z",
+   "lastUpdatedBy": "Jennifer Susan Walters",
+   "activity": [
+    {
+     "ts": "2026-08-04T10:58:21.754Z",
+     "user": "Jennifer Susan Walters",
+     "action": "created this offering",
+     "summary": "Catalog item added"
+    }
+   ],
+   "id": "CAT-0003",
+   "name": "ISO 9001 Implementation Consulting",
+   "type": "Service",
+   "category": "Consulting",
+   "owner": "Jennifer Susan Walters",
+   "description": "Fixed-scope consulting engagement to design and implement an ISO 9001 QMS to certification readiness."
+  },
+  {
+   "tenantId": "idtn5",
+   "code": "SUB-CAP-PRO",
+   "revision": "1.0",
+   "status": "Active",
+   "reviewDate": "2026-12-31",
+   "templateId": "SPEC-0002",
+   "spec": {
+    "svc_code": {
+     "value": "SUB-CAP-PRO"
+    },
+    "tier": {
+     "value": "Gold"
+    },
+    "availability": {
+     "value": 99.9
+    },
+    "p1_response": {
+     "value": 120
+    },
+    "resolution": {
+     "value": 8
+    },
+    "hours": {
+     "value": "24×7"
+    },
+    "channels": {
+     "value": "Portal, email"
+    },
+    "dpa": {
+     "value": true
+    },
+    "billing": {
+     "value": "Annual"
+    },
+    "term": {
+     "value": 12
+    }
+   },
+   "notes": "",
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-08-04T10:58:21.754Z",
+   "updatedAt": "2026-08-28T10:58:21.754Z",
+   "lastUpdatedBy": "Jennifer Susan Walters",
+   "activity": [
+    {
+     "ts": "2026-08-04T10:58:21.754Z",
+     "user": "Jennifer Susan Walters",
+     "action": "created this offering",
+     "summary": "Catalog item added"
+    }
+   ],
+   "id": "CAT-0004",
+   "name": "Cloud Analytics Platform — Pro",
+   "type": "Service",
+   "category": "Subscription",
+   "owner": "Maria Rambeau",
+   "description": "Annual SaaS subscription to the analytics platform, Pro tier."
+  },
+  {
+   "tenantId": "idtn5",
+   "code": "BRK-STL-A",
+   "revision": "1.0",
+   "status": "Draft",
+   "reviewDate": "2026-12-31",
+   "templateId": "SPEC-0001",
+   "spec": {
+    "part_no": {
+     "value": "BRK-STL-A"
+    },
+    "part_name": {
+     "value": "Steel Bracket A"
+    },
+    "revision": {
+     "value": "A"
+    },
+    "length": {
+     "value": 80,
+     "tol": "±0.5"
+    },
+    "width": {
+     "value": 40,
+     "tol": "±0.5"
+    },
+    "height": {
+     "value": 20,
+     "tol": "±0.5"
+    },
+    "weight": {
+     "value": 0.8
+    },
+    "material": {
+     "value": "Steel S275"
+    },
+    "finish": {
+     "value": "Galvanised"
+    },
+    "standard": {
+     "value": "DIN 3016"
+    },
+    "rohs": {
+     "value": true
+    },
+    "matcert": {
+     "value": false
+    },
+    "moq": {
+     "value": 100
+    },
+    "leadtime": {
+     "value": 2
+    },
+    "uom": {
+     "value": "Each"
+    }
+   },
+   "notes": "",
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-08-04T10:58:21.754Z",
+   "updatedAt": "2026-08-28T10:58:21.754Z",
+   "lastUpdatedBy": "Jennifer Susan Walters",
+   "activity": [
+    {
+     "ts": "2026-08-04T10:58:21.754Z",
+     "user": "Jennifer Susan Walters",
+     "action": "created this offering",
+     "summary": "Catalog item added"
+    }
+   ],
+   "id": "CAT-0005",
+   "name": "Standard Steel Bracket A",
+   "type": "Product",
+   "category": "Spare Parts",
+   "owner": "Luke Cage",
+   "description": "Catalogue steel mounting bracket supplied to distributors (draft — pending spec approval)."
+  }
+ ]
+}

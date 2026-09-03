@@ -1,0 +1,154 @@
+{
+ "count": 4,
+ "fields": [
+  "tenantId",
+  "currency",
+  "items",
+  "receipt",
+  "evaluation",
+  "activity",
+  "id",
+  "supplierId",
+  "supplierName",
+  "date",
+  "provisionType",
+  "requiredDate",
+  "value",
+  "status"
+ ],
+ "sample": [
+  {
+   "tenantId": "idtn5",
+   "currency": "EUR",
+   "items": [
+    {
+     "name": "S275 steel plate 10mm",
+     "qty": "20",
+     "unit": "sheets",
+     "requirement": "EN 10204 3.1 cert · ±0.5mm"
+    }
+   ],
+   "receipt": {
+    "date": "2026-08-12",
+    "result": "Accept",
+    "by": "Scott Edward Harris Lang",
+    "qty": "20 sheets",
+    "notes": "Certificates verified; dimensions within tolerance.",
+    "ncId": ""
+   },
+   "evaluation": {
+    "criteria": {
+     "quality": 5,
+     "delivery": 4,
+     "price": 4,
+     "compliance": 5
+    },
+    "note": "On time; certs complete.",
+    "by": "Scott Edward Harris Lang",
+    "ts": "2026-08-14"
+   },
+   "activity": [],
+   "id": "TPO-0001",
+   "supplierId": "SUP-2001",
+   "supplierName": "Continental Steel Supply",
+   "date": "2026-07-25",
+   "provisionType": "Product",
+   "requiredDate": "2026-08-14",
+   "value": "8400",
+   "status": "Closed"
+  },
+  {
+   "tenantId": "idtn5",
+   "currency": "EUR",
+   "items": [
+    {
+     "name": "Bracket assemblies",
+     "qty": "500",
+     "unit": "pcs",
+     "requirement": "Per drawing BRK-A rev A"
+    }
+   ],
+   "receipt": null,
+   "evaluation": null,
+   "activity": [],
+   "id": "TPO-0002",
+   "supplierId": "SUP-2002",
+   "supplierName": "Meridian Components Ltd",
+   "date": "2026-08-26",
+   "provisionType": "Product",
+   "requiredDate": "2026-09-09",
+   "value": "3200",
+   "status": "Issued"
+  },
+  {
+   "tenantId": "idtn5",
+   "currency": "EUR",
+   "items": [
+    {
+     "name": "M10 hex bolts, grade 8.8",
+     "qty": "5000",
+     "unit": "pcs",
+     "requirement": "Zinc plated · material cert"
+    }
+   ],
+   "receipt": {
+    "date": "2026-07-21",
+    "result": "Reject",
+    "by": "Bobbi Morse",
+    "qty": "5000 pcs",
+    "notes": "~12% defective threads; material certificate missing.",
+    "ncId": "NC-0008"
+   },
+   "evaluation": null,
+   "activity": [],
+   "id": "TPO-0003",
+   "supplierId": "SUP-2007",
+   "supplierName": "BudgetBolts Trading",
+   "date": "2026-07-05",
+   "provisionType": "Product",
+   "requiredDate": "2026-07-20",
+   "value": "900",
+   "status": "Rejected"
+  },
+  {
+   "tenantId": "idtn5",
+   "currency": "EUR",
+   "items": [
+    {
+     "name": "Cloud Analytics Pro — annual subscription",
+     "qty": "1",
+     "unit": "subscription",
+     "requirement": "99.9% uptime · DPA"
+    }
+   ],
+   "receipt": {
+    "date": "2026-08-06",
+    "result": "Accept",
+    "by": "Maria Rambeau",
+    "qty": "1 subscription",
+    "notes": "Provisioned; DPA on file.",
+    "ncId": ""
+   },
+   "evaluation": {
+    "criteria": {
+     "quality": 5,
+     "delivery": 5,
+     "price": 4,
+     "compliance": 5
+    },
+    "note": "Smooth onboarding.",
+    "by": "Maria Rambeau",
+    "ts": "2026-08-08"
+   },
+   "activity": [],
+   "id": "TPO-0004",
+   "supplierId": "SUP-2005",
+   "supplierName": "BlueWave Cloud Services",
+   "date": "2026-08-04",
+   "provisionType": "Service",
+   "requiredDate": "2026-08-06",
+   "value": "12000",
+   "status": "Closed"
+  }
+ ]
+}

@@ -1,0 +1,291 @@
+{
+ "count": 8,
+ "fields": [
+  "id",
+  "tenantId",
+  "partyId",
+  "topic",
+  "description",
+  "type",
+  "frameworks",
+  "relatedCO",
+  "linkedObligations",
+  "status",
+  "createdBy",
+  "createdAt",
+  "postDate",
+  "updatedAt",
+  "lastUpdatedBy",
+  "activity",
+  "comments",
+  "raisedAsRisk"
+ ],
+ "sample": [
+  {
+   "id": "IP-REQ-0001",
+   "tenantId": "idtn5",
+   "partyId": "IP-0001",
+   "topic": "Workforce roles & safe conditions",
+   "description": "Employees need clear roles, competence support, safe working conditions, and access to relevant procedures.",
+   "type": "Requirement",
+   "frameworks": [
+    "ISO 9001:2015",
+    "ISO 45001:2018"
+   ],
+   "relatedCO": false,
+   "linkedObligations": [],
+   "status": "Open",
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-09-01T10:58:16.802Z",
+   "postDate": "2026-09-01T10:58:16.802Z",
+   "updatedAt": "2026-09-01T10:58:16.802Z",
+   "lastUpdatedBy": "Jennifer Susan Walters",
+   "activity": [
+    {
+     "ts": "2026-08-13T10:58:18.792Z",
+     "user": "Daniel Rand",
+     "action": "Raised as risk",
+     "summary": "Linked risk RISK-0013"
+    },
+    {
+     "ts": "2026-09-01T10:58:16.802Z",
+     "user": "Jennifer Susan Walters",
+     "action": "Requirement added",
+     "summary": "Requirement created"
+    }
+   ],
+   "comments": [],
+   "raisedAsRisk": true
+  },
+  {
+   "id": "IP-REQ-0002",
+   "tenantId": "idtn5",
+   "partyId": "IP-0002",
+   "topic": "OH&S legal compliance",
+   "description": "The organization must comply with applicable occupational health and safety legal requirements.",
+   "type": "Legal / Regulatory Requirement",
+   "frameworks": [
+    "ISO 45001:2018"
+   ],
+   "relatedCO": true,
+   "linkedObligations": [
+    "COBL-0001"
+   ],
+   "status": "Addressed",
+   "createdBy": "Peter Benjamin Parker",
+   "createdAt": "2026-08-28T10:58:16.802Z",
+   "postDate": "2026-08-28T10:58:16.802Z",
+   "updatedAt": "2026-08-28T10:58:16.802Z",
+   "lastUpdatedBy": "Peter Benjamin Parker",
+   "activity": [
+    {
+     "ts": "2026-08-09T10:58:18.792Z",
+     "user": "Sharon Carter",
+     "action": "Raised as risk",
+     "summary": "Linked risk RISK-0014"
+    },
+    {
+     "ts": "2026-08-28T10:58:16.802Z",
+     "user": "Peter Benjamin Parker",
+     "action": "Compliance obligation linked",
+     "summary": "COBL-0001"
+    },
+    {
+     "ts": "2026-08-28T10:58:16.802Z",
+     "user": "Peter Benjamin Parker",
+     "action": "Requirement added",
+     "summary": "Requirement created"
+    }
+   ],
+   "comments": [],
+   "raisedAsRisk": true
+  },
+  {
+   "id": "IP-REQ-0003",
+   "tenantId": "idtn5",
+   "partyId": "IP-0003",
+   "topic": "Consistent, secure service delivery",
+   "description": "Customer expects consistent service delivery, protection of shared information, and prompt handling of complaints.",
+   "type": "Customer Requirement",
+   "frameworks": [
+    "ISO 9001:2015",
+    "ISO/IEC 27001:2022"
+   ],
+   "relatedCO": false,
+   "linkedObligations": [],
+   "status": "Open",
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-08-24T10:58:16.802Z",
+   "postDate": "2026-08-24T10:58:16.802Z",
+   "updatedAt": "2026-08-24T10:58:16.802Z",
+   "lastUpdatedBy": "Jennifer Susan Walters",
+   "activity": [
+    {
+     "ts": "2026-08-05T10:58:18.792Z",
+     "user": "Hope van Dyne",
+     "action": "Raised as risk",
+     "summary": "Linked risk RISK-0015"
+    },
+    {
+     "ts": "2026-08-24T10:58:16.802Z",
+     "user": "Jennifer Susan Walters",
+     "action": "Requirement added",
+     "summary": "Requirement created"
+    }
+   ],
+   "comments": [],
+   "raisedAsRisk": true
+  },
+  {
+   "id": "IP-REQ-0004",
+   "tenantId": "idtn5",
+   "partyId": "IP-0004",
+   "topic": "Supplier availability & security",
+   "description": "Supplier must maintain reliable service availability, security controls, and incident communication.",
+   "type": "Contractual Requirement",
+   "frameworks": [
+    "ISO/IEC 27001:2022",
+    "ISO 9001:2015"
+   ],
+   "relatedCO": true,
+   "linkedObligations": [
+    "COBL-0002"
+   ],
+   "status": "Under Review",
+   "createdBy": "Wanda Maximoff",
+   "createdAt": "2026-08-20T10:58:16.802Z",
+   "postDate": "2026-08-20T10:58:16.802Z",
+   "updatedAt": "2026-08-20T10:58:16.802Z",
+   "lastUpdatedBy": "Wanda Maximoff",
+   "activity": [
+    {
+     "ts": "2026-08-20T10:58:16.802Z",
+     "user": "Wanda Maximoff",
+     "action": "Compliance obligation linked",
+     "summary": "COBL-0002"
+    },
+    {
+     "ts": "2026-08-20T10:58:16.802Z",
+     "user": "Wanda Maximoff",
+     "action": "Requirement added",
+     "summary": "Requirement created"
+    }
+   ],
+   "comments": []
+  },
+  {
+   "id": "IP-REQ-0005",
+   "tenantId": "idtn5",
+   "partyId": "IP-0004",
+   "topic": "Data processing & privacy compliance",
+   "description": "Personal data must be processed only within approved jurisdictions, under the signed data-processing addendum, with sub-processors disclosed and subject to prior review.",
+   "type": "Legal / Regulatory Requirement",
+   "frameworks": [
+    "ISO/IEC 27701:2025",
+    "ISO/IEC 27001:2022"
+   ],
+   "relatedCO": false,
+   "linkedObligations": [],
+   "status": "Under Review",
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-08-20T10:58:18.791Z",
+   "postDate": "2026-08-20T10:58:18.791Z",
+   "updatedAt": "2026-08-20T10:58:18.791Z",
+   "lastUpdatedBy": "Jennifer Susan Walters",
+   "activity": [
+    {
+     "ts": "2026-08-20T10:58:18.791Z",
+     "user": "Jennifer Susan Walters",
+     "action": "Requirement added",
+     "summary": "Requirement created"
+    }
+   ],
+   "comments": []
+  },
+  {
+   "id": "IP-REQ-0006",
+   "tenantId": "idtn5",
+   "partyId": "IP-0004",
+   "topic": "Incident notification & breach reporting",
+   "description": "Security incidents, outages and personal-data breaches must be reported without undue delay, with impact assessment, root-cause analysis and remediation timelines.",
+   "type": "Contractual Requirement",
+   "frameworks": [
+    "ISO/IEC 27001:2022"
+   ],
+   "relatedCO": false,
+   "linkedObligations": [],
+   "status": "Addressed",
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-08-22T10:58:18.791Z",
+   "postDate": "2026-08-22T10:58:18.791Z",
+   "updatedAt": "2026-08-22T10:58:18.791Z",
+   "lastUpdatedBy": "Jennifer Susan Walters",
+   "activity": [
+    {
+     "ts": "2026-08-22T10:58:18.791Z",
+     "user": "Jennifer Susan Walters",
+     "action": "Requirement added",
+     "summary": "Requirement created"
+    }
+   ],
+   "comments": []
+  },
+  {
+   "id": "IP-REQ-0007",
+   "tenantId": "idtn5",
+   "partyId": "IP-0004",
+   "topic": "Exit, portability & data return",
+   "description": "On termination the provider must return or securely delete tenant data in a portable format and support a documented exit/transition plan to avoid lock-in.",
+   "type": "Contractual Requirement",
+   "frameworks": [
+    "ISO/IEC 27001:2022",
+    "ISO 9001:2015"
+   ],
+   "relatedCO": false,
+   "linkedObligations": [],
+   "status": "Open",
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-08-24T10:58:18.791Z",
+   "postDate": "2026-08-24T10:58:18.791Z",
+   "updatedAt": "2026-08-24T10:58:18.791Z",
+   "lastUpdatedBy": "Jennifer Susan Walters",
+   "activity": [
+    {
+     "ts": "2026-08-24T10:58:18.791Z",
+     "user": "Jennifer Susan Walters",
+     "action": "Requirement added",
+     "summary": "Requirement created"
+    }
+   ],
+   "comments": []
+  },
+  {
+   "id": "IP-REQ-0008",
+   "tenantId": "idtn5",
+   "partyId": "IP-0004",
+   "topic": "Security certifications & audit rights",
+   "description": "The provider must maintain recognised security certifications and grant audit or evidence rights so we can verify continued control effectiveness.",
+   "type": "Requirement",
+   "frameworks": [
+    "ISO/IEC 27001:2022"
+   ],
+   "relatedCO": false,
+   "linkedObligations": [],
+   "status": "On Hold",
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-08-26T10:58:18.791Z",
+   "postDate": "2026-08-26T10:58:18.791Z",
+   "updatedAt": "2026-08-26T10:58:18.791Z",
+   "lastUpdatedBy": "Jennifer Susan Walters",
+   "activity": [
+    {
+     "ts": "2026-08-26T10:58:18.791Z",
+     "user": "Jennifer Susan Walters",
+     "action": "Requirement added",
+     "summary": "Requirement created"
+    }
+   ],
+   "comments": []
+  }
+ ]
+}

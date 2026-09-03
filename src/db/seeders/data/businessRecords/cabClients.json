@@ -1,0 +1,75 @@
+{
+ "count": 4,
+ "fields": [
+  "id",
+  "tenantId",
+  "org",
+  "standard",
+  "certNo",
+  "status",
+  "scope",
+  "issued",
+  "expiry",
+  "nextSurveillance",
+  "createdAt",
+  "updatedAt"
+ ],
+ "sample": [
+  {
+   "id": "CERT-0001",
+   "tenantId": "idtn5",
+   "org": "PT Sinar Sukses Manufaktur",
+   "standard": "ISO 9001:2015",
+   "certNo": "QMS-2024-0142",
+   "status": "Certified",
+   "scope": "",
+   "issued": "2025-07-10T10:58:25.659Z",
+   "expiry": "2028-07-09T10:58:25.659Z",
+   "nextSurveillance": "2027-01-01T10:58:25.659Z",
+   "createdAt": "2025-07-10T10:58:25.659Z",
+   "updatedAt": "2026-09-03T10:58:25.659Z"
+  },
+  {
+   "id": "CERT-0002",
+   "tenantId": "idtn5",
+   "org": "Klinik Sehat Sentosa",
+   "standard": "ISO 45001:2018",
+   "certNo": "OHS-2025-0067",
+   "status": "Certified",
+   "scope": "",
+   "issued": "2026-03-07T10:58:25.659Z",
+   "expiry": "2029-03-06T10:58:25.659Z",
+   "nextSurveillance": "2026-12-07T10:58:25.659Z",
+   "createdAt": "2026-03-07T10:58:25.659Z",
+   "updatedAt": "2026-09-03T10:58:25.659Z"
+  },
+  {
+   "id": "CERT-0003",
+   "tenantId": "idtn5",
+   "org": "CV Data Aman Nusantara",
+   "standard": "ISO/IEC 27001:2022",
+   "certNo": "ISMS-2025-0031",
+   "status": "Surveillance Due",
+   "scope": "",
+   "issued": "2026-04-06T10:58:25.659Z",
+   "expiry": "2029-04-05T10:58:25.659Z",
+   "nextSurveillance": "2026-09-11T10:58:25.659Z",
+   "createdAt": "2026-04-06T10:58:25.659Z",
+   "updatedAt": "2026-09-03T10:58:25.659Z"
+  },
+  {
+   "id": "CERT-0004",
+   "tenantId": "idtn5",
+   "org": "PT Bumi Hijau Logistik",
+   "standard": "ISO 14001:2015",
+   "certNo": "EMS-2023-0210",
+   "status": "Suspended",
+   "scope": "",
+   "issued": "2025-01-11T10:58:25.659Z",
+   "expiry": "2028-01-11T10:58:25.659Z",
+   "nextSurveillance": "2026-10-03T10:58:25.659Z",
+   "createdAt": "2025-01-11T10:58:25.659Z",
+   "updatedAt": "2026-09-03T10:58:25.659Z"
+  }
+ ]
+}

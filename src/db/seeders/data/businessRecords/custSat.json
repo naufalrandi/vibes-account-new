@@ -1,0 +1,256 @@
+{
+ "count": 7,
+ "fields": [
+  "activity",
+  "cats",
+  "comment",
+  "comments",
+  "createdAt",
+  "createdBy",
+  "customer",
+  "ftype",
+  "id",
+  "lastUpdatedBy",
+  "overall",
+  "postDate",
+  "routedRecordId",
+  "routedTo",
+  "source",
+  "status",
+  "tenantId",
+  "updatedAt"
+ ],
+ "sample": [
+  {
+   "tenantId": "idtn5",
+   "source": "Survey",
+   "ftype": "Praise",
+   "cats": {
+    "quality": 4,
+    "delivery": 4,
+    "support": 3,
+    "communication": 4,
+    "value": 3
+   },
+   "comment": "Excellent product quality and on-time delivery for the last three orders. Support could respond a little faster.",
+   "status": "Reviewed",
+   "routedTo": "",
+   "routedRecordId": "",
+   "createdBy": "Tenant Administrator",
+   "lastUpdatedBy": "Tenant Administrator",
+   "activity": [
+    {
+     "ts": "2026-08-22T10:58:21.965Z",
+     "user": "Tenant Administrator",
+     "action": "recorded customer feedback",
+     "summary": "Overall 4/4"
+    }
+   ],
+   "comments": [],
+   "id": "CSAT-0001",
+   "customer": "PT Sinar Jaya Abadi",
+   "overall": 4,
+   "postDate": "2026-08-22T10:58:21.965Z",
+   "createdAt": "2026-08-22T10:58:21.965Z",
+   "updatedAt": "2026-08-24T10:58:21.965Z"
+  },
+  {
+   "tenantId": "idtn5",
+   "source": "Direct Feedback",
+   "ftype": "Suggestion",
+   "cats": {
+    "quality": 3,
+    "delivery": 3,
+    "support": 3,
+    "communication": 2,
+    "value": 3
+   },
+   "comment": "Good overall, but we would appreciate clearer status updates during production.",
+   "status": "New",
+   "routedTo": "",
+   "routedRecordId": "",
+   "createdBy": "Tenant Administrator",
+   "lastUpdatedBy": "Tenant Administrator",
+   "activity": [
+    {
+     "ts": "2026-08-25T10:58:21.965Z",
+     "user": "Tenant Administrator",
+     "action": "recorded customer feedback",
+     "summary": "Overall 3/4"
+    }
+   ],
+   "comments": [],
+   "id": "CSAT-0002",
+   "customer": "CV Mandiri Teknik",
+   "overall": 3,
+   "postDate": "2026-08-25T10:58:21.965Z",
+   "createdAt": "2026-08-25T10:58:21.965Z",
+   "updatedAt": "2026-08-25T10:58:21.965Z"
+  },
+  {
+   "tenantId": "idtn5",
+   "source": "Complaint",
+   "ftype": "Complaint",
+   "cats": {
+    "quality": 2,
+    "delivery": 1,
+    "support": 1,
+    "communication": 1,
+    "value": 2
+   },
+   "comment": "Shipment arrived two weeks late and support was unresponsive. This affected our own delivery commitments.",
+   "status": "Action Required",
+   "routedTo": "",
+   "routedRecordId": "",
+   "createdBy": "Tenant Administrator",
+   "lastUpdatedBy": "Tenant Administrator",
+   "activity": [
+    {
+     "ts": "2026-08-27T10:58:21.965Z",
+     "user": "Tenant Administrator",
+     "action": "recorded customer feedback",
+     "summary": "Overall 1/4"
+    }
+   ],
+   "comments": [],
+   "id": "CSAT-0003",
+   "customer": "PT Global Nusantara",
+   "overall": 1,
+   "postDate": "2026-08-27T10:58:21.965Z",
+   "createdAt": "2026-08-27T10:58:21.965Z",
+   "updatedAt": "2026-08-31T10:58:21.965Z"
+  },
+  {
+   "tenantId": "idtn5",
+   "source": "Account Review",
+   "ftype": "General",
+   "cats": {
+    "quality": 4,
+    "delivery": 3,
+    "support": 3,
+    "communication": 3,
+    "value": 2
+   },
+   "comment": "Reliable partner. Pricing is slightly higher than alternatives but quality justifies it.",
+   "status": "Reviewed",
+   "routedTo": "",
+   "routedRecordId": "",
+   "createdBy": "Tenant Administrator",
+   "lastUpdatedBy": "Tenant Administrator",
+   "activity": [
+    {
+     "ts": "2026-08-14T10:58:21.965Z",
+     "user": "Tenant Administrator",
+     "action": "recorded customer feedback",
+     "summary": "Overall 3/4"
+    }
+   ],
+   "comments": [],
+   "id": "CSAT-0004",
+   "customer": "PT Karya Utama",
+   "overall": 3,
+   "postDate": "2026-08-14T10:58:21.965Z",
+   "createdAt": "2026-08-14T10:58:21.965Z",
+   "updatedAt": "2026-08-16T10:58:21.965Z"
+  },
+  {
+   "tenantId": "idtn5",
+   "source": "Online Review",
+   "ftype": "Praise",
+   "cats": {
+    "quality": 4,
+    "delivery": 4,
+    "support": 4,
+    "communication": 4,
+    "value": 4
+   },
+   "comment": "Consistently great experience across the board.",
+   "status": "Closed",
+   "routedTo": "",
+   "routedRecordId": "",
+   "createdBy": "Tenant Administrator",
+   "lastUpdatedBy": "Tenant Administrator",
+   "activity": [
+    {
+     "ts": "2026-08-04T10:58:21.965Z",
+     "user": "Tenant Administrator",
+     "action": "recorded customer feedback",
+     "summary": "Overall 4/4"
+    }
+   ],
+   "comments": [],
+   "id": "CSAT-0005",
+   "customer": "PT Bintang Sejahtera",
+   "overall": 4,
+   "postDate": "2026-08-04T10:58:21.965Z",
+   "createdAt": "2026-08-04T10:58:21.965Z",
+   "updatedAt": "2026-08-06T10:58:21.965Z"
+  },
+  {
+   "tenantId": "idtn5",
+   "source": "Survey",
+   "ftype": "Complaint",
+   "cats": {
+    "quality": 2,
+    "delivery": 2,
+    "support": 2,
+    "communication": 3,
+    "value": 2
+   },
+   "comment": "A batch had inconsistent finishing quality. Replacement was handled but took effort to arrange.",
+   "status": "Action Required",
+   "routedTo": "",
+   "routedRecordId": "",
+   "createdBy": "Tenant Administrator",
+   "lastUpdatedBy": "Tenant Administrator",
+   "activity": [
+    {
+     "ts": "2026-08-29T10:58:21.965Z",
+     "user": "Tenant Administrator",
+     "action": "recorded customer feedback",
+     "summary": "Overall 2/4"
+    }
+   ],
+   "comments": [],
+   "id": "CSAT-0006",
+   "customer": "CV Sumber Rejeki",
+   "overall": 2,
+   "postDate": "2026-08-29T10:58:21.965Z",
+   "createdAt": "2026-08-29T10:58:21.965Z",
+   "updatedAt": "2026-09-01T10:58:21.965Z"
+  },
+  {
+   "tenantId": "idtn5",
+   "source": "Interview",
+   "ftype": "Suggestion",
+   "cats": {
+    "quality": 3,
+    "delivery": 4,
+    "support": 3,
+    "communication": 3,
+    "value": 3
+   },
+   "comment": "Delivery is a strong point. We would value a self-service order tracking portal.",
+   "status": "New",
+   "routedTo": "",
+   "routedRecordId": "",
+   "createdBy": "Tenant Administrator",
+   "lastUpdatedBy": "Tenant Administrator",
+   "activity": [
+    {
+     "ts": "2026-09-01T10:58:21.965Z",
+     "user": "Tenant Administrator",
+     "action": "recorded customer feedback",
+     "summary": "Overall 3/4"
+    }
+   ],
+   "comments": [],
+   "id": "CSAT-0007",
+   "customer": "PT Maju Bersama",
+   "overall": 3,
+   "postDate": "2026-09-01T10:58:21.965Z",
+   "createdAt": "2026-09-01T10:58:21.965Z",
+   "updatedAt": "2026-09-01T10:58:21.965Z"
+  }
+ ]
+}

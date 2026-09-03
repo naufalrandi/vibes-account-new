@@ -1,0 +1,239 @@
+{
+ "count": 1,
+ "fields": [
+  "id",
+  "tenantId",
+  "name",
+  "owner",
+  "effectiveDate",
+  "reviewFreq",
+  "status",
+  "frameworks",
+  "sites",
+  "processes",
+  "envs",
+  "personnel",
+  "deps",
+  "statement",
+  "limitations",
+  "approvalNotes",
+  "approvedBy",
+  "approvedDate",
+  "version",
+  "createdBy",
+  "createdAt",
+  "postDate",
+  "updatedAt",
+  "lastUpdatedBy",
+  "activity",
+  "comments"
+ ],
+ "sample": [
+  {
+   "id": "SCOPE-0001",
+   "tenantId": "idtn5",
+   "name": "PT Hammer Industries Integrated Management System Scope",
+   "owner": "Tenant Administrator",
+   "effectiveDate": "2026-08-30T10:58:16.873Z",
+   "reviewFreq": "Annually",
+   "status": "Active",
+   "frameworks": [
+    {
+     "name": "ISO 9001:2015",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "ISO/IEC 27001:2022",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "ISO 14001:2015",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "ISO 45001:2018",
+     "status": "Included",
+     "note": ""
+    }
+   ],
+   "sites": [
+    {
+     "name": "Head Office",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Remote Work Location",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Client Site",
+     "status": "Excluded",
+     "note": "Activities at client sites are outside the direct operational control of PT Hammer Industries."
+    }
+   ],
+   "processes": [
+    {
+     "name": "Front End Development",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Back End Development",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Business Process Analyst",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Database Administrator",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Quality Assurance",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Vulnerability Assessment",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Product Management",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Project Management",
+     "status": "Included",
+     "note": ""
+    }
+   ],
+   "envs": [
+    {
+     "name": "Production Environment",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Development Environment",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Testing / Staging Environment",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "SaaS Applications",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Cloud Infrastructure",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Source Code Repository",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Ticketing System",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Document Repository",
+     "status": "Included",
+     "note": ""
+    }
+   ],
+   "personnel": [
+    {
+     "name": "Employees",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Contractors",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "System Administrators",
+     "status": "Included",
+     "note": ""
+    },
+    {
+     "name": "Consultants",
+     "status": "Partially Included",
+     "note": "Only consultants supporting management-system relevant activities are included."
+    }
+   ],
+   "deps": [
+    {
+     "name": "Cloud Hosting Provider",
+     "status": "Included",
+     "note": "",
+     "cat": "Cloud and Infrastructure"
+    },
+    {
+     "name": "SaaS Application Provider",
+     "status": "Included",
+     "note": "",
+     "cat": "Software and SaaS"
+    },
+    {
+     "name": "IT Support Provider",
+     "status": "Included",
+     "note": "",
+     "cat": "Other"
+    },
+    {
+     "name": "Outsourced Developer",
+     "status": "Partially Included",
+     "note": "Only outsourced developers with access to development or production systems are included.",
+     "cat": "Professional Services"
+    }
+   ],
+   "statement": "The management system applies to ISO 9001:2015 and ISO/IEC 27001:2022 and ISO 14001:2015 and ISO 45001:2018, covering software development, IT infrastructure, product management, quality assurance, vulnerability assessment, and related support activities performed by PT Hammer Industries at its Head Office and applicable remote work locations. The scope includes relevant employees, contractors, system administrators, applicable consultants, SaaS applications, production and development environments, cloud infrastructure, source code repositories, ticketing systems, document repositories, and externally provided services supporting product delivery.",
+   "limitations": "Activities performed at client sites are excluded where such activities are outside the direct operational control of PT Hammer Industries. Consultants and outsourced developers are included only where their activities support management-system relevant processes or access applicable systems and environments.",
+   "approvalNotes": "",
+   "approvedBy": "Tenant Administrator",
+   "approvedDate": "2026-08-30T10:58:16.873Z",
+   "version": 1,
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-08-30T10:58:16.873Z",
+   "postDate": "2026-08-30T10:58:16.873Z",
+   "updatedAt": "2026-08-30T10:58:16.873Z",
+   "lastUpdatedBy": "Jennifer Susan Walters",
+   "activity": [
+    {
+     "ts": "2026-08-30T10:58:16.873Z",
+     "user": "Jennifer Susan Walters",
+     "action": "created this scope",
+     "summary": "Integrated management system scope defined"
+    },
+    {
+     "ts": "2026-08-30T10:58:16.873Z",
+     "user": "Tenant Administrator",
+     "action": "approved the scope",
+     "summary": "Scope approved & activated"
+    }
+   ],
+   "comments": []
+  }
+ ]
+}

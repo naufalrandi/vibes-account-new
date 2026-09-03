@@ -1,0 +1,160 @@
+{
+ "count": 1,
+ "fields": [
+  "activity",
+  "approvedDate",
+  "approver",
+  "comments",
+  "conditions",
+  "controlPoints",
+  "createdAt",
+  "createdBy",
+  "id",
+  "lastUpdatedBy",
+  "name",
+  "owner",
+  "processId",
+  "productService",
+  "revision",
+  "status",
+  "tenantId",
+  "updatedAt"
+ ],
+ "sample": [
+  {
+   "id": "CP-0001",
+   "tenantId": "idtn5",
+   "processId": "BP-0027",
+   "name": "Service / Production Delivery — Control Plan",
+   "productService": "Service / Production Delivery",
+   "revision": "1.2",
+   "status": "Approved",
+   "owner": "Quality Manager",
+   "approver": "Tenant Administrator",
+   "approvedDate": "2026-08-14T10:58:21.885Z",
+   "conditions": {
+    "a1": {
+     "applicable": true,
+     "method": "Product/service characteristics defined in approved requirements & design outputs.",
+     "evidence": "PSR / DND",
+     "responsible": "Quality Manager",
+     "status": "Controlled",
+     "naReason": ""
+    },
+    "a2": {
+     "applicable": true,
+     "method": "Process KPIs and acceptance criteria defined for each stage.",
+     "evidence": "",
+     "responsible": "Process Owner",
+     "status": "Controlled",
+     "naReason": ""
+    },
+    "b": {
+     "applicable": true,
+     "method": "Monitoring & measuring resources not yet registered / calibrated in-system.",
+     "evidence": "",
+     "responsible": "Quality Manager",
+     "status": "Gap",
+     "naReason": ""
+    },
+    "c": {
+     "applicable": true,
+     "method": "Inspection at defined stages against acceptance criteria; results fed to Performance §9.1.",
+     "evidence": "",
+     "responsible": "Line Supervisor",
+     "status": "Controlled",
+     "naReason": ""
+    },
+    "e": {
+     "applicable": true,
+     "method": "Competent persons assigned; competence assessed and qualified.",
+     "evidence": "Competence assessments",
+     "responsible": "HR / Competence",
+     "status": "Controlled",
+     "naReason": ""
+    },
+    "f": {
+     "applicable": false,
+     "method": "",
+     "evidence": "",
+     "responsible": "",
+     "status": "Planned",
+     "naReason": "No special processes — all outputs verified by subsequent inspection."
+    },
+    "g": {
+     "applicable": true,
+     "method": "Error-proofing checklists and dual sign-off at critical steps; NC/CAPA trend monitored.",
+     "evidence": "",
+     "responsible": "Process Owner",
+     "status": "Controlled",
+     "naReason": ""
+    },
+    "h": {
+     "applicable": true,
+     "method": "Release gate & delivery sign-off; post-delivery support.",
+     "evidence": "",
+     "responsible": "Dispatch",
+     "status": "Planned",
+     "naReason": ""
+    }
+   },
+   "controlPoints": [
+    {
+     "id": "cptmtlew56l2024",
+     "stepId": "",
+     "stage": "Incoming / input verification",
+     "characteristic": "Key input conformity",
+     "acceptance": "Matches approved requirement / specification",
+     "method": "Visual + document check",
+     "resource": "Checklist; reference sample",
+     "frequency": "Each batch / order",
+     "reaction": "Quarantine & raise NC",
+     "record": "Incoming inspection record"
+    },
+    {
+     "id": "cptmtlew56l8690",
+     "stepId": "",
+     "stage": "In-process control",
+     "characteristic": "Process parameter within tolerance",
+     "acceptance": "Within defined limits (e.g. Cpk ≥ 1.33)",
+     "method": "Measurement vs. specification",
+     "resource": "Calibrated gauge / instrument",
+     "frequency": "Hourly",
+     "reaction": "Stop & adjust; segregate suspect output",
+     "record": "Process control log"
+    },
+    {
+     "id": "cptmtlew56l5278",
+     "stepId": "",
+     "stage": "Final acceptance & release",
+     "characteristic": "Output meets acceptance criteria",
+     "acceptance": "All criteria met; release authorized",
+     "method": "Final inspection & sign-off",
+     "resource": "Acceptance checklist",
+     "frequency": "Each unit / delivery",
+     "reaction": "Hold; do not release; raise NC",
+     "record": "Release record (§8.6)"
+    }
+   ],
+   "createdBy": "Tenant Administrator",
+   "createdAt": "2026-07-20T10:58:21.885Z",
+   "updatedAt": "2026-08-28T10:58:21.885Z",
+   "lastUpdatedBy": "Tenant Administrator",
+   "activity": [
+    {
+     "ts": "2026-07-20T10:58:21.885Z",
+     "user": "Tenant Administrator",
+     "action": "created this control plan",
+     "summary": ""
+    },
+    {
+     "ts": "2026-08-14T10:58:21.885Z",
+     "user": "Tenant Administrator",
+     "action": "approved the control plan",
+     "summary": "Rev 1.2"
+    }
+   ],
+   "comments": []
+  }
+ ]
+}

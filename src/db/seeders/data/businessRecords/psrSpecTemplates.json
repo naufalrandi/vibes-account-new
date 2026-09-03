@@ -1,0 +1,418 @@
+{
+ "count": 3,
+ "fields": [
+  "appliesTo",
+  "attributes",
+  "createdAt",
+  "createdBy",
+  "description",
+  "id",
+  "name",
+  "status",
+  "tenantId",
+  "updatedAt"
+ ],
+ "sample": [
+  {
+   "tenantId": "idtn5",
+   "appliesTo": [
+    "Spare Parts",
+    "Hardware"
+   ],
+   "description": "Specification schema for mechanical spare parts — identification, physical dimensions, material, compliance and commercial attributes.",
+   "status": "Active",
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-07-25T10:58:21.754Z",
+   "updatedAt": "2026-08-24T10:58:21.754Z",
+   "id": "SPEC-0001",
+   "name": "Mechanical Spare Part",
+   "attributes": [
+    {
+     "key": "part_no",
+     "label": "Part Number",
+     "type": "text",
+     "unit": "",
+     "options": [],
+     "group": "Identification",
+     "mandatory": true,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "part_name",
+     "label": "Part Name",
+     "type": "text",
+     "unit": "",
+     "options": [],
+     "group": "Identification",
+     "mandatory": true,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "revision",
+     "label": "Revision",
+     "type": "text",
+     "unit": "",
+     "options": [],
+     "group": "Identification",
+     "mandatory": false,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "length",
+     "label": "Length",
+     "type": "number",
+     "unit": "mm",
+     "options": [],
+     "group": "Physical",
+     "mandatory": false,
+     "characteristic": true,
+     "tolerance": true
+    },
+    {
+     "key": "width",
+     "label": "Width",
+     "type": "number",
+     "unit": "mm",
+     "options": [],
+     "group": "Physical",
+     "mandatory": false,
+     "characteristic": true,
+     "tolerance": true
+    },
+    {
+     "key": "height",
+     "label": "Height",
+     "type": "number",
+     "unit": "mm",
+     "options": [],
+     "group": "Physical",
+     "mandatory": false,
+     "characteristic": true,
+     "tolerance": true
+    },
+    {
+     "key": "diameter",
+     "label": "Diameter",
+     "type": "number",
+     "unit": "mm",
+     "options": [],
+     "group": "Physical",
+     "mandatory": false,
+     "characteristic": false,
+     "tolerance": true
+    },
+    {
+     "key": "weight",
+     "label": "Weight",
+     "type": "number",
+     "unit": "kg",
+     "options": [],
+     "group": "Physical",
+     "mandatory": false,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "material",
+     "label": "Material",
+     "type": "enum",
+     "unit": "",
+     "options": [
+      "Steel S275",
+      "Aluminium 6061",
+      "Brass",
+      "Stainless 304"
+     ],
+     "group": "Material",
+     "mandatory": true,
+     "characteristic": true,
+     "tolerance": false
+    },
+    {
+     "key": "finish",
+     "label": "Finish / Coating",
+     "type": "enum",
+     "unit": "",
+     "options": [
+      "Galvanised",
+      "Anodised",
+      "Powder-coated",
+      "None"
+     ],
+     "group": "Material",
+     "mandatory": false,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "hardness",
+     "label": "Hardness",
+     "type": "number",
+     "unit": "HRC",
+     "options": [],
+     "group": "Material",
+     "mandatory": false,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "standard",
+     "label": "Standard",
+     "type": "text",
+     "unit": "",
+     "options": [],
+     "group": "Compliance",
+     "mandatory": false,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "rohs",
+     "label": "RoHS Compliant",
+     "type": "boolean",
+     "unit": "",
+     "options": [],
+     "group": "Compliance",
+     "mandatory": false,
+     "characteristic": true,
+     "tolerance": false
+    },
+    {
+     "key": "matcert",
+     "label": "Material Cert (EN 10204 3.1)",
+     "type": "boolean",
+     "unit": "",
+     "options": [],
+     "group": "Compliance",
+     "mandatory": false,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "moq",
+     "label": "Minimum Order Qty",
+     "type": "number",
+     "unit": "units",
+     "options": [],
+     "group": "Commercial",
+     "mandatory": false,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "leadtime",
+     "label": "Lead Time",
+     "type": "number",
+     "unit": "weeks",
+     "options": [],
+     "group": "Commercial",
+     "mandatory": false,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "uom",
+     "label": "Unit of Measure",
+     "type": "enum",
+     "unit": "",
+     "options": [
+      "Each",
+      "Box",
+      "Pallet"
+     ],
+     "group": "Commercial",
+     "mandatory": false,
+     "characteristic": false,
+     "tolerance": false
+    }
+   ]
+  },
+  {
+   "tenantId": "idtn5",
+   "appliesTo": [
+    "Managed Services",
+    "Subscription",
+    "Support & Maintenance"
+   ],
+   "description": "Specification schema for managed/subscription services — service levels, coverage and commercial terms.",
+   "status": "Active",
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-07-25T10:58:21.754Z",
+   "updatedAt": "2026-08-24T10:58:21.754Z",
+   "id": "SPEC-0002",
+   "name": "Managed Service",
+   "attributes": [
+    {
+     "key": "svc_code",
+     "label": "Service Code",
+     "type": "text",
+     "unit": "",
+     "options": [],
+     "group": "Identification",
+     "mandatory": true,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "tier",
+     "label": "Tier",
+     "type": "enum",
+     "unit": "",
+     "options": [
+      "Bronze",
+      "Silver",
+      "Gold"
+     ],
+     "group": "Identification",
+     "mandatory": false,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "availability",
+     "label": "Availability",
+     "type": "number",
+     "unit": "%",
+     "options": [],
+     "group": "Service Levels",
+     "mandatory": false,
+     "characteristic": true,
+     "tolerance": false
+    },
+    {
+     "key": "p1_response",
+     "label": "P1 Response",
+     "type": "number",
+     "unit": "min",
+     "options": [],
+     "group": "Service Levels",
+     "mandatory": false,
+     "characteristic": true,
+     "tolerance": false
+    },
+    {
+     "key": "resolution",
+     "label": "Resolution Target",
+     "type": "number",
+     "unit": "h",
+     "options": [],
+     "group": "Service Levels",
+     "mandatory": false,
+     "characteristic": true,
+     "tolerance": false
+    },
+    {
+     "key": "hours",
+     "label": "Coverage Hours",
+     "type": "enum",
+     "unit": "",
+     "options": [
+      "24×7",
+      "8×5",
+      "Business hours"
+     ],
+     "group": "Coverage",
+     "mandatory": false,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "channels",
+     "label": "Channels",
+     "type": "text",
+     "unit": "",
+     "options": [],
+     "group": "Coverage",
+     "mandatory": false,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "dpa",
+     "label": "Data Processing Agreement",
+     "type": "boolean",
+     "unit": "",
+     "options": [],
+     "group": "Compliance",
+     "mandatory": false,
+     "characteristic": true,
+     "tolerance": false
+    },
+    {
+     "key": "billing",
+     "label": "Billing Cycle",
+     "type": "enum",
+     "unit": "",
+     "options": [
+      "Monthly",
+      "Annual"
+     ],
+     "group": "Commercial",
+     "mandatory": false,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "term",
+     "label": "Term",
+     "type": "number",
+     "unit": "months",
+     "options": [],
+     "group": "Commercial",
+     "mandatory": false,
+     "characteristic": false,
+     "tolerance": false
+    }
+   ]
+  },
+  {
+   "tenantId": "idtn5",
+   "appliesTo": [],
+   "description": "Minimal generic schema — start here and add your own attributes.",
+   "status": "Active",
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-07-25T10:58:21.754Z",
+   "updatedAt": "2026-08-24T10:58:21.754Z",
+   "id": "SPEC-0003",
+   "name": "Generic Specification",
+   "attributes": [
+    {
+     "key": "reference",
+     "label": "Reference",
+     "type": "text",
+     "unit": "",
+     "options": [],
+     "group": "General",
+     "mandatory": true,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "summary",
+     "label": "Specification Summary",
+     "type": "textarea",
+     "unit": "",
+     "options": [],
+     "group": "General",
+     "mandatory": false,
+     "characteristic": false,
+     "tolerance": false
+    },
+    {
+     "key": "key_char",
+     "label": "Key Characteristic",
+     "type": "text",
+     "unit": "",
+     "options": [],
+     "group": "General",
+     "mandatory": false,
+     "characteristic": true,
+     "tolerance": false
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,486 @@
+{
+ "count": 5,
+ "fields": [
+  "activity",
+  "attributes",
+  "category",
+  "code",
+  "comments",
+  "createdAt",
+  "createdBy",
+  "frameworks",
+  "id",
+  "inputs",
+  "kind",
+  "lastUpdatedBy",
+  "name",
+  "options",
+  "outputs",
+  "owner",
+  "postDate",
+  "reviewNotes",
+  "status",
+  "summary",
+  "targetDate",
+  "tenantId",
+  "updatedAt",
+  "validationNotes",
+  "verificationNotes",
+  "version"
+ ],
+ "sample": [
+  {
+   "tenantId": "idtn5",
+   "kind": "Product",
+   "category": "Component / Part",
+   "version": "2.1",
+   "owner": "Tenant Administrator",
+   "targetDate": "",
+   "summary": "Precision reduction gear assembly for conveyor drive systems.",
+   "attributes": [
+    {
+     "id": "attrmtlew50c9013",
+     "group": "Physical",
+     "label": "Material",
+     "value": "316 Stainless Steel",
+     "unit": ""
+    },
+    {
+     "id": "attrmtlew50c3754",
+     "group": "Physical",
+     "label": "Outer Diameter",
+     "value": "200",
+     "unit": "mm"
+    },
+    {
+     "id": "attrmtlew50c4186",
+     "group": "Physical",
+     "label": "Weight",
+     "value": "4.2",
+     "unit": "kg"
+    },
+    {
+     "id": "attrmtlew50c3807",
+     "group": "Performance",
+     "label": "Reduction Ratio",
+     "value": "10:1",
+     "unit": ""
+    },
+    {
+     "id": "attrmtlew50c1185",
+     "group": "Performance",
+     "label": "Rated Torque",
+     "value": "850",
+     "unit": "Nm"
+    },
+    {
+     "id": "attrmtlew50c3561",
+     "group": "Performance",
+     "label": "Operating Temp",
+     "value": "-20 to 120",
+     "unit": "°C"
+    },
+    {
+     "id": "attrmtlew50c8609",
+     "group": "Commercial",
+     "label": "Lead Time",
+     "value": "3",
+     "unit": "weeks"
+    }
+   ],
+   "options": [
+    {
+     "id": "optmtlew50c9598",
+     "name": "Finish",
+     "choices": [
+      "Powder-coated",
+      "Anodized",
+      "Raw"
+     ],
+     "selected": "Powder-coated"
+    },
+    {
+     "id": "optmtlew50c3261",
+     "name": "Mounting",
+     "choices": [
+      "Flange",
+      "Foot"
+     ],
+     "selected": "Flange"
+    }
+   ],
+   "inputs": "Customer load spec, ISO 6336 gear rating, prior GX-100 design.",
+   "outputs": "GA drawing GX-200-A, material cert requirements, acceptance test plan.",
+   "reviewNotes": "Design review 12 Apr — passed with action on lubrication port.",
+   "verificationNotes": "FEA + bench test confirm rated torque with 1.8 safety factor.",
+   "validationNotes": "Field trial at customer site over 500 hrs — no failures.",
+   "frameworks": [
+    "ISO 9001:2015"
+   ],
+   "createdBy": "Tenant Administrator",
+   "postDate": "2026-07-25T10:58:21.660Z",
+   "createdAt": "2026-07-25T10:58:21.660Z",
+   "lastUpdatedBy": "Tenant Administrator",
+   "activity": [
+    {
+     "ts": "2026-07-25T10:58:21.660Z",
+     "user": "Tenant Administrator",
+     "action": "created this item",
+     "summary": "Design item created"
+    }
+   ],
+   "comments": [],
+   "id": "DND-0001",
+   "name": "Industrial Gear Assembly GX-200",
+   "code": "GX-200",
+   "status": "Released",
+   "updatedAt": "2026-07-25T10:58:21.660Z"
+  },
+  {
+   "tenantId": "idtn5",
+   "kind": "Service",
+   "category": "Managed Service",
+   "version": "3.0",
+   "owner": "Tenant Administrator",
+   "targetDate": "",
+   "summary": "Remote and on-site managed IT support for SMB clients.",
+   "attributes": [
+    {
+     "id": "attrmtlew50c5888",
+     "group": "Service Level",
+     "label": "Response SLA",
+     "value": "4",
+     "unit": "hrs"
+    },
+    {
+     "id": "attrmtlew50c5726",
+     "group": "Service Level",
+     "label": "Uptime Target",
+     "value": "99.9",
+     "unit": "%"
+    },
+    {
+     "id": "attrmtlew50c9249",
+     "group": "Service Level",
+     "label": "Coverage",
+     "value": "24/7",
+     "unit": ""
+    },
+    {
+     "id": "attrmtlew50c8555",
+     "group": "Delivery",
+     "label": "Onboarding",
+     "value": "5",
+     "unit": "business days"
+    },
+    {
+     "id": "attrmtlew50c2495",
+     "group": "Commercial",
+     "label": "Billing Cycle",
+     "value": "Monthly",
+     "unit": ""
+    }
+   ],
+   "options": [
+    {
+     "id": "optmtlew50c4570",
+     "name": "Tier",
+     "choices": [
+      "Bronze",
+      "Silver",
+      "Gold"
+     ],
+     "selected": "Silver"
+    },
+    {
+     "id": "optmtlew50c4075",
+     "name": "Add-ons",
+     "choices": [
+      "Backup",
+      "Security Monitoring",
+      "Cloud Management"
+     ],
+     "selected": ""
+    }
+   ],
+   "inputs": "Client requirements, ITIL practices, contractual SLA.",
+   "outputs": "Service catalog entry, SLA document, runbook.",
+   "reviewNotes": "Quarterly service review — SLA met 99.2% of tickets.",
+   "verificationNotes": "",
+   "validationNotes": "",
+   "frameworks": [
+    "ISO 9001:2015"
+   ],
+   "createdBy": "Tenant Administrator",
+   "postDate": "2026-08-09T10:58:21.660Z",
+   "createdAt": "2026-08-09T10:58:21.660Z",
+   "lastUpdatedBy": "Tenant Administrator",
+   "activity": [
+    {
+     "ts": "2026-08-09T10:58:21.660Z",
+     "user": "Tenant Administrator",
+     "action": "created this item",
+     "summary": "Design item created"
+    }
+   ],
+   "comments": [],
+   "id": "DND-0002",
+   "name": "Managed IT Support — Standard",
+   "code": "SVC-ITS-STD",
+   "status": "Released",
+   "updatedAt": "2026-08-09T10:58:21.660Z"
+  },
+  {
+   "tenantId": "idtn5",
+   "kind": "Service",
+   "category": "Professional Service",
+   "version": "1.2",
+   "owner": "Tenant Administrator",
+   "targetDate": "",
+   "summary": "Laboratory test panel for potable water quality.",
+   "attributes": [
+    {
+     "id": "attrmtlew50c933",
+     "group": "Method",
+     "label": "Standard Method",
+     "value": "SNI 06-6989",
+     "unit": ""
+    },
+    {
+     "id": "attrmtlew50c4996",
+     "group": "Method",
+     "label": "Sample Volume",
+     "value": "500",
+     "unit": "mL"
+    },
+    {
+     "id": "attrmtlew50c5232",
+     "group": "Delivery",
+     "label": "Turnaround",
+     "value": "5",
+     "unit": "business days"
+    },
+    {
+     "id": "attrmtlew50c1678",
+     "group": "Scope",
+     "label": "Parameters",
+     "value": "pH, TDS, Turbidity, Heavy Metals",
+     "unit": ""
+    }
+   ],
+   "options": [
+    {
+     "id": "optmtlew50c6814",
+     "name": "Accreditation",
+     "choices": [
+      "KAN-accredited",
+      "Non-accredited"
+     ],
+     "selected": "KAN-accredited"
+    },
+    {
+     "id": "optmtlew50c7798",
+     "name": "Reporting",
+     "choices": [
+      "PDF",
+      "Portal",
+      "Both"
+     ],
+     "selected": "Both"
+    }
+   ],
+   "inputs": "Regulatory limits (PermenkesRI), customer scope.",
+   "outputs": "Method validation record, report template.",
+   "reviewNotes": "",
+   "verificationNotes": "",
+   "validationNotes": "",
+   "frameworks": [
+    "ISO 9001:2015"
+   ],
+   "createdBy": "Tenant Administrator",
+   "postDate": "2026-08-28T10:58:21.660Z",
+   "createdAt": "2026-08-28T10:58:21.660Z",
+   "lastUpdatedBy": "Tenant Administrator",
+   "activity": [
+    {
+     "ts": "2026-08-28T10:58:21.660Z",
+     "user": "Tenant Administrator",
+     "action": "created this item",
+     "summary": "Design item created"
+    }
+   ],
+   "comments": [],
+   "id": "DND-0003",
+   "name": "Water Quality Test Panel",
+   "code": "LAB-WQ-01",
+   "status": "In Design",
+   "updatedAt": "2026-08-28T10:58:21.660Z"
+  },
+  {
+   "tenantId": "idtn5",
+   "kind": "Service",
+   "category": "Course / Program",
+   "version": "2.0",
+   "owner": "Tenant Administrator",
+   "targetDate": "",
+   "summary": "Two-day foundation course on ISO 9001:2015.",
+   "attributes": [
+    {
+     "id": "attrmtlew50c4059",
+     "group": "Delivery",
+     "label": "Duration",
+     "value": "2",
+     "unit": "days"
+    },
+    {
+     "id": "attrmtlew50c9649",
+     "group": "Delivery",
+     "label": "Max Participants",
+     "value": "20",
+     "unit": ""
+    },
+    {
+     "id": "attrmtlew50c8381",
+     "group": "Delivery",
+     "label": "Mode",
+     "value": "Classroom / Virtual",
+     "unit": ""
+    },
+    {
+     "id": "attrmtlew50c851",
+     "group": "Outcome",
+     "label": "Certificate",
+     "value": "Certificate of Attendance",
+     "unit": ""
+    }
+   ],
+   "options": [
+    {
+     "id": "optmtlew50c9456",
+     "name": "Language",
+     "choices": [
+      "Bahasa Indonesia",
+      "English"
+     ],
+     "selected": "Bahasa Indonesia"
+    },
+    {
+     "id": "optmtlew50c7165",
+     "name": "Format",
+     "choices": [
+      "Classroom",
+      "Virtual",
+      "Hybrid"
+     ],
+     "selected": "Classroom"
+    }
+   ],
+   "inputs": "Competence requirements, ISO 9001:2015 clauses, adult-learning design.",
+   "outputs": "Course outline, slide deck, assessment.",
+   "reviewNotes": "",
+   "verificationNotes": "",
+   "validationNotes": "",
+   "frameworks": [
+    "ISO 9001:2015"
+   ],
+   "createdBy": "Tenant Administrator",
+   "postDate": "2026-08-24T10:58:21.660Z",
+   "createdAt": "2026-08-24T10:58:21.660Z",
+   "lastUpdatedBy": "Tenant Administrator",
+   "activity": [
+    {
+     "ts": "2026-08-24T10:58:21.660Z",
+     "user": "Tenant Administrator",
+     "action": "created this item",
+     "summary": "Design item created"
+    }
+   ],
+   "comments": [],
+   "id": "DND-0004",
+   "name": "ISO 9001 Foundation Training",
+   "code": "TRN-9001-F",
+   "status": "Design Review",
+   "updatedAt": "2026-08-24T10:58:21.660Z"
+  },
+  {
+   "tenantId": "idtn5",
+   "kind": "Product",
+   "category": "Kit / Bundle",
+   "version": "0.4",
+   "owner": "Tenant Administrator",
+   "targetDate": "",
+   "summary": "Configurable modular shelving system for warehouses.",
+   "attributes": [
+    {
+     "id": "attrmtlew50c3993",
+     "group": "Physical",
+     "label": "Material",
+     "value": "Cold-rolled Steel",
+     "unit": ""
+    },
+    {
+     "id": "attrmtlew50c6090",
+     "group": "Performance",
+     "label": "Load Capacity",
+     "value": "150",
+     "unit": "kg/shelf"
+    },
+    {
+     "id": "attrmtlew50c7986",
+     "group": "Physical",
+     "label": "Adjustable",
+     "value": "Yes",
+     "unit": ""
+    }
+   ],
+   "options": [
+    {
+     "id": "optmtlew50c9814",
+     "name": "Size",
+     "choices": [
+      "S",
+      "M",
+      "L"
+     ],
+     "selected": "M"
+    },
+    {
+     "id": "optmtlew50c8483",
+     "name": "Colour",
+     "choices": [
+      "Grey",
+      "Black",
+      "White"
+     ],
+     "selected": "Grey"
+    }
+   ],
+   "inputs": "Market brief, warehouse rack standards.",
+   "outputs": "",
+   "reviewNotes": "",
+   "verificationNotes": "",
+   "validationNotes": "",
+   "frameworks": [
+    "ISO 9001:2015"
+   ],
+   "createdBy": "Tenant Administrator",
+   "postDate": "2026-08-31T10:58:21.660Z",
+   "createdAt": "2026-08-31T10:58:21.660Z",
+   "lastUpdatedBy": "Tenant Administrator",
+   "activity": [
+    {
+     "ts": "2026-08-31T10:58:21.660Z",
+     "user": "Tenant Administrator",
+     "action": "created this item",
+     "summary": "Design item created"
+    }
+   ],
+   "comments": [],
+   "id": "DND-0005",
+   "name": "Modular Shelving Kit MS-Flex",
+   "code": "MS-FLEX",
+   "status": "Concept",
+   "updatedAt": "2026-08-31T10:58:21.660Z"
+  }
+ ]
+}

@@ -1,0 +1,190 @@
+{
+ "count": 4,
+ "fields": [
+  "id",
+  "tenantId",
+  "name",
+  "category",
+  "description",
+  "frameworks",
+  "status",
+  "createdBy",
+  "createdAt",
+  "postDate",
+  "updatedAt",
+  "lastUpdatedBy",
+  "activity",
+  "comments"
+ ],
+ "sample": [
+  {
+   "id": "IP-0001",
+   "tenantId": "idtn5",
+   "name": "Employees",
+   "category": "Employees",
+   "description": "Employees are affected by management system processes, workplace conditions, competence requirements, and internal communication.",
+   "frameworks": [
+    "ISO 9001:2015",
+    "ISO 45001:2018"
+   ],
+   "status": "Applicable",
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-08-31T10:58:16.802Z",
+   "postDate": "2026-08-31T10:58:16.802Z",
+   "updatedAt": "2026-08-31T10:58:16.802Z",
+   "lastUpdatedBy": "Jennifer Susan Walters",
+   "activity": [
+    {
+     "ts": "2026-08-31T10:58:16.802Z",
+     "user": "Jennifer Susan Walters",
+     "action": "Interested party created",
+     "summary": "Record created"
+    }
+   ],
+   "comments": []
+  },
+  {
+   "id": "IP-0002",
+   "tenantId": "idtn5",
+   "name": "Ministry of Manpower",
+   "category": "Regulators",
+   "description": "Regulator responsible for labour and occupational health and safety requirements.",
+   "frameworks": [
+    "ISO 45001:2018"
+   ],
+   "status": "Applicable",
+   "createdBy": "Peter Benjamin Parker",
+   "createdAt": "2026-08-27T10:58:16.802Z",
+   "postDate": "2026-08-27T10:58:16.802Z",
+   "updatedAt": "2026-08-27T10:58:16.802Z",
+   "lastUpdatedBy": "Peter Benjamin Parker",
+   "activity": [
+    {
+     "ts": "2026-08-27T10:58:16.802Z",
+     "user": "Peter Benjamin Parker",
+     "action": "Interested party created",
+     "summary": "Record created"
+    }
+   ],
+   "comments": []
+  },
+  {
+   "id": "IP-0003",
+   "tenantId": "idtn5",
+   "name": "Key Customer",
+   "category": "Clients or Customers",
+   "description": "Major customer requiring consistent service quality, timely delivery, and protection of customer information.",
+   "frameworks": [
+    "ISO 9001:2015",
+    "ISO/IEC 27001:2022"
+   ],
+   "status": "Applicable",
+   "createdBy": "Jennifer Susan Walters",
+   "createdAt": "2026-08-23T10:58:16.802Z",
+   "postDate": "2026-08-23T10:58:16.802Z",
+   "updatedAt": "2026-08-23T10:58:16.802Z",
+   "lastUpdatedBy": "Jennifer Susan Walters",
+   "activity": [
+    {
+     "ts": "2026-08-23T10:58:16.802Z",
+     "user": "Jennifer Susan Walters",
+     "action": "Interested party created",
+     "summary": "Record created"
+    }
+   ],
+   "comments": []
+  },
+  {
+   "id": "IP-0004",
+   "tenantId": "idtn5",
+   "name": "Cloud Service Provider",
+   "category": "Suppliers",
+   "description": "The Cloud Service Provider hosts the core operational systems on which day-to-day delivery depends — registration, records and analytics workloads run on their managed infrastructure under a shared-responsibility model.\n\nAs an interested party they materially shape our information-security, availability and privacy posture, so the relationship is governed through a signed master agreement, a data-processing addendum and an agreed service-level commitment:\n\n• Availability & resilience — the provider must sustain the contracted uptime, maintain multi-zone redundancy, and give advance notice of maintenance windows that could affect service.\n• Security controls — platform hardening, encryption in transit and at rest, key management and access logging are the provider’s responsibility; tenant configuration remains ours.\n• Privacy & data residency — customer personal data must be processed only within approved jurisdictions, with sub-processors disclosed and subject to review.\n• Incident handling — security incidents and outages must be communicated promptly, with root-cause analysis and remediation timelines.\n\nThe relationship is reviewed at each management review and whenever the provider changes sub-processors, regions or certification status.",
+   "frameworks": [
+    "ISO/IEC 27001:2022",
+    "ISO 9001:2015"
+   ],
+   "status": "Applicable",
+   "createdBy": "Wanda Maximoff",
+   "createdAt": "2026-08-19T10:58:16.802Z",
+   "postDate": "2026-08-19T10:58:16.802Z",
+   "updatedAt": "2026-09-03T10:58:18.791Z",
+   "lastUpdatedBy": "Wanda Maximoff",
+   "activity": [
+    {
+     "ts": "2026-08-19T10:58:16.802Z",
+     "user": "Wanda Maximoff",
+     "action": "Interested party created",
+     "summary": "Record created"
+    }
+   ],
+   "comments": [
+    {
+     "ts": "2026-08-24T18:58:18.791Z",
+     "author": "Jennifer Susan Walters",
+     "text": "Adding the Cloud Service Provider as a formal interested party — they now host our core workloads, so their requirements need to be tracked and reviewed."
+    },
+    {
+     "ts": "2026-08-25T02:58:18.791Z",
+     "author": "Peter Parker",
+     "text": "Agreed. Their availability commitment and incident-notification terms are the ones I care about most from a security angle."
+    },
+    {
+     "ts": "2026-08-25T16:58:18.791Z",
+     "author": "Monica Rambeau",
+     "text": "Do we have the current data-processing addendum on file? We can’t assert privacy compliance without the sub-processor list."
+    },
+    {
+     "ts": "2026-08-25T21:58:18.791Z",
+     "author": "Jennifer Susan Walters",
+     "text": "DPA is signed; I’ll attach the latest sub-processor disclosure to the Data processing requirement."
+    },
+    {
+     "ts": "2026-08-26T12:58:18.791Z",
+     "author": "Matthew Michael Murdock",
+     "text": "Legal view: confirm the contracted processing regions match our approved-jurisdictions list before we mark that requirement addressed."
+    },
+    {
+     "ts": "2026-08-27T06:58:18.791Z",
+     "author": "Wanda Maximoff",
+     "text": "Operations note — last quarter they had two short outages. Incident-notification timeliness should be part of our evaluation."
+    },
+    {
+     "ts": "2026-08-28T04:58:18.791Z",
+     "author": "Peter Parker",
+     "text": "The incident-notification requirement is now Addressed — contract terms updated to a 24-hour breach-reporting window."
+    },
+    {
+     "ts": "2026-08-29T10:58:18.791Z",
+     "author": "Monica Rambeau",
+     "text": "Good. Exit and portability still worries me — we need a documented data-return format before we deepen reliance."
+    },
+    {
+     "ts": "2026-08-30T10:58:18.791Z",
+     "author": "Jennifer Susan Walters",
+     "text": "Raised the Exit / portability requirement as Open; owner assigned to draft the transition plan."
+    },
+    {
+     "ts": "2026-08-31T10:58:18.791Z",
+     "author": "Matthew Michael Murdock",
+     "text": "Certification requirement on hold until their next audit report is published — expected next month."
+    },
+    {
+     "ts": "2026-09-01T10:58:18.791Z",
+     "author": "Wanda Maximoff",
+     "text": "They confirmed the new region is within our approved list. Updating the privacy requirement accordingly."
+    },
+    {
+     "ts": "2026-09-02T04:58:18.791Z",
+     "author": "Peter Parker",
+     "text": "Once the audit report lands we can move the certification requirement forward and close this review cycle."
+    },
+    {
+     "ts": "2026-09-03T02:58:18.791Z",
+     "author": "Jennifer Susan Walters",
+     "text": "Keeping this party under active review until the exit plan and certification evidence are both in place."
+    }
+   ]
+  }
+ ]
+}

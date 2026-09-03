@@ -1,0 +1,224 @@
+{
+ "count": 4,
+ "fields": [
+  "activity",
+  "attachments",
+  "createdAt",
+  "createdBy",
+  "currency",
+  "customer",
+  "docType",
+  "id",
+  "lastUpdatedBy",
+  "linkedOffering",
+  "notes",
+  "owner",
+  "provisionType",
+  "review",
+  "status",
+  "tenantId",
+  "title",
+  "updatedAt",
+  "value"
+ ],
+ "sample": [
+  {
+   "tenantId": "idtn5",
+   "value": "45000",
+   "currency": "EUR",
+   "provisionType": "Product",
+   "linkedOffering": "CAT-0005",
+   "notes": "",
+   "attachments": [
+    {
+     "name": "Northwind_Supply_Contract_2026.pdf",
+     "size": 240000,
+     "type": "pdf",
+     "uploadedBy": "Scott Edward Harris Lang",
+     "uploadedAt": "2026-08-16T10:58:21.755Z"
+    }
+   ],
+   "review": {
+    "reviewer": "Jennifer Susan Walters",
+    "date": "2026-08-18T10:58:21.755Z",
+    "outcome": "Accepted",
+    "capabilityConfirmed": true,
+    "notes": "Requirements defined; differences from quotation resolved; capacity and lead time confirmed."
+   },
+   "owner": "Scott Edward Harris Lang",
+   "createdBy": "Bobbi Morse",
+   "createdAt": "2026-08-14T10:58:21.755Z",
+   "updatedAt": "2026-08-29T10:58:21.755Z",
+   "lastUpdatedBy": "Bobbi Morse",
+   "activity": [
+    {
+     "ts": "2026-08-16T10:58:21.755Z",
+     "user": "Scott Edward Harris Lang",
+     "action": "created this record",
+     "summary": "Contract uploaded"
+    },
+    {
+     "ts": "2026-08-18T10:58:21.755Z",
+     "user": "Jennifer Susan Walters",
+     "action": "reviewed the requirements",
+     "summary": "Accepted"
+    }
+   ],
+   "id": "PSR-0001",
+   "title": "Northwind — annual bracket supply contract",
+   "docType": "Contract",
+   "customer": "Northwind Traders",
+   "status": "Accepted"
+  },
+  {
+   "tenantId": "idtn5",
+   "value": "12800",
+   "currency": "USD",
+   "provisionType": "Product",
+   "linkedOffering": "CAT-0001",
+   "notes": "",
+   "attachments": [
+    {
+     "name": "PO-88213.pdf",
+     "size": 90000,
+     "type": "pdf",
+     "uploadedBy": "Maria Rambeau",
+     "uploadedAt": "2026-08-08T10:58:21.755Z"
+    }
+   ],
+   "review": {
+    "reviewer": "Scott Edward Harris Lang",
+    "date": "2026-08-10T10:58:21.755Z",
+    "outcome": "Accepted",
+    "capabilityConfirmed": true,
+    "notes": "Standard catalogue item; PO terms match acknowledged order."
+   },
+   "owner": "Scott Edward Harris Lang",
+   "createdBy": "Bobbi Morse",
+   "createdAt": "2026-08-14T10:58:21.755Z",
+   "updatedAt": "2026-08-29T10:58:21.755Z",
+   "lastUpdatedBy": "Bobbi Morse",
+   "activity": [
+    {
+     "ts": "2026-08-08T10:58:21.755Z",
+     "user": "Maria Rambeau",
+     "action": "created this record",
+     "summary": "PO uploaded"
+    },
+    {
+     "ts": "2026-08-10T10:58:21.755Z",
+     "user": "Scott Edward Harris Lang",
+     "action": "reviewed the requirements",
+     "summary": "Accepted"
+    },
+    {
+     "ts": "2026-08-28T10:58:21.755Z",
+     "user": "Scott Edward Harris Lang",
+     "action": "marked fulfilled",
+     "summary": "Delivered"
+    }
+   ],
+   "id": "PSR-0002",
+   "title": "Globex — PO-88213 for Model X sensors",
+   "docType": "Purchase Order",
+   "customer": "Globex Manufacturing",
+   "status": "Fulfilled"
+  },
+  {
+   "tenantId": "idtn5",
+   "value": "2400",
+   "currency": "EUR",
+   "provisionType": "Service",
+   "linkedOffering": "CAT-0002",
+   "notes": "",
+   "attachments": [
+    {
+     "name": "Initech_MSA_draft.docx",
+     "size": 60000,
+     "type": "docx",
+     "uploadedBy": "Daniel Rand",
+     "uploadedAt": "2026-08-29T10:58:21.755Z"
+    }
+   ],
+   "review": {
+    "reviewer": "Daniel Rand",
+    "date": "2026-08-31T10:58:21.755Z",
+    "outcome": "Conditional",
+    "capabilityConfirmed": true,
+    "notes": "Can meet SLA; customer-requested 24×7 coverage needs an uplift — confirm before signature."
+   },
+   "owner": "Daniel Rand",
+   "createdBy": "Bobbi Morse",
+   "createdAt": "2026-08-14T10:58:21.755Z",
+   "updatedAt": "2026-08-29T10:58:21.755Z",
+   "lastUpdatedBy": "Bobbi Morse",
+   "activity": [
+    {
+     "ts": "2026-08-29T10:58:21.755Z",
+     "user": "Daniel Rand",
+     "action": "created this record",
+     "summary": "MSA draft uploaded"
+    },
+    {
+     "ts": "2026-08-31T10:58:21.755Z",
+     "user": "Daniel Rand",
+     "action": "reviewed the requirements",
+     "summary": "Conditional"
+    }
+   ],
+   "id": "PSR-0003",
+   "title": "Initech — managed IT support MSA (draft)",
+   "docType": "Service Agreement",
+   "customer": "Initech",
+   "status": "Under Review"
+  },
+  {
+   "tenantId": "idtn5",
+   "value": "",
+   "currency": "GBP",
+   "provisionType": "Service",
+   "linkedOffering": "",
+   "notes": "",
+   "attachments": [
+    {
+     "name": "Tender_2026-14.pdf",
+     "size": 240000,
+     "type": "pdf",
+     "uploadedBy": "Maria Rambeau",
+     "uploadedAt": "2026-08-25T10:58:21.755Z"
+    }
+   ],
+   "review": {
+    "reviewer": "Jennifer Susan Walters",
+    "date": "2026-08-27T10:58:21.755Z",
+    "outcome": "Rejected",
+    "capabilityConfirmed": false,
+    "notes": "Required response times and resource levels exceed current capability — declined to bid."
+   },
+   "owner": "Maria Rambeau",
+   "createdBy": "Bobbi Morse",
+   "createdAt": "2026-08-14T10:58:21.755Z",
+   "updatedAt": "2026-08-29T10:58:21.755Z",
+   "lastUpdatedBy": "Bobbi Morse",
+   "activity": [
+    {
+     "ts": "2026-08-25T10:58:21.755Z",
+     "user": "Maria Rambeau",
+     "action": "created this record",
+     "summary": "Tender uploaded"
+    },
+    {
+     "ts": "2026-08-27T10:58:21.755Z",
+     "user": "Jennifer Susan Walters",
+     "action": "reviewed the requirements",
+     "summary": "Rejected — cannot meet"
+    }
+   ],
+   "id": "PSR-0004",
+   "title": "City Council — grounds maintenance tender",
+   "docType": "Tender",
+   "customer": "City Council",
+   "status": "Rejected"
+  }
+ ]
+}
