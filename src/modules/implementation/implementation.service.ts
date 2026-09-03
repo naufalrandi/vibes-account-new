@@ -93,14 +93,28 @@ async function assertCanSeeOrg(auth: AuthContext, orgId: string): Promise<void> 
   if (ids !== null && !ids.includes(orgId)) throw new ForbiddenError();
 }
 
-async function nextCode(module: string, orgId: string): Promise<string> {
-  const { prefix } = MS_MODULES[module];
+/**
+ * OD keeps the three PSR row kinds in separate arrays with separate prefixes —
+ * `CAT-` for catalog offerings, `SPEC-` for specification templates, `PSR-` for
+ * the §8.2.3 requirements-review records (app.html:11507-11938). This port
+ * collapses them into one `psr` module keyed by `data.kind`, but the codes are
+ * user-facing and must still read as OD's, so the prefix follows the kind.
+ */
+function psrPrefixFor(kind: unknown): string {
+  return kind === "template" ? "SPEC" : kind === "record" ? "PSR" : "CAT";
+}
+
+async function nextCode(module: string, orgId: string, kind?: unknown): Promise<string> {
+  const prefix = module === "psr" ? psrPrefixFor(kind) : MS_MODULES[module].prefix;
   // Sequences are per organization (OD numbers per tenant) — without the org
   // filter every tenant on the platform would share one global counter.
   const rows = await ImplementationRecord.findAll({ where: { module, orgId }, attributes: ["code"] });
   let max = 0;
   for (const r of rows) {
-    const n = Number.parseInt(r.code.replace(new RegExp(`^${prefix}-`), ""), 10);
+    // Only rows on this prefix count, so `psr`'s three kinds keep three
+    // independent sequences the way OD's three arrays do.
+    if (!r.code.startsWith(`${prefix}-`)) continue;
+    const n = Number.parseInt(r.code.replace(new RegExp(`^${escapeRegExp(prefix)}-`), ""), 10);
     if (Number.isFinite(n) && n > max) max = n;
   }
   return `${prefix}-${String(max + 1).padStart(4, "0")}`;
@@ -229,7 +243,7 @@ export async function createRecord(auth: AuthContext, module: string, input: Rec
     // category, one number sequence per tenant across all external documents.
     code = await extDocCode(targetOrg, data.category);
   } else {
-    code = await nextCode(module, targetOrg);
+    code = await nextCode(module, targetOrg, (data as Record<string, unknown>).kind);
   }
   const r = await ImplementationRecord.create({
     orgId: targetOrg,

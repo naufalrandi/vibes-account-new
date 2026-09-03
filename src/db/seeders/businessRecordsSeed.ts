@@ -722,7 +722,8 @@ export async function seedDesignItems(orgId: string): Promise<void> {
  * registry.ts:174), discriminated by `data.kind` — see `PsrWorkspace.tsx`'s
  * `loadData`. Unlike the frontend mock (`mockClient.ts`'s `psrMockCode`,
  * three independent CAT-/SPEC-/PSR- sequences), the real backend's
- * `nextCode()` mints one flat "PSR-nnnn" sequence across all three kinds —
+ * `nextCode(prefix)` mints OD's three sequences — CAT- offerings, SPEC- templates,
+ * PSR- §8.2.3 records —
  * this seeder mints its own codes the same way (one counter, all three
  * kinds), a known FE mock/BE drift this task does not touch.
  *
@@ -742,15 +743,21 @@ export async function seedPsr(orgId: string): Promise<void> {
     return;
   }
 
-  let n = 0;
-  const nextCode = () => `PSR-${String((n += 1)).padStart(4, "0")}`;
+  // OD keeps the three PSR kinds in separate arrays with separate prefixes and
+  // separate sequences: `CAT-` offerings, `SPEC-` templates, `PSR-` §8.2.3
+  // records (app.html:11507-11938). One flat `PSR-` run across all three would
+  // renumber every row against the baseline and against the offline mock, which
+  // splits them the same way OD does.
+  const seq = { CAT: 0, SPEC: 0, PSR: 0 };
+  const nextCode = (prefix: "CAT" | "SPEC" | "PSR") =>
+    `${prefix}-${String((seq[prefix] += 1)).padStart(4, "0")}`;
 
   // -- Spec templates (data.kind: "template") --------------------------------
   const templates = loadDump<Record<string, unknown>>("psrSpecTemplates");
   const templateIdMap = new Map<string, string>(); // OD "SPEC-0001" -> generated backend id
   const templateNameMap = new Map<string, string>(); // OD "SPEC-0001" -> template name
   for (const row of templates) {
-    const code = nextCode();
+    const code = nextCode("SPEC");
     const data: Record<string, unknown> = {
       kind: "template",
       description: row.description,
@@ -769,7 +776,7 @@ export async function seedPsr(orgId: string): Promise<void> {
   const catalog = loadDump<Record<string, unknown>>("psrCatalog");
   const offeringCodeMap = new Map<string, string>(); // OD "CAT-0001" -> generated register code
   for (const row of catalog) {
-    const code = nextCode();
+    const code = nextCode("CAT");
     const odTemplateId = row.templateId ? String(row.templateId) : undefined;
     const owner = str(row, "owner") || null;
     const data: Record<string, unknown> = {
@@ -798,7 +805,7 @@ export async function seedPsr(orgId: string): Promise<void> {
   // -- §8.2.3 requirements-review records (data.kind: "record") -------------
   const records = loadDump<Record<string, unknown>>("psrRecords");
   for (const row of records) {
-    const code = nextCode();
+    const code = nextCode("PSR");
     const odLinkedOffering = typeof row.linkedOffering === "string" ? row.linkedOffering : "";
     const owner = str(row, "owner") || null;
     const review = row.review && typeof row.review === "object" && !Array.isArray(row.review)
