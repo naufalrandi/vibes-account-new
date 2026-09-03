@@ -1,12 +1,31 @@
+# --- build outputs and deps (rebuilt inside the image) ---
 node_modules
 dist
 coverage
 .turbo
+tsconfig.tsbuildinfo
+
+# --- agent and tooling workspaces ---
+.claude
+.superpowers
+worktrees
+uploads
+
+# --- vcs, env, logs ---
+.git
+.gitignore
 .env
 .env.*
 *.log
-.git
-.gitignore
 .DS_Store
+
+# --- test and docs surface ---
+# `tsconfig.json` already excludes `**/*.test.ts` from the compile, so these
+# never reached `dist`; keeping them out of the context stops an unrelated test
+# edit from invalidating the build layer.
+**/*.test.ts
+test
 test-results
-tsconfig.tsbuildinfo
+vitest.config.ts
+docs
+*.md
