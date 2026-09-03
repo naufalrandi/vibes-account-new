@@ -728,7 +728,9 @@
    "taxNumber": "",
    "type": null,
    "website": "",
-   "categories": "Raw Materials",
+   "categories": [
+    "Raw Materials"
+   ],
    "contact": "Markus Vogel",
    "email": "sales@contisteel.example",
    "phone": "+49 211 700",
@@ -775,7 +777,9 @@
    "taxNumber": "",
    "type": null,
    "website": "",
-   "categories": "Components",
+   "categories": [
+    "Components"
+   ],
    "contact": "Priya Nair",
    "email": "orders@meridian.example",
    "phone": "",
@@ -822,7 +826,9 @@
    "taxNumber": "",
    "type": null,
    "website": "",
-   "categories": "Calibration & Testing",
+   "categories": [
+    "Calibration & Testing"
+   ],
    "contact": "Tom Fadel",
    "email": "lab@apexcal.example",
    "phone": "",
@@ -869,7 +875,9 @@
    "taxNumber": "",
    "type": null,
    "website": "",
-   "categories": "Logistics",
+   "categories": [
+    "Logistics"
+   ],
    "contact": "Sara Lund",
    "email": "ops@northgate.example",
    "phone": "",
@@ -916,7 +924,9 @@
    "taxNumber": "",
    "type": null,
    "website": "",
-   "categories": "IT & Software",
+   "categories": [
+    "IT & Software"
+   ],
    "contact": "Ken Ito",
    "email": "success@bluewave.example",
    "phone": "",
@@ -963,7 +973,9 @@
    "taxNumber": "",
    "type": null,
    "website": "",
-   "categories": "Components",
+   "categories": [
+    "Components"
+   ],
    "contact": "Alex Rowe",
    "email": "sales@primeparts.example",
    "phone": "",
@@ -998,7 +1010,9 @@
    "taxNumber": "",
    "type": null,
    "website": "",
-   "categories": "Components",
+   "categories": [
+    "Components"
+   ],
    "contact": "Rick Vance",
    "email": "info@budgetbolts.example",
    "phone": "",
