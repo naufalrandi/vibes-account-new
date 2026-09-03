@@ -16,7 +16,18 @@ import path from "node:path";
  * instead of accumulating.
  */
 
-const FE = path.resolve(__dirname, "../../../fe-vibes-new");
+// `../../../fe-vibes-new` only resolves when this repo sits beside the frontend
+// checkout; from a git worktree (which AGENTS.md requires for any edit) it points
+// at a directory that does not exist, and the walk below dies with ENOENT.
+// `VIBES_FRONTEND_DIR` overrides it; otherwise fall back to the primary checkout.
+const FE = (() => {
+  const candidates = [
+    process.env.VIBES_FRONTEND_DIR,
+    path.resolve(__dirname, "../../../fe-vibes-new"),
+    "/root/vibes-new/fe-vibes-new",
+  ].filter((d): d is string => !!d);
+  return candidates.find((d) => fs.existsSync(path.join(d, "lib"))) ?? candidates[1];
+})();
 
 /** Mounted but not called by the frontend. Each needs a reason and an owning issue. */
 const UNCALLED: Record<string, string> = {
