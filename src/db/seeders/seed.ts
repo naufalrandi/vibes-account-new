@@ -41,6 +41,7 @@ import { ACTIONS, MENU_SEED, type SeedMenu } from "../../modules/iam/actions.cat
 import { grantEverythingExceptSpOnly } from "../../modules/iam/tenantGrants";
 import { seedComplianceEngine } from "./complianceEngine";
 import { seedIsraLibrary } from "./isra";
+import { seedIsraTenantDemo } from "./israTenantDemo";
 import { seedCms } from "./cms";
 import { seedBpCatalog } from "./businessProcess";
 import { seedSaasLifecycle, seedSiteRequests, seedTenantRoles } from "./dataParity";
@@ -566,6 +567,24 @@ export async function seed(): Promise<void> {
       `taxonomy pa ${isra.taxonomy.paGroups}/${isra.taxonomy.paSubgroups} sa ${isra.taxonomy.saGroups}/${isra.taxonomy.saSubgroups}, ` +
       `assets ${isra.taxonomy.primary} primary / ${isra.taxonomy.secondary} secondary, ` +
       `km ${isra.kmSaThreat.seeded}+${isra.kmThreatVuln.seeded}+${isra.kmVulnControl}, treatTemplates ${isra.treatTemplates}`,
+  );
+
+  // 12b-ii. ISRA tenant demo workspace — OD's generated demo risk register on
+  //      top of that library, scoped to the demo tenant (see
+  //      src/db/seeders/israTenantDemo.ts). Seeds only into an empty register,
+  //      so it never overwrites edits made in the demo workspace.
+  const israDemo = await seedIsraTenantDemo(tenant.id);
+  // eslint-disable-next-line no-console
+  console.log(
+    israDemo.skipped
+      ? "[seed] ISRA demo workspace — already populated, skipped"
+      : `[seed] ISRA demo workspace — scenarios ${israDemo.scenarios}, vulns ${israDemo.vulns}, impacts ${israDemo.impacts}, ` +
+        `existingControls ${israDemo.existingControls}, treatments ${israDemo.treatments}, rtps ${israDemo.rtps}/${israDemo.rtpActions} actions, ` +
+        `assetMaps ${israDemo.assetMaps}, evidence ${israDemo.evidence}, audit ${israDemo.audit}, initiatives ${israDemo.initiatives}, ` +
+        `baseline ${israDemo.controlBaseline}` +
+        (israDemo.skippedScenarios || israDemo.skippedVulns || israDemo.skippedBaseline
+          ? ` — SKIPPED (missing library FK): scenarios ${israDemo.skippedScenarios}, vulns ${israDemo.skippedVulns}, baseline ${israDemo.skippedBaseline}`
+          : ""),
   );
 
   // 12c. Marketing CMS (SOF-336) — OD's `cmsSeedIfNeeded()` demo content
