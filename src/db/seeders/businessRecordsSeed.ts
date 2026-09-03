@@ -528,3 +528,46 @@ export async function seedTenantSuppliers(orgId: string): Promise<void> {
   // eslint-disable-next-line no-console
   console.log(`  Tenant suppliers seeded: ${n}`);
 }
+
+/**
+ * OD's `db.suppliers` (21 rows) also has no home on the Enterprise side — `EnterpriseSuppliersPage.tsx`
+ * (`lib/procurement/suppliers.ts`'s `supplierData`) reads `ent-suppliers` `business_records` rows and
+ * had exactly one, non-OD stub row before this. `ent-suppliers` has no `BUSINESS_DATA_SCHEMAS` entry
+ * yet (tracked as known FE/BE drift, `moduleKeyDrift.test.ts`), so this can't route through
+ * `pickData`/`schemaKeys` above (those require a registered zod schema) — it writes the `data` blob
+ * by hand instead, same as `seedTenantSuppliers` does for the Tenant side.
+ *
+ * `SupplierData` (`lib/procurement/suppliers.ts`) is the closer match to OD's row shape than the
+ * Tenant `ImplementationRecord` payload above: it has homes for `category` (OD's `categories`,
+ * renamed to match the singular the frontend reader expects), `contactName` (OD's `contact`),
+ * `country`/`state`/`city`, and the full `terms`/`payAnchor`/`payAdvance`/`payRetention` payment-terms
+ * set — none of which the Tenant screen's schema carries a reader for. OD's `currency` and `pos`
+ * fields (present in the tenant dump's payload) have no field on `SupplierData` and are dropped here;
+ * see the seeder's caller for why that's a deliberate, reported gap rather than silent data loss.
+ */
+export async function seedEnterpriseSuppliers(orgId: string): Promise<void> {
+  const already = await BusinessRecord.count({ where: { orgId, area: "enterprise", module: "ent-suppliers" } });
+  if (already > 0) {
+    // eslint-disable-next-line no-console
+    console.log(`  Enterprise suppliers: ${already} already present, skipping.`);
+    return;
+  }
+
+  const rows = loadDump<Record<string, unknown>>("suppliers");
+  let n = 0;
+  for (const row of rows) {
+    n += 1;
+    const data: Record<string, unknown> = {
+      entityName: row.entityName, taxNumber: row.taxNumber, type: row.type, website: row.website,
+      category: row.categories, contactName: row.contact, email: row.email, phone: row.phone,
+      country: row.country, state: row.state, city: row.city,
+      terms: row.terms, payAnchor: row.payAnchor, payAdvance: row.payAdvance, payRetention: row.payRetention,
+      bankName: row.bankName, bankAccount: row.bankAccount, bankCode: row.bankCode,
+      qualifiedDate: row.qualifiedDate, requalDate: row.requalDate, notes: row.notes,
+      evaluations: row.evaluations, activity: row.activity,
+    };
+    await seedRow(orgId, "enterprise", "ent-suppliers", str(row, "name"), str(row, "status", "Approved"), null, companyFor("enterprise", row), data);
+  }
+  // eslint-disable-next-line no-console
+  console.log(`  Enterprise suppliers seeded: ${n}`);
+}

@@ -52,7 +52,7 @@ import type { AgreementBlock, AgreementTemplateStatus } from "../models/agreemen
 import { generateStatementForPartner } from "../../modules/billing/billing.service";
 import { hashPassword } from "../../lib/password";
 import { ensureGlobalSeed as ensureScopeDatasetSeed } from "../../modules/scope/scopeDataset.service";
-import { seedBusinessRecords, seedTenantSuppliers } from "./businessRecordsSeed";
+import { seedBusinessRecords, seedEnterpriseSuppliers, seedTenantSuppliers } from "./businessRecordsSeed";
 
 const DEFAULT_PASSWORD = "ChangeMe123";
 
@@ -1848,6 +1848,12 @@ export async function seed(): Promise<void> {
   // convention as `seedBusinessRecords` above, but writes `ImplementationRecord` rows (module
   // `suppliers`) since that register isn't a `business_records` module.
   await seedTenantSuppliers(tenant.id);
+
+  // Same SOF-322 gap, Enterprise side: `EnterpriseSuppliersPage.tsx` (`ent-suppliers` business
+  // records) had a single non-OD stub row, not OD's 21. `SupplierData` (`lib/procurement/
+  // suppliers.ts`) is the closer match to OD's row shape than the Tenant `ImplementationRecord`
+  // payload above — see `seedEnterpriseSuppliers`'s header note for the field-by-field case.
+  await seedEnterpriseSuppliers(tenant.id);
 
   const notifCount = await Notification.count({ where: { orgId: tenant.id } });
   if (notifCount === 0) {
