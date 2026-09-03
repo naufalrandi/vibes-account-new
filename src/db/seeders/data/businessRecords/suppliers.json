@@ -1,0 +1,1042 @@
+{
+ "count": 21,
+ "fields": [
+  "activity",
+  "bankAccount",
+  "bankCode",
+  "bankName",
+  "categories",
+  "city",
+  "contact",
+  "country",
+  "currency",
+  "email",
+  "entityName",
+  "evaluations",
+  "id",
+  "name",
+  "notes",
+  "payAdvance",
+  "payAnchor",
+  "payRetention",
+  "phone",
+  "pos",
+  "qualifiedDate",
+  "requalDate",
+  "state",
+  "status",
+  "taxNumber",
+  "terms",
+  "type",
+  "website"
+ ],
+ "sample": [
+  {
+   "id": "84-1",
+   "name": "Stark Industries Supply",
+   "entityName": "PT Stark Industries Indonesia",
+   "taxNumber": "01.234.567.8-011.000",
+   "type": "Corporate",
+   "website": "https://stark.example",
+   "categories": [
+    "Software",
+    "Electronics - Endpoint Devices",
+    "Electronics - Network and Infrastructure",
+    "Electronics - Other Devices"
+   ],
+   "contact": "Pepper Potts",
+   "email": "sales@stark.example",
+   "phone": "+62 21 5000 1000",
+   "country": "ID",
+   "state": "DKI Jakarta",
+   "city": "Jakarta Selatan",
+   "status": "Approved",
+   "qualifiedDate": "2025-01-15",
+   "requalDate": "2026-11-15",
+   "notes": "Preferred IT hardware & software vendor.",
+   "evaluations": [
+    {
+     "ts": "2026-04-10",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 5,
+      "delivery": 5,
+      "price": 4,
+      "compliance": 5
+     },
+     "note": "On-time, excellent quality."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2025-01-15",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": "30",
+   "payAnchor": "invoice",
+   "bankName": "Bank Central Asia (BCA)",
+   "bankAccount": "527-088-1120",
+   "bankCode": "CENAIDJA",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "84-2",
+   "name": "Oscorp Facilities",
+   "entityName": "PT Oscorp Fasilitas",
+   "taxNumber": "02.345.678.9-012.000",
+   "type": "Corporate",
+   "website": "https://oscorp.example",
+   "categories": [
+    "Buildings",
+    "Furniture and Fixtures"
+   ],
+   "contact": "Norman Osborn",
+   "email": "ops@oscorp.example",
+   "phone": "+62 21 5100 2000",
+   "country": "ID",
+   "state": "DKI Jakarta",
+   "city": "Jakarta Pusat",
+   "status": "Approved",
+   "qualifiedDate": "2025-03-01",
+   "requalDate": "2026-09-01",
+   "notes": "Fit-out & facilities contractor.",
+   "evaluations": [
+    {
+     "ts": "2026-03-20",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 4,
+      "delivery": 4,
+      "price": 4,
+      "compliance": 3
+     },
+     "note": "Adequate; watch SLA."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2025-03-01",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": "45",
+   "payAnchor": "acceptance",
+   "bankName": "Bank Mandiri",
+   "bankAccount": "119-00-4501228",
+   "bankCode": "BMRIIDJA",
+   "currency": "EUR",
+   "pos": [],
+   "payAdvance": 30
+  },
+  {
+   "id": "84-3",
+   "name": "Rand Enterprises Consulting",
+   "entityName": "PT Rand Konsultan Indonesia",
+   "taxNumber": "03.456.789.0-013.000",
+   "type": "Corporate",
+   "website": "https://rand.example",
+   "categories": [
+    "Professional Services"
+   ],
+   "contact": "Danny Rand",
+   "email": "hello@rand.example",
+   "phone": "+62 21 5200 3000",
+   "country": "ID",
+   "state": "DKI Jakarta",
+   "city": "Jakarta Selatan",
+   "status": "Approved",
+   "qualifiedDate": "2025-06-01",
+   "requalDate": "2026-12-01",
+   "notes": "",
+   "evaluations": [
+    {
+     "ts": "2026-05-05",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 5,
+      "delivery": 5,
+      "price": 5,
+      "compliance": 4
+     },
+     "note": "Top-tier advisory."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2025-06-01",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": "30",
+   "payAnchor": "invoice",
+   "bankName": "Bank Negara Indonesia (BNI)",
+   "bankAccount": "088-771-2043",
+   "bankCode": "BNINIDJA",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "84-4",
+   "name": "Daily Bugle Print & Media",
+   "entityName": "PT Daily Bugle Media",
+   "taxNumber": "04.567.890.1-014.000",
+   "type": "Corporate",
+   "website": "https://bugle.example",
+   "categories": [
+    "Non-Electronics"
+   ],
+   "contact": "J. Jonah Jameson",
+   "email": "orders@bugle.example",
+   "phone": "+62 21 5300 4000",
+   "country": "ID",
+   "state": "DKI Jakarta",
+   "city": "Jakarta Barat",
+   "status": "Approved",
+   "qualifiedDate": "2025-02-10",
+   "requalDate": "2026-08-10",
+   "notes": "Print, media & office consumables.",
+   "evaluations": [
+    {
+     "ts": "2026-02-25",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 4,
+      "delivery": 3,
+      "price": 5,
+      "compliance": 4
+     },
+     "note": "Cheap, occasionally late."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2025-02-10",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": "14",
+   "payAnchor": "invoice",
+   "bankName": "Bank Rakyat Indonesia (BRI)",
+   "bankAccount": "0206-01-004512",
+   "bankCode": "BRINIDJA",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "84-5",
+   "name": "Roxxon Energy Services",
+   "entityName": "PT Roxxon Energy Nusantara",
+   "taxNumber": "05.678.901.2-015.000",
+   "type": "Corporate",
+   "website": "https://roxxon.example",
+   "categories": [
+    "Machinery"
+   ],
+   "contact": "Dario Agger",
+   "email": "sales@roxxon.example",
+   "phone": "+62 21 5400 5000",
+   "country": "ID",
+   "state": "Jawa Barat",
+   "city": "Bekasi",
+   "status": "Suspended",
+   "qualifiedDate": "2024-11-01",
+   "requalDate": "2025-11-01",
+   "notes": "Suspended pending compliance review.",
+   "evaluations": [
+    {
+     "ts": "2026-01-15",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 3,
+      "delivery": 3,
+      "price": 3,
+      "compliance": 1
+     },
+     "note": "Compliance concerns raised."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2026-01-20",
+     "user": "System",
+     "action": "suspended",
+     "summary": "Compliance review"
+    }
+   ],
+   "terms": "30",
+   "payAnchor": "acceptance",
+   "bankName": "CIMB Niaga",
+   "bankAccount": "800-155-90100",
+   "bankCode": "BNIAIDJA",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "84-6",
+   "name": "Alchemax Logistics",
+   "entityName": "PT Alchemax Logistik",
+   "taxNumber": "06.789.012.3-016.000",
+   "type": "Corporate",
+   "website": "https://alchemax.example",
+   "categories": [
+    "Professional Services",
+    "Vehicle"
+   ],
+   "contact": "Liz Allan",
+   "email": "contact@alchemax.example",
+   "phone": "+62 21 5500 6000",
+   "country": "ID",
+   "state": "Banten",
+   "city": "Tangerang",
+   "status": "Pending Qualification",
+   "qualifiedDate": null,
+   "requalDate": null,
+   "notes": "Onboarding in progress.",
+   "evaluations": [],
+   "activity": [
+    {
+     "ts": "2026-06-01",
+     "user": "System",
+     "action": "created",
+     "summary": ""
+    }
+   ],
+   "terms": "30",
+   "payAnchor": "invoice",
+   "bankName": "Bank Permata",
+   "bankAccount": "0701-2255-88",
+   "bankCode": "BBBAIDJA",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "84-7",
+   "name": "Baxter Motors & Fleet",
+   "entityName": "PT Baxter Kendaraan Nusantara",
+   "taxNumber": "07.890.123.4-017.000",
+   "type": "Corporate",
+   "website": "https://baxtermotors.example",
+   "categories": [
+    "Vehicle"
+   ],
+   "contact": "Reed Richards",
+   "email": "sales@baxtermotors.example",
+   "phone": "+62 21 5600 7000",
+   "country": "ID",
+   "state": "DKI Jakarta",
+   "city": "Jakarta Timur",
+   "status": "Approved",
+   "qualifiedDate": "2025-04-12",
+   "requalDate": "2026-10-12",
+   "notes": "Fleet vehicle sales; authorised dealer.",
+   "evaluations": [
+    {
+     "ts": "2026-04-30",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 5,
+      "delivery": 4,
+      "price": 4,
+      "compliance": 5
+     },
+     "note": "Reliable deliveries, competitive fleet pricing."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2025-04-12",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": "30",
+   "payAnchor": "invoice",
+   "bankName": "Bank Mandiri",
+   "bankAccount": "119-00-7781245",
+   "bankCode": "BMRIIDJA",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "84-8",
+   "name": "Perisai Fleet & Rentals",
+   "entityName": "PT Perisai Logistik Indonesia",
+   "taxNumber": "08.901.234.5-018.000",
+   "type": "Corporate",
+   "website": "https://perisai.example",
+   "categories": [
+    "Vehicle",
+    "Machinery"
+   ],
+   "contact": "Maria Hill",
+   "email": "rentals@perisai.example",
+   "phone": "+62 21 5700 8000",
+   "country": "ID",
+   "state": "Jawa Barat",
+   "city": "Bandung",
+   "status": "Approved",
+   "qualifiedDate": "2025-05-20",
+   "requalDate": "2026-11-20",
+   "notes": "Vehicle & heavy-equipment rental.",
+   "evaluations": [
+    {
+     "ts": "2026-05-15",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 4,
+      "delivery": 5,
+      "price": 4,
+      "compliance": 4
+     },
+     "note": "Well-maintained rental fleet."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2025-05-20",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": "30",
+   "payAnchor": "invoice",
+   "bankName": "Bank Central Asia (BCA)",
+   "bankAccount": "527-101-3399",
+   "bankCode": "CENAIDJA",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "84-9",
+   "name": "Wakanda Property Group",
+   "entityName": "PT Wakanda Properti Indonesia",
+   "taxNumber": "09.012.345.6-019.000",
+   "type": "Corporate",
+   "website": "https://wakandaproperty.example",
+   "categories": [
+    "Land",
+    "Buildings"
+   ],
+   "contact": "T\u2019Challa Udaku",
+   "email": "acquisitions@wakandaproperty.example",
+   "phone": "+62 21 5800 9000",
+   "country": "ID",
+   "state": "Banten",
+   "city": "Tangerang Selatan",
+   "status": "Approved",
+   "qualifiedDate": "2025-02-28",
+   "requalDate": "2026-08-28",
+   "notes": "Land acquisition & commercial buildings.",
+   "evaluations": [
+    {
+     "ts": "2026-03-10",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 5,
+      "delivery": 4,
+      "price": 3,
+      "compliance": 5
+     },
+     "note": "Strong due diligence; premium pricing."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2025-02-28",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": "60",
+   "payAnchor": "acceptance",
+   "bankName": "Bank Central Asia (BCA)",
+   "bankAccount": "527-220-4410",
+   "bankCode": "CENAIDJA",
+   "currency": "EUR",
+   "pos": [],
+   "payAdvance": 20,
+   "payRetention": 5
+  },
+  {
+   "id": "84-10",
+   "name": "Titan Heavy Industries",
+   "entityName": "PT Titan Industri Berat",
+   "taxNumber": "10.123.456.7-020.000",
+   "type": "Corporate",
+   "website": "https://titanheavy.example",
+   "categories": [
+    "Machinery",
+    "Buildings"
+   ],
+   "contact": "Carol Danvers",
+   "email": "sales@titanheavy.example",
+   "phone": "+62 21 5900 1000",
+   "country": "ID",
+   "state": "Jawa Timur",
+   "city": "Surabaya",
+   "status": "Approved",
+   "qualifiedDate": "2025-07-05",
+   "requalDate": "2027-01-05",
+   "notes": "Industrial machinery & plant construction.",
+   "evaluations": [
+    {
+     "ts": "2026-06-20",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 5,
+      "delivery": 5,
+      "price": 4,
+      "compliance": 5
+     },
+     "note": "Excellent build quality."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2025-07-05",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": "45",
+   "payAnchor": "acceptance",
+   "bankName": "Bank Mandiri",
+   "bankAccount": "140-00-9982310",
+   "bankCode": "BMRIIDJA",
+   "currency": "EUR",
+   "pos": [],
+   "payAdvance": 30,
+   "payRetention": 5
+  },
+  {
+   "id": "84-11",
+   "name": "Xavier Furnishings",
+   "entityName": "PT Xavier Interior Nusantara",
+   "taxNumber": "11.234.567.8-021.000",
+   "type": "Corporate",
+   "website": "https://xavierfurnish.example",
+   "categories": [
+    "Furniture and Fixtures",
+    "Non-Electronics"
+   ],
+   "contact": "Ororo Munroe",
+   "email": "orders@xavierfurnish.example",
+   "phone": "+62 21 6000 2000",
+   "country": "ID",
+   "state": "DKI Jakarta",
+   "city": "Jakarta Selatan",
+   "status": "Approved",
+   "qualifiedDate": "2025-03-18",
+   "requalDate": "2026-09-18",
+   "notes": "Office furniture & fit-out fixtures.",
+   "evaluations": [
+    {
+     "ts": "2026-04-02",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 4,
+      "delivery": 4,
+      "price": 5,
+      "compliance": 4
+     },
+     "note": "Good value, on-time."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2025-03-18",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": "30",
+   "payAnchor": "acceptance",
+   "bankName": "Bank Negara Indonesia (BNI)",
+   "bankAccount": "088-552-7781",
+   "bankCode": "BNINIDJA",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "84-12",
+   "name": "Pym Technologies",
+   "entityName": "PT Pym Teknologi Indonesia",
+   "taxNumber": "12.345.678.9-022.000",
+   "type": "Corporate",
+   "website": "https://pymtech.example",
+   "categories": [
+    "Electronics - Endpoint Devices",
+    "Electronics - Other Devices"
+   ],
+   "contact": "Hank Pym",
+   "email": "sales@pymtech.example",
+   "phone": "+62 21 6100 3000",
+   "country": "ID",
+   "state": "DKI Jakarta",
+   "city": "Jakarta Pusat",
+   "status": "Approved",
+   "qualifiedDate": "2025-06-11",
+   "requalDate": "2026-12-11",
+   "notes": "Precision electronics & endpoint devices.",
+   "evaluations": [
+    {
+     "ts": "2026-06-01",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 5,
+      "delivery": 4,
+      "price": 4,
+      "compliance": 5
+     },
+     "note": "High quality, slightly premium."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2025-06-11",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": "30",
+   "payAnchor": "invoice",
+   "bankName": "Bank Central Asia (BCA)",
+   "bankAccount": "527-330-8842",
+   "bankCode": "CENAIDJA",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "84-13",
+   "name": "Kree Networks",
+   "entityName": "PT Kree Jaringan Indonesia",
+   "taxNumber": "13.456.789.0-023.000",
+   "type": "Corporate",
+   "website": "https://kreenet.example",
+   "categories": [
+    "Electronics - Network and Infrastructure",
+    "Software"
+   ],
+   "contact": "Mar-Vell Sato",
+   "email": "sales@kreenet.example",
+   "phone": "+62 21 6200 4000",
+   "country": "ID",
+   "state": "DKI Jakarta",
+   "city": "Jakarta Barat",
+   "status": "Approved",
+   "qualifiedDate": "2025-05-02",
+   "requalDate": "2026-11-02",
+   "notes": "Network infrastructure & licensing.",
+   "evaluations": [
+    {
+     "ts": "2026-05-25",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 4,
+      "delivery": 4,
+      "price": 4,
+      "compliance": 5
+     },
+     "note": "Solid delivery; certified engineers."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2025-05-02",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": "30",
+   "payAnchor": "invoice",
+   "bankName": "CIMB Niaga",
+   "bankAccount": "800-441-22030",
+   "bankCode": "BNIAIDJA",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "84-14",
+   "name": "Nelson & Murdock Advisory",
+   "entityName": "PT Nelson Murdock Konsultan",
+   "taxNumber": "14.567.890.1-024.000",
+   "type": "Corporate",
+   "website": "https://nelsonmurdock.example",
+   "categories": [
+    "Professional Services"
+   ],
+   "contact": "Foggy Nelson",
+   "email": "contact@nelsonmurdock.example",
+   "phone": "+62 21 6300 5000",
+   "country": "ID",
+   "state": "DKI Jakarta",
+   "city": "Jakarta Selatan",
+   "status": "Approved",
+   "qualifiedDate": "2025-04-22",
+   "requalDate": "2026-10-22",
+   "notes": "Legal & compliance advisory.",
+   "evaluations": [
+    {
+     "ts": "2026-05-12",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 5,
+      "delivery": 5,
+      "price": 4,
+      "compliance": 5
+     },
+     "note": "Responsive; thorough."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2025-04-22",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": "30",
+   "payAnchor": "invoice",
+   "bankName": "Bank Permata",
+   "bankAccount": "0701-8890-12",
+   "bankCode": "BBBAIDJA",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "SUP-2001",
+   "name": "Continental Steel Supply",
+   "entityName": "",
+   "taxNumber": "",
+   "type": null,
+   "website": "",
+   "categories": "Raw Materials",
+   "contact": "Markus Vogel",
+   "email": "sales@contisteel.example",
+   "phone": "+49 211 700",
+   "country": "DE",
+   "state": "",
+   "city": "",
+   "status": "Approved",
+   "qualifiedDate": "2025-11-07",
+   "requalDate": "2026-11-02",
+   "notes": "Primary steel supplier; EN 10204 3.1 certificates on delivery.",
+   "evaluations": [
+    {
+     "ts": "2026-08-04",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 5,
+      "delivery": 4,
+      "price": 4,
+      "compliance": 5
+     },
+     "note": "Certificates complete; delivered on time."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2025-11-07",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": null,
+   "payAnchor": null,
+   "bankName": "",
+   "bankAccount": "",
+   "bankCode": "",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "SUP-2002",
+   "name": "Meridian Components Ltd",
+   "entityName": "",
+   "taxNumber": "",
+   "type": null,
+   "website": "",
+   "categories": "Components",
+   "contact": "Priya Nair",
+   "email": "orders@meridian.example",
+   "phone": "",
+   "country": "ID",
+   "state": "",
+   "city": "",
+   "status": "Approved",
+   "qualifiedDate": "2025-12-27",
+   "requalDate": "2027-01-01",
+   "notes": "",
+   "evaluations": [
+    {
+     "ts": "2026-07-20",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 4,
+      "delivery": 5,
+      "price": 4,
+      "compliance": 4
+     },
+     "note": "Reliable; minor packaging issues."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2025-12-27",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": null,
+   "payAnchor": null,
+   "bankName": "",
+   "bankAccount": "",
+   "bankCode": "",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "SUP-2003",
+   "name": "Apex Calibration Services",
+   "entityName": "",
+   "taxNumber": "",
+   "type": null,
+   "website": "",
+   "categories": "Calibration & Testing",
+   "contact": "Tom Fadel",
+   "email": "lab@apexcal.example",
+   "phone": "",
+   "country": "ID",
+   "state": "",
+   "city": "",
+   "status": "Approved",
+   "qualifiedDate": "2026-02-15",
+   "requalDate": "2026-08-24",
+   "notes": "ISO/IEC 17025 accredited calibration lab.",
+   "evaluations": [
+    {
+     "ts": "2026-08-14",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 5,
+      "delivery": 5,
+      "price": 3,
+      "compliance": 5
+     },
+     "note": "Accredited; premium price."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2026-02-15",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": null,
+   "payAnchor": null,
+   "bankName": "",
+   "bankAccount": "",
+   "bankCode": "",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "SUP-2004",
+   "name": "Northgate Logistics",
+   "entityName": "",
+   "taxNumber": "",
+   "type": null,
+   "website": "",
+   "categories": "Logistics",
+   "contact": "Sara Lund",
+   "email": "ops@northgate.example",
+   "phone": "",
+   "country": "ID",
+   "state": "",
+   "city": "",
+   "status": "Approved",
+   "qualifiedDate": "2026-03-27",
+   "requalDate": "2027-03-22",
+   "notes": "",
+   "evaluations": [
+    {
+     "ts": "2026-08-19",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 3,
+      "delivery": 3,
+      "price": 4,
+      "compliance": 4
+     },
+     "note": "Occasional late deliveries \u2014 watch on-time rate."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2026-03-27",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": null,
+   "payAnchor": null,
+   "bankName": "",
+   "bankAccount": "",
+   "bankCode": "",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "SUP-2005",
+   "name": "BlueWave Cloud Services",
+   "entityName": "",
+   "taxNumber": "",
+   "type": null,
+   "website": "",
+   "categories": "IT & Software",
+   "contact": "Ken Ito",
+   "email": "success@bluewave.example",
+   "phone": "",
+   "country": "ID",
+   "state": "",
+   "city": "",
+   "status": "Approved",
+   "qualifiedDate": "2026-04-16",
+   "requalDate": "2027-02-10",
+   "notes": "DPA signed; ISO/IEC 27001 certified.",
+   "evaluations": [
+    {
+     "ts": "2026-08-24",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 5,
+      "delivery": 5,
+      "price": 4,
+      "compliance": 5
+     },
+     "note": "Strong SLA performance."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2026-04-16",
+     "user": "System",
+     "action": "qualified",
+     "summary": ""
+    }
+   ],
+   "terms": null,
+   "payAnchor": null,
+   "bankName": "",
+   "bankAccount": "",
+   "bankCode": "",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "SUP-2006",
+   "name": "PrimeParts Manufacturing",
+   "entityName": "",
+   "taxNumber": "",
+   "type": null,
+   "website": "",
+   "categories": "Components",
+   "contact": "Alex Rowe",
+   "email": "sales@primeparts.example",
+   "phone": "",
+   "country": "ID",
+   "state": "",
+   "city": "",
+   "status": "Pending Qualification",
+   "qualifiedDate": null,
+   "requalDate": null,
+   "notes": "New supplier \u2014 qualification in progress.",
+   "evaluations": [],
+   "activity": [
+    {
+     "ts": "2026-05-06",
+     "user": "System",
+     "action": "created",
+     "summary": ""
+    }
+   ],
+   "terms": null,
+   "payAnchor": null,
+   "bankName": "",
+   "bankAccount": "",
+   "bankCode": "",
+   "currency": "EUR",
+   "pos": []
+  },
+  {
+   "id": "SUP-2007",
+   "name": "BudgetBolts Trading",
+   "entityName": "",
+   "taxNumber": "",
+   "type": null,
+   "website": "",
+   "categories": "Components",
+   "contact": "Rick Vance",
+   "email": "info@budgetbolts.example",
+   "phone": "",
+   "country": "ID",
+   "state": "",
+   "city": "",
+   "status": "Suspended",
+   "qualifiedDate": "2025-07-30",
+   "requalDate": "2026-07-30",
+   "notes": "Suspended after repeated quality nonconformities.",
+   "evaluations": [
+    {
+     "ts": "2026-07-25",
+     "by": "Jennifer Susan Walters",
+     "criteria": {
+      "quality": 2,
+      "delivery": 2,
+      "price": 5,
+      "compliance": 2
+     },
+     "note": "Recurring defects; compliance gaps."
+    }
+   ],
+   "activity": [
+    {
+     "ts": "2026-07-27",
+     "user": "System",
+     "action": "suspended",
+     "summary": "Quality nonconformities"
+    }
+   ],
+   "terms": null,
+   "payAnchor": null,
+   "bankName": "",
+   "bankAccount": "",
+   "bankCode": "",
+   "currency": "EUR",
+   "pos": []
+  }
+ ]
+}

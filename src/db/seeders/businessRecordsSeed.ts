@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { z } from "zod";
-import { BusinessRecord } from "../models";
+import { BusinessRecord, ImplementationRecord } from "../models";
 import type { BusinessArea } from "../models/businessRecord.model";
 import { getBusinessDataSchema } from "../../modules/business/dataSchemas";
 import { nextCode } from "../../modules/business/business.service";
@@ -474,4 +474,57 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
     // eslint-disable-next-line no-console
     console.log(`    ${module}: ${n}`);
   }
+}
+
+/**
+ * OD's `db.suppliers` (21 rows) backs the Tenant Quality register at
+ * `/implementation/suppliers` (`SupplierWorkspace.tsx`, `listImplementation("suppliers")`),
+ * not a `business_records` row — `suppliers` is an `ImplementationRecord` module
+ * (`registry.ts`: `{ prefix: "SUP", statuses: [...] }`), so this reuses `data/businessRecords/
+ * suppliers.json`'s dump (same `{count, fields, sample}` shape as every other collection in
+ * this directory) but writes `ImplementationRecord` rows through `ImplementationRecord.create`
+ * directly, mirroring `seed.ts`'s own hand-written `ImplementationRecord` blocks rather than
+ * `seedRow`/`pickData` above (those are BusinessRecord-only: `nextCode`/`getBusinessDataSchema`
+ * only resolve `business_records` modules).
+ *
+ * The dump's `sample` rows are already shaped to the fields `SupplierWorkspace.tsx` actually
+ * reads off `data` (`categories`, `contact`, `entityName`, `taxNumber`, `type`, `website`,
+ * `email`, `phone`, `bankName`, `bankAccount`, `bankCode`, `qualifiedDate`, `requalDate`,
+ * `currency`, `pos`) — renamed from OD's own `category`/`contactName` at extraction time. OD's
+ * `country`/`state`/`city`/`notes`/`terms`/`payAnchor`/`payAdvance`/`payRetention`/
+ * `evaluations`/`activity` ride along in `data` for forward compatibility but have no reader in
+ * this screen today (it derives its own scorecard from `pos`, not OD's supplier-level
+ * `evaluations`/`activity`).
+ */
+export async function seedTenantSuppliers(orgId: string): Promise<void> {
+  const already = await ImplementationRecord.count({ where: { orgId, module: "suppliers" } });
+  if (already > 0) {
+    // eslint-disable-next-line no-console
+    console.log(`  Tenant suppliers: ${already} already present, skipping.`);
+    return;
+  }
+
+  const rows = loadDump<Record<string, unknown>>("suppliers");
+  let n = 0;
+  for (const row of rows) {
+    n += 1;
+    const code = `SUP-${String(n).padStart(4, "0")}`;
+    const data: Record<string, unknown> = {
+      entityName: row.entityName, taxNumber: row.taxNumber, type: row.type, website: row.website,
+      categories: row.categories, contact: row.contact, email: row.email, phone: row.phone,
+      country: row.country, state: row.state, city: row.city,
+      qualifiedDate: row.qualifiedDate, requalDate: row.requalDate,
+      bankName: row.bankName, bankAccount: row.bankAccount, bankCode: row.bankCode,
+      currency: row.currency, pos: row.pos,
+      notes: row.notes, terms: row.terms, payAnchor: row.payAnchor,
+      payAdvance: row.payAdvance, payRetention: row.payRetention,
+      evaluations: row.evaluations, activity: row.activity,
+    };
+    await ImplementationRecord.create({
+      orgId, module: "suppliers", code, title: str(row, "name"), status: str(row, "status", "Approved"),
+      owner: null, data, elementId: null, frameworks: [],
+    });
+  }
+  // eslint-disable-next-line no-console
+  console.log(`  Tenant suppliers seeded: ${n}`);
 }

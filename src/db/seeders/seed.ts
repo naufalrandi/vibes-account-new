@@ -52,7 +52,7 @@ import type { AgreementBlock, AgreementTemplateStatus } from "../models/agreemen
 import { generateStatementForPartner } from "../../modules/billing/billing.service";
 import { hashPassword } from "../../lib/password";
 import { ensureGlobalSeed as ensureScopeDatasetSeed } from "../../modules/scope/scopeDataset.service";
-import { seedBusinessRecords } from "./businessRecordsSeed";
+import { seedBusinessRecords, seedTenantSuppliers } from "./businessRecordsSeed";
 
 const DEFAULT_PASSWORD = "ChangeMe123";
 
@@ -1841,6 +1841,13 @@ export async function seed(): Promise<void> {
   // the generic `business_records` register. Runs after the tenant org (`tenant.id`) it seeds
   // into already exists.
   await seedBusinessRecords(tenant.id);
+
+  // SOF-322 audit gap: OD's `db.suppliers` (21 rows) had no home in either seeder — the
+  // Tenant Quality register at `/implementation/suppliers` rendered empty in both offline demo
+  // mode and against this backend. Reuses the same `data/businessRecords/suppliers.json` dump
+  // convention as `seedBusinessRecords` above, but writes `ImplementationRecord` rows (module
+  // `suppliers`) since that register isn't a `business_records` module.
+  await seedTenantSuppliers(tenant.id);
 
   const notifCount = await Notification.count({ where: { orgId: tenant.id } });
   if (notifCount === 0) {
