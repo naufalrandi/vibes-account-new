@@ -86,7 +86,7 @@ const MODULE_FIELDS: Record<string, string[]> = {
   ],
   "ent-leads": [
    "activity", "city", "co", "company", "contact", "contacts", "country", "email", "industry",
-   "legal", "locations", "phone", "processes", "source", "tenantId", "workUnits",
+   "legal", "locations", "phone", "processes", "registeredBy", "source", "tenantId", "workUnits",
   ],
   "ent-leads-people": [
    "co", "coursesJoined", "email", "interest", "name", "notes", "org", "phone", "source",
