@@ -5,7 +5,7 @@
   },
   "src/modules/approvals/approval.service.ts:User.findByPk": {
     "count": 1,
-    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+    "why": "Actor lookup by auth.userId from the verified JWT \u2014 no caller-supplied id."
   },
   "src/modules/assessments/assessment.service.ts:Assessment.findAll": {
     "count": 1,
@@ -39,9 +39,13 @@
     "count": 1,
     "why": "Scoped by the partnerOrgId argument in generateStatementForPartner; its authenticated callers resolve that org first."
   },
+  "src/modules/business/poConfirmation.ts:BusinessRecord.findAll": {
+    "count": 1,
+    "why": "Public supplier confirmation link: there is no auth context to scope by. Narrowed to area/module/code and then filtered by a constant-time compare against the PO's own server-minted secret, so the query can only ever yield the single PO whose token the caller already holds."
+  },
   "src/modules/cms/cmsPublic.routes.ts:Organization.findByPk": {
     "count": 1,
-    "why": "Public renderer's org-existence check (requireOrg) — unauthenticated by design, orgId is a path param, not a caller-scoped lookup; page/post reads that follow are Published-status-only."
+    "why": "Public renderer's org-existence check (requireOrg) \u2014 unauthenticated by design, orgId is a path param, not a caller-scoped lookup; page/post reads that follow are Published-status-only."
   },
   "src/modules/competence/competence.assessment.service.ts:CompetenceGap.findOne": {
     "count": 1,
@@ -61,7 +65,7 @@
   },
   "src/modules/competence/competence.assessment.service.ts:User.findByPk": {
     "count": 1,
-    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+    "why": "Actor lookup by auth.userId from the verified JWT \u2014 no caller-supplied id."
   },
   "src/modules/competence/competence.service.ts:CompetenceRole.update": {
     "count": 1,
@@ -69,19 +73,19 @@
   },
   "src/modules/dashboard/dashboard.service.ts:Organization.count": {
     "count": 2,
-    "why": "Service-Owner-only path (orgType/assertSp gate) — cross-org visibility is the feature, not a leak."
+    "why": "Service-Owner-only path (orgType/assertSp gate) \u2014 cross-org visibility is the feature, not a leak."
   },
   "src/modules/dashboard/dashboard.service.ts:Organization.findByPk": {
     "count": 1,
-    "why": "Lookup by an id taken from the verified JWT (auth.orgId/auth.userId) — never caller-supplied."
+    "why": "Lookup by an id taken from the verified JWT (auth.orgId/auth.userId) \u2014 never caller-supplied."
   },
   "src/modules/dashboard/dashboard.service.ts:User.count": {
     "count": 3,
-    "why": "Service-Owner-only path (orgType/assertSp gate) — cross-org visibility is the feature, not a leak."
+    "why": "Service-Owner-only path (orgType/assertSp gate) \u2014 cross-org visibility is the feature, not a leak."
   },
   "src/modules/dashboard/dashboard.service.ts:User.findByPk": {
     "count": 1,
-    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+    "why": "Actor lookup by auth.userId from the verified JWT \u2014 no caller-supplied id."
   },
   "src/modules/demo/demo.service.ts:DemoTenant.findAll": {
     "count": 3,
@@ -89,11 +93,11 @@
   },
   "src/modules/demo/demo.service.ts:DemoTenant.findByPk": {
     "count": 1,
-    "why": "Service-Owner-only path (orgType/assertSp gate) — cross-org visibility is the feature, not a leak."
+    "why": "Service-Owner-only path (orgType/assertSp gate) \u2014 cross-org visibility is the feature, not a leak."
   },
   "src/modules/demo/demo.service.ts:DemoTenant.findOne": {
     "count": 1,
-    "why": "Public demo-request intake (unauthenticated) deduped by email — no actor org exists."
+    "why": "Public demo-request intake (unauthenticated) deduped by email \u2014 no actor org exists."
   },
   "src/modules/demo/demo.service.ts:User.findByPk": {
     "count": 3,
@@ -117,11 +121,11 @@
   },
   "src/modules/iam/auth.service.ts:DemoTenant.findByPk": {
     "count": 1,
-    "why": "Pre-authentication demo login flow — no actor org exists yet; the id is the demo link secret."
+    "why": "Pre-authentication demo login flow \u2014 no actor org exists yet; the id is the demo link secret."
   },
   "src/modules/iam/auth.service.ts:DemoTenant.findOne": {
     "count": 3,
-    "why": "Pre-session demo-window check keyed by the just-resolved provisionedUserId — runs before any token is issued, so no actor org exists."
+    "why": "Pre-session demo-window check keyed by the just-resolved provisionedUserId \u2014 runs before any token is issued, so no actor org exists."
   },
   "src/modules/iam/auth.service.ts:User.findByPk": {
     "count": 3,
@@ -129,7 +133,7 @@
   },
   "src/modules/iam/auth.service.ts:User.findOne": {
     "count": 4,
-    "why": "Credential/reset flows keyed by a secret (email, activation or reset token) — must resolve before any org context exists."
+    "why": "Credential/reset flows keyed by a secret (email, activation or reset token) \u2014 must resolve before any org context exists."
   },
   "src/modules/implementation/implementation.service.ts:CompetenceGap.findByPk": {
     "count": 1,
@@ -141,15 +145,15 @@
   },
   "src/modules/interested-parties/ip.service.ts:User.findByPk": {
     "count": 1,
-    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+    "why": "Actor lookup by auth.userId from the verified JWT \u2014 no caller-supplied id."
   },
   "src/modules/internal-audit/internalAudit.service.ts:User.findByPk": {
     "count": 1,
-    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+    "why": "Actor lookup by auth.userId from the verified JWT \u2014 no caller-supplied id."
   },
   "src/modules/isra/israLibraryOverride.service.ts:User.findByPk": {
     "count": 1,
-    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+    "why": "Actor lookup by auth.userId from the verified JWT \u2014 no caller-supplied id."
   },
   "src/modules/knowledge-base/kb.service.ts:KbArticle.findAll": {
     "count": 1,
@@ -157,7 +161,7 @@
   },
   "src/modules/organizations/organization.service.ts:Organization.findByPk": {
     "count": 2,
-    "why": "Lookup by an id taken from the verified JWT (auth.orgId/auth.userId) — never caller-supplied."
+    "why": "Lookup by an id taken from the verified JWT (auth.orgId/auth.userId) \u2014 never caller-supplied."
   },
   "src/modules/organizations/organization.service.ts:Organization.findOne": {
     "count": 1,
@@ -181,7 +185,7 @@
   },
   "src/modules/record-events/recordEvent.service.ts:User.findByPk": {
     "count": 1,
-    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+    "why": "Actor lookup by auth.userId from the verified JWT \u2014 no caller-supplied id."
   },
   "src/modules/risks/risk.service.ts:Organization.findByPk": {
     "count": 1,
@@ -189,7 +193,7 @@
   },
   "src/modules/risks/risk.service.ts:User.findByPk": {
     "count": 1,
-    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+    "why": "Actor lookup by auth.userId from the verified JWT \u2014 no caller-supplied id."
   },
   "src/modules/saas/lifecycle.service.ts:SaasSubscription.findByPk": {
     "count": 1,
@@ -201,27 +205,27 @@
   },
   "src/modules/saas/saas.service.ts:SaasPipeline.findAll": {
     "count": 2,
-    "why": "Service-Owner-only module (router-level orgType gate) — one cross-org listing plus one code-sequence scan."
+    "why": "Service-Owner-only module (router-level orgType gate) \u2014 one cross-org listing plus one code-sequence scan."
   },
   "src/modules/saas/saas.service.ts:SaasPipeline.findByPk": {
     "count": 4,
-    "why": "Service-Owner-only path (orgType/assertSp gate) — cross-org visibility is the feature, not a leak."
+    "why": "Service-Owner-only path (orgType/assertSp gate) \u2014 cross-org visibility is the feature, not a leak."
   },
   "src/modules/saas/saas.service.ts:SaasSubscription.findAll": {
     "count": 2,
-    "why": "Service-Owner-only module (router-level orgType gate) — cross-org listing, code-sequence scan, and a lookup by already-fetched subIds."
+    "why": "Service-Owner-only module (router-level orgType gate) \u2014 cross-org listing, code-sequence scan, and a lookup by already-fetched subIds."
   },
   "src/modules/saas/saas.service.ts:SaasSubscription.findByPk": {
     "count": 3,
-    "why": "Service-Owner-only path (orgType/assertSp gate) — cross-org visibility is the feature, not a leak."
+    "why": "Service-Owner-only path (orgType/assertSp gate) \u2014 cross-org visibility is the feature, not a leak."
   },
   "src/modules/saas/saas.service.ts:SaasWorkspace.findAll": {
     "count": 2,
-    "why": "Service-Owner-only module (router-level orgType gate) — cross-org listing plus a code-sequence scan."
+    "why": "Service-Owner-only module (router-level orgType gate) \u2014 cross-org listing plus a code-sequence scan."
   },
   "src/modules/saas/saas.service.ts:SaasWorkspace.findByPk": {
     "count": 1,
-    "why": "Service-Owner-only path (orgType/assertSp gate) — cross-org visibility is the feature, not a leak."
+    "why": "Service-Owner-only path (orgType/assertSp gate) \u2014 cross-org visibility is the feature, not a leak."
   },
   "src/modules/saas/saas.service.ts:Site.count": {
     "count": 1,
@@ -229,7 +233,7 @@
   },
   "src/modules/saas/saas.service.ts:User.findByPk": {
     "count": 1,
-    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+    "why": "Actor lookup by auth.userId from the verified JWT \u2014 no caller-supplied id."
   },
   "src/modules/scope/scope.service.ts:MsScope.findAll": {
     "count": 1,
@@ -241,7 +245,7 @@
   },
   "src/modules/scope/scope.service.ts:User.findByPk": {
     "count": 1,
-    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+    "why": "Actor lookup by auth.userId from the verified JWT \u2014 no caller-supplied id."
   },
   "src/modules/site-requests/siteRequest.service.ts:Organization.findByPk": {
     "count": 1,
@@ -285,7 +289,7 @@
   },
   "src/modules/tickets/ticket.service.ts:Organization.findByPk": {
     "count": 2,
-    "why": "Lookup by an id taken from the verified JWT (auth.orgId/auth.userId) — never caller-supplied."
+    "why": "Lookup by an id taken from the verified JWT (auth.orgId/auth.userId) \u2014 never caller-supplied."
   },
   "src/modules/tickets/ticket.service.ts:Ticket.count": {
     "count": 1,
@@ -293,7 +297,7 @@
   },
   "src/modules/tickets/ticket.service.ts:User.findByPk": {
     "count": 2,
-    "why": "Lookup by an id taken from the verified JWT (auth.orgId/auth.userId) — never caller-supplied."
+    "why": "Lookup by an id taken from the verified JWT (auth.orgId/auth.userId) \u2014 never caller-supplied."
   },
   "src/modules/users/user.service.ts:User.findOne": {
     "count": 1,
@@ -301,6 +305,6 @@
   },
   "src/modules/work-units/workUnit.service.ts:User.findByPk": {
     "count": 1,
-    "why": "Actor lookup by auth.userId from the verified JWT — no caller-supplied id."
+    "why": "Actor lookup by auth.userId from the verified JWT \u2014 no caller-supplied id."
   }
 }

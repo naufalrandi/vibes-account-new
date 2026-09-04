@@ -6,6 +6,7 @@ import { sequelize } from "../../db/sequelize";
 import { writeAudit } from "../audit/audit.service";
 import { actorName } from "../record-events/recordEvent.service";
 import { assertBusinessTransition, businessDefaultStatus, businessTransitionGraph } from "./prLifecycle";
+import { applyPoConfirmToken, PO_AREA, PO_MODULE } from "./poConfirmation";
 import { assertValidInquiryData } from "./inquiryRules";
 import { assertValidProposalData } from "./proposalRules";
 import {
@@ -376,6 +377,11 @@ export async function createBusiness(auth: AuthContext, area: string, module: st
   if (area === "datana" && isDatanaModule(module)) {
     data = assertValidDatanaData(module, data);
   }
+  if (area === PO_AREA && module === PO_MODULE) {
+    // `confirmToken` authenticates the public supplier link, so the server owns
+    // it — a client-supplied value is discarded, never trusted.
+    data = applyPoConfirmToken(null, data, input.status ?? "");
+  }
   // Guarantees a transitions-gated record is never created with an empty activity trail, even
   // if a caller bypasses the FE's own "created ..." entry (see `hasActivity`'s header note).
   if (businessTransitionGraph(area, module) && !hasActivity(data)) {
@@ -415,6 +421,7 @@ export async function updateBusiness(auth: AuthContext, area: string, module: st
   const co = resolveCompany(company);
   const r = await requireRecord(auth, area, module, id, co);
   const prevStatus = r.status;
+  const prevData = (r.data ?? {}) as Record<string, unknown>;
   const prevActivity = Array.isArray((r.data as Record<string, unknown> | null)?.activity) ? ((r.data as Record<string, unknown>).activity as unknown[]) : [];
   if (input.title !== undefined) {
     if (!input.title.trim()) throw new BadRequestError("Title is required", "TITLE_REQUIRED");
@@ -438,6 +445,11 @@ export async function updateBusiness(auth: AuthContext, area: string, module: st
   // ignored here (silent no-op), matching how other unrecognized/irrelevant
   // fields on this same payload are already handled.
   if (input.data !== undefined) r.data = input.data;
+  if (area === PO_AREA && module === PO_MODULE) {
+    // Server-owned: a live supplier link is never rotated or overwritten by a
+    // client, and a token is minted the first time the PO is actually sent.
+    r.data = applyPoConfirmToken(prevData, (r.data ?? {}) as Record<string, unknown>, r.status);
+  }
   if (area === "enterprise" && module === "ent-leads") {
     await assertNoDuplicateLead(auth, r.company as OperatingCompany, r.data, r.title, r.id);
   }

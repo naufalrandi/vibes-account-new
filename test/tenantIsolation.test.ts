@@ -102,6 +102,8 @@ const EXEMPT_MOUNTS: Record<string, string> = {
   "/v1/auth": "Issues the JWT (login/refresh/activate/reset), so it cannot require one. Behind its own rate limiter.",
   "/v1/public/cms":
     "Public CMS renderer (pages/posts/sitemap/robots) — read-only, Published-status rows only, orgId is a path param validated against a real Organization (404 otherwise), never trusts a token.",
+  "/v1/public/purchase-orders":
+    "Supplier PO confirmation link — unauthenticated by design (the supplier has no account). Not org-scoped by a token claim; the row is selected by an unguessable server-minted per-PO secret (`poConfirmation.ts`), compared in constant time, and a blank token never matches. Reads and writes exactly the one PO that secret identifies, refuses a voided PO, a PO outside the Sent state, and any second response.",
   "/uploads":
     "Static file serving for CMS-uploaded media (express.static) — no model access, orgId is baked into the file path by the uploader, not asserted per-request.",
 };

@@ -71,6 +71,7 @@ import { personnelRecordsRoutes } from "./modules/personnel-records/personnelRec
 import { personnelContractRoutes } from "./modules/personnel-records/personnelContractComp.routes";
 import { personnelProfileRoutes } from "./modules/personnel-records/personnelProfile.routes";
 import { hrEmployeeRoutes } from "./modules/users/hrEmployee.routes";
+import { poConfirmationRoutes } from "./modules/business/poConfirmation.routes";
 
 export function createApp() {
   const app = express();
@@ -97,6 +98,9 @@ export function createApp() {
   // catch-all below, or that middleware runs on every /v1/* request regardless
   // of whether the matched router below it actually owns the path.
   app.use("/v1/public/cms", cmsPublicRoutes);
+  // Supplier PO confirmation opened from an emailed link — unauthenticated by
+  // design, so it must stay above the blanket authenticate below.
+  app.use("/v1/public/purchase-orders", poConfirmationRoutes);
   app.use("/v1/users", authenticate, tenantScope, userRoutes);
   // Personnel sub-record logs (resume/leave/disciplinary/performance), nested
   // under a single user (the personnel record) — SOF-53/SOF-48-3.

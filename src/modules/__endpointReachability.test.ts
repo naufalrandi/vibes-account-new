@@ -37,15 +37,6 @@ const UNCALLED: Record<string, string> = {
   "/v1/performance-evaluation": "SOF-86: duplicate surface of /implementation/performance, but PerfEval owns the only ISO 9.1 indicator engine (perfIndicators.ts) in the codebase. Restored after a prior pass deleted it outright — kept mounted, unwired, until a follow-up decides whether the FE repoints here or the indicator engine gets ported to the generic path.",
 };
 
-/**
- * Called by the real client with no route behind it, deliberately. Same contract
- * as UNCALLED: a reason, and an owner. Anything not listed here must be built.
- */
-const UNIMPLEMENTED: Record<string, string> = {
-  "public/purchase-orders":
-    "Supplier PO confirmation via an emailed token link (`getPoConfirmation`/`submitPoConfirmation`). Mock-only: there is no token issuance, expiry or replay defence in the backend, and this is the one unauthenticated write surface in the product — it needs a security design, not a route bolted onto the parity pass. The Confirm-PO screen works in mock and 404s for real until then.",
-};
-
 function frontendSource(): string {
   const out: string[] = [];
   const walk = (dir: string) => {
@@ -119,17 +110,27 @@ describe("backend endpoint reachability", () => {
     // `app.use("/v1", ...)` is a blanket mount, so a prefix it serves shows up
     // in the router's own path declarations rather than in app.ts.
     const blanket = mounts.includes("/v1");
-    const mounted = (seg: string) =>
-      mounts.includes(`/v1/${seg}`) || (blanket && routeSrc.includes(`"/${seg}`));
+    // A mount can be several segments deep (`/v1/public/purchase-orders`), so
+    // match against whole mount prefixes and check only the part of the path
+    // the mount does not already account for — otherwise a segment belonging to
+    // the mount gets looked up as if it were a route action.
+    const longestMount = (p: string): string | null => {
+      const full = `/v1/${p}`;
+      const hits = mounts.filter((m) => m === full || full.startsWith(`${m}/`));
+      return hits.sort((a, b) => b.length - a.length)[0] ?? null;
+    };
     const missing = [...calledPaths]
       .filter((p) => {
-        const segs = p.split("/");
-        if (!mounted(segs[0])) return true;
-        const last = segs[segs.length - 1];
-        if (segs.length < 2 || !/^[a-z][a-z0-9-]{2,}$/.test(last)) return false;
+        const mount = longestMount(p);
+        if (!mount) {
+          // `app.use("/v1", ...)` serves prefixes declared inside the router.
+          return !(blanket && routeSrc.includes(`"/${p.split("/")[0]}`));
+        }
+        const rest = `/v1/${p}`.slice(mount.length).split("/").filter(Boolean);
+        const last = rest[rest.length - 1];
+        if (!last || !/^[a-z][a-z0-9-]{2,}$/.test(last)) return false;
         return !routeSrc.includes(`"/${last}`) && !routeSrc.includes(`/${last}"`) && !routeSrc.includes(`/${last}/`);
       })
-      .filter((p) => !(p in UNIMPLEMENTED))
       .sort();
     expect(missing).toEqual([]);
   });
@@ -138,13 +139,4 @@ describe("backend endpoint reachability", () => {
     expect(Object.keys(UNCALLED).filter((m) => !mounts.includes(m))).toEqual([]);
   });
 
-  it("keeps UNIMPLEMENTED honest — no entry for a path that now has a route", () => {
-    const real = fs.readFileSync(path.join(FE, "lib/api/realClient.ts"), "utf8");
-    // An entry that the frontend no longer calls, or that is now mounted, is a
-    // stale excuse — drop it rather than let it shield a future regression.
-    for (const p of Object.keys(UNIMPLEMENTED)) {
-      expect(real).toContain(`/${p}`);
-      expect(mounts).not.toContain(`/v1/${p.split("/")[0]}`);
-    }
-  });
 });
