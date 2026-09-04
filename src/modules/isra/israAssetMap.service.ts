@@ -15,7 +15,7 @@ import {
 } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
-import { BadRequestError, NotFoundError } from "../../lib/errors";
+import { BadRequestError, NotFoundError, ConflictError } from "../../lib/errors";
 
 const str = (v: unknown): string | null =>
   typeof v === "string" && v.trim() ? v.trim() : v === "" ? "" : v == null ? null : String(v);
@@ -287,8 +287,19 @@ export async function addThreat(
   return row.get({ plain: true });
 }
 
+/**
+ * OD `israMapRemoveThreat` refuses when the node came from the approved
+ * subgroup baseline (`th.b`). An inherited node is not the org's to delete:
+ * `getBaselineDiff`/refresh reconcile the map against the baseline, so a
+ * hand-deleted one either reappears or silently diverges from the subgroup it
+ * is supposed to track. Detaching happens by changing the subgroup, not by
+ * removing rows out from under it.
+ */
 export async function deleteThreat(auth: AuthContext, threatRowId: string, _ip: string | null) {
   const threatRow = await requireOwnedThreatRow(auth, threatRowId);
+  if (threatRow.isBaseline) {
+    throw new ConflictError("Inherited baseline threat — cannot be removed", "BASELINE_NODE_LOCKED");
+  }
   await threatRow.destroy();
 }
 
@@ -310,8 +321,12 @@ export async function addVuln(
   return row.get({ plain: true });
 }
 
+/** OD `israMapRemoveVuln` — same rule as `deleteThreat`, for baseline vulns. */
 export async function deleteVuln(auth: AuthContext, vulnRowId: string, _ip: string | null) {
   const vulnRow = await requireOwnedVulnRow(auth, vulnRowId);
+  if (vulnRow.isBaseline) {
+    throw new ConflictError("Inherited baseline vulnerability — cannot be removed", "BASELINE_NODE_LOCKED");
+  }
   await vulnRow.destroy();
 }
 
