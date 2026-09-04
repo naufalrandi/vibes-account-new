@@ -63,6 +63,36 @@ describe("backend endpoint reachability", () => {
     expect(orphans).toEqual([]);
   });
 
+  /**
+   * The reverse direction, which the two checks above never covered: a path the
+   * frontend calls that no route implements. That is the more dangerous
+   * asymmetry — an unused backend prefix is dead weight, but a missing route is
+   * a 404 in a workflow that looks finished and passes in mock mode.
+   *
+   * This found three: the whole two-stage document review
+   * (`reviewer-sign`, `escalate`, `periodic-review`) was implemented in the mock
+   * client and called by the UI, with no backend route behind any of it.
+   *
+   * Matching is deliberately coarse — the last literal segment of each
+   * `/approvals/...` style path the real client builds, checked against the
+   * route tables. It catches a whole action going missing, not a param typo.
+   */
+  it("implements every /approvals action the real client calls", () => {
+    const real = fs.readFileSync(path.join(FE, "lib/api/realClient.ts"), "utf8");
+    const routes = fs
+      .readdirSync(path.join(__dirname, "approvals"))
+      .filter((f) => f.endsWith(".routes.ts"))
+      .map((f) => fs.readFileSync(path.join(__dirname, "approvals", f), "utf8"))
+      .join("\n");
+
+    // Trailing literal action segments, e.g. `/approvals/records/x/y/escalate`.
+    const called = new Set(
+      [...real.matchAll(/\/approvals\/[A-Za-z0-9/${}._:-]*?\/([a-z][a-z-]{2,})(?=[`"'?])/g)].map((m) => m[1]),
+    );
+    const missing = [...called].filter((seg) => !routes.includes(`/${seg}"`));
+    expect(missing).toEqual([]);
+  });
+
   it("keeps UNCALLED honest — no entry for a prefix that is no longer mounted", () => {
     expect(Object.keys(UNCALLED).filter((m) => !mounts.includes(m))).toEqual([]);
   });

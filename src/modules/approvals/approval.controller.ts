@@ -56,6 +56,21 @@ export const review = wrap(async (req, res) => {
   }).parse(req.body ?? {});
   sendOk(res, await service.reviewDocument(guard(req), rec(req).recordId, b, ip(req)));
 });
+/* Two-stage document review — OD `cdReviewerSign`/`cdEscalate`/`cdPeriodicReview`. */
+export const reviewerSign = wrap(async (req, res) => {
+  documentsOnly(req);
+  const b = z.object({ comments: z.string().max(4000).nullish() }).parse(req.body ?? {});
+  sendOk(res, await service.signAsReviewer(guard(req), rec(req).recordId, b.comments ?? null, ip(req)));
+});
+export const escalateReview = wrap(async (req, res) => {
+  documentsOnly(req);
+  sendOk(res, await service.escalateReview(guard(req), rec(req).recordId, ip(req)));
+});
+export const periodicReview = wrap(async (req, res) => {
+  documentsOnly(req);
+  sendOk(res, await service.reconfirmPeriodicReview(guard(req), rec(req).recordId, ip(req)));
+});
+
 export const publish = wrap(async (req, res) => {
   documentsOnly(req);
   sendOk(res, await service.publishDocument(guard(req), rec(req).recordId, ip(req)));

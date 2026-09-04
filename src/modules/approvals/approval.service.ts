@@ -7,7 +7,7 @@ import { AP_POOLS, type SchemeGate, type RuntimeGate } from "../../db/models/app
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
 import { logActivity } from "../record-events/recordEvent.service";
-import { CD_FREQ_MO, getDocSettings } from "../implementation/documentControl";
+import { CD_FREQ_MO, getDocSettings, cdNextReview } from "../implementation/documentControl";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 const nowIso = () => new Date().toISOString();
@@ -591,6 +591,102 @@ export async function publishDocument(auth: AuthContext, recordId: string, ip: s
   await logActivity(auth, rec.orgId, "documents", rec.id, superseded ? "Published — superseded prior version" : "Published the document");
   if (superseded) await logActivity(auth, rec.orgId, "documents", superseded, `Superseded — replaced by ${rec.code}`);
   return { status: rec.status };
+}
+
+/* ---------------------------------------------------------------------------
+ * Two-stage document review — OD `cdReviewerSign` / `cdEscalate` /
+ * `cdPeriodicReview` (core.js:19759-19780).
+ *
+ * A document with chip-picked initial reviewers sits in an "initial" stage
+ * until every one of them signs; escalating moves it to the "final" stage,
+ * where the existing review/publish flow takes over. The frontend has called
+ * these three endpoints since the two-stage flow shipped, and the mock client
+ * implements all three, but the routes were never added here — so against the
+ * real API the initial stage could not be signed off, escalated, or a
+ * published document reconfirmed at its periodic review. All three 404'd.
+ * ------------------------------------------------------------------------- */
+
+interface ReviewerSignoff { by: string; at: string; comments?: string }
+
+const signoffsOf = (data: Record<string, unknown>): ReviewerSignoff[] =>
+  Array.isArray(data.reviewerSignoffs) ? (data.reviewerSignoffs as ReviewerSignoff[]) : [];
+const reviewersOf = (data: Record<string, unknown>): string[] =>
+  Array.isArray(data.initialReviewers) ? (data.initialReviewers as string[]) : [];
+
+/** OD `cdReviewStage` — no initial reviewers means the document starts final. */
+function reviewStageOf(data: Record<string, unknown>): "initial" | "final" {
+  const stage = data.reviewStage;
+  if (stage === "initial" || stage === "final") return stage;
+  return reviewersOf(data).length > 0 ? "initial" : "final";
+}
+
+/** Guard shared by sign-off and escalation. */
+async function initialStageRecord(auth: AuthContext, recordId: string) {
+  const rec = await governedRecord(auth, "documents", recordId);
+  const data = (rec.data ?? {}) as Record<string, unknown>;
+  if (rec.status !== "Under Review" || reviewStageOf(data) !== "initial") {
+    throw new ConflictError("This document is not in Initial Review", "NOT_INITIAL_REVIEW");
+  }
+  return { rec, data };
+}
+
+/** OD `cdReviewerSign` — record one initial reviewer's sign-off. */
+export async function signAsReviewer(auth: AuthContext, recordId: string, comments: string | null, ip: string | null) {
+  const { rec, data } = await initialStageRecord(auth, recordId);
+  const who = await actorName(auth);
+  const reviewers = reviewersOf(data);
+  const signoffs = signoffsOf(data);
+  if (signoffs.some((s) => s.by === who)) {
+    throw new ConflictError("You have already signed off on this document", "ALREADY_SIGNED");
+  }
+  // OD lets any assigned reviewer sign; someone not on the list cannot.
+  if (reviewers.length > 0 && !reviewers.includes(who)) {
+    throw new ForbiddenError("You are not an assigned reviewer for this document");
+  }
+  const trimmed = (comments ?? "").trim();
+  const next = [...signoffs, { by: who, at: new Date().toISOString(), ...(trimmed ? { comments: trimmed } : {}) }];
+  rec.data = { ...data, reviewerSignoffs: next };
+  await rec.save();
+  await audit(auth, "approval.document.reviewerSigned", "ImplementationRecord", rec.id, ip);
+  await logActivity(auth, rec.orgId, "documents", rec.id, `Initial review sign-off by ${who}`);
+  const signed = next.filter((s) => reviewers.includes(s.by)).length;
+  return { signed, total: reviewers.length };
+}
+
+/** OD `cdEscalate` — gated on every assigned reviewer having signed. */
+export async function escalateReview(auth: AuthContext, recordId: string, ip: string | null) {
+  const { rec, data } = await initialStageRecord(auth, recordId);
+  const reviewers = reviewersOf(data);
+  const signed = new Set(signoffsOf(data).map((s) => s.by));
+  if (!(reviewers.length > 0 && reviewers.every((r) => signed.has(r)))) {
+    throw new ConflictError("All assigned reviewers must sign off first", "REVIEWERS_PENDING");
+  }
+  rec.data = { ...data, reviewStage: "final" };
+  await rec.save();
+  await audit(auth, "approval.document.escalated", "ImplementationRecord", rec.id, ip);
+  await logActivity(auth, rec.orgId, "documents", rec.id, "Escalated to Final Review");
+  return { status: rec.status };
+}
+
+/**
+ * OD `cdPeriodicReview` reconfirm branch — the document stands as published
+ * and its next review is rescheduled from today. ("Revise" is the existing
+ * edit-published fork, not this.)
+ */
+export async function reconfirmPeriodicReview(auth: AuthContext, recordId: string, ip: string | null) {
+  const rec = await governedRecord(auth, "documents", recordId);
+  if (rec.status !== "Published" && rec.status !== "Review Due") {
+    throw new ConflictError("Only a Published or Review Due document can be reconfirmed", "NOT_DUE");
+  }
+  const data = (rec.data ?? {}) as Record<string, unknown>;
+  const now = new Date().toISOString();
+  const nextReview = cdNextReview(now, data.reviewFreq);
+  rec.status = "Published";
+  rec.data = { ...data, nextReview };
+  await rec.save();
+  await audit(auth, "approval.document.periodicReviewed", "ImplementationRecord", rec.id, ip);
+  await logActivity(auth, rec.orgId, "documents", rec.id, "Periodic review — reconfirmed as current");
+  return { status: rec.status, nextReview };
 }
 
 export async function withdraw(auth: AuthContext, module: string, recordId: string, ip: string | null) {
