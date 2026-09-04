@@ -95,7 +95,7 @@ describe("personnel profile (personal / emergency / employment)", () => {
       .set("authorization", `Bearer ${token}`)
       .send({
         personnelType: "Permanent Staff",
-        employmentStatus: "Probation",
+        employmentStatus: "Onboarding",
         managerId: manager.id,
         employeeId: "EMP-0001",
         contractType: "Fixed-Term",
@@ -106,7 +106,7 @@ describe("personnel profile (personal / emergency / employment)", () => {
         contractSigned: true,
       });
     expect(res.status).toBe(200);
-    expect(res.body.data.employmentStatus).toBe("Probation");
+    expect(res.body.data.employmentStatus).toBe("Onboarding");
     expect(res.body.data.managerId).toBe(manager.id);
     expect(res.body.data.contractSigned).toBe(true);
 
@@ -138,7 +138,7 @@ describe("personnel profile (personal / emergency / employment)", () => {
     await request(app)
       .patch(`/v1/users/${targetUserId}/personnel-profile/employment`)
       .set("authorization", `Bearer ${token}`)
-      .send({ employmentStatus: "Probation", contractEndDate: "2026-06-30" });
+      .send({ employmentStatus: "Onboarding", contractEndDate: "2026-06-30" });
 
     const rejected = await request(app)
       .post(`/v1/users/${targetUserId}/personnel-profile/employment/renew`)
@@ -161,7 +161,7 @@ describe("personnel profile (personal / emergency / employment)", () => {
     await request(app)
       .patch(`/v1/users/${targetUserId}/personnel-profile/employment`)
       .set("authorization", `Bearer ${token}`)
-      .send({ employmentStatus: "Probation", contractType: "Probation" });
+      .send({ contractType: "Probation" });
 
     const convertRes = await request(app)
       .post(`/v1/users/${targetUserId}/personnel-profile/employment/convert`)
@@ -178,17 +178,20 @@ describe("personnel profile (personal / emergency / employment)", () => {
     expect(confirmRes.body.error.code).toBe("NOT_ON_PROBATION");
   });
 
-  it("confirms probation when the profile is on probation", async () => {
+  // Probation is a contract type in OD, not an employment status, so this
+  // sets `contractType` and expects the confirm to convert it to Permanent.
+  it("confirms probation when the contract is on probation", async () => {
     const { token, targetUserId } = await seedAdminAndLogin();
     await request(app)
       .patch(`/v1/users/${targetUserId}/personnel-profile/employment`)
       .set("authorization", `Bearer ${token}`)
-      .send({ employmentStatus: "Probation" });
+      .send({ contractType: "Probation" });
 
     const res = await request(app)
       .post(`/v1/users/${targetUserId}/personnel-profile/employment/confirm-probation`)
       .set("authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
+    expect(res.body.data.contractType).toBe("Permanent");
     expect(res.body.data.employmentStatus).toBe("Active");
   });
 });
