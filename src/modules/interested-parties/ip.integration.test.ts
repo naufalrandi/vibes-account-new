@@ -84,6 +84,9 @@ describe("interested parties + requirements", () => {
     expect(linked.body.data).toMatchObject({ relatedCO: true, linkedObligations: ["COBL-0001", "COBL-0002"] });
     expect((await request(app).post(`/v1/interested-parties/requirements/${rid}/obligations`).set(authed(token)).send({ obligations: [] })).body.data.relatedCO).toBe(false);
 
+    // OD `ipReqArchiveDirect` — only an Addressed requirement archives here.
+    expect((await request(app).post(`/v1/interested-parties/requirements/${rid}/archive`).set(authed(token)).send({ justification: "x" })).status).toBe(409);
+
     // Party archive is allowed once all requirements are dismissed/archived.
     const arch = await request(app).post(`/v1/interested-parties/parties/${pid}/archive`).set(authed(token)).send({});
     expect(arch.body.data.status).toBe("Archived");

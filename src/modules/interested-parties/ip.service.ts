@@ -222,14 +222,20 @@ export async function linkObligations(auth: AuthContext, id: string, obligationC
 export async function archiveRequirement(auth: AuthContext, id: string, justification: string | null, ip: string | null) {
   const r = await requireReq(auth, id);
   const who = await actorName(auth);
-  // Direct archive of an Addressed requirement needs no open risks + a justification.
-  if (r.status === "Addressed") {
-    const risks = await ImplementationRecord.findAll({ where: { orgId: r.orgId, module: "risks" }, attributes: ["data", "status"] });
-    const open = risks.filter((x) => (x.data as { sourceReqId?: string })?.sourceReqId === r.code && x.status !== "Archived");
-    if (open.length) throw new ConflictError("Archive the related risks first", "RISKS_OPEN");
-    if (!justification || !justification.trim()) throw new BadRequestError("A justification is required to archive an addressed requirement", "JUSTIFICATION_REQUIRED");
-    r.archiveJustification = justification.trim();
+  // OD `ipReqArchiveDirect`: this action archives an ADDRESSED requirement and
+  // nothing else. The checks below were previously conditional on the status
+  // rather than gated by it, so a requirement in any other state — Open
+  // included — archived straight through without a justification and without
+  // its linked risks being looked at. A Dismissed requirement stays Dismissed;
+  // `archiveParty` already accepts Dismissed as resolved.
+  if (r.status !== "Addressed") {
+    throw new ConflictError("Only addressed requirements can be archived here", "NOT_ADDRESSED");
   }
+  const risks = await ImplementationRecord.findAll({ where: { orgId: r.orgId, module: "risks" }, attributes: ["data", "status"] });
+  const open = risks.filter((x) => (x.data as { sourceReqId?: string })?.sourceReqId === r.code && x.status !== "Archived");
+  if (open.length) throw new ConflictError("Archive the related risks first", "RISKS_OPEN");
+  if (!justification || !justification.trim()) throw new BadRequestError("A justification is required to archive an addressed requirement", "JUSTIFICATION_REQUIRED");
+  r.archiveJustification = justification.trim();
   r.status = "Archived"; r.archivedBy = who; r.archivedAt = nowIso();
   r.lastUpdatedBy = who; r.activity = pushAct(r.activity, who, "archived", "Requirement archived");
   await r.save();
