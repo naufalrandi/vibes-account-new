@@ -69,27 +69,38 @@ describe("backend endpoint reachability", () => {
    * asymmetry — an unused backend prefix is dead weight, but a missing route is
    * a 404 in a workflow that looks finished and passes in mock mode.
    *
-   * This found three: the whole two-stage document review
-   * (`reviewer-sign`, `escalate`, `periodic-review`) was implemented in the mock
-   * client and called by the UI, with no backend route behind any of it.
+   * This found eight across three modules: the whole two-stage document review
+   * (`reviewer-sign`, `escalate`, `periodic-review`), the competence gap review
+   * lifecycle (`review`, `unreview`, `reopen`), and four Enterprise → Database
+   * screens (banks, holidays, business-processes, fiscal-periods) whose pages
+   * only ever worked against the mock client.
    *
-   * Matching is deliberately coarse — the last literal segment of each
-   * `/approvals/...` style path the real client builds, checked against the
-   * route tables. It catches a whole action going missing, not a param typo.
+   * Matching is deliberately coarse — the trailing literal segment of each path
+   * the real client builds, checked against every route table. It catches a
+   * whole action or resource going missing, not a param-shape mismatch.
    */
-  it("implements every /approvals action the real client calls", () => {
+  it("implements every endpoint the real client calls", () => {
     const real = fs.readFileSync(path.join(FE, "lib/api/realClient.ts"), "utf8");
-    const routes = fs
-      .readdirSync(path.join(__dirname, "approvals"))
-      .filter((f) => f.endsWith(".routes.ts"))
-      .map((f) => fs.readFileSync(path.join(__dirname, "approvals", f), "utf8"))
-      .join("\n");
+    const routes: string[] = [];
+    const walkRoutes = (dir: string) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) walkRoutes(p);
+        else if (e.name.endsWith(".routes.ts")) routes.push(fs.readFileSync(p, "utf8"));
+      }
+    };
+    walkRoutes(__dirname);
+    const routeSrc = routes.join("\n");
 
-    // Trailing literal action segments, e.g. `/approvals/records/x/y/escalate`.
-    const called = new Set(
-      [...real.matchAll(/\/approvals\/[A-Za-z0-9/${}._:-]*?\/([a-z][a-z-]{2,})(?=[`"'?])/g)].map((m) => m[1]),
-    );
-    const missing = [...called].filter((seg) => !routes.includes(`/${seg}"`));
+    const called = new Set<string>();
+    for (const m of real.matchAll(/`(\/[A-Za-z0-9/${}._:-]+)`/g)) {
+      const segs = m[1].split("/").filter((x) => x && !x.includes("${"));
+      const last = segs[segs.length - 1]?.split("?")[0];
+      if (segs.length >= 2 && last && /^[a-z][a-z0-9-]{2,}$/.test(last)) called.add(last);
+    }
+    const missing = [...called]
+      .filter((seg) => !routeSrc.includes(`"/${seg}`) && !routeSrc.includes(`/${seg}"`) && !routeSrc.includes(`/${seg}/`))
+      .sort();
     expect(missing).toEqual([]);
   });
 
