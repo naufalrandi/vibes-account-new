@@ -11,6 +11,7 @@ import {
   RoleActionGrant,
   Subscription,
   PartnerProfile,
+  PartnerAgreement,
   AgreementTemplate,
   TenantProfile,
   Site,
@@ -290,6 +291,44 @@ export async function seed(): Promise<void> {
       adminUserId: null,
       commercialSummary: { revenueSharePct: 20, currency: "IDR" },
       audit: [{ ts: new Date().toISOString(), msg: "Partner organization created" }],
+    },
+  });
+
+  /**
+   * OD `PARTNER_AG_HISTORY` (js/core.js) — the demo partner's agreement
+   * timeline. OD slices it by partner status: a Draft partner shows only the
+   * first entry, Pending Approval the first three, and anything further along
+   * the whole run. This partner seeds as Active, so it gets all nine.
+   *
+   * Without this the Partner detail's Agreement tab had an empty timeline —
+   * the live service only appends events as they happen, and a seeded partner
+   * never went through generate/send/approve.
+   */
+  const PARTNER_AG_HISTORY = [
+    { date: "2025-12-15", event: "Agreement Generated" },
+    { date: "2025-12-16", event: "Agreement Sent to Partner" },
+    { date: "2025-12-18", event: "Agreement Approved by Partner" },
+    { date: "2026-01-01", event: "Agreement Became Effective" },
+    { date: "2026-02-01", event: "First Billing Period Started" },
+    { date: "2026-03-01", event: "Second Billing Period Started" },
+    { date: "2026-04-01", event: "Third Billing Period Started" },
+    { date: "2026-05-01", event: "Fourth Billing Period Started" },
+    { date: "2026-06-01", event: "Fifth Billing Period Started" },
+  ];
+  await PartnerAgreement.findOrCreate({
+    where: { orgId: distributor.id },
+    defaults: {
+      orgId: distributor.id,
+      templateId: null,
+      templateName: "Principal Partner Agreement",
+      number: "AGR-2026-0001",
+      version: "1.0",
+      status: "Approved",
+      effectiveDate: "2026-01-01",
+      expirationDate: "2027-12-31",
+      vars: {},
+      renderedBlocks: [],
+      history: PARTNER_AG_HISTORY,
     },
   });
 
