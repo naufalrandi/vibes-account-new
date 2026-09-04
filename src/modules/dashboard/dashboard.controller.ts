@@ -6,7 +6,10 @@ import { UnauthorizedError } from "../../lib/errors";
 export async function stats(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    const data = await dashboardService.getDashboardStats(req.auth);
+    // `?orgId=` targets a specific tenant (the SaaS preview). The service
+    // authorizes it; an absent or own-org value behaves exactly as before.
+    const orgId = typeof req.query.orgId === "string" && req.query.orgId ? req.query.orgId : undefined;
+    const data = await dashboardService.getDashboardStats(req.auth, orgId);
     sendOk(res, data);
   } catch (e) {
     next(e);

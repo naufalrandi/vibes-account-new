@@ -10,6 +10,8 @@ import {
 } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { organizationScopeWhere, userScopeWhere } from "../../lib/scope";
+import { visibleTenantOrgIds } from "../sites/site.service";
+import { ForbiddenError, NotFoundError } from "../../lib/errors";
 
 export interface ServiceOwnerStats {
   role: "ServiceOwner";
@@ -102,7 +104,26 @@ export interface DashboardRecent {
 
 const TOTAL_FRAMEWORKS = 13;
 
-export async function getDashboardStats(auth: AuthContext): Promise<DashboardStats> {
+/**
+ * `orgId` lets a caller ask for a specific tenant's dashboard instead of its
+ * own — the AXIA Clients · SaaS preview, where a Service Owner views a tenant
+ * workspace without becoming that tenant.
+ *
+ * Authorization is not relaxed for it: the target is checked against
+ * `visibleTenantOrgIds(auth)`, the same helper the sites, management-review and
+ * scope services use, so a Distributor can only reach its own child tenants and
+ * a Tenant only itself. A Service Owner is unrestricted there, which is what
+ * already governs every other cross-tenant read in this API.
+ */
+export async function getDashboardStats(auth: AuthContext, orgId?: string): Promise<DashboardStats> {
+  if (orgId && orgId !== auth.orgId) {
+    const visible = await visibleTenantOrgIds(auth);
+    if (visible !== null && !visible.includes(orgId)) throw new ForbiddenError();
+    const target = await Organization.findByPk(orgId, { attributes: ["id", "type"] });
+    if (!target) throw new NotFoundError("Organization not found", "ORG_NOT_FOUND");
+    if (target.type !== "Tenant") throw new ForbiddenError();
+    return getTenantAdministratorStats({ ...auth, orgId, orgType: "Tenant" });
+  }
   if (auth.orgType === "ServiceOwner") {
     const [totalOrgs, activeOrgs, totalUsers, activeUsers, adminUsers] = await Promise.all([
       Organization.count({}),

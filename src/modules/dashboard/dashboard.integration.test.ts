@@ -187,4 +187,41 @@ describe("dashboard", () => {
     expect(res.body.data.tenant.name).toBe("Acme Corp");
   });
 
+
+  // The AXIA Clients · SaaS preview: a Service Owner asks for a tenant's
+  // dashboard without becoming that tenant. Authorization must still come from
+  // `visibleTenantOrgIds`, so this also pins the negative case.
+  it("GET /v1/dashboard/stats?orgId= returns that tenant's shape for a Service Owner", async () => {
+    const org = await seedServiceOwner();
+    const tenantOrg = await Organization.create({
+      code: "ORG-TEN-1", name: "Garuda", type: "Tenant", parentOrgId: org.id, tenantId: null,
+      email: null, phone: null, website: null, country: "ID", address: null, status: "Active",
+    });
+    const token = await login("soadmin", "ChangeMe123");
+
+    const res = await request(app)
+      .get(`/v1/dashboard/stats?orgId=${tenantOrg.id}`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.orgType).toBe("Tenant");
+    expect(res.body.data).toHaveProperty("siteList");
+  });
+
+  it("GET /v1/dashboard/stats?orgId= refuses an org the caller cannot see", async () => {
+    // A tenant user (`tmember`, seeded by `seedTenantMember`) asking for a different
+    // tenant's dashboard — the case the scope check has to refuse.
+    await seedTenantMember();
+    const foreign = await Organization.create({
+      code: "ORG-FOREIGN", name: "Foreign", type: "Tenant", parentOrgId: null, tenantId: null,
+      email: null, phone: null, website: null, country: null, address: null, status: "Active",
+    });
+    const token = await login("tmember", "ChangeMe123");
+
+    const res = await request(app)
+      .get(`/v1/dashboard/stats?orgId=${foreign.id}`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+  });
 });
