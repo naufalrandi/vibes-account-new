@@ -876,6 +876,54 @@ export async function seed(): Promise<void> {
     });
   }
 
+  // 13c. Record rails for the management-system seed (SOF: OC detail was blank).
+  //      OD keeps an issue's activity log and comment thread on the record
+  //      itself (`i.activity`, `i.comments`, core.js:9174/9146), but the port's
+  //      detail drawers read the separate `record_events` store via
+  //      `listRecordEvents`. Seeding `data.activity` alone left every
+  //      Organizational Context issue with an empty Activity + Comments rail.
+  //      Mirror `data.activity` for any seeded record that carries one, and
+  //      port OD's two seeded comment threads (FWE-001-1, FWE-001-2).
+  const OC_COMMENTS: Record<string, { h: number; by: string; text: string }[]> = {
+    "FWE-001-1": [
+      { h: 301, by: "Peter Benjamin Parker", text: "Can we confirm which site this primarily affects before the audit?" },
+      { h: 127, by: "Wanda Maximoff", text: "Evidence folder shared — see the QMS drive." },
+    ],
+    "FWE-001-2": [
+      { h: 220, by: "Jennifer Susan Walters", text: "Flagging this for the next management review — cloud migration is now touching customer PII, so it needs a documented risk position." },
+      { h: 214, by: "Peter Parker", text: "Agreed. I raised RISK-0001 off the back of it. Residency is my biggest worry given the multi-region replication." },
+      { h: 208, by: "Monica Rambeau", text: "Do we have the provider’s data-processing addendum on file? We can’t assert 27701 relevance without it." },
+      { h: 205, by: "Jennifer Susan Walters", text: "DPA is signed but the sub-processor list hasn’t been reviewed since last year. Adding that as an action." },
+      { h: 190, by: "Matthew Michael Murdock", text: "From a legal view: confirm the contracted regions match our approved-jurisdictions list before we sign off." },
+      { h: 176, by: "Peter Parker", text: "IAM review done. Found three service accounts with standing admin — rotating to short-lived tokens this sprint." },
+      { h: 150, by: "Monica Rambeau", text: "Nice. Please also enable log export to our SIEM; right now provider logs expire in 30 days." },
+      { h: 120, by: "Jennifer Susan Walters", text: "Log export is on the backlog for infra. I’ll link the ticket here once it’s created." },
+      { h: 96, by: "Peter Parker", text: "Ticket INFRA-482 created for SIEM export. ETA two weeks." },
+      { h: 72, by: "Matthew Michael Murdock", text: "Sub-processor list reviewed — one new analytics vendor in an un-approved region. Flagging as a finding." },
+      { h: 48, by: "Monica Rambeau", text: "That vendor needs either a region change or an exception with sign-off. Can’t leave it open." },
+      { h: 30, by: "Jennifer Susan Walters", text: "Exception requested and pending approval. Keeping this issue Monitored until the residual risk is confirmed acceptable." },
+      { h: 8, by: "Peter Parker", text: "Short-lived credentials rolled out. Residual likelihood dropped one band — will update the linked risk after verification." },
+    ],  };
+  for (const m of msSeed) {
+    const rec = await ImplementationRecord.findOne({ where: { orgId: tenant.id, module: m.module, code: m.code } });
+    if (!rec) continue;
+    const existing = await RecordEvent.count({ where: { orgId: tenant.id, module: m.module, recordId: rec.id } });
+    if (existing > 0) continue;
+    const activity = (m.data.activity ?? []) as { ts: string; user: string; action: string; summary?: string }[];
+    for (const e of activity) {
+      await RecordEvent.create({
+        orgId: tenant.id, module: m.module, recordId: rec.id, type: "activity", actor: e.user,
+        text: e.summary ? `${e.action} — ${e.summary}` : e.action, createdAt: new Date(e.ts),
+      });
+    }
+    for (const c of OC_COMMENTS[m.code] ?? []) {
+      await RecordEvent.create({
+        orgId: tenant.id, module: m.module, recordId: rec.id, type: "comment", actor: c.by,
+        text: c.text, createdAt: new Date(Date.now() - c.h * 3600000),
+      });
+    }
+  }
+
   // 14a. Phase 9a — Concerns → Nonconformity/Incident/Improvement routing
   //      chain (OD `concernSeedIfNeeded`, index.html:11217-11244): four
   //      concerns covering every OD routing outcome — one to a Nonconformity
