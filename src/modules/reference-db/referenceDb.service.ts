@@ -532,8 +532,20 @@ export async function deleteBpProcess(auth: AuthContext, id: string, ip: string 
 // ---- Fiscal periods -------------------------------------------------------
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-/** Generate the period rows for a fiscal year — 12 monthly or 4 quarterly. */
-function buildPeriods(fy: string, startMonth: number, periodType: string): FiscalPeriodRow[] {
+/**
+ * Generate the period rows for a fiscal year — 12 monthly or 4 quarterly.
+ *
+ * A fiscal year that does not start in January runs into the next calendar
+ * year, and each period is labelled with the calendar year it *starts* in. So
+ * an April-start FY2026 reads April 2026 … March 2027 monthly, and
+ * Q1 2026 / Q2 2026 / Q3 2026 / Q4 2027 quarterly. The Q4 label naming a
+ * different year than its siblings is deliberate: it starts in January 2027.
+ *
+ * Exported for a unit test — the month arithmetic (year rollover, month-end
+ * lengths, February in a leap year) is the part worth checking directly rather
+ * than only through the API.
+ */
+export function buildPeriods(fy: string, startMonth: number, periodType: string): FiscalPeriodRow[] {
   const year = Number(fy) || new Date().getFullYear();
   const count = periodType === "Quarterly" ? 4 : 12;
   const step = periodType === "Quarterly" ? 3 : 1;
