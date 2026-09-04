@@ -36,6 +36,7 @@
  * library gets seeded).
  */
 import { CompetenceAssignment, CompetenceRole, RoleAssignment, RoleTemplate, User } from "../models";
+import { AXIA_TEAM } from "./axiaTeam";
 
 interface RawRole {
   id: string; name: string; description: string | null; status: string;
@@ -81,11 +82,13 @@ export const HAMMER_TEAM = [
   { odId: "idtu17", fullName: "Reed Richards", email: "reed.richards@hammerind.co.id", position: "Process Owner" },
 ];
 
-/** `db.users[axia1/axia2]` — the two enterprise (Service-Provider) persons OD's shape-A rows reference. */
-export const SP_TEAM = [
-  { odId: "axia1", fullName: "Matthew Michael Murdock", email: "matthew.murdock@axia.io", position: "Platform Owner" },
-  { odId: "axia2", fullName: "Natalia Alianovna Romanova", email: "natalia.romanova@axia.io", position: "Billing Manager" },
-];
+/** `db.users[axia1/axia2]` — the two enterprise (Service-Provider) persons OD's shape-A rows
+ * reference. Derived from `AXIA_TEAM` (OD `seedUsers()`) rather than restated, so the two
+ * seeders cannot disagree about who these people are; `ensurePerson` and `seedAxiaTeam` share
+ * `email` as the natural key, so either order produces one row per person. */
+export const SP_TEAM = AXIA_TEAM.filter((m) => m.odId === "axia1" || m.odId === "axia2").map((m) => ({
+  odId: m.odId, fullName: m.fullName, email: m.email, position: m.title,
+}));
 
 /** OD `db.roles[].tenantId === "__ENT__"` rows are CAB/certification-body roles (Lead
  * Auditor, Implementation Consultant, Technical Reviewer, Scheme Manager) — the

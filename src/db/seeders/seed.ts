@@ -39,6 +39,8 @@ import {
   ScopeDataset,
 } from "../models";
 import { ACTIONS, MENU_SEED, type SeedMenu } from "../../modules/iam/actions.catalog";
+import { seedAxiaTeam } from "./axiaTeam";
+import { agreementHistoryFor, seedOdPartners } from "./odPartners";
 import { grantEverythingExceptSpOnly } from "../../modules/iam/tenantGrants";
 import { seedComplianceEngine } from "./complianceEngine";
 import { seedIsraLibrary } from "./isra";
@@ -186,6 +188,19 @@ export async function seed(): Promise<void> {
     where: { name: "User", orgId: so.id },
     defaults: { name: "User", tierScope: "ServiceOwner", orgId: so.id, isSuperAdmin: false, status: true },
   });
+  // OD `ROLE_GROUPS` — the role groups Team Management actually offers a
+  // Service Provider user (`role.catalog.ts` ServiceOwner). Without these two,
+  // every seeded staff member collapses onto Administrator, and the ticket
+  // assignee pool (`ticket.service.ts`, which selects Administrator OR
+  // Technical Support) can never contain a support engineer.
+  const [billingRole] = await Role.findOrCreate({
+    where: { name: "Billing Manager", orgId: so.id },
+    defaults: { name: "Billing Manager", tierScope: "ServiceOwner", orgId: so.id, isSuperAdmin: false, status: true },
+  });
+  const [supportRole] = await Role.findOrCreate({
+    where: { name: "Technical Support", orgId: so.id },
+    defaults: { name: "Technical Support", tierScope: "ServiceOwner", orgId: so.id, isSuperAdmin: false, status: true },
+  });
 
   // 4. Grants. Super Admin bypasses checks (and also gets explicit grants so the
   //    grant matrix UI shows it fully enabled). Administrator = full CRUD.
@@ -229,10 +244,24 @@ export async function seed(): Promise<void> {
     ],
   );
 
+  // Role-group grants: each fixed group sees its own module (OD `PermissionZone`
+  // maps Billing Manager -> billing, Technical Support -> ticket).
+  await grantAccess(billingRole.id, ["Dashboard", "Billing"], [ACTIONS.BILLING_READ, ACTIONS.BILLING_MANAGE]);
+  await grantAccess(
+    supportRole.id,
+    ["Dashboard", "Tickets"],
+    [ACTIONS.TICKET_READ, ACTIONS.TICKET_CREATE, ACTIONS.TICKET_REPLY, ACTIONS.TICKET_MANAGE],
+  );
+
   // 5. One demo user per role (all under the SO org → Service-Owner scope).
   await ensureUser("soadmin", "Super Admin", "soadmin@axia.io", so.id, superAdminRole);
   await ensureUser("admin", "Administrator", "admin@axia.io", so.id, adminRole);
   await ensureUser("user", "Standard User", "user@axia.io", so.id, userRole);
+
+  //    ...plus OD `seedUsers()`: the fourteen-person AXIA staff roster behind
+  //    Team Management. Runs after the roles above so each member can be
+  //    attached to its OD role group.
+  await seedAxiaTeam(so.id);
 
   // 6. Platform subscription for the SO org.
   await Subscription.findOrCreate({
@@ -294,27 +323,10 @@ export async function seed(): Promise<void> {
     },
   });
 
-  /**
-   * OD `PARTNER_AG_HISTORY` (js/core.js) — the demo partner's agreement
-   * timeline. OD slices it by partner status: a Draft partner shows only the
-   * first entry, Pending Approval the first three, and anything further along
-   * the whole run. This partner seeds as Active, so it gets all nine.
-   *
-   * Without this the Partner detail's Agreement tab had an empty timeline —
-   * the live service only appends events as they happen, and a seeded partner
-   * never went through generate/send/approve.
-   */
-  const PARTNER_AG_HISTORY = [
-    { date: "2025-12-15", event: "Agreement Generated" },
-    { date: "2025-12-16", event: "Agreement Sent to Partner" },
-    { date: "2025-12-18", event: "Agreement Approved by Partner" },
-    { date: "2026-01-01", event: "Agreement Became Effective" },
-    { date: "2026-02-01", event: "First Billing Period Started" },
-    { date: "2026-03-01", event: "Second Billing Period Started" },
-    { date: "2026-04-01", event: "Third Billing Period Started" },
-    { date: "2026-05-01", event: "Fourth Billing Period Started" },
-    { date: "2026-06-01", event: "Fifth Billing Period Started" },
-  ];
+  // OD `PARTNER_AG_HISTORY` — the partner's agreement timeline, sliced by how
+  // far the partnership got (`odPartners.ts`). Without it the Agreement tab had
+  // an empty timeline: the live service only appends events as they happen, and
+  // a seeded partner never went through generate/send/approve.
   await PartnerAgreement.findOrCreate({
     where: { orgId: distributor.id },
     defaults: {
@@ -328,9 +340,13 @@ export async function seed(): Promise<void> {
       expirationDate: "2027-12-31",
       vars: {},
       renderedBlocks: [],
-      history: PARTNER_AG_HISTORY,
+      history: agreementHistoryFor("Active"),
     },
   });
+
+  // ...and OD's remaining four partners (PRT-1002..1005), which carry the Draft /
+  // Pending Approval / Suspended / Terminated states this list otherwise never shows.
+  await seedOdPartners(so.id);
 
   const templates: Array<{
     code: string;
@@ -2008,8 +2024,10 @@ export async function seed(): Promise<void> {
       "  Org: AXIA (ServiceOwner)",
       "  Orgs: AXIA (ServiceOwner) → Nusantara Partners (Distributor) → Garuda Manufacturing (Tenant)",
       "  Orgs: AXIA (ServiceOwner) → PT Stark Industries (Distributor) → PT Damage Control (Tenant) [ticket cross-partner isolation pair]",
-      "  Roles: Super Admin (bypass), Administrator (full CRUD grants), User (read-only)",
-      `  Users (password ${DEFAULT_PASSWORD}): soadmin / admin / user / partner / tenant`,
+      "  Roles: Super Admin (bypass), Administrator (full CRUD grants), User (read-only), Billing Manager, Technical Support",
+      `  Logins (password ${DEFAULT_PASSWORD}): soadmin / admin / user / partner / tenant`,
+      "  AXIA staff roster: 14 (OD seedUsers) — 6 with access, 8 no-access; no passwords",
+      "  Partners: PRT-1001..1005 (Active / Pending Approval / Draft / Suspended)",
     ].join("\n"),
   );
 }
