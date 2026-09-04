@@ -9,6 +9,7 @@ import {
 } from "../../db/models/referenceDb.models";
 import { ISIC, NACE, KBLI, ISCEDF, type HierNode } from "../reference/reference.data";
 import { COUNTRY_SEED } from "./data/countrySeed";
+import { COUNTRY_REGION_SEED } from "./data/countryRegionSeed";
 import { EDUCATION_LEVEL_SEED } from "./data/educationLevelSeed";
 import { EDU_FRAMEWORK_SEED } from "./data/eduFrameworkSeed";
 
@@ -83,7 +84,9 @@ async function ensureCountriesSeeded(orgId: string): Promise<void> {
       sectorFrameworkRef: EU_MEMBERS.includes(c.code) ? naceFrameworkId : null,
       // OD special-case: Indonesia auto-seeds the full KBLI tree as its own sector levels.
       sectorLevels: c.code === "ID" ? kbliLevels : [],
-      regions: [],
+      // OD `COUNTRY_REGIONS` (+ `_REST`) — countries OD has no region data
+      // for stay empty, exactly as they are there.
+      regions: COUNTRY_REGION_SEED[c.code] ?? [],
       eduLevels: eduSeed ? eduSeed.levels.map((l) => ({ level: l.isced, code: l.code, label: l.label, isced: String(l.isced) })) : [],
       edited: false,
     };
