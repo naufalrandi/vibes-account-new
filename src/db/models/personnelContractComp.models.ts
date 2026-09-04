@@ -116,6 +116,10 @@ export class PersonnelOnboardingItem extends Model<
   declare orgId: string;
   declare userId: string;
   declare label: string;
+  /** OD `ONBOARD_TEMPLATE` task `group` — '' for an ad-hoc task with no section. */
+  declare group: CreationOptional<string>;
+  /** OD `ONBOARD_TEMPLATE` task `required` — a blocking task rather than an optional one. */
+  declare required: CreationOptional<boolean>;
   declare seq: CreationOptional<number>;
   declare done: CreationOptional<boolean>;
   declare doneAt: Date | null;
@@ -130,6 +134,8 @@ PersonnelOnboardingItem.init(
     orgId: { type: DataTypes.UUID, allowNull: false, field: "org_id" },
     userId: { type: DataTypes.UUID, allowNull: false, field: "user_id" },
     label: { type: DataTypes.STRING, allowNull: false },
+    group: { type: DataTypes.STRING, allowNull: false, defaultValue: "" },
+    required: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     seq: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
     done: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     doneAt: { type: DataTypes.DATE, allowNull: true, field: "done_at" },
