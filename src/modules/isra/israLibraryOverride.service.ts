@@ -50,7 +50,12 @@ const LT_CFG: Record<IsraLibType, { fields: readonly string[]; prefix: string }>
   primary: { fields: ["name", "description", "category", "groupId", "subgroupId", "privacy"], prefix: "TPA-" },
   secondary: { fields: ["name", "description", "groupId", "subgroupId"], prefix: "TSA-" },
   threat: { fields: ["name", "description", "category"], prefix: "TTHR-" },
-  vuln: { fields: ["name", "description", "category"], prefix: "TVUL-" },
+  // `attrs` carries OD `israVulnForm`'s ten weighted attributes (1-5, "higher
+  // = more severe"), which `israVulnWeight` averages into the vulnerability's
+  // severity level. OD stores them on the custom vulnerability itself
+  // (`israVulnSave`), so a tenant-authored vuln keeps its own weighting rather
+  // than inheriting a platform item's. `customFields` is JSONB — no migration.
+  vuln: { fields: ["name", "description", "category", "attrs"], prefix: "TVUL-" },
 };
 /** Fields carried directly on `IsraLibraryItem`'s own columns rather than
  * folded into its `customFields` JSONB envelope. */
