@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
-import { IsraAssetMapThreat, IsraAssetMapVuln, Organization, User, Role } from "../../db/models";
+import { initModels, IsraAssetMapThreat, IsraAssetMapVuln, Organization, User, Role } from "../../db/models";
 import { IsraThreatLibrary, IsraVulnLibrary } from "../../db/models/israLibrary.models";
 import { hashPassword } from "../../lib/password";
-import { seedActionCatalog } from "../../../test/helpers";
+import { resetDb, seedActionCatalog } from "../../../test/helpers";
 import { grantEverythingExceptSpOnly } from "../iam/tenantGrants";
 
 const app = createApp();
@@ -62,6 +62,12 @@ async function chain(token: string, opts: { threatBaseline: boolean; vulnBaselin
 }
 
 describe("ISRA baseline nodes are not removable", () => {
+  beforeAll(() => initModels());
+  // `seedActionCatalog()` populates the shared action catalog; without a reset
+  // those rows outlive this file and any later test that creates an Action by
+  // key (menu.integration.test.ts creates "user.read") dies on the unique
+  // constraint. Every sibling isra test resets — this one did not.
+  afterEach(() => resetDb());
   it("refuses to delete an inherited baseline threat, and keeps the row", async () => {
     await seedLibraryRefData();
     const { token } = await makeRealTenant("isra_bl_t", "ORG_BL_T");
