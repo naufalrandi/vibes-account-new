@@ -167,6 +167,17 @@ describe("ISRA Core: Asset Map, Scenarios, Method C Scoring & SoA (F-3 to F-6)",
     expect(scen.overallImpact).toBeGreaterThanOrEqual(4);
     expect(scen.inherentScore).toBeGreaterThanOrEqual(16);
 
+    // OD `isra2RemoveVuln` — the last vulnerability cannot be taken away.
+    const wipe = await request(app)
+      .put(`/v1/isra/scenarios/${scen.id}`)
+      .set(authed(token))
+      .send({ includedVulns: [] });
+    expect(wipe.status).toBe(409);
+    expect(wipe.body.error.code).toBe("SCENARIO_VULNS_REQUIRED");
+    // Replacing with a different non-empty set is still fine.
+    expect((await request(app).put(`/v1/isra/scenarios/${scen.id}`).set(authed(token))
+      .send({ includedVulns: ["VUL-001"] })).status).toBe(200);
+
     // 2. Add an existing control mapped to Annex A
     const ctlRes = await request(app)
       .post(`/v1/isra/scenarios/${scen.id}/controls`)

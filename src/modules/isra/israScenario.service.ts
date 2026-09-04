@@ -27,7 +27,7 @@ import {
 } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
-import { BadRequestError, NotFoundError } from "../../lib/errors";
+import { BadRequestError, NotFoundError, ConflictError } from "../../lib/errors";
 import { ISRA_RESIDUAL_BASIS, type IsraResidualBasis } from "../../db/models/israResidualCycle.models";
 
 const str = (v: unknown): string | null =>
@@ -643,8 +643,22 @@ export async function updateScenario(auth: AuthContext, id: string, input: Recor
 
   await scenario.save();
 
-  // Update vulns if provided
+  // Update vulns if provided.
+  //
+  // OD `isra2RemoveVuln` refuses to take the last one away ("A scenario must
+  // keep at least one vulnerability"): the risk model is
+  // threat -> vulnerability -> control, and the inherent score derives from
+  // the vuln set, so a scenario with none scores nothing and means nothing.
+  // This path replaces the set wholesale, so an empty array was wiping every
+  // vulnerability in one call. A never-populated Draft is a different state
+  // and is left alone — the invariant is on scenarios that have them.
   if (Array.isArray(input.includedVulns)) {
+    if (input.includedVulns.length === 0) {
+      const current = await IsraScenarioVuln.count({ where: { scenarioId: id } });
+      if (current > 0) {
+        throw new ConflictError("A scenario must keep at least one vulnerability", "SCENARIO_VULNS_REQUIRED");
+      }
+    }
     await IsraScenarioVuln.destroy({ where: { scenarioId: id } });
     for (const vulnId of input.includedVulns) {
       await IsraScenarioVuln.create({ scenarioId: id, vulnId: String(vulnId) });
