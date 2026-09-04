@@ -146,4 +146,43 @@ describe("competence gap dispositions (G-02)", () => {
     const logs = await AuditLog.count({ where: { organizationId: orgId, action: "competence.gap.trainingPlanClosed" } });
     expect(logs).toBe(1);
   });
+
+  it("reviews, un-reviews, and refuses a double review", async () => {
+      const { token } = await makeTenant("gd4", "GD4");
+      const gap = await makeOpenGap(token);
+
+      const reviewed = await request(app).post(`/v1/competence/gaps/${gap.id}/review`).set(authed(token)).send({});
+      expect(reviewed.status).toBe(200);
+      expect(reviewed.body.data.status).toBe("Reviewed");
+      // The columns exist on the model but nothing wrote them until this endpoint.
+      expect(reviewed.body.data.reviewedBy).toBeTruthy();
+      expect(reviewed.body.data.reviewedDate).toBeTruthy();
+
+      const again = await request(app).post(`/v1/competence/gaps/${gap.id}/review`).set(authed(token)).send({});
+      expect(again.status).toBe(409);
+      expect(again.body.error.code).toBe("ALREADY_REVIEWED");
+
+      const back = await request(app).post(`/v1/competence/gaps/${gap.id}/unreview`).set(authed(token)).send({});
+      expect(back.status).toBe(200);
+      expect(back.body.data).toMatchObject({ status: "Open", reviewedBy: null, reviewedDate: null });
+
+      // Un-reviewing something that was never reviewed is refused, not a no-op.
+      expect((await request(app).post(`/v1/competence/gaps/${gap.id}/unreview`).set(authed(token)).send({})).status).toBe(409);
+    });
+
+  it("reopen clears the No Training Required disposition", async () => {
+      const { token } = await makeTenant("gd5", "GD5");
+      const gap = await makeOpenGap(token);
+
+      await request(app).post(`/v1/competence/gaps/${gap.id}/no-training`).set(authed(token)).send({ reason: "Role retired" });
+      await request(app).put(`/v1/competence/gaps/${gap.id}`).set(authed(token)).send({ status: "Resolved" });
+
+      const reopened = await request(app).post(`/v1/competence/gaps/${gap.id}/reopen`).set(authed(token)).send({});
+      expect(reopened.status).toBe(200);
+      expect(reopened.body.data).toMatchObject({
+        status: "Open", noTraining: false, noTrainingReason: null, disposition: "Training Plan Required",
+      });
+      // Already open — refused rather than silently re-clearing.
+      expect((await request(app).post(`/v1/competence/gaps/${gap.id}/reopen`).set(authed(token)).send({})).status).toBe(409);
+    });
 });

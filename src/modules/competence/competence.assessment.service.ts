@@ -13,7 +13,7 @@ import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
 import { assertMayApprove } from "../approvals/approval.service";
 import { getCompSettings } from "./competence.service";
-import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { BadRequestError, ForbiddenError, NotFoundError, ConflictError } from "../../lib/errors";
 
 const nowIso = () => new Date().toISOString();
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : v == null || v === "" ? null : String(v));
@@ -436,10 +436,75 @@ export async function updateGap(auth: AuthContext, id: string, input: Record<str
   }
   if (input.status !== undefined) {
     const s = str(input.status) ?? "Open";
-    if (["Open", "Planned", "Resolved"].includes(s)) row.status = s;
+    if (["Open", "Reviewed", "Planned", "Resolved"].includes(s)) row.status = s;
   }
   await row.save();
   await audit(auth, row.orgId, "competence.gap.updated", "CompetenceGap", row.id, ip);
+  return withDisposition(row.get({ plain: true }));
+}
+
+/* ---------------------------------------------------------------------------
+ * Gap review lifecycle — OD's "Raised -> Reviewed -> Approved" flow on the
+ * Training Plan register ("Review the gap before approving it as a training
+ * plan").
+ *
+ * `reviewedBy`/`reviewedDate` have been columns on this model since it
+ * shipped, and the frontend has called all three of these endpoints, but none
+ * of them existed: the columns were never written by anything and the calls
+ * 404'd against the real API.
+ * ------------------------------------------------------------------------- */
+
+/** OD gap review — stamp who reviewed the disposition and when. */
+export async function reviewGap(auth: AuthContext, id: string, ip: string | null) {
+  const row = await requireGap(auth, id);
+  if (row.status === "Resolved") {
+    throw new ConflictError("A resolved gap cannot be reviewed — reopen it first", "GAP_RESOLVED");
+  }
+  if (row.status === "Reviewed") {
+    throw new ConflictError("This gap has already been reviewed", "ALREADY_REVIEWED");
+  }
+  row.status = "Reviewed";
+  row.reviewedBy = await actorName(auth);
+  row.reviewedDate = new Date().toISOString().slice(0, 10);
+  await row.save();
+  await audit(auth, row.orgId, "competence.gap.reviewed", "CompetenceGap", row.id, ip);
+  return withDisposition(row.get({ plain: true }));
+}
+
+/** OD gap un-review — send it back to Raised, clearing the stamp. */
+export async function unreviewGap(auth: AuthContext, id: string, ip: string | null) {
+  const row = await requireGap(auth, id);
+  if (row.status !== "Reviewed") {
+    throw new ConflictError("Only a reviewed gap can be returned to raised", "NOT_REVIEWED");
+  }
+  row.status = "Open";
+  row.reviewedBy = null;
+  row.reviewedDate = null;
+  await row.save();
+  await audit(auth, row.orgId, "competence.gap.unreviewed", "CompetenceGap", row.id, ip);
+  return withDisposition(row.get({ plain: true }));
+}
+
+/**
+ * Reopen a closed gap. Clears the resolution stamp AND the "No Training
+ * Required" disposition — a gap that is open again has no standing decision
+ * that training is unnecessary, so `computeGapDisposition` falls back to
+ * "Training Plan Required".
+ */
+export async function reopenGap(auth: AuthContext, id: string, ip: string | null) {
+  const row = await requireGap(auth, id);
+  if (row.status === "Open") {
+    throw new ConflictError("This gap is already open", "ALREADY_OPEN");
+  }
+  row.status = "Open";
+  row.resolvedBy = null;
+  row.resolvedDate = null;
+  row.reviewedBy = null;
+  row.reviewedDate = null;
+  row.noTraining = false;
+  row.noTrainingReason = null;
+  await row.save();
+  await audit(auth, row.orgId, "competence.gap.reopened", "CompetenceGap", row.id, ip);
   return withDisposition(row.get({ plain: true }));
 }
 

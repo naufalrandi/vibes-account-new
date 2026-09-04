@@ -69,6 +69,10 @@ const linkTrainingSchema = z.object({ trainingPlanId: z.string().min(1) });
 const noTrainingSchema = z.object({ reason: z.string() });
 export const linkGapTrainingPlan = wrap(async (req, res) => sendOk(res, await assess.linkGapTrainingPlan(guard(req), req.params.id as string, linkTrainingSchema.parse(req.body).trainingPlanId, ip(req))));
 export const markGapNoTrainingRequired = wrap(async (req, res) => sendOk(res, await assess.markGapNoTrainingRequired(guard(req), req.params.id as string, noTrainingSchema.parse(req.body).reason, ip(req))));
+// Gap review lifecycle (OD "Raised -> Reviewed -> Approved").
+export const reviewGap = wrap(async (req, res) => sendOk(res, await assess.reviewGap(guard(req), req.params.id as string, ip(req))));
+export const unreviewGap = wrap(async (req, res) => sendOk(res, await assess.unreviewGap(guard(req), req.params.id as string, ip(req))));
+export const reopenGap = wrap(async (req, res) => sendOk(res, await assess.reopenGap(guard(req), req.params.id as string, ip(req))));
 
 // Exam instruments (L1–L3)
 const skillFilter = (req: Request) => ({ skillId: typeof req.query.skillId === "string" ? req.query.skillId : undefined });
