@@ -37,6 +37,15 @@ const UNCALLED: Record<string, string> = {
   "/v1/performance-evaluation": "SOF-86: duplicate surface of /implementation/performance, but PerfEval owns the only ISO 9.1 indicator engine (perfIndicators.ts) in the codebase. Restored after a prior pass deleted it outright — kept mounted, unwired, until a follow-up decides whether the FE repoints here or the indicator engine gets ported to the generic path.",
 };
 
+/**
+ * Called by the real client with no route behind it, deliberately. Same contract
+ * as UNCALLED: a reason, and an owner. Anything not listed here must be built.
+ */
+const UNIMPLEMENTED: Record<string, string> = {
+  "public/purchase-orders":
+    "Supplier PO confirmation via an emailed token link (`getPoConfirmation`/`submitPoConfirmation`). Mock-only: there is no token issuance, expiry or replay defence in the backend, and this is the one unauthenticated write surface in the product — it needs a security design, not a route bolted onto the parity pass. The Confirm-PO screen works in mock and 404s for real until then.",
+};
+
 function frontendSource(): string {
   const out: string[] = [];
   const walk = (dir: string) => {
@@ -53,7 +62,7 @@ function frontendSource(): string {
 
 describe("backend endpoint reachability", () => {
   const app = fs.readFileSync(path.join(__dirname, "../app.ts"), "utf8");
-  const mounts = [...new Set([...app.matchAll(/\.use\(\s*["'`](\/v1\/[^"'`]+)/g)].map((m) => m[1]))];
+  const mounts = [...new Set([...app.matchAll(/\.use\(\s*["'`](\/v1[^"'`]*)/g)].map((m) => m[1]))];
 
   it("mounts no /v1 prefix the frontend never calls", () => {
     const fe = frontendSource();
@@ -92,19 +101,50 @@ describe("backend endpoint reachability", () => {
     walkRoutes(__dirname);
     const routeSrc = routes.join("\n");
 
-    const called = new Set<string>();
-    for (const m of real.matchAll(/`(\/[A-Za-z0-9/${}._:-]+)`/g)) {
-      const segs = m[1].split("/").filter((x) => x && !x.includes("${"));
-      const last = segs[segs.length - 1]?.split("?")[0];
-      if (segs.length >= 2 && last && /^[a-z][a-z0-9-]{2,}$/.test(last)) called.add(last);
+    // Only template literals passed to `apiFetch` count — a backtick inside a
+    // prose comment is not a call. And cut each literal at its first
+    // interpolation: splitting on "/" alone glued the last segment to the
+    // interpolation whenever one immediately followed it, as in
+    // `/hr-employees${q ? ...}`, so the segment was dropped and the endpoint
+    // went unchecked. That is how `GET /hr-employees` (Team Management's
+    // no-access employee count) sat unimplemented behind a green guard.
+    const calledPaths = new Set<string>();
+    for (const m of real.matchAll(/apiFetch[^(\n]*\(\s*`(\/[^`]*)/g)) {
+      const segs = m[1].split("${")[0].split("/").filter(Boolean).map((x) => x.split("?")[0]);
+      if (segs.length && /^[a-z][a-z0-9-]{2,}$/.test(segs[0])) calledPaths.add(segs.join("/"));
     }
-    const missing = [...called]
-      .filter((seg) => !routeSrc.includes(`"/${seg}`) && !routeSrc.includes(`/${seg}"`) && !routeSrc.includes(`/${seg}/`))
+
+    // A one-segment call names a mount prefix, which lives in app.ts; a deeper
+    // call names an action inside a route table. Check each where it belongs.
+    // `app.use("/v1", ...)` is a blanket mount, so a prefix it serves shows up
+    // in the router's own path declarations rather than in app.ts.
+    const blanket = mounts.includes("/v1");
+    const mounted = (seg: string) =>
+      mounts.includes(`/v1/${seg}`) || (blanket && routeSrc.includes(`"/${seg}`));
+    const missing = [...calledPaths]
+      .filter((p) => {
+        const segs = p.split("/");
+        if (!mounted(segs[0])) return true;
+        const last = segs[segs.length - 1];
+        if (segs.length < 2 || !/^[a-z][a-z0-9-]{2,}$/.test(last)) return false;
+        return !routeSrc.includes(`"/${last}`) && !routeSrc.includes(`/${last}"`) && !routeSrc.includes(`/${last}/`);
+      })
+      .filter((p) => !(p in UNIMPLEMENTED))
       .sort();
     expect(missing).toEqual([]);
   });
 
   it("keeps UNCALLED honest — no entry for a prefix that is no longer mounted", () => {
     expect(Object.keys(UNCALLED).filter((m) => !mounts.includes(m))).toEqual([]);
+  });
+
+  it("keeps UNIMPLEMENTED honest — no entry for a path that now has a route", () => {
+    const real = fs.readFileSync(path.join(FE, "lib/api/realClient.ts"), "utf8");
+    // An entry that the frontend no longer calls, or that is now mounted, is a
+    // stale excuse — drop it rather than let it shield a future regression.
+    for (const p of Object.keys(UNIMPLEMENTED)) {
+      expect(real).toContain(`/${p}`);
+      expect(mounts).not.toContain(`/v1/${p.split("/")[0]}`);
+    }
   });
 });

@@ -70,6 +70,7 @@ import { saasRoutes } from "./modules/saas/saas.routes";
 import { personnelRecordsRoutes } from "./modules/personnel-records/personnelRecords.routes";
 import { personnelContractRoutes } from "./modules/personnel-records/personnelContractComp.routes";
 import { personnelProfileRoutes } from "./modules/personnel-records/personnelProfile.routes";
+import { hrEmployeeRoutes } from "./modules/users/hrEmployee.routes";
 
 export function createApp() {
   const app = express();
@@ -105,6 +106,9 @@ export function createApp() {
   app.use("/v1/users/:userId", authenticate, tenantScope, personnelContractRoutes);
   // List-level "Add Profile" — creates a new personnel record (User row).
   app.use("/v1/personnel-profiles", authenticate, tenantScope, personnelProfileRoutes);
+  // Roster entries with no platform access (OD `tmProvisioned`) — Team
+  // Management's "No access" stat card.
+  app.use("/v1/hr-employees", authenticate, tenantScope, hrEmployeeRoutes);
   app.use("/v1/organizations", authenticate, tenantScope, organizationRoutes);
   app.use("/v1/org-settings", authenticate, tenantScope, orgSettingsRoutes);
   app.use("/v1/registration-requests", authenticate, tenantScope, registrationRoutes);
