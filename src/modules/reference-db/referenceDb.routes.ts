@@ -4,8 +4,10 @@ import { requireAction } from "../../middleware/requireAction";
 import { ACTIONS } from "../iam/actions.catalog";
 
 // Reuses the existing Enterprise business-unit-register permissions — these
-// routes directly replace the generic BusinessRegister for the 5 `ent-db-*`
+// routes directly replace the generic BusinessRegister for the `ent-db-*`
 // modules, so the permission boundary should not change underneath admins.
+// Nine resources now: the original five plus banks, holidays,
+// business-processes and fiscal-periods, which the FE called all along.
 const read = requireAction(ACTIONS.BUSINESS_READ);
 const manage = requireAction(ACTIONS.BUSINESS_MANAGE);
 
