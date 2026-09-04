@@ -1,7 +1,15 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
 
-export type EmploymentStatus = "Probation" | "Active" | "Contract Ended" | "Terminated";
+/**
+ * OD `PERSON_EMP_STATUS` (js/modules.js). Probation is deliberately absent —
+ * OD treats it as a contract type (`ContractType`'s "Probation") plus a
+ * probation end date, not as an employment status.
+ */
+export const EMPLOYMENT_STATUSES = [
+  "Onboarding", "Active", "On Leave", "Suspended", "Offboarding", "Exited", "Alumni",
+] as const;
+export type EmploymentStatus = (typeof EMPLOYMENT_STATUSES)[number];
 export type ContractType = "Permanent" | "Fixed-Term" | "Probation" | "Internship" | "Outsourced";
 
 /**
@@ -66,7 +74,7 @@ PersonnelProfile.init(
     emergencyContactRelationship: { type: DataTypes.STRING, allowNull: true, field: "emergency_contact_relationship" },
     employeeId: { type: DataTypes.STRING, allowNull: true, field: "employee_id" },
     employmentStatus: {
-      type: DataTypes.ENUM("Probation", "Active", "Contract Ended", "Terminated"),
+      type: DataTypes.ENUM(...EMPLOYMENT_STATUSES),
       allowNull: true,
       field: "employment_status",
     },

@@ -41,3 +41,17 @@ describe("ONBOARD_TEMPLATE — OD parity", () => {
     }
   });
 });
+
+import { EMPLOYMENT_STATUSES } from "../../db/models/personnelProfile.model";
+
+describe("PERSON_EMP_STATUS — OD parity", () => {
+  it("matches OD's seven employment statuses, in order", () => {
+    expect([...EMPLOYMENT_STATUSES]).toEqual([
+      "Onboarding", "Active", "On Leave", "Suspended", "Offboarding", "Exited", "Alumni",
+    ]);
+  });
+
+  it("has no Probation status — OD carries probation on the contract", () => {
+    expect(EMPLOYMENT_STATUSES).not.toContain("Probation");
+  });
+});

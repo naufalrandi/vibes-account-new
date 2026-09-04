@@ -90,6 +90,14 @@ export const addOnboardingItem = wrap(async (req, res) =>
   ok(res, await onboarding.addOnboardingItem(guard(req), req.params.userId as string, onboardingItemSchema.parse(req.body).label), 201),
 );
 
+/** OD `personOnboardComplete` / `personOnboardReopen`. */
+export const completeOnboarding = wrap(async (req, res) =>
+  ok(res, await onboarding.completeOnboarding(guard(req), req.params.userId as string)),
+);
+export const reopenOnboarding = wrap(async (req, res) =>
+  ok(res, await onboarding.reopenOnboarding(guard(req), req.params.userId as string)),
+);
+
 const onboardingDoneSchema = z.object({ done: z.boolean() });
 export const setOnboardingDone = wrap(async (req, res) =>
   ok(

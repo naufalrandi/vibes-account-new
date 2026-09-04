@@ -1,6 +1,7 @@
 import { PersonnelOnboardingItem } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { requireManagedUser } from "./user.service";
+import { getOrCreateProfile } from "./personnelProfile.service";
 import { logPersonnelActivity } from "./personnelActivity.service";
 import { actorName } from "../record-events/recordEvent.service";
 import { BadRequestError, NotFoundError } from "../../lib/errors";
@@ -84,4 +85,37 @@ export async function setOnboardingItemDone(auth: AuthContext, userId: string, i
   await row.save();
   await logPersonnelActivity(auth, user.orgId, userId, done ? "onboarding.item_completed" : "onboarding.item_reopened", row.label);
   return row.get({ plain: true });
+}
+
+/**
+ * OD `personOnboardComplete` (js/modules.js) — close out onboarding and bring
+ * the employee fully on.
+ *
+ * The gate is OD's: every REQUIRED task must be done ("Complete all required
+ * tasks first"). Optional tasks may be left open. On success the employment
+ * status moves Onboarding -> Active, which is the transition the Onboarding
+ * status exists to carry.
+ */
+export async function completeOnboarding(auth: AuthContext, userId: string) {
+  const user = await requireManagedUser(auth, userId);
+  const items = await PersonnelOnboardingItem.findAll({ where: { userId, orgId: user.orgId } });
+  const outstanding = items.filter((i) => i.required && !i.done);
+  if (outstanding.length > 0) {
+    throw new BadRequestError("Complete all required tasks first", "ONBOARDING_REQUIRED_OUTSTANDING");
+  }
+  const profile = await getOrCreateProfile(userId);
+  profile.employmentStatus = "Active";
+  await profile.save();
+  await logPersonnelActivity(auth, user.orgId, userId, "onboarding.completed", null);
+  return profile.get({ plain: true });
+}
+
+/** OD `personOnboardReopen` — put someone back into onboarding. */
+export async function reopenOnboarding(auth: AuthContext, userId: string) {
+  const user = await requireManagedUser(auth, userId);
+  const profile = await getOrCreateProfile(userId);
+  profile.employmentStatus = "Onboarding";
+  await profile.save();
+  await logPersonnelActivity(auth, user.orgId, userId, "onboarding.reopened", null);
+  return profile.get({ plain: true });
 }

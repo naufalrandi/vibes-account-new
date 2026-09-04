@@ -26,6 +26,8 @@ const onboardingManage = requireAction(ACTIONS.PERSONNEL_ONBOARDING_MANAGE);
 personnelContractRoutes.get("/onboarding", onboardingRead, c.listOnboarding);
 personnelContractRoutes.post("/onboarding", onboardingManage, c.addOnboardingItem);
 personnelContractRoutes.put("/onboarding/:itemId", onboardingManage, c.setOnboardingDone);
+personnelContractRoutes.post("/onboarding/complete", onboardingManage, c.completeOnboarding);
+personnelContractRoutes.post("/onboarding/reopen", onboardingManage, c.reopenOnboarding);
 
 const compRead = requireAction(ACTIONS.PERSONNEL_COMPENSATION_READ);
 const compManage = requireAction(ACTIONS.PERSONNEL_COMPENSATION_MANAGE);

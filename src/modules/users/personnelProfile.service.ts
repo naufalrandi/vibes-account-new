@@ -43,7 +43,7 @@ export interface EmploymentInput {
 }
 
 /** Fetch (or lazily create) the 1:1 profile row for a managed user. */
-async function getOrCreateProfile(userId: string): Promise<PersonnelProfile> {
+export async function getOrCreateProfile(userId: string): Promise<PersonnelProfile> {
   const [profile] = await PersonnelProfile.findOrCreate({ where: { userId }, defaults: { userId } });
   return profile;
 }
@@ -193,14 +193,24 @@ export async function convertContract(
   return profile;
 }
 
-/** Confirm a completed probation period, moving the employee to Active status. */
+/**
+ * Confirm a completed probation period.
+ *
+ * Probation is a property of the CONTRACT, not of employment status — OD keeps
+ * it on `contractType`/`probationEnd` and never had a "Probation" employment
+ * status (`PERSON_EMP_STATUS`). Someone on probation is employed and Active.
+ * So this gates on the contract type and converts the contract to Permanent,
+ * rather than moving an employment status that was never the right home for it.
+ */
 export async function confirmProbation(auth: AuthContext, userId: string, ip: string | null): Promise<PersonnelProfile> {
   const user = await requireManagedUser(auth, userId);
   const profile = await getOrCreateProfile(userId);
-  if (profile.employmentStatus !== "Probation") {
+  if (profile.contractType !== "Probation") {
     throw new BadRequestError("User is not currently on probation", "NOT_ON_PROBATION");
   }
-  profile.employmentStatus = "Active";
+  profile.contractType = "Permanent";
+  // Confirming probation also brings anyone still mid-onboarding fully on.
+  if (profile.employmentStatus !== "Active") profile.employmentStatus = "Active";
   await profile.save();
   await writeAudit({
     actorUserId: auth.userId,
