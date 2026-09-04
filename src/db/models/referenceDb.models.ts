@@ -155,3 +155,126 @@ ReferenceCountry.init(
   },
   { sequelize, tableName: "reference_countries", underscored: true },
 );
+
+
+/* ---------------------------------------------------------------------------
+ * Enterprise -> Database master data the FE has always read from
+ * `/v1/reference-db/*` — Banks, Holidays, Fiscal Periods and the Business
+ * Process catalog. The routes were never built, so those four screens 404'd.
+ * All four are org-scoped, like every other reference table here.
+ * ------------------------------------------------------------------------- */
+
+export class ReferenceBank extends Model<InferAttributes<ReferenceBank>, InferCreationAttributes<ReferenceBank>> {
+  declare id: CreationOptional<string>;
+  declare orgId: string;
+  declare country: string;
+  declare countryName: string;
+  declare name: string;
+  declare code: string;
+  declare swift: string;
+  /** Commercial | State | Digital | Islamic */
+  declare type: string;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+ReferenceBank.init(
+  {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    orgId: { type: DataTypes.UUID, allowNull: false, field: "org_id" },
+    country: { type: DataTypes.STRING, allowNull: false, defaultValue: "" },
+    countryName: { type: DataTypes.STRING, allowNull: false, defaultValue: "", field: "country_name" },
+    name: { type: DataTypes.STRING, allowNull: false },
+    code: { type: DataTypes.STRING, allowNull: false, defaultValue: "" },
+    swift: { type: DataTypes.STRING, allowNull: false, defaultValue: "" },
+    type: { type: DataTypes.STRING, allowNull: false, defaultValue: "Commercial" },
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE,
+  },
+  { sequelize, tableName: "reference_banks", underscored: true },
+);
+
+export class ReferenceHoliday extends Model<InferAttributes<ReferenceHoliday>, InferCreationAttributes<ReferenceHoliday>> {
+  declare id: CreationOptional<string>;
+  declare orgId: string;
+  declare country: string;
+  declare countryName: string;
+  declare date: string;
+  declare name: string;
+  /** Public | Religious | Company */
+  declare type: string;
+  declare dayOff: CreationOptional<boolean>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+ReferenceHoliday.init(
+  {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    orgId: { type: DataTypes.UUID, allowNull: false, field: "org_id" },
+    country: { type: DataTypes.STRING, allowNull: false, defaultValue: "" },
+    countryName: { type: DataTypes.STRING, allowNull: false, defaultValue: "", field: "country_name" },
+    date: { type: DataTypes.STRING, allowNull: false },
+    name: { type: DataTypes.STRING, allowNull: false },
+    type: { type: DataTypes.STRING, allowNull: false, defaultValue: "Public" },
+    dayOff: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: "day_off" },
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE,
+  },
+  { sequelize, tableName: "reference_holidays", underscored: true },
+);
+
+export class ReferenceBpProcess extends Model<InferAttributes<ReferenceBpProcess>, InferCreationAttributes<ReferenceBpProcess>> {
+  declare id: CreationOptional<string>;
+  declare orgId: string;
+  declare group: string;
+  declare subgroup: CreationOptional<string>;
+  declare name: string;
+  declare desc: CreationOptional<string>;
+  /** Active | Inactive | Archived */
+  declare status: CreationOptional<string>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+ReferenceBpProcess.init(
+  {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    orgId: { type: DataTypes.UUID, allowNull: false, field: "org_id" },
+    // "group" is reserved in SQL — the column is quoted by Sequelize, but the
+    // attribute keeps OD's name so the FE contract is unchanged.
+    group: { type: DataTypes.STRING, allowNull: false },
+    subgroup: { type: DataTypes.STRING, allowNull: false, defaultValue: "General" },
+    name: { type: DataTypes.STRING, allowNull: false },
+    desc: { type: DataTypes.TEXT, allowNull: false, defaultValue: "" },
+    status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Active" },
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE,
+  },
+  { sequelize, tableName: "reference_bp_processes", underscored: true },
+);
+
+/** One row per org — the fiscal-year config plus its generated periods. */
+export interface FiscalPeriodRow { id: string; name: string; start: string; end: string; status: string }
+
+export class ReferenceFiscalConfig extends Model<InferAttributes<ReferenceFiscalConfig>, InferCreationAttributes<ReferenceFiscalConfig>> {
+  declare id: CreationOptional<string>;
+  declare orgId: string;
+  declare fy: string;
+  declare startMonth: CreationOptional<number>;
+  /** Monthly | Quarterly */
+  declare periodType: CreationOptional<string>;
+  declare periods: CreationOptional<FiscalPeriodRow[]>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+ReferenceFiscalConfig.init(
+  {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    orgId: { type: DataTypes.UUID, allowNull: false, field: "org_id", unique: true },
+    fy: { type: DataTypes.STRING, allowNull: false },
+    startMonth: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1, field: "start_month" },
+    periodType: { type: DataTypes.STRING, allowNull: false, defaultValue: "Monthly", field: "period_type" },
+    periods: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE,
+  },
+  { sequelize, tableName: "reference_fiscal_config", underscored: true },
+);

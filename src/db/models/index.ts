@@ -47,7 +47,7 @@ import { ScopeDataset, MsScope } from "./scope.models";
 import { IpParty, IpRequirement } from "./interestedParty.models";
 import { DemoTenant } from "./demoTenant.model";
 import { BusinessRecord } from "./businessRecord.model";
-import { ReferenceSectorFramework, ReferenceIndustrySector, ReferenceEducationField, ReferenceEducationLevel, ReferenceCountry } from "./referenceDb.models";
+import { ReferenceSectorFramework, ReferenceIndustrySector, ReferenceEducationField, ReferenceEducationLevel, ReferenceCountry, ReferenceBank, ReferenceHoliday, ReferenceBpProcess, ReferenceFiscalConfig } from "./referenceDb.models";
 import { WorkUnit } from "./workUnit.model";
 import { RoleTemplate, RoleAssignment } from "./roleRegister.models";
 import { RecordEvent } from "./recordEvent.model";
@@ -726,4 +726,8 @@ export {
   PersonnelOnboardingItem,
   PersonnelCompensation,
   DoaMatrixEntry,
+  ReferenceBank,
+  ReferenceHoliday,
+  ReferenceBpProcess,
+  ReferenceFiscalConfig,
 };

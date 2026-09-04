@@ -1,11 +1,12 @@
 import { randomUUID } from "crypto";
 import type { AuthContext } from "../../lib/scope";
-import { BadRequestError, NotFoundError } from "../../lib/errors";
+import { BadRequestError, ConflictError, NotFoundError } from "../../lib/errors";
 import { writeAudit } from "../audit/audit.service";
 import { sequelize } from "../../db/sequelize";
 import { CompetenceRole } from "../../db/models/competence.models";
 import {
   ReferenceSectorFramework, ReferenceIndustrySector, ReferenceEducationField, ReferenceEducationLevel, ReferenceCountry,
+  ReferenceBank, ReferenceHoliday, ReferenceBpProcess, ReferenceFiscalConfig, type FiscalPeriodRow,
 } from "../../db/models/referenceDb.models";
 import { ISIC, NACE, KBLI, ISCEDF, type HierNode } from "../reference/reference.data";
 import { COUNTRY_SEED } from "./data/countrySeed";
@@ -377,4 +378,227 @@ export async function deleteCountry(auth: AuthContext, id: string, ip: string | 
   if (!row) throw new NotFoundError("Country not found", "COUNTRY_NOT_FOUND");
   await row.destroy();
   await logAudit(auth, "referencedb.country.deleted", "ReferenceCountry", id, ip);
+}
+
+/* ===========================================================================
+ * Banks / Holidays / Business Processes / Fiscal Periods
+ *
+ * The four Enterprise → Database screens whose endpoints the frontend has
+ * always called and this module never implemented. Same org-scoped CRUD shape
+ * as the tables above.
+ * ======================================================================== */
+
+const BANK_TYPES = ["Commercial", "State", "Digital", "Islamic"];
+const HOLIDAY_TYPES = ["Public", "Religious", "Company"];
+const BP_STATUSES = ["Active", "Inactive", "Archived"];
+
+function pick(value: unknown, allowed: string[], fallback: string): string {
+  const v = str(value);
+  return v && allowed.includes(v) ? v : fallback;
+}
+
+// ---- Banks ----------------------------------------------------------------
+export async function listBanks(auth: AuthContext) {
+  return (await ReferenceBank.findAll({ where: { orgId: auth.orgId }, order: [["name", "ASC"]] })).map((r) => r.get({ plain: true }));
+}
+export async function createBank(auth: AuthContext, input: Record<string, unknown>, ip: string | null) {
+  const name = str(input.name);
+  if (!name) throw new BadRequestError("Bank name is required", "NAME_REQUIRED");
+  const row = await ReferenceBank.create({
+    orgId: auth.orgId, name,
+    country: str(input.country) ?? "", countryName: str(input.countryName) ?? "",
+    code: str(input.code) ?? "", swift: str(input.swift) ?? "",
+    type: pick(input.type, BANK_TYPES, "Commercial"),
+  });
+  await logAudit(auth, "referencedb.bank.created", "ReferenceBank", row.id, ip);
+  return row.get({ plain: true });
+}
+export async function updateBank(auth: AuthContext, id: string, input: Record<string, unknown>, ip: string | null) {
+  const row = await ReferenceBank.findOne({ where: { id, orgId: auth.orgId } });
+  if (!row) throw new NotFoundError("Bank not found", "BANK_NOT_FOUND");
+  if (input.name !== undefined) {
+    const name = str(input.name);
+    if (!name) throw new BadRequestError("Bank name is required", "NAME_REQUIRED");
+    row.name = name;
+  }
+  for (const k of ["country", "countryName", "code", "swift"] as const) {
+    if (input[k] !== undefined) row[k] = str(input[k]) ?? "";
+  }
+  if (input.type !== undefined) row.type = pick(input.type, BANK_TYPES, row.type);
+  await row.save();
+  await logAudit(auth, "referencedb.bank.updated", "ReferenceBank", row.id, ip);
+  return row.get({ plain: true });
+}
+export async function deleteBank(auth: AuthContext, id: string, ip: string | null) {
+  const row = await ReferenceBank.findOne({ where: { id, orgId: auth.orgId } });
+  if (!row) throw new NotFoundError("Bank not found", "BANK_NOT_FOUND");
+  await row.destroy();
+  await logAudit(auth, "referencedb.bank.deleted", "ReferenceBank", id, ip);
+  return { id };
+}
+
+// ---- Holidays -------------------------------------------------------------
+export async function listHolidays(auth: AuthContext) {
+  return (await ReferenceHoliday.findAll({ where: { orgId: auth.orgId }, order: [["date", "ASC"]] })).map((r) => r.get({ plain: true }));
+}
+export async function createHoliday(auth: AuthContext, input: Record<string, unknown>, ip: string | null) {
+  const name = str(input.name);
+  const date = str(input.date);
+  if (!name) throw new BadRequestError("Holiday name is required", "NAME_REQUIRED");
+  if (!date) throw new BadRequestError("Holiday date is required", "DATE_REQUIRED");
+  const row = await ReferenceHoliday.create({
+    orgId: auth.orgId, name, date,
+    country: str(input.country) ?? "", countryName: str(input.countryName) ?? "",
+    type: pick(input.type, HOLIDAY_TYPES, "Public"),
+    dayOff: input.dayOff === undefined ? true : !!input.dayOff,
+  });
+  await logAudit(auth, "referencedb.holiday.created", "ReferenceHoliday", row.id, ip);
+  return row.get({ plain: true });
+}
+export async function updateHoliday(auth: AuthContext, id: string, input: Record<string, unknown>, ip: string | null) {
+  const row = await ReferenceHoliday.findOne({ where: { id, orgId: auth.orgId } });
+  if (!row) throw new NotFoundError("Holiday not found", "HOLIDAY_NOT_FOUND");
+  if (input.name !== undefined) {
+    const name = str(input.name);
+    if (!name) throw new BadRequestError("Holiday name is required", "NAME_REQUIRED");
+    row.name = name;
+  }
+  if (input.date !== undefined) {
+    const date = str(input.date);
+    if (!date) throw new BadRequestError("Holiday date is required", "DATE_REQUIRED");
+    row.date = date;
+  }
+  for (const k of ["country", "countryName"] as const) if (input[k] !== undefined) row[k] = str(input[k]) ?? "";
+  if (input.type !== undefined) row.type = pick(input.type, HOLIDAY_TYPES, row.type);
+  if (input.dayOff !== undefined) row.dayOff = !!input.dayOff;
+  await row.save();
+  await logAudit(auth, "referencedb.holiday.updated", "ReferenceHoliday", row.id, ip);
+  return row.get({ plain: true });
+}
+export async function deleteHoliday(auth: AuthContext, id: string, ip: string | null) {
+  const row = await ReferenceHoliday.findOne({ where: { id, orgId: auth.orgId } });
+  if (!row) throw new NotFoundError("Holiday not found", "HOLIDAY_NOT_FOUND");
+  await row.destroy();
+  await logAudit(auth, "referencedb.holiday.deleted", "ReferenceHoliday", id, ip);
+  return { id };
+}
+
+// ---- Business process catalog ---------------------------------------------
+export async function listBpProcesses(auth: AuthContext) {
+  return (await ReferenceBpProcess.findAll({
+    where: { orgId: auth.orgId }, order: [["group", "ASC"], ["subgroup", "ASC"], ["name", "ASC"]],
+  })).map((r) => r.get({ plain: true }));
+}
+export async function createBpProcess(auth: AuthContext, input: Record<string, unknown>, ip: string | null) {
+  const name = str(input.name);
+  const group = str(input.group);
+  if (!name) throw new BadRequestError("Process name is required", "NAME_REQUIRED");
+  if (!group) throw new BadRequestError("Process group is required", "GROUP_REQUIRED");
+  const subgroup = str(input.subgroup) || "General";
+  // OD `bpCatalogSave`: a process is unique within its group / sub-group.
+  const dup = await ReferenceBpProcess.findOne({ where: { orgId: auth.orgId, group, subgroup, name } });
+  if (dup) throw new ConflictError("That process already exists in this group / sub-group", "PROCESS_EXISTS");
+  const row = await ReferenceBpProcess.create({
+    orgId: auth.orgId, group, subgroup, name,
+    desc: str(input.desc) ?? "", status: pick(input.status, BP_STATUSES, "Active"),
+  });
+  await logAudit(auth, "referencedb.bpprocess.created", "ReferenceBpProcess", row.id, ip);
+  return row.get({ plain: true });
+}
+export async function updateBpProcess(auth: AuthContext, id: string, input: Record<string, unknown>, ip: string | null) {
+  const row = await ReferenceBpProcess.findOne({ where: { id, orgId: auth.orgId } });
+  if (!row) throw new NotFoundError("Business process not found", "PROCESS_NOT_FOUND");
+  const group = input.group !== undefined ? str(input.group) || row.group : row.group;
+  const subgroup = input.subgroup !== undefined ? str(input.subgroup) || "General" : row.subgroup;
+  const name = input.name !== undefined ? str(input.name) : row.name;
+  if (!name) throw new BadRequestError("Process name is required", "NAME_REQUIRED");
+  const dup = await ReferenceBpProcess.findOne({ where: { orgId: auth.orgId, group, subgroup, name } });
+  if (dup && dup.id !== row.id) throw new ConflictError("That process already exists in this group / sub-group", "PROCESS_EXISTS");
+  row.group = group; row.subgroup = subgroup; row.name = name;
+  if (input.desc !== undefined) row.desc = str(input.desc) ?? "";
+  if (input.status !== undefined) row.status = pick(input.status, BP_STATUSES, row.status);
+  await row.save();
+  await logAudit(auth, "referencedb.bpprocess.updated", "ReferenceBpProcess", row.id, ip);
+  return row.get({ plain: true });
+}
+export async function deleteBpProcess(auth: AuthContext, id: string, ip: string | null) {
+  const row = await ReferenceBpProcess.findOne({ where: { id, orgId: auth.orgId } });
+  if (!row) throw new NotFoundError("Business process not found", "PROCESS_NOT_FOUND");
+  await row.destroy();
+  await logAudit(auth, "referencedb.bpprocess.deleted", "ReferenceBpProcess", id, ip);
+  return { id };
+}
+
+// ---- Fiscal periods -------------------------------------------------------
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** Generate the period rows for a fiscal year — 12 monthly or 4 quarterly. */
+function buildPeriods(fy: string, startMonth: number, periodType: string): FiscalPeriodRow[] {
+  const year = Number(fy) || new Date().getFullYear();
+  const count = periodType === "Quarterly" ? 4 : 12;
+  const step = periodType === "Quarterly" ? 3 : 1;
+  const rows: FiscalPeriodRow[] = [];
+  for (let i = 0; i < count; i++) {
+    const offset = (startMonth - 1) + i * step;
+    const y = year + Math.floor(offset / 12);
+    const m = offset % 12;
+    const endOffset = offset + step - 1;
+    const ey = year + Math.floor(endOffset / 12);
+    const em = endOffset % 12;
+    const last = new Date(Date.UTC(ey, em + 1, 0)).getUTCDate();
+    rows.push({
+      id: `${fy}-P${i + 1}`,
+      name: periodType === "Quarterly" ? `Q${i + 1} ${y}` : `${MONTHS[m]} ${y}`,
+      start: `${y}-${String(m + 1).padStart(2, "0")}-01`,
+      end: `${ey}-${String(em + 1).padStart(2, "0")}-${String(last).padStart(2, "0")}`,
+      status: "Open",
+    });
+  }
+  return rows;
+}
+
+/** Lazily create the org's fiscal config on first read, like the other reference tables. */
+export async function getFiscalConfig(auth: AuthContext) {
+  const existing = await ReferenceFiscalConfig.findOne({ where: { orgId: auth.orgId } });
+  if (existing) return existing.get({ plain: true });
+  const fy = String(new Date().getFullYear());
+  const row = await ReferenceFiscalConfig.create({
+    orgId: auth.orgId, fy, startMonth: 1, periodType: "Monthly", periods: buildPeriods(fy, 1, "Monthly"),
+  });
+  return row.get({ plain: true });
+}
+
+export async function updateFiscalConfig(auth: AuthContext, input: Record<string, unknown>, ip: string | null) {
+  await getFiscalConfig(auth);
+  const row = (await ReferenceFiscalConfig.findOne({ where: { orgId: auth.orgId } }))!;
+  const fy = input.fy !== undefined ? str(input.fy) || row.fy : row.fy;
+  const startMonth = input.startMonth !== undefined ? Number(input.startMonth) : row.startMonth;
+  if (!Number.isInteger(startMonth) || startMonth < 1 || startMonth > 12) {
+    throw new BadRequestError("Start month must be 1-12", "START_MONTH_INVALID");
+  }
+  const periodType = input.periodType !== undefined ? pick(input.periodType, ["Monthly", "Quarterly"], row.periodType) : row.periodType;
+  // Any of the three changing re-derives the periods; per-period status is
+  // reset with them, since the old rows no longer describe the same spans.
+  const changed = fy !== row.fy || startMonth !== row.startMonth || periodType !== row.periodType;
+  row.fy = fy; row.startMonth = startMonth; row.periodType = periodType;
+  if (changed) row.periods = buildPeriods(fy, startMonth, periodType);
+  await row.save();
+  await logAudit(auth, "referencedb.fiscal.updated", "ReferenceFiscalConfig", row.id, ip);
+  return row.get({ plain: true });
+}
+
+/** OD's per-period Open/Closed toggle. */
+export async function setFiscalPeriodStatus(auth: AuthContext, periodId: string, status: string, ip: string | null) {
+  if (status !== "Open" && status !== "Closed") {
+    throw new BadRequestError("Status must be Open or Closed", "STATUS_INVALID");
+  }
+  await getFiscalConfig(auth);
+  const row = (await ReferenceFiscalConfig.findOne({ where: { orgId: auth.orgId } }))!;
+  const periods = row.periods ?? [];
+  const target = periods.find((p) => p.id === periodId);
+  if (!target) throw new NotFoundError("Fiscal period not found", "PERIOD_NOT_FOUND");
+  row.periods = periods.map((p) => (p.id === periodId ? { ...p, status } : p));
+  await row.save();
+  await logAudit(auth, "referencedb.fiscalperiod.statusSet", "ReferenceFiscalConfig", row.id, ip);
+  return row.get({ plain: true });
 }

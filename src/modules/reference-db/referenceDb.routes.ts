@@ -39,3 +39,22 @@ referenceDbRoutes.get("/countries", read, c.listCountries);
 referenceDbRoutes.post("/countries", manage, c.createCountry);
 referenceDbRoutes.put("/countries/:id", manage, c.updateCountry);
 referenceDbRoutes.delete("/countries/:id", manage, c.deleteCountry);
+
+referenceDbRoutes.get("/banks", read, c.listBanks);
+referenceDbRoutes.post("/banks", manage, c.createBank);
+referenceDbRoutes.put("/banks/:id", manage, c.updateBank);
+referenceDbRoutes.delete("/banks/:id", manage, c.deleteBank);
+
+referenceDbRoutes.get("/holidays", read, c.listHolidays);
+referenceDbRoutes.post("/holidays", manage, c.createHoliday);
+referenceDbRoutes.put("/holidays/:id", manage, c.updateHoliday);
+referenceDbRoutes.delete("/holidays/:id", manage, c.deleteHoliday);
+
+referenceDbRoutes.get("/business-processes", read, c.listBpProcesses);
+referenceDbRoutes.post("/business-processes", manage, c.createBpProcess);
+referenceDbRoutes.put("/business-processes/:id", manage, c.updateBpProcess);
+referenceDbRoutes.delete("/business-processes/:id", manage, c.deleteBpProcess);
+
+referenceDbRoutes.get("/fiscal-periods", read, c.getFiscalConfig);
+referenceDbRoutes.put("/fiscal-periods", manage, c.updateFiscalConfig);
+referenceDbRoutes.patch("/fiscal-periods/:id", manage, c.setFiscalPeriodStatus);

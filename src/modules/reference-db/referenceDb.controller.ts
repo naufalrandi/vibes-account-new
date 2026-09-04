@@ -47,3 +47,29 @@ export const listCountries = wrap(async (req, res) => ok(res, await service.list
 export const createCountry = wrap(async (req, res) => ok(res, await service.createCountry(guard(req), body.parse(req.body), ip(req)), 201));
 export const updateCountry = wrap(async (req, res) => ok(res, await service.updateCountry(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
 export const deleteCountry = wrap(async (req, res) => { await service.deleteCountry(guard(req), req.params.id as string, ip(req)); ok(res, { id: req.params.id }); });
+
+// Banks
+export const listBanks = wrap(async (req, res) => ok(res, await service.listBanks(guard(req))));
+export const createBank = wrap(async (req, res) => ok(res, await service.createBank(guard(req), body.parse(req.body), ip(req)), 201));
+export const updateBank = wrap(async (req, res) => ok(res, await service.updateBank(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
+export const deleteBank = wrap(async (req, res) => { await service.deleteBank(guard(req), req.params.id as string, ip(req)); ok(res, { id: req.params.id }); });
+
+// Holidays
+export const listHolidays = wrap(async (req, res) => ok(res, await service.listHolidays(guard(req))));
+export const createHoliday = wrap(async (req, res) => ok(res, await service.createHoliday(guard(req), body.parse(req.body), ip(req)), 201));
+export const updateHoliday = wrap(async (req, res) => ok(res, await service.updateHoliday(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
+export const deleteHoliday = wrap(async (req, res) => { await service.deleteHoliday(guard(req), req.params.id as string, ip(req)); ok(res, { id: req.params.id }); });
+
+// Business process catalog
+export const listBpProcesses = wrap(async (req, res) => ok(res, await service.listBpProcesses(guard(req))));
+export const createBpProcess = wrap(async (req, res) => ok(res, await service.createBpProcess(guard(req), body.parse(req.body), ip(req)), 201));
+export const updateBpProcess = wrap(async (req, res) => ok(res, await service.updateBpProcess(guard(req), req.params.id as string, body.parse(req.body), ip(req))));
+export const deleteBpProcess = wrap(async (req, res) => { await service.deleteBpProcess(guard(req), req.params.id as string, ip(req)); ok(res, { id: req.params.id }); });
+
+// Fiscal periods — one config row per org, plus the per-period Open/Closed toggle.
+export const getFiscalConfig = wrap(async (req, res) => ok(res, await service.getFiscalConfig(guard(req))));
+export const updateFiscalConfig = wrap(async (req, res) => ok(res, await service.updateFiscalConfig(guard(req), body.parse(req.body), ip(req))));
+export const setFiscalPeriodStatus = wrap(async (req, res) => {
+  const b = z.object({ status: z.enum(["Open", "Closed"]) }).parse(req.body ?? {});
+  ok(res, await service.setFiscalPeriodStatus(guard(req), req.params.id as string, b.status, ip(req)));
+});
