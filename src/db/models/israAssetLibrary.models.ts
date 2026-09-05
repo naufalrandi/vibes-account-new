@@ -8,7 +8,16 @@ import { sequelize } from "../sequelize";
  * action-template library. See `docs/isra-schema-design.md` §2.3 rows 8–14.
  */
 
-export const ISRA_VULN_CONTROL_STATUS = ["Draft", "Under review", "Published"] as const;
+/**
+ * Per-edge review status of a Vuln -> Annex A knowledge-map row. OD
+ * `ISRA_KM_STATUSES` (js/core.js:15795) is the first five, in OD's order;
+ * `isra2KmSetStatus` (js/core.js:15797) writes them and the edge form
+ * defaults to `Draft` (js/core.js:15846). `Approved`/`Rejected`/`Retired`
+ * were missing here. `Published` is kept on the end because the generated
+ * platform seed carries it on all 1950 edges
+ * (src/db/seeders/isra.kmVulnControl.data.ts) — it is not an OD edge status.
+ */
+export const ISRA_VULN_CONTROL_STATUS = ["Draft", "Under review", "Approved", "Rejected", "Retired", "Published"] as const;
 export type IsraVulnControlStatus = (typeof ISRA_VULN_CONTROL_STATUS)[number];
 
 export interface IsraKmComment { ts: string; user: string; text: string }

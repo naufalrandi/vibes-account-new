@@ -3,9 +3,11 @@ import { sequelize } from "../sequelize";
 
 /**
  * Personnel sub-record logs (OD `ent-personnel` Resume/Leaves/Disciplinary/
- * Performance tabs) — see migration 0082 for the field-provenance note (field
- * names inferred from HR convention; only field counts were audited against
- * `modules.js`, which is unavailable in this environment).
+ * Performance tabs) — see migration 0082 for the original field-provenance
+ * note (field names were inferred from HR convention at port time, when
+ * `modules.js` was unavailable). The vocabularies and row shapes below have
+ * since been read back against `js/modules.js` directly and carry their
+ * baseline file:line; anything without such a citation is still inferred.
  */
 
 export const RESUME_RECORD_TYPES = ["Education", "Experience", "Training", "Certification"] as const;
@@ -17,6 +19,15 @@ export class ResumeRecord extends Model<InferAttributes<ResumeRecord>, InferCrea
   declare userId: string;
   declare recordType: ResumeRecordType;
   declare title: string;
+  /**
+   * Education level — OD `personAddEdu` (js/modules.js:5520) offers it as a
+   * FREE-TEXT input (`<input id="ed-level" placeholder="Bachelor / Master">`),
+   * not a picklist; the seeded values 'Master' / 'Bachelor' /
+   * 'Bachelor (ongoing)' (js/modules.js:1078, 1085, 1095) are samples, not an
+   * enum. Rendered as the first column of the Education card
+   * (`personTabResume`, js/modules.js:4917).
+   */
+  declare level: string | null;
   declare organization: string | null;
   declare fieldOfStudy: string | null;
   declare location: string | null;
@@ -42,6 +53,7 @@ ResumeRecord.init(
     userId: { type: DataTypes.UUID, allowNull: false, field: "user_id" },
     recordType: { type: DataTypes.STRING, allowNull: false, field: "record_type" },
     title: { type: DataTypes.STRING, allowNull: false },
+    level: { type: DataTypes.STRING, allowNull: true },
     organization: { type: DataTypes.STRING, allowNull: true },
     fieldOfStudy: { type: DataTypes.STRING, allowNull: true, field: "field_of_study" },
     location: { type: DataTypes.STRING, allowNull: true },
@@ -63,7 +75,25 @@ ResumeRecord.init(
   { sequelize, tableName: "resume_records", underscored: true },
 );
 
-export const LEAVE_TYPES = ["Annual", "Sick", "Unpaid", "Maternity", "Paternity", "Bereavement", "Other"] as const;
+/**
+ * Personnel-profile leave types — copied from OD `personAddLeave`
+ * (js/modules.js:5524), which is the modal that writes this row (`h.leaves`,
+ * shape `{type, from, to, days, status}`).
+ *
+ * NOTE: OD has a SECOND, different leave vocabulary — `LEAVE_TYPES` at
+ * js/modules.js:3469 (`['Annual','Sick','Unpaid','Maternity / Paternity',
+ * 'Compassionate']`) — which belongs to the self-service *leave request*
+ * workflow (`db.leaveRequests`, stored here under business records, see
+ * `modules/business/dataSchemas.ts`). The two lists genuinely differ
+ * ('Maternity/Paternity' vs 'Maternity / Paternity'; 'Other' vs
+ * 'Compassionate') and are deliberately NOT merged.
+ */
+export const LEAVE_TYPES = ["Annual", "Sick", "Unpaid", "Maternity/Paternity", "Other"] as const;
+
+/** OD `personAddLeave` status picklist (js/modules.js:5524); the list card
+ * defaults a missing value to 'Pending' (js/modules.js:4926). */
+export const LEAVE_STATUSES = ["Pending", "Approved", "Rejected"] as const;
+export type LeaveStatus = (typeof LEAVE_STATUSES)[number];
 
 export class LeaveRecord extends Model<InferAttributes<LeaveRecord>, InferCreationAttributes<LeaveRecord>> {
   declare id: CreationOptional<string>;
@@ -73,6 +103,7 @@ export class LeaveRecord extends Model<InferAttributes<LeaveRecord>, InferCreati
   declare fromDate: string;
   declare toDate: string;
   declare days: number;
+  declare status: CreationOptional<LeaveStatus>;
   declare createdBy: string | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -86,6 +117,7 @@ LeaveRecord.init(
     fromDate: { type: DataTypes.DATEONLY, allowNull: false, field: "from_date" },
     toDate: { type: DataTypes.DATEONLY, allowNull: false, field: "to_date" },
     days: { type: DataTypes.INTEGER, allowNull: false },
+    status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Pending" },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
@@ -126,12 +158,24 @@ DisciplinaryRecord.init(
   { sequelize, tableName: "disciplinary_records", underscored: true },
 );
 
+/** OD `personAddPerf` rating picklist (js/modules.js:5526). */
+export const PERFORMANCE_RATINGS = ["Exceeds", "Meets", "Below"] as const;
+export type PerformanceRating = (typeof PERFORMANCE_RATINGS)[number];
+
 export class PerformanceRecord extends Model<InferAttributes<PerformanceRecord>, InferCreationAttributes<PerformanceRecord>> {
   declare id: CreationOptional<string>;
   declare orgId: string;
   declare userId: string;
   declare reviewPeriod: string;
   declare rating: string;
+  /**
+   * Reviewer as OD stores it — FREE TEXT, not a person link: `personAddPerf`
+   * reads it from `<input id="pf-rev">` (js/modules.js:5526) and the seeded
+   * axia1 review has `reviewer:'Board'` (js/modules.js:1080), which is a body,
+   * not a user. `reviewerId` stays as the optional structured link for the
+   * common case where the reviewer IS a platform user.
+   */
+  declare reviewer: string | null;
   declare reviewerId: string | null;
   declare comments: string | null;
   declare createdBy: string | null;
@@ -145,6 +189,7 @@ PerformanceRecord.init(
     userId: { type: DataTypes.UUID, allowNull: false, field: "user_id" },
     reviewPeriod: { type: DataTypes.STRING, allowNull: false, field: "review_period" },
     rating: { type: DataTypes.STRING, allowNull: false },
+    reviewer: { type: DataTypes.STRING, allowNull: true },
     reviewerId: { type: DataTypes.UUID, allowNull: true, field: "reviewer_id" },
     comments: { type: DataTypes.TEXT, allowNull: true },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },

@@ -7,13 +7,13 @@
   "roleId": "rolemtlevtij997",
   "assessor": "Tenant Administrator",
   "date": "2026-09-03",
-  "notes": "Baseline assessment \u2014 all required competences met.",
+  "notes": "Baseline assessment — all required competences met.",
   "requirements": [
    {
     "key": "edu",
     "kind": "education",
     "refId": "isced6",
-    "label": "Minimum education \u2014 Bachelor or equivalent",
+    "label": "Minimum education — Bachelor or equivalent",
     "necessity": "Required",
     "evalType": "threshold",
     "methods": [
@@ -26,7 +26,7 @@
    {
     "key": "exp:wemtlevtji3347",
     "kind": "experience",
-    "label": "Work experience \u2014 C \u2014 Manufacturing \u00b7 \u2265 5 years",
+    "label": "Work experience — C — Manufacturing · ≥ 5 years",
     "necessity": "Required",
     "evalType": "threshold",
     "methods": [
@@ -240,7 +240,7 @@
     "id": "cmmtlevtkb657",
     "user": "Tenant Administrator",
     "ts": "2026-09-03",
-    "text": "All required competences met \u2014 competent for the role."
+    "text": "All required competences met — competent for the role."
    }
   ]
  },
@@ -252,13 +252,13 @@
   "roleId": "rolemtlevtij7245",
   "assessor": "Tenant Administrator",
   "date": "2026-09-03",
-  "notes": "Baseline assessment \u2014 all required competences met.",
+  "notes": "Baseline assessment — all required competences met.",
   "requirements": [
    {
     "key": "edu",
     "kind": "education",
     "refId": "isced6",
-    "label": "Minimum education \u2014 Bachelor or equivalent",
+    "label": "Minimum education — Bachelor or equivalent",
     "necessity": "Required",
     "evalType": "threshold",
     "methods": [
@@ -271,7 +271,7 @@
    {
     "key": "exp:wemtlevtji3985",
     "kind": "experience",
-    "label": "Work experience \u2014 J \u2014 Information and communication \u00b7 \u2265 4 years",
+    "label": "Work experience — J — Information and communication · ≥ 4 years",
     "necessity": "Required",
     "evalType": "threshold",
     "methods": [
@@ -469,7 +469,7 @@
     "id": "cmmtlevtkb8420",
     "user": "Tenant Administrator",
     "ts": "2026-09-03",
-    "text": "All required competences met \u2014 competent for the role."
+    "text": "All required competences met — competent for the role."
    }
   ]
  },
@@ -487,7 +487,7 @@
     "key": "edu",
     "kind": "education",
     "refId": "isced6",
-    "label": "Minimum education \u2014 Bachelor or equivalent",
+    "label": "Minimum education — Bachelor or equivalent",
     "necessity": "Required",
     "evalType": "threshold",
     "methods": [
@@ -500,7 +500,7 @@
    {
     "key": "exp:wemtlevtji3448",
     "kind": "experience",
-    "label": "Work experience \u2014 N \u2014 Administrative and support service activities \u00b7 \u2265 5 years",
+    "label": "Work experience — N — Administrative and support service activities · ≥ 5 years",
     "necessity": "Required",
     "evalType": "threshold",
     "methods": [
@@ -639,13 +639,13 @@
   "roleId": "rolemtlevtil1320",
   "assessor": "Tenant Administrator",
   "date": "2025-09-23",
-  "notes": "Baseline assessment \u2014 all required competences met.",
+  "notes": "Baseline assessment — all required competences met.",
   "requirements": [
    {
     "key": "edu",
     "kind": "education",
     "refId": "isced7",
-    "label": "Minimum education \u2014 Master or equivalent",
+    "label": "Minimum education — Master or equivalent",
     "necessity": "Required",
     "evalType": "threshold",
     "methods": [
@@ -658,7 +658,7 @@
    {
     "key": "exp:wemtlevtji3451",
     "kind": "experience",
-    "label": "Work experience \u2014 C \u2014 Manufacturing \u00b7 \u2265 12 years",
+    "label": "Work experience — C — Manufacturing · ≥ 12 years",
     "necessity": "Required",
     "evalType": "threshold",
     "methods": [
@@ -855,7 +855,7 @@
     "id": "cmmtlevtkc2171",
     "user": "Tenant Administrator",
     "ts": "2025-09-23",
-    "text": "All required competences met \u2014 competent for the role."
+    "text": "All required competences met — competent for the role."
    }
   ]
  },
@@ -867,7 +867,7 @@
   "roleId": "rolemtlevtjj5966",
   "assessor": "Service Provider Admin",
   "date": "2026-09-03",
-  "notes": "Baseline internal competence assessment \u2014 all required competences met.",
+  "notes": "Baseline internal competence assessment — all required competences met.",
   "requirements": [
    {
     "key": "hard:skmtlevtf97915",
@@ -989,5 +989,1365 @@
     "text": "Baseline internal competence confirmed."
    }
   ]
+ },
+ {
+  "id": "camth1sxkm3330",
+  "tenantId": "idtn5",
+  "assignmentId": "asgmth1sxju1478",
+  "personId": "idtu17",
+  "roleId": "rolemth1sxik6729",
+  "assessor": "Tenant Administrator",
+  "date": "2026-08-31",
+  "notes": "Baseline assessment — all required competences met.",
+  "requirements": [
+   {
+    "key": "edu",
+    "kind": "education",
+    "refId": "isced7",
+    "label": "Minimum education — Master or equivalent",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "exp:wemth1sxju9442",
+    "kind": "experience",
+    "label": "Work experience — C — Manufacturing · ≥ 10 years",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sws58931",
+    "kind": "hard",
+    "refId": "skmth1sws58931",
+    "label": "Business continuity planning",
+    "necessity": "Preferred",
+    "evalType": "proficiency",
+    "reqLevel": 2,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sws52481",
+    "kind": "hard",
+    "refId": "skmth1sws52481",
+    "label": "Capacity planning",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxij780",
+    "kind": "hard",
+    "refId": "skmth1sxij780",
+    "label": "Operations management",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxik4172",
+    "kind": "hard",
+    "refId": "skmth1sxik4172",
+    "label": "Process improvement",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sws57780",
+    "kind": "hard",
+    "refId": "skmth1sws57780",
+    "label": "Process performance review",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sws43240",
+    "kind": "hard",
+    "refId": "skmth1sws43240",
+    "label": "Root cause analysis",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:skmth1sws63249",
+    "kind": "soft",
+    "refId": "skmth1sws63249",
+    "label": "Decision making",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:sk6",
+    "kind": "soft",
+    "refId": "sk6",
+    "label": "Leadership",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   }
+  ],
+  "score": 100,
+  "openGaps": 0,
+  "status": "Competent",
+  "validUntil": "2027-08-30",
+  "approvalState": "Approved",
+  "approvedBy": "Tenant Administrator",
+  "approvedDate": "2026-08-31",
+  "activity": [
+   {
+    "ts": "2026-08-31",
+    "user": "Tenant Administrator",
+    "action": "completed the assessment",
+    "summary": "Competent"
+   },
+   {
+    "ts": "2026-08-31",
+    "user": "Tenant Administrator",
+    "action": "signed off the assessment",
+    "summary": "Approved"
+   }
+  ],
+  "comments": [
+   {
+    "id": "cmmth1sxkm5837",
+    "user": "Tenant Administrator",
+    "ts": "2026-08-31",
+    "text": "All required competences met — competent for the role."
+   }
+  ]
+ },
+ {
+  "id": "camth1sxkm3686",
+  "tenantId": "idtn5",
+  "assignmentId": "asgmth1sxju2171",
+  "personId": "idtu10",
+  "roleId": "rolemth1sxil9402",
+  "assessor": "Tenant Administrator",
+  "date": "2025-07-27",
+  "notes": "Baseline assessment — all required competences met.",
+  "requirements": [
+   {
+    "key": "edu",
+    "kind": "education",
+    "refId": "isced7",
+    "label": "Minimum education — Master or equivalent",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "exp:wemth1sxju3797",
+    "kind": "experience",
+    "label": "Work experience — K — Financial and insurance activities · ≥ 8 years",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxik1359",
+    "kind": "hard",
+    "refId": "skmth1sxik1359",
+    "label": "Budgeting",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxil3730",
+    "kind": "hard",
+    "refId": "skmth1sxil3730",
+    "label": "Cash flow management",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxil1735",
+    "kind": "hard",
+    "refId": "skmth1sxil1735",
+    "label": "Cost control",
+    "necessity": "Preferred",
+    "evalType": "proficiency",
+    "reqLevel": 2,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxik1701",
+    "kind": "hard",
+    "refId": "skmth1sxik1701",
+    "label": "Financial planning & analysis",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxik5901",
+    "kind": "hard",
+    "refId": "skmth1sxik5901",
+    "label": "Financial reporting",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxik1016",
+    "kind": "hard",
+    "refId": "skmth1sxik1016",
+    "label": "Internal controls",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxil9094",
+    "kind": "hard",
+    "refId": "skmth1sxil9094",
+    "label": "Regulatory compliance",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:skmth1sws63249",
+    "kind": "soft",
+    "refId": "skmth1sws63249",
+    "label": "Decision making",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   }
+  ],
+  "score": 100,
+  "openGaps": 0,
+  "status": "Competent",
+  "validUntil": "2026-07-26",
+  "approvalState": "Approved",
+  "approvedBy": "Tenant Administrator",
+  "approvedDate": "2025-07-27",
+  "activity": [
+   {
+    "ts": "2025-07-27",
+    "user": "Tenant Administrator",
+    "action": "completed the assessment",
+    "summary": "Competent"
+   },
+   {
+    "ts": "2025-07-27",
+    "user": "Tenant Administrator",
+    "action": "signed off the assessment",
+    "summary": "Approved"
+   }
+  ],
+  "comments": [
+   {
+    "id": "cmmth1sxkm7050",
+    "user": "Tenant Administrator",
+    "ts": "2025-07-27",
+    "text": "All required competences met — competent for the role."
+   }
+  ]
+ },
+ {
+  "id": "camth1sxkn5014",
+  "tenantId": "idtn5",
+  "assignmentId": "asgmth1sxju3790",
+  "personId": "idtu11",
+  "roleId": "rolemth1sxil8953",
+  "assessor": "Tenant Administrator",
+  "date": "2026-08-31",
+  "notes": "Overall competent; one development action required to fully meet the role.",
+  "requirements": [
+   {
+    "key": "edu",
+    "kind": "education",
+    "refId": "isced6",
+    "label": "Minimum education — Bachelor or equivalent",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "exp:wemth1sxju5587",
+    "kind": "experience",
+    "label": "Work experience — N — Administrative and support service activities · ≥ 6 years",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sws5871",
+    "kind": "hard",
+    "refId": "skmth1sws5871",
+    "label": "Competence assessment",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxil9887",
+    "kind": "hard",
+    "refId": "skmth1sxil9887",
+    "label": "Performance management",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxil3523",
+    "kind": "hard",
+    "refId": "skmth1sxil3523",
+    "label": "Recruitment & selection",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sws54754",
+    "kind": "hard",
+    "refId": "skmth1sws54754",
+    "label": "Training needs analysis",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxil6568",
+    "kind": "hard",
+    "refId": "skmth1sxil6568",
+    "label": "Workforce planning",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:sk5",
+    "kind": "soft",
+    "refId": "sk5",
+    "label": "Communication",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:skmth1sws63249",
+    "kind": "soft",
+    "refId": "skmth1sws63249",
+    "label": "Decision making",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:skmth1sxil5135",
+    "kind": "soft",
+    "refId": "skmth1sxil5135",
+    "label": "Employee relations",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   }
+  ],
+  "score": 90,
+  "openGaps": 1,
+  "status": "Competent with conditions",
+  "validUntil": "2027-08-30",
+  "approvalState": "Approved",
+  "approvedBy": "Tenant Administrator",
+  "approvedDate": "2026-08-31",
+  "activity": [
+   {
+    "ts": "2026-08-31",
+    "user": "Tenant Administrator",
+    "action": "completed the assessment",
+    "summary": "Competent with conditions"
+   },
+   {
+    "ts": "2026-08-31",
+    "user": "Tenant Administrator",
+    "action": "signed off the assessment",
+    "summary": "Approved"
+   }
+  ],
+  "comments": [
+   {
+    "id": "cmmth1sxkn3356",
+    "user": "Tenant Administrator",
+    "ts": "2026-08-31",
+    "text": "Strong overall; one development action agreed to fully meet the role."
+   }
+  ]
+ },
+ {
+  "id": "camth1sxkn1533",
+  "tenantId": "idtn5",
+  "assignmentId": "asgmth1sxju9181",
+  "personId": "idtu12",
+  "roleId": "rolemth1sxil4635",
+  "assessor": "Tenant Administrator",
+  "date": "2026-08-31",
+  "notes": "Baseline assessment — all required competences met.",
+  "requirements": [
+   {
+    "key": "edu",
+    "kind": "education",
+    "refId": "isced6",
+    "label": "Minimum education — Bachelor or equivalent",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "exp:wemth1sxju3100",
+    "kind": "experience",
+    "label": "Work experience — C — Manufacturing · ≥ 4 years",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxil1735",
+    "kind": "hard",
+    "refId": "skmth1sxil1735",
+    "label": "Cost control",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxil9775",
+    "kind": "hard",
+    "refId": "skmth1sxil9775",
+    "label": "Incoming inspection",
+    "necessity": "Preferred",
+    "evalType": "proficiency",
+    "reqLevel": 2,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxil3688",
+    "kind": "hard",
+    "refId": "skmth1sxil3688",
+    "label": "Purchase order management",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sws54674",
+    "kind": "hard",
+    "refId": "skmth1sws54674",
+    "label": "Supplier evaluation",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxil3177",
+    "kind": "hard",
+    "refId": "skmth1sxil3177",
+    "label": "Supplier qualification",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:skmth1sws63249",
+    "kind": "soft",
+    "refId": "skmth1sws63249",
+    "label": "Decision making",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:skmth1sws610",
+    "kind": "soft",
+    "refId": "skmth1sws610",
+    "label": "Negotiation",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   }
+  ],
+  "score": 100,
+  "openGaps": 0,
+  "status": "Competent",
+  "validUntil": "2027-08-30",
+  "approvalState": "Approved",
+  "approvedBy": "Tenant Administrator",
+  "approvedDate": "2026-08-31",
+  "activity": [
+   {
+    "ts": "2026-08-31",
+    "user": "Tenant Administrator",
+    "action": "completed the assessment",
+    "summary": "Competent"
+   },
+   {
+    "ts": "2026-08-31",
+    "user": "Tenant Administrator",
+    "action": "signed off the assessment",
+    "summary": "Approved"
+   }
+  ],
+  "comments": [
+   {
+    "id": "cmmth1sxkn1412",
+    "user": "Tenant Administrator",
+    "ts": "2026-08-31",
+    "text": "All required competences met — competent for the role."
+   }
+  ]
+ },
+ {
+  "id": "camth1sxko5195",
+  "tenantId": "idtn5",
+  "assignmentId": "asgmth1sxju1976",
+  "personId": "idtu13",
+  "roleId": "rolemth1sxim9811",
+  "assessor": "Tenant Administrator",
+  "date": "2026-08-31",
+  "notes": "Baseline assessment — all required competences met.",
+  "requirements": [
+   {
+    "key": "edu",
+    "kind": "education",
+    "refId": "isced6",
+    "label": "Minimum education — Bachelor or equivalent",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "exp:wemth1sxju7094",
+    "kind": "experience",
+    "label": "Work experience — M — Professional, scientific and technical activities · ≥ 3 years",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxil4797",
+    "kind": "hard",
+    "refId": "skmth1sxil4797",
+    "label": "Campaign management",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxim1320",
+    "kind": "hard",
+    "refId": "skmth1sxim1320",
+    "label": "Content creation",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxim8155",
+    "kind": "hard",
+    "refId": "skmth1sxim8155",
+    "label": "Digital marketing",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxil4548",
+    "kind": "hard",
+    "refId": "skmth1sxil4548",
+    "label": "Market research",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxim8123",
+    "kind": "hard",
+    "refId": "skmth1sxim8123",
+    "label": "Social media management",
+    "necessity": "Preferred",
+    "evalType": "proficiency",
+    "reqLevel": 2,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   },
+   {
+    "key": "soft:skmth1sws62922",
+    "kind": "soft",
+    "refId": "skmth1sws62922",
+    "label": "Analytical thinking",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:skmth1sws63249",
+    "kind": "soft",
+    "refId": "skmth1sws63249",
+    "label": "Decision making",
+    "necessity": "Preferred",
+    "evalType": "proficiency",
+    "reqLevel": 2,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   }
+  ],
+  "score": 100,
+  "openGaps": 0,
+  "status": "Competent",
+  "validUntil": "2027-08-30",
+  "approvalState": "Approved",
+  "approvedBy": "Tenant Administrator",
+  "approvedDate": "2026-08-31",
+  "activity": [
+   {
+    "ts": "2026-08-31",
+    "user": "Tenant Administrator",
+    "action": "completed the assessment",
+    "summary": "Competent"
+   },
+   {
+    "ts": "2026-08-31",
+    "user": "Tenant Administrator",
+    "action": "signed off the assessment",
+    "summary": "Approved"
+   }
+  ],
+  "comments": [
+   {
+    "id": "cmmth1sxko3533",
+    "user": "Tenant Administrator",
+    "ts": "2026-08-31",
+    "text": "All required competences met — competent for the role."
+   }
+  ]
+ },
+ {
+  "id": "camth1sxko6903",
+  "tenantId": "idtn5",
+  "assignmentId": "asgmth1sxju1496",
+  "personId": "idtu14",
+  "roleId": "rolemth1sxim3859",
+  "assessor": "Tenant Administrator",
+  "date": "2025-09-20",
+  "notes": "Baseline assessment — all required competences met.",
+  "requirements": [
+   {
+    "key": "edu",
+    "kind": "education",
+    "refId": "isced7",
+    "label": "Minimum education — Master or equivalent",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "exp:wemth1sxju1228",
+    "kind": "experience",
+    "label": "Work experience — J — Information and communication · ≥ 8 years",
+    "necessity": "Required",
+    "evalType": "threshold",
+    "methods": [
+     "Record review"
+    ],
+    "method": "Record review",
+    "result": "Met",
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxim5876",
+    "kind": "hard",
+    "refId": "skmth1sxim5876",
+    "label": "Agile delivery",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxim7137",
+    "kind": "hard",
+    "refId": "skmth1sxim7137",
+    "label": "Code quality management",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxim9399",
+    "kind": "hard",
+    "refId": "skmth1sxim9399",
+    "label": "Release management",
+    "necessity": "Preferred",
+    "evalType": "proficiency",
+    "reqLevel": 2,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxim4339",
+    "kind": "hard",
+    "refId": "skmth1sxim4339",
+    "label": "SDLC governance",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxim4121",
+    "kind": "hard",
+    "refId": "skmth1sxim4121",
+    "label": "Secure development practices",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxim6480",
+    "kind": "hard",
+    "refId": "skmth1sxim6480",
+    "label": "Software architecture",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sxim1565",
+    "kind": "hard",
+    "refId": "skmth1sxim1565",
+    "label": "Software project management",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:skmth1sws63249",
+    "kind": "soft",
+    "refId": "skmth1sws63249",
+    "label": "Decision making",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "soft:sk6",
+    "kind": "soft",
+    "refId": "sk6",
+    "label": "Leadership",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Interview",
+     "Observation"
+    ],
+    "method": "Interview",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   }
+  ],
+  "score": 100,
+  "openGaps": 0,
+  "status": "Competent",
+  "validUntil": "2026-09-19",
+  "approvalState": "Approved",
+  "approvedBy": "Tenant Administrator",
+  "approvedDate": "2025-09-20",
+  "activity": [
+   {
+    "ts": "2025-09-20",
+    "user": "Tenant Administrator",
+    "action": "completed the assessment",
+    "summary": "Competent"
+   },
+   {
+    "ts": "2025-09-20",
+    "user": "Tenant Administrator",
+    "action": "signed off the assessment",
+    "summary": "Approved"
+   }
+  ],
+  "comments": [
+   {
+    "id": "cmmth1sxkp5485",
+    "user": "Tenant Administrator",
+    "ts": "2025-09-20",
+    "text": "All required competences met — competent for the role."
+   }
+  ]
+ },
+ {
+  "id": "camth1sxmz3757",
+  "tenantId": "idtn5",
+  "assignmentId": "asgmth1sxmz9562",
+  "personId": "idtu16",
+  "roleId": "rolemth1sxm22267",
+  "assessor": "Tenant Administrator",
+  "date": "2026-08-27",
+  "notes": "Overall competent; one development action required to fully meet the role.",
+  "requirements": [
+   {
+    "key": "hard:skmth1sws4425",
+    "kind": "hard",
+    "refId": "skmth1sws4425",
+    "label": "Audit planning",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sws43441",
+    "kind": "hard",
+    "refId": "skmth1sws43441",
+    "label": "Corrective action planning",
+    "necessity": "Preferred",
+    "evalType": "proficiency",
+    "reqLevel": 2,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 2,
+    "note": ""
+   },
+   {
+    "key": "hard:sk1",
+    "kind": "hard",
+    "refId": "sk1",
+    "label": "Internal Auditing",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   },
+   {
+    "key": "hard:skmth1sws48754",
+    "kind": "hard",
+    "refId": "skmth1sws48754",
+    "label": "Nonconformity writing",
+    "necessity": "Required",
+    "evalType": "proficiency",
+    "reqLevel": 3,
+    "reviewFreq": "",
+    "methods": [
+     "Written exam",
+     "Practical assessment"
+    ],
+    "method": "Written exam",
+    "result": "",
+    "assessedLevel": 3,
+    "note": ""
+   }
+  ],
+  "score": 75,
+  "openGaps": 1,
+  "status": "Competent with conditions",
+  "validUntil": "2027-08-26",
+  "approvalState": "Approved",
+  "approvedBy": "Tenant Administrator",
+  "approvedDate": "2026-08-27",
+  "activity": [
+   {
+    "ts": "2026-08-27",
+    "user": "Tenant Administrator",
+    "action": "completed the assessment",
+    "summary": "Competent with conditions"
+   },
+   {
+    "ts": "2026-08-27",
+    "user": "Tenant Administrator",
+    "action": "signed off the assessment",
+    "summary": "Approved"
+   }
+  ],
+  "comments": []
  }
 ]

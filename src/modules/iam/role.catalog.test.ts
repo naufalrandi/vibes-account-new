@@ -3,7 +3,11 @@ import { ROLES_BY_ORG_TYPE, isAllowedRoleForOrgType } from "./role.catalog";
 
 describe("role.catalog", () => {
   it("defines the canonical assignable roles for ServiceOwner", () => {
-    expect(ROLES_BY_ORG_TYPE.ServiceOwner).toEqual(["Administrator", "Billing Manager", "Technical Support"]);
+    // OD ROLE_GROUPS (js/core.js:111) has four members; the Access Configuration screen
+    // renders all four (js/core.js:5265) and falls back to 'Basic User' (js/core.js:5082).
+    expect(ROLES_BY_ORG_TYPE.ServiceOwner).toEqual([
+      "Administrator", "Billing Manager", "Technical Support", "Basic User",
+    ]);
   });
 
   it("defines the canonical assignable roles for Distributor", () => {

@@ -50,6 +50,18 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare units: CreationOptional<string[]>;
   declare unitAccess: CreationOptional<Record<string, boolean>>;
   declare unitPerms: CreationOptional<Record<string, string[]>>;
+  // Per-menu grant axes written by OD `acSave` (js/core.js:5216-5242). `navPerms`
+  // is the granted Service Provider MENU key set (acAllKeys() members), the axis
+  // `permissions` above is only the derived module list (`acNavToModules`).
+  // The three *Actions maps hold the per-menu action verbs (ARCH_ACTIONS members,
+  // always including 'view'); shapes per the OD persisted record:
+  //   navActions  {menuKey: action[]}                 js/core.js:5223
+  //   entActions  {entKey: action[]}                  js/core.js:5232
+  //   unitActions {unitKey: {menuKey: action[]}}      js/core.js:5242
+  declare navPerms: CreationOptional<string[]>;
+  declare navActions: CreationOptional<Record<string, string[]>>;
+  declare entActions: CreationOptional<Record<string, string[]>>;
+  declare unitActions: CreationOptional<Record<string, Record<string, string[]>>>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 
@@ -106,6 +118,10 @@ User.init(
     units: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     unitAccess: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "unit_access" },
     unitPerms: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "unit_perms" },
+    navPerms: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "nav_perms" },
+    navActions: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "nav_actions" },
+    entActions: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "ent_actions" },
+    unitActions: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "unit_actions" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

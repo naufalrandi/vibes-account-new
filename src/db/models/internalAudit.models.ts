@@ -51,6 +51,12 @@ export class IaProgram extends Model<InferAttributes<IaProgram>, InferCreationAt
   declare status: CreationOptional<string>;
   declare notes: string | null;
   declare createdBy: string | null;
+  /**
+   * Post date — the date the record was *posted* to the register, distinct
+   * from `createdAt`. OD seeds/creates it alongside createdAt but keeps it a
+   * separate, editable field (js/core.js:18478).
+   */
+  declare postDate: CreationOptional<Date>;
   declare lastUpdatedBy: string | null;
   declare activity: CreationOptional<IaActivityEntry[]>;
   declare comments: CreationOptional<IaComment[]>;
@@ -78,6 +84,7 @@ IaProgram.init(
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Draft" },
     notes: { type: DataTypes.TEXT, allowNull: true },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
+    postDate: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: "post_date" },
     lastUpdatedBy: { type: DataTypes.STRING, allowNull: true, field: "last_updated_by" },
     activity: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     comments: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
@@ -102,6 +109,12 @@ export class IaPlan extends Model<InferAttributes<IaPlan>, InferCreationAttribut
   declare department: string | null;
   declare status: CreationOptional<string>;
   declare createdBy: string | null;
+  /**
+   * Post date — the date the record was *posted* to the register, distinct
+   * from `createdAt`. OD seeds/creates it alongside createdAt but keeps it a
+   * separate, editable field (js/core.js:18479).
+   */
+  declare postDate: CreationOptional<Date>;
   declare lastUpdatedBy: string | null;
   declare activity: CreationOptional<IaActivityEntry[]>;
   declare comments: CreationOptional<IaComment[]>;
@@ -123,6 +136,7 @@ IaPlan.init(
     department: { type: DataTypes.STRING, allowNull: true },
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Draft" },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
+    postDate: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: "post_date" },
     lastUpdatedBy: { type: DataTypes.STRING, allowNull: true, field: "last_updated_by" },
     activity: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     comments: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
@@ -156,6 +170,12 @@ export class IaSession extends Model<InferAttributes<IaSession>, InferCreationAt
   declare notes: string | null;
   declare status: CreationOptional<string>;
   declare createdBy: string | null;
+  /**
+   * Post date — the date the record was *posted* to the register, distinct
+   * from `createdAt`. OD seeds/creates it alongside createdAt but keeps it a
+   * separate, editable field (js/core.js:18505).
+   */
+  declare postDate: CreationOptional<Date>;
   declare lastUpdatedBy: string | null;
   declare activity: CreationOptional<IaActivityEntry[]>;
   declare comments: CreationOptional<IaComment[]>;
@@ -186,6 +206,7 @@ IaSession.init(
     notes: { type: DataTypes.TEXT, allowNull: true },
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Scheduled" },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
+    postDate: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: "post_date" },
     lastUpdatedBy: { type: DataTypes.STRING, allowNull: true, field: "last_updated_by" },
     activity: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     comments: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
@@ -226,6 +247,12 @@ export class IaFinding extends Model<InferAttributes<IaFinding>, InferCreationAt
   declare linkedNC: string | null;
   declare linkedImp: string | null;
   declare createdBy: string | null;
+  /**
+   * Post date — the date the record was *posted* to the register, distinct
+   * from `createdAt`. OD seeds/creates it alongside createdAt but keeps it a
+   * separate, editable field (js/core.js:18506).
+   */
+  declare postDate: CreationOptional<Date>;
   declare lastUpdatedBy: string | null;
   declare activity: CreationOptional<IaActivityEntry[]>;
   declare comments: CreationOptional<IaComment[]>;
@@ -263,6 +290,7 @@ IaFinding.init(
     linkedNC: { type: DataTypes.STRING, allowNull: true, field: "linked_nc" },
     linkedImp: { type: DataTypes.STRING, allowNull: true, field: "linked_imp" },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
+    postDate: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: "post_date" },
     lastUpdatedBy: { type: DataTypes.STRING, allowNull: true, field: "last_updated_by" },
     activity: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     comments: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
@@ -290,6 +318,12 @@ export class IaReport extends Model<InferAttributes<IaReport>, InferCreationAttr
   declare reportDate: string | null;
   declare status: CreationOptional<string>;
   declare createdBy: string | null;
+  /**
+   * Post date — the date the record was *posted* to the register, distinct
+   * from `createdAt`. OD seeds/creates it alongside createdAt but keeps it a
+   * separate, editable field (js/core.js:18491).
+   */
+  declare postDate: CreationOptional<Date>;
   declare lastUpdatedBy: string | null;
   declare activity: CreationOptional<IaActivityEntry[]>;
   declare comments: CreationOptional<IaComment[]>;
@@ -315,6 +349,7 @@ IaReport.init(
     reportDate: { type: DataTypes.STRING, allowNull: true, field: "report_date" },
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Generated" },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
+    postDate: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: "post_date" },
     lastUpdatedBy: { type: DataTypes.STRING, allowNull: true, field: "last_updated_by" },
     activity: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     comments: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },

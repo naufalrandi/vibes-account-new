@@ -1,4 +1,5 @@
 import { Action, Menu, Role, RoleActionGrant, RoleMenuGrant, User } from "../../db/models";
+import { menuActions, type PermAction } from "./actions.catalog";
 
 export interface EffectiveAccess {
   isSuperAdmin: boolean;
@@ -110,4 +111,35 @@ export async function buildMenuForUser(userId: string): Promise<{ menu: MenuNode
       }));
 
   return { menu: childrenOf(null), access };
+}
+
+/* =========================================================================
+ * OD permission levels — Access Configuration screen (js/core.js:5063-5069).
+ * A level is a shorthand over the per-action checkboxes: it names a whitelist
+ * of verbs, and `levelActions` intersects that whitelist with the actions the
+ * menu's archetype actually declares (`menuActions`).
+ * ========================================================================= */
+
+/** OD `PERM_LEVELS` (js/core.js:5063). */
+export const PERM_LEVELS = ["View", "Edit", "Approve", "Manage"] as const;
+export type PermLevel = (typeof PERM_LEVELS)[number];
+
+/**
+ * OD `levelActions(level,k)` (js/core.js:5064-5069). `Manage` is every action
+ * the archetype declares; the others intersect a fixed whitelist with it.
+ *
+ * Ported verbatim including the fall-through: the OD ternary has no explicit
+ * 'Approve' arm, so ANY level string that is not 'View', 'Edit' or 'Manage'
+ * resolves to the Approve whitelist.
+ */
+export function levelActions(level: string, menuKey: string): PermAction[] {
+  const appl = menuActions(menuKey);
+  if (level === "Manage") return appl.slice();
+  const w: readonly PermAction[] =
+    level === "View"
+      ? ["view", "export"]
+      : level === "Edit"
+        ? ["view", "export", "create", "edit"]
+        : ["view", "export", "create", "edit", "approve", "publish"];
+  return appl.filter((a) => w.indexOf(a) >= 0);
 }

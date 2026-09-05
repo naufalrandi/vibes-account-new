@@ -13,7 +13,15 @@ import { sequelize } from "../sequelize";
  * every downstream org-scoped table references (design doc §2.10).
  */
 
-export const ISRA_SA_SUBGROUP_STATUS = ["Draft", "Under review", "Approved", "Retired"] as const;
+/**
+ * OD offers exactly `Under review` / `Approved` / `Rejected` in the SA
+ * knowledge-map review select (`isra2SaKmReportBody`, js/core.js:15784), and
+ * seeds every sub-group `Under review` (js/core.js:16536). `Rejected` was
+ * missing here. `Draft`/`Retired` are port-only extras kept because the
+ * status endpoint's contract test pins them
+ * (src/modules/isra/isra.integration.test.ts:87,100).
+ */
+export const ISRA_SA_SUBGROUP_STATUS = ["Draft", "Under review", "Approved", "Rejected", "Retired"] as const;
 export type IsraSaSubgroupStatus = (typeof ISRA_SA_SUBGROUP_STATUS)[number];
 
 export const ISRA_LIB_ITEM_STATUS = ["Active", "Retired"] as const;

@@ -1,5 +1,5 @@
 {
- "count": 20,
+ "count": 22,
  "fields": [
   "id",
   "leadId",
@@ -633,6 +633,56 @@
      "summary": "ISO 9001 Audit"
     }
    ]
+  },
+  {
+   "id": "INQ-3019",
+   "leadId": "LD-2103",
+   "service": "audit",
+   "variant": "2nd-party (supplier)",
+   "status": "Proposal Sent",
+   "sq": {
+    "timeline": "3–6 months",
+    "frameworks": "ISO 9001:2015",
+    "scope": "EU supplier base",
+    "objective": "Supplier qualification audits",
+    "auditorDays": "10"
+   },
+   "leadName": "Rheinwerk GmbH",
+   "serviceName": "Framework Audit",
+   "notes": "Multi-supplier audit programme.",
+   "createdAt": "2026-08-31T09:40:42.327Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.327Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Framework Audit"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3020",
+   "leadId": "LD-2104",
+   "service": "impl",
+   "variant": "Facilitated (client-led)",
+   "status": "Cold Leads",
+   "sq": {},
+   "leadName": "Coral Bay Pty Ltd",
+   "serviceName": "Framework Implementation",
+   "notes": "",
+   "createdAt": "2026-08-31T09:40:42.327Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.327Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Framework Implementation"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
   }
  ]
 }

@@ -4,8 +4,21 @@ import * as userService from "./user.service";
 import { sendOk } from "../../lib/apiResponse";
 import { paginate } from "../../lib/pagination";
 import { UnauthorizedError } from "../../lib/errors";
+import { isModuleKey, isSpMenuKey } from "../iam/modules.catalog";
 
 const permissionModeSchema = z.enum(["Full Access", "Custom Access"]);
+
+// Catalog validation at the trust boundary. `permissions` holds OD module ids
+// (the output of `acNavToModules`, js/core.js:5003-5006) and `navPerms` holds
+// Service Provider menu keys (`acAllKeys()`, js/core.js:4996). Both are closed
+// sets — an unknown element is a client bug or a probe, never a wider grant, so
+// it is rejected rather than stored.
+const permissionsSchema = z
+  .array(z.string())
+  .refine((keys) => keys.every(isModuleKey), { message: "Unknown module key" });
+const navPermsSchema = z
+  .array(z.string())
+  .refine((keys) => keys.every(isSpMenuKey), { message: "Unknown Service Provider menu key" });
 
 const createSchema = z.object({
   orgId: z.string().uuid(),
@@ -17,7 +30,7 @@ const createSchema = z.object({
   roleGroup: z.string().optional(),
   password: z.string().min(1).optional(),
   permissionMode: permissionModeSchema.nullish(),
-  permissions: z.array(z.string()).nullish(),
+  permissions: permissionsSchema.nullish(),
   position: z.string().nullish(),
   phone: z.string().nullish(),
   photo: z.string().nullish(),
@@ -33,7 +46,7 @@ const updateSchema = z.object({
   role: z.string().optional(),
   roleGroup: z.string().optional(),
   permissionMode: permissionModeSchema.nullish(),
-  permissions: z.array(z.string()).nullish(),
+  permissions: permissionsSchema.nullish(),
   status: z.enum(["PendingActivation", "Active", "Suspended", "Inactive"]).optional(),
   position: z.string().nullish(),
   phone: z.string().nullish(),
@@ -50,6 +63,10 @@ const updateSchema = z.object({
   units: z.array(z.string()).optional(),
   unitAccess: z.record(z.string(), z.boolean()).optional(),
   unitPerms: z.record(z.string(), z.array(z.string())).optional(),
+  // OD acSave Service Provider axis (js/core.js:5225) + the platform-access
+  // switch (js/core.js:5216); setting `provisioned: false` clears the SP block.
+  navPerms: navPermsSchema.optional(),
+  provisioned: z.boolean().optional(),
 });
 
 const statusSchema = z.object({ status: z.enum(["Active", "Suspended", "Inactive"]) });

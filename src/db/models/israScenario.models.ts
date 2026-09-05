@@ -7,18 +7,18 @@ import { sequelize } from "../sequelize";
  * anchor entity of the whole subsystem — every later group hangs off
  * `scenarioId`.
  *
- * The exact `ISRA_SCENARIO_STATUS`/`ISRA_EXC_STATUS`/`ISRA_EXC_AFFECTS`
- * membership is not spelled out verbatim as a closed list anywhere in the
- * design doc (only individual values are confirmed in passing, e.g.
- * `status!=='Archived'` in §1.1, and the six values of `ISRA_EXC_STATUS`
- * are given in full in §2.7's "Notes" column). Where the doc does give the
- * full list (existing-control status) it is used verbatim; where it does
- * not (scenario status, affects), a reasonable list is inferred and flagged
- * in the F-1-impl report — these are STRING columns validated at the
- * service layer in a later batch, not DB constraints, so this is safe to
- * refine without a migration.
+ * `ISRA_SCENARIO_STATUS` is `ISRA_SCEN_STATUS` verbatim (OD js/core.js:13558),
+ * in OD's order. `ISRA_EXC_STATUS` is likewise given in full in the design
+ * doc §2.7 "Notes" column; `ISRA_EXC_AFFECTS` is still an inferred list and
+ * stays flagged in the F-1-impl report. All three back STRING columns
+ * validated at the service layer, not DB enums (migration 0065), so the
+ * membership above changes without a migration.
  */
-export const ISRA_SCENARIO_STATUS = ["Draft", "Active", "Archived"] as const;
+/** OD `ISRA_SCEN_STATUS` — js/core.js:13558. */
+export const ISRA_SCENARIO_STATUS = [
+  "Draft", "Assessed", "Treatment Required", "Treatment Planned", "Treatment In Progress",
+  "Pending Residual Review", "Accepted", "Monitoring", "Closed", "Archived",
+] as const;
 export type IsraScenarioStatus = (typeof ISRA_SCENARIO_STATUS)[number];
 
 export const ISRA_CONSEQ_AREAS = ["life", "privacy", "skills", "ops", "deadlines", "financial", "market", "reputation", "legal", "contracts", "parties", "environment"] as const;

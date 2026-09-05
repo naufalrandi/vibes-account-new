@@ -1,7 +1,14 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
 
-export type DoaApproverKind = "role" | "user";
+/**
+ * OD `doaMatrix` band approver kinds. "auto" is the auto-escalation case:
+ * `doaResolveApprover` (js/modules.js:4323) resolves the band's approver at
+ * runtime to the requester's next senior manager instead of a fixed name, and
+ * the matrix/PR views render it as "escalation ↑" / "auto-escalated ↑"
+ * (js/modules.js:4350, 3370).
+ */
+export type DoaApproverKind = "role" | "user" | "auto";
 
 /**
  * Delegation-of-Authority spend-band matrix entry (OD `db.doaMatrix`, SOF-58 §3).
@@ -38,7 +45,7 @@ DoaMatrixEntry.init(
     max: { type: DataTypes.DECIMAL, allowNull: true },
     currency: { type: DataTypes.STRING, allowNull: false, defaultValue: "IDR" },
     approver: { type: DataTypes.STRING, allowNull: false },
-    approverKind: { type: DataTypes.ENUM("role", "user"), allowNull: false, field: "approver_kind" },
+    approverKind: { type: DataTypes.ENUM("role", "user", "auto"), allowNull: false, field: "approver_kind" },
     finance: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     quotes: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     createdAt: DataTypes.DATE,

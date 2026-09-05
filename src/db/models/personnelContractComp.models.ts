@@ -1,6 +1,15 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
 
+/**
+ * OD's contract-document lifecycle is exactly Draft -> Issued -> Signed
+ * (`cdIssue`/`cdRevise`/`cdSign`, js/modules.js:5390-5392; the status tag in
+ * `personContractDocCard`, js/modules.js:5242) — all three are already here.
+ * "Final" and "Expired" are port-only extras with no OD counterpart. Dropping
+ * them needs src/modules/personnel-records/personnelContractComp.controller.ts:30
+ * to narrow with it and the Postgres enum type to be recreated (a value cannot
+ * be dropped in place — see migration 0086's `down`), so they stay for now.
+ */
 export type ContractDocStatus = "Draft" | "Final" | "Signed" | "Expired" | "Issued";
 
 /** A single clause snapshot in `clauses` (OD `cdCapture`, `modules.js:5251`). */

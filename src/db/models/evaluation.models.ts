@@ -31,6 +31,28 @@ export interface PerfEvalIndicator {
   status: string;
 }
 
+/**
+ * An objective frozen into the evaluation snapshot alongside the indicators —
+ * OD `perfRecord` (js/core.js:8042) takes `objTenantList().map(o => ({id,
+ * title, owner, unit, dir, target, val, status, period}))` and stores it as
+ * `objectives` on the `db.perfEvals` row next to `indicators`
+ * (js/core.js:8043); `perfSeedBaseline` (js/core.js:7949-7950) writes the same
+ * array minus `period`, so that one field is optional. Rendered as the
+ * "Objectives at evaluation (§6.2)" table in the record drawer
+ * (js/core.js:8031).
+ */
+export interface PerfEvalObjective {
+  id: string;
+  title: string;
+  owner: string;
+  unit: string;
+  dir: string;
+  target: string;
+  val: string;
+  status: string;
+  period?: string;
+}
+
 export class PerfEval extends Model<InferAttributes<PerfEval>, InferCreationAttributes<PerfEval>> {
   declare id: CreationOptional<string>;
   declare orgId: string;
@@ -40,6 +62,7 @@ export class PerfEval extends Model<InferAttributes<PerfEval>, InferCreationAttr
   declare owner: string;
   declare summary: string | null;
   declare indicators: CreationOptional<PerfEvalIndicator[]>;
+  declare objectives: CreationOptional<PerfEvalObjective[]>;
   declare createdBy: string | null;
   declare lastUpdatedBy: string | null;
   declare createdAt: CreationOptional<Date>;
@@ -55,6 +78,7 @@ PerfEval.init(
     owner: { type: DataTypes.STRING, allowNull: false },
     summary: { type: DataTypes.TEXT, allowNull: true },
     indicators: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+    objectives: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
     lastUpdatedBy: { type: DataTypes.STRING, allowNull: true, field: "last_updated_by" },
     createdAt: DataTypes.DATE,

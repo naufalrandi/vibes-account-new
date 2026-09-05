@@ -506,7 +506,11 @@ export function initModels(): void {
   PerformanceRecord.belongsTo(Organization, { foreignKey: "orgId" });
   User.hasMany(PerformanceRecord, { foreignKey: "userId" });
   PerformanceRecord.belongsTo(User, { foreignKey: "userId" });
-  PerformanceRecord.belongsTo(User, { foreignKey: "reviewerId", as: "reviewer" });
+  // Aliased `reviewerUser`, not `reviewer`: OD's performance record carries a free-text
+  // `reviewer` (js/modules.js:1080 stores 'Board', a governing body rather than a person),
+  // which now exists as a real attribute — a `reviewer` association alias would collide
+  // with it. The FK link is kept alongside for the cases where the reviewer IS a user.
+  PerformanceRecord.belongsTo(User, { foreignKey: "reviewerId", as: "reviewerUser" });
 
   // Contract documents / activity log / onboarding checklist / comp+bank
   // binding (SOF-48-5) — all key off `users.id` directly, independent of

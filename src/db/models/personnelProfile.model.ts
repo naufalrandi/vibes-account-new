@@ -10,7 +10,26 @@ export const EMPLOYMENT_STATUSES = [
   "Onboarding", "Active", "On Leave", "Suspended", "Offboarding", "Exited", "Alumni",
 ] as const;
 export type EmploymentStatus = (typeof EMPLOYMENT_STATUSES)[number];
-export type ContractType = "Permanent" | "Fixed-Term" | "Probation" | "Internship" | "Outsourced";
+/**
+ * OD `CONTRACT_TYPE_SEED` names the four real contract types: "Permanent",
+ * "Fixed Duration", "Internship", "Contractor (SOW)" (js/modules.js:5041-5044).
+ * The two OD spellings this port was missing are added here (migration 0097).
+ *
+ * "Fixed-Term", "Outsourced" and "Probation" are port-only and NOT in OD —
+ * OD treats probation as a clause plus a probation-end date inside a
+ * contract, not as a contract type (js/modules.js:5185). They stay because
+ * `convertContract` branches on "Probation"
+ * (src/modules/users/personnelProfile.service.ts:208) and the request schema
+ * repeats the old five (src/modules/users/personnelProfile.controller.ts:30),
+ * neither of which this change may touch. Removing them is a follow-up that
+ * must move those two files and the integration test together, and recreate
+ * the Postgres enum type (values cannot be dropped in place).
+ */
+export const CONTRACT_TYPES = [
+  "Permanent", "Fixed Duration", "Internship", "Contractor (SOW)",
+  "Fixed-Term", "Probation", "Outsourced",
+] as const;
+export type ContractType = (typeof CONTRACT_TYPES)[number];
 
 /**
  * Personal / emergency-contact / employment-contract sub-record for a `User`
@@ -80,7 +99,7 @@ PersonnelProfile.init(
     },
     managerId: { type: DataTypes.UUID, allowNull: true, field: "manager_id" },
     contractType: {
-      type: DataTypes.ENUM("Permanent", "Fixed-Term", "Probation", "Internship", "Outsourced"),
+      type: DataTypes.ENUM(...CONTRACT_TYPES),
       allowNull: true,
       field: "contract_type",
     },

@@ -714,3 +714,79 @@ export const MENU_SEED: SeedMenu[] = [
     ],
   },
 ];
+
+/* =========================================================================
+ * OD per-menu action vocabulary — Access Configuration screen
+ * (js/core.js:5023-5039, plus the unit-menu overrides at js/core.js:5049).
+ *
+ * Orthogonal to the `ACTIONS` keys above: `ACTIONS` are route-level grant
+ * keys ("user.create"), while this vocabulary is the nine short verbs the
+ * access grid stores per *menu key* in `User.navActions` / `entActions` /
+ * `unitActions`. A menu's archetype decides which of the nine apply, and the
+ * ARCH_ACTIONS order is the order the checkboxes render in.
+ * ========================================================================= */
+
+/** OD `PERM_ACT_LABEL` (js/core.js:5023) — the complete set of nine actions. */
+export const PERM_ACT_LABEL = {
+  view: "View",
+  create: "Create",
+  edit: "Edit",
+  delete: "Delete",
+  export: "Export",
+  approve: "Approve",
+  publish: "Publish",
+  assign: "Assign",
+  configure: "Configure",
+} as const;
+
+export type PermAction = keyof typeof PERM_ACT_LABEL;
+export type MenuArchetype = "record" | "workflow" | "library" | "report" | "config";
+
+/**
+ * OD `ARCH_ACTIONS` (js/core.js:5025-5031) — each menu belongs to an archetype
+ * that declares which actions actually apply. Order is significant: it is the
+ * order the per-action checkboxes render in.
+ */
+export const ARCH_ACTIONS: Record<MenuArchetype, readonly PermAction[]> = {
+  record: ["view", "create", "edit", "delete", "export", "assign"],
+  workflow: ["view", "edit", "approve", "publish", "export"],
+  library: ["view", "create", "edit", "delete", "export"],
+  report: ["view", "export"],
+  config: ["view", "edit", "configure"],
+};
+
+/**
+ * OD `MENU_ARCH` (js/core.js:5032-5037) merged with the AXIA operating-unit
+ * overrides applied by `Object.assign(MENU_ARCH, …)` at js/core.js:5049.
+ * Any key not listed here resolves to `record` — see `menuArch`.
+ */
+export const MENU_ARCH: Record<string, MenuArchetype> = {
+  "org-profile": "config", team: "record", "svc-impl": "record", "svc-audit": "record",
+  "svc-assess": "record", "svc-comp": "record", partners: "record", "sp-agreements": "workflow",
+  "sp-billing": "record", "sp-treq": "workflow", "sp-tenants": "record", "sp-subs": "record",
+  elements: "library", frameworks: "library", "req-library": "library", "sp-scopedata": "library",
+  xref: "record", rcmap: "record", kb: "library", "sp-tickets": "record",
+  "ent-myreq": "workflow", "ent-doa": "workflow", "ent-assess": "workflow", "ent-audits": "workflow",
+  "ent-conformance": "workflow", "ent-compliance": "workflow", "ent-roles": "config",
+  "ent-orgstructure": "record", "ent-emplevels": "record", "ent-complib": "library",
+  "ent-instruments": "library",
+  "ent-ctypes": "library", "ent-clauses": "library", "ent-svc-ctypes": "library",
+  "ent-svc-clauses": "library", "ent-sup-ctypes": "library", "ent-sup-clauses": "library",
+  "ent-db-countries": "library", "ent-banks": "library", "ent-holidays": "library",
+  "ent-fiscal": "library", "ent-db-edu": "library", "ent-db-sectors": "library",
+  "ent-db-frameworks": "library", "ent-bpcatalog": "library", "ent-db-edufields": "library",
+  // js/core.js:5049 — Object.assign overrides for AC_UNITS menus.
+  "lims-methods": "library", "lims-results": "workflow", "lims-reports": "report",
+  "atr-certs": "workflow", "acert-exams": "workflow", "acert-decisions": "workflow",
+  "abizc-assess": "workflow", "abizc-reports": "report",
+};
+
+/** OD `menuArch(k)` (js/core.js:5038) — unlisted keys fall through to `record`. */
+export function menuArch(menuKey: string): MenuArchetype {
+  return MENU_ARCH[menuKey] ?? "record";
+}
+
+/** OD `menuActions(k)` (js/core.js:5039) — the actions applicable to one menu. */
+export function menuActions(menuKey: string): readonly PermAction[] {
+  return ARCH_ACTIONS[menuArch(menuKey)] ?? ARCH_ACTIONS.record;
+}

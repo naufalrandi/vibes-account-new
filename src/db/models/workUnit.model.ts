@@ -22,6 +22,12 @@ export class WorkUnit extends Model<
   declare processIds: CreationOptional<string[]>;
   declare envIds: CreationOptional<string[]>;
   declare depIds: CreationOptional<string[]>;
+  /**
+   * Post date — the date the record was *posted* to the register, distinct
+   * from `createdAt`. OD seeds/creates it alongside createdAt but keeps it a
+   * separate, editable field (js/core.js:11295 seed, js/core.js:11443 create).
+   */
+  declare postDate: CreationOptional<Date>;
   declare createdBy: string | null;
   /** Audit-trail triple (same shape as the IA entities, `internalAudit.models.ts`). */
   declare lastUpdatedBy: string | null;
@@ -43,6 +49,7 @@ WorkUnit.init(
     processIds: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "process_ids" },
     envIds: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "env_ids" },
     depIds: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "dep_ids" },
+    postDate: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: "post_date" },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
     lastUpdatedBy: { type: DataTypes.STRING, allowNull: true, field: "last_updated_by" },
     activity: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },

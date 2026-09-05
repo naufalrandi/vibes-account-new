@@ -18,7 +18,7 @@ function assertPasswordPolicy(password: string): void {
   }
 }
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
-import { isAllowedRoleForOrgType } from "../iam/role.catalog";
+import { ROLE_GROUPS, isAllowedRoleForOrgType } from "../iam/role.catalog";
 
 export interface CreateUserInput {
   orgId: string;
@@ -67,6 +67,12 @@ export interface UpdateUserInput {
   units?: string[];
   unitAccess?: Record<string, boolean>;
   unitPerms?: Record<string, string[]>;
+  // OD `acSave` Service Provider axis (js/core.js:5225): the granted MENU key
+  // set. `permissions` above is only the module list derived from it.
+  navPerms?: string[];
+  // OD "Service Provider platform access" switch (js/core.js:5216). Setting it
+  // false revokes access and clears the whole SP block — see updateUser.
+  provisioned?: boolean;
 }
 
 export interface UserFilters {
@@ -78,6 +84,43 @@ export interface UserFilters {
   username?: string;
   /** Free-text term matched against email OR username. */
   search?: string;
+}
+
+/**
+ * OD `acSave` coupling rules (js/core.js:5220-5222). The Service Provider access
+ * fields are not independent columns — these two states are ones the OD save
+ * path cannot produce, so the API refuses them rather than persisting a
+ * configuration the access screen could never round-trip.
+ */
+function assertAccessCoupling(opts: {
+  roleGroup: string | null;
+  permissionMode: PermissionMode | null;
+  navPerms: string[];
+  permissions: string[];
+}): void {
+  // js/core.js:5220 — `const mode = role==='Administrator' ? ACX.mode : null;`
+  // Every non-Administrator group is persisted with a null permission mode, so
+  // 'Custom Access' outside 'Administrator' is unreachable in OD.
+  if (opts.permissionMode === "Custom Access" && opts.roleGroup !== "Administrator") {
+    throw new BadRequestError(
+      "Only an Administrator may hold Custom Access",
+      "CUSTOM_ACCESS_REQUIRES_ADMINISTRATOR",
+    );
+  }
+  // js/core.js:5222 — `if(role==='Administrator'&&mode==='Custom Access'&&!keys.length)`
+  // aborts the save with "Enable at least one Service Provider workspace or
+  // menu". OD gates on `keys` (persisted as navPerms). `permissions` is the
+  // derived module list (`acNavToModules`, js/core.js:5003-5006) and several
+  // menu keys map to no module at all, so an empty `permissions` on its own is
+  // not evidence of an empty grant — the empty state is both being empty.
+  if (
+    opts.roleGroup === "Administrator" &&
+    opts.permissionMode === "Custom Access" &&
+    opts.navPerms.length === 0 &&
+    opts.permissions.length === 0
+  ) {
+    throw new BadRequestError("Enable at least one Service Provider workspace or menu", "EMPTY_CUSTOM_ACCESS");
+  }
 }
 
 export async function createUser(auth: AuthContext, input: CreateUserInput, ip: string | null): Promise<User> {
@@ -100,6 +143,15 @@ export async function createUser(auth: AuthContext, input: CreateUserInput, ip: 
   if (auth.orgType === "Distributor" && org.parentOrgId !== auth.orgId && org.id !== auth.orgId) throw new ForbiddenError();
 
   if (input.password) assertPasswordPolicy(input.password);
+
+  // OD acSave coupling rules apply to the invite path too — a user must not be
+  // created in a state the access screen could never save.
+  assertAccessCoupling({
+    roleGroup: input.role ?? null,
+    permissionMode: input.permissionMode ?? null,
+    navPerms: [],
+    permissions: input.permissions ?? [],
+  });
 
   const existing = await User.findOne({ where: { [Op.or]: [{ username: input.username }, { email: input.email }] } });
   if (existing) throw new ConflictError("Username or email already exists", "DUPLICATE_USER");
@@ -268,7 +320,26 @@ export async function updateUser(
   ip: string | null,
 ): Promise<User> {
   const user = await requireManagedUser(auth, userId);
-  const isSuper = ((user.get("Roles") as Role[] | undefined) ?? []).some((r) => r.isSuperAdmin);
+  const currentRoles = (user.get("Roles") as Role[] | undefined) ?? [];
+  const isSuper = currentRoles.some((r) => r.isSuperAdmin);
+
+  // OD acSave coupling rules (js/core.js:5220-5222), checked against the state
+  // this PATCH would leave behind — the role group, permission mode, menu-key
+  // set and module list are one saved unit, so each is resolved from the input
+  // where present and from the stored row otherwise. Skipped when the request
+  // is revoking platform access, which clears all four together (see below).
+  const revokingAccess = input.provisioned === false;
+  if (!revokingAccess) {
+    const roleNames = currentRoles.map((r) => r.name);
+    const currentRoleGroup =
+      roleNames.find((n) => (ROLE_GROUPS as readonly string[]).includes(n)) ?? roleNames[0] ?? null;
+    assertAccessCoupling({
+      roleGroup: input.role ?? currentRoleGroup,
+      permissionMode: input.permissionMode !== undefined ? (input.permissionMode ?? null) : user.permissionMode,
+      navPerms: input.navPerms ?? user.navPerms ?? [],
+      permissions: input.permissions !== undefined ? (input.permissions ?? []) : (user.permissions ?? []),
+    });
+  }
 
   // Username/email carry global UNIQUE constraints (including soft-deleted rows),
   // so uniqueness is checked across all users — consistent with createUser and the
@@ -342,6 +413,15 @@ export async function updateUser(
     if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
     user.unitPerms = input.unitPerms;
   }
+  // OD `u.navPerms` (js/core.js:5225) — the granted Service Provider menu keys.
+  if (input.navPerms !== undefined) {
+    if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
+    user.navPerms = input.navPerms;
+  }
+  if (input.provisioned === true) {
+    if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
+    user.provisioned = true;
+  }
   await user.save();
 
   // Role group change: locked for Super Administrators; validated against the
@@ -363,6 +443,27 @@ export async function updateUser(
       // awaiting admin assignment) — flips true once a role is actually granted.
       if (!user.provisioned) { user.provisioned = true; await user.save(); }
     }
+  }
+
+  // OD "Service Provider platform access" switch turned OFF (js/core.js:5216):
+  //   u.provisioned=false; u.roleGroup=''; u.permissionMode=null;
+  //   u.permissions=[]; u.navPerms=[]; u.navActions={}
+  // — one coupled clear, not five independent fields. `roleGroup=''` is the role
+  // membership going away, so the UserRole rows go with it. Deliberately does
+  // NOT touch entAccess/entPerms/entActions or the unit axes: OD rewrites those
+  // from their own toggles further down acSave, so Enterprise and business-unit
+  // access survive an SP platform-access revocation.
+  if (revokingAccess) {
+    // OD renders the switch disabled and `acToggleAccess` no-ops when ACX.locked
+    // (super admin, js/core.js:5158) — a super admin's access can't be revoked.
+    if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
+    user.provisioned = false;
+    user.permissionMode = null;
+    user.permissions = [];
+    user.navPerms = [];
+    user.navActions = {};
+    await user.save();
+    await UserRole.destroy({ where: { userId } });
   }
 
   await writeAudit({

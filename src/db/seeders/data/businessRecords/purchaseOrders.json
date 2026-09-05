@@ -33,7 +33,7 @@
    "payAdvance": 0,
    "payRetention": 0,
    "deliveryBy": "2026-08-01",
-   "status": "Issued",
+   "status": "Completed",
    "issuedDate": "2026-07-11T09:30:00",
    "activity": [
     {
@@ -66,7 +66,7 @@
    "payAdvance": 0,
    "payRetention": 0,
    "deliveryBy": "2026-08-01",
-   "status": "Issued",
+   "status": "Sent",
    "issuedDate": "2026-07-06T09:30:00",
    "activity": [
     {
@@ -92,7 +92,7 @@
    "payAdvance": 0,
    "payRetention": 0,
    "deliveryBy": "2026-08-15",
-   "status": "Issued",
+   "status": "Confirmed",
    "issuedDate": "2026-07-03T09:00:00",
    "activity": [
     {
@@ -125,7 +125,7 @@
    "payAdvance": 0,
    "payRetention": 0,
    "deliveryBy": "2026-08-10",
-   "status": "Issued",
+   "status": "Received",
    "issuedDate": "2026-07-02T09:00:00",
    "activity": [
     {
@@ -158,7 +158,7 @@
    "payAdvance": 0,
    "payRetention": 0,
    "deliveryBy": "2026-07-31",
-   "status": "Issued",
+   "status": "Invoiced",
    "issuedDate": "2026-06-24T09:00:00",
    "activity": [
     {

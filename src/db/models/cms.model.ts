@@ -1,6 +1,25 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
 
+/**
+ * NOTE (baseline conformance, deliberately NOT changed here — both gaps need
+ * files outside this change to move in the same commit):
+ *
+ * 1. OD `CMS_TEMPLATES` is `['Landing','Standard','Pricing','Contact',
+ *    'Blog Index','Legal']` (js/core.js:3744) — "Standard", "Blog Index" and
+ *    "Legal" are missing below and "Home" is not an OD template. Adding members
+ *    breaks the exhaustive `Record<CmsPageTemplate, …>` renderer table at
+ *    src/modules/cms/cmsPublic.routes.ts:81, and the request schema at
+ *    src/modules/cms/cms.controller.ts:11 repeats the list.
+ * 2. OD spells the review state `'In Review'`, with a space —
+ *    `CMS_PAGE_STATUS` (js/core.js:3742) and `CMS_POST_STATUS`
+ *    (js/core.js:3743). Both OD lists are otherwise complete below. Renaming
+ *    "InReview" means src/modules/cms/cms.controller.ts:12-13,
+ *    src/db/seeders/cms.data.ts and a backfill of stored rows.
+ *
+ * `cms_pages.template`/`.status` and `cms_posts.status` are plain STRING
+ * columns (migration 0079), so neither fix needs a migration.
+ */
 export type CmsPageTemplate = "Home" | "Pricing" | "Contact" | "Landing";
 export type CmsPageStatus = "Draft" | "InReview" | "Published" | "Archived";
 export type CmsPostStatus = "Draft" | "InReview" | "Published" | "Archived" | "Scheduled";

@@ -153,11 +153,15 @@ export const OD_PARTNERS: readonly OdPartner[] = [
  * Seeds OD's remaining partners under the Service Owner. Idempotent on the
  * organization code / partner code / email natural keys.
  *
- * No child Tenant organizations are created: OD gives `idpr4` and `idpr5` one
- * tenant each, but a Tenant org here needs a profile, subscription and site
- * tree to be coherent, and the partner screens read `tenantCount` off the org
- * tree, so those two show 0 rather than a fabricated tenant. The partner
- * lifecycle states — which is what was missing — are all present.
+ * No child Tenant organizations are created here, but `idpr4`'s is no longer
+ * missing: OD gives `idpr4` and `idpr5` one tenant each, and `seed.ts` step
+ * 12d-2 now seeds `idpr4`'s (`TEN-1004` PT Cross Technological Enterprises)
+ * under this partner's org, so its `tenantCount` reads 1 as OD's does.
+ * `idpr5`'s tenant is OD `idtn5` PT Hammer Industries, which this backend
+ * already provisions as `TEN-1005` (Garuda Manufacturing) under the Nusantara
+ * Partners fixture — re-parenting it here would break the revenue-share and
+ * cross-partner ticket-isolation seeds built on that pairing, so `PRT-1005`
+ * still reads 0.
  */
 export async function seedOdPartners(soOrgId: string): Promise<void> {
   for (const p of OD_PARTNERS) {

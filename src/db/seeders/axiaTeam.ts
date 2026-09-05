@@ -14,14 +14,18 @@ import type { PermissionMode, UserStatus } from "../models/user.model";
  * three stay as-is — they are the auth fixtures the API tests and the dev login
  * depend on — and this roster is seeded alongside them.
  *
- * Two deviations from OD, both forced by unique constraints already in place:
+ * One deviation from OD, forced by a unique constraint already in place:
  *
  *  - `axia1` uses `matthew.murdock@axia.io` rather than OD's `admin@axia.io`,
- *    because `admin@axia.io` is the existing `admin` auth fixture. OD collapses
- *    the platform owner and the demo administrator login into one row; here
- *    they are two.
- *  - `axia2` likewise keeps `natalia.romanova@axia.io` (OD: `billing@axia.io`),
- *    the address `seedCompetenceRolesAndAssignments` already created her under.
+ *    because `admin@axia.io` is the existing `admin` auth fixture (`seed.ts`
+ *    `ensureUser("admin", ...)`. OD collapses the platform owner and the demo
+ *    administrator login into one row; here they are two.
+ *
+ * `axia2` previously deviated too (`natalia.romanova@axia.io`), on the grounds
+ * that `seedCompetenceRolesAndAssignments` had already created her under that
+ * address — but that seeder derives `SP_TEAM` from this very table
+ * (`competenceRoles.ts`), so there was never a collision to avoid. Restored to
+ * OD's `billing@axia.io` (core.js:152).
  *
  * Everything else — usernames, titles, departments, statuses, role groups,
  * permission modes, permission keys and unit grants — is OD verbatim.
@@ -60,7 +64,7 @@ export const AXIA_TEAM: readonly AxiaTeamMember[] = [
     roleGroup: "Administrator", permissionMode: "Full Access", permissions: [...SP_MODULES],
     title: "Platform Owner", department: "Executive", phone: "+62 811 1000 100",
     status: "Active", superAdmin: true, provisioned: true, units: [], createdAt: may(1), lastLogin: may(20) },
-  { odId: "axia2", username: "billing.lead", email: "natalia.romanova@axia.io", fullName: "Natalia Alianovna Romanova",
+  { odId: "axia2", username: "billing.lead", email: "billing@axia.io", fullName: "Natalia Alianovna Romanova",
     roleGroup: "Billing Manager", permissionMode: null, permissions: ["billing"],
     title: "Billing Lead", department: "Finance", phone: null,
     status: "Active", superAdmin: false, provisioned: true, units: [], createdAt: may(1), lastLogin: null },

@@ -6,13 +6,13 @@
  * transcribed verbatim from `parity/2026-08-31/dumps/<collection>.json`
  * (OD's `db.*` after its own `seed()` run).
  *
- * Only rows whose OD tenant/partner resolve to an org this repo's `seed.ts`
- * already creates (Garuda/"PT Hammer Industries" idtn5, DamageControl idtn1,
- * their two partners) are included — OD also seeds a few tenants
- * (idtn2/3/4: Alchemax/Brand Corp/Cross Technological) this backend never
- * provisions, so their saasSubs/saasWorkspaces/saasPipeline rows have no
- * valid org_id to seed against and are skipped. SaasPipeline.tenantId is
- * nullable (pre-tenant leads), so its 5 lead rows (no tenant yet) are kept.
+ * All 8 saasSubs (SUB-1001..1008), 8 saasWorkspaces (WS-1001..1008) and 13
+ * saasPipeline rows OD seeds (`saasProvSeedIfNeeded`, core.js:2924-2998) are
+ * present. OD's idtn2/idtn3/idtn4 (Alchemax / Brand Corp / Cross Technological)
+ * had no organization in this backend, so their rows used to be dropped for
+ * want of a valid org_id; `seed.ts` step 12d-2 now seeds those three tenants
+ * (TEN-1002/1003/1004) and they resolve. SaasPipeline.tenantId is nullable
+ * (pre-tenant leads), so its 5 lead rows (no tenant yet) carry null.
  *
  * Idempotency: upsert by natural key — saasPipeline/saasSubscriptions/
  * saasWorkspaces/siteRequests by `code` (unique per their migrations),
@@ -32,7 +32,18 @@ interface OrgIds {
   hammerPartnerId: string;
   dcTenantId: string;
   dcPartnerId: string;
+  /** OD `idtn2` PT Alchemax — `TEN-1002`, seeded by `seed.ts` step 12d-2. */
+  alchemaxTenantId: string;
+  /** OD `idtn3` PT Brand Corporation — `TEN-1003`. */
+  brandCorpTenantId: string;
+  /** OD `idtn4` PT Cross Technological Enterprises — `TEN-1004`. */
+  crossTechTenantId: string;
+  /** OD `idpr4`, PT Cross Technological Enterprises' partner — `PRT-1004` / `RHEING`. */
+  crossTechPartnerId: string;
 }
+
+type TenantKey = "hammer" | "dc" | "alchemax" | "brandCorp" | "crossTech";
+type PartnerKey = "hammer" | "dc" | "crossTech";
 
 const PIPELINES = [
   {
@@ -84,6 +95,39 @@ const PIPELINES = [
     audit: [{ ts: "2025-07-07T05:37:07.972Z", msg: "Add-on provisioned — CAB MS activated" }],
     createdAt: "2025-06-29T05:37:07.972Z", updatedAt: "2025-07-07T05:37:07.972Z", amount: 60000000,
     subOdId: "sub-hm-cab",
+  },
+  // OD `pipe-alch` / `pipe-cross` / `pipe-brand` (core.js:2972-2974). These
+  // three were skipped until `seed.ts` grew OD's TEN-1002/1003/1004 tenant
+  // orgs — see the header note.
+  {
+    code: "PIPE-1002", odId: "pipe-alch", tenant: "alchemax" as const, partner: null,
+    tenantName: "PT Alchemax", industry: "Laboratory", contactPerson: "Samuel Thomas Wilson",
+    contactEmail: "xavier@alchemax.co.id", items: [{ product: "lab", term: "12 months", price: 48000000 }],
+    type: "New Tenant / SaaS", stage: "Completed", registrationComplete: true,
+    payment: { method: "Bank Transfer", state: "Verified", invoiceNo: "INV-1002", proofUrl: "transfer-INV-1002.pdf", verifiedBy: "AXIA Finance", verifiedAt: "2025-08-16T05:37:07.972Z" },
+    audit: [{ ts: "2025-08-16T05:37:07.972Z", msg: "Provisioned — Lab IMS activated" }],
+    createdAt: "2025-08-08T05:37:07.972Z", updatedAt: "2025-08-16T05:37:07.972Z", amount: 48000000,
+    subOdId: "sub4",
+  },
+  {
+    code: "PIPE-1004", odId: "pipe-cross", tenant: "crossTech" as const, partner: "crossTech" as const,
+    tenantName: "PT Cross Technological Enterprises", industry: "Technology", contactPerson: "Clinton Francis Barton",
+    contactEmail: "lionel@cte.co.id", items: [{ product: "personnel", term: "12 months", price: 48000000 }],
+    type: "New Tenant / SaaS", stage: "Completed", registrationComplete: true,
+    payment: { method: "Bank Transfer", state: "Verified", invoiceNo: "INV-1004", proofUrl: "transfer-INV-1004.pdf", verifiedBy: "AXIA Finance", verifiedAt: "2025-07-17T05:37:07.972Z" },
+    audit: [{ ts: "2025-07-17T05:37:07.972Z", msg: "Provisioned — Personnel Certification MS activated" }],
+    createdAt: "2025-07-09T05:37:07.972Z", updatedAt: "2025-07-17T05:37:07.972Z", amount: 48000000,
+    subOdId: "sub5",
+  },
+  {
+    code: "PIPE-1003", odId: "pipe-brand", tenant: "brandCorp" as const, partner: null,
+    tenantName: "PT Brand Corporation", industry: "Consumer Goods", contactPerson: "Elizabeth Ross",
+    contactEmail: "julia@brandcorp.co.id", items: [{ product: "ms", term: "12 months", price: 36000000 }],
+    type: "New Tenant / SaaS", stage: "Completed", registrationComplete: true,
+    payment: { method: "Bank Transfer", state: "Verified", invoiceNo: "INV-1003", proofUrl: "transfer-INV-1003.pdf", verifiedBy: "AXIA Finance", verifiedAt: "2026-08-11T05:37:07.972Z" },
+    audit: [{ ts: "2026-08-11T05:37:07.972Z", msg: "Provisioned — Management System activated" }],
+    createdAt: "2026-08-03T05:37:07.972Z", updatedAt: "2026-08-11T05:37:07.972Z", amount: 36000000,
+    subOdId: "sub6",
   },
   // Pre-tenant leads (OD tenantId null) — tenantId is nullable on this model, kept as-is.
   {
@@ -180,6 +224,26 @@ const SUBSCRIPTIONS = [
     audit: [{ ts: "2025-06-27T05:37:07.972Z", msg: "Subscription activated · bank transfer verified" }],
   },
   {
+    code: "SUB-1004", odId: "sub4", tenant: "alchemax" as const, partner: null, pipelineOdId: "pipe-alch",
+    products: ["lab"], startDate: "2025-08-16T05:37:07.972Z", renewalDate: "2026-08-16T05:37:07.972Z",
+    lastPaymentAt: "2025-08-16T05:37:07.972Z", amount: 48000000,
+    graceStartedAt: "2026-08-16T05:37:07.972Z", archivedAt: null,
+    audit: [{ ts: "2025-08-16T05:37:07.972Z", msg: "Subscription activated · bank transfer verified" }],
+  },
+  {
+    code: "SUB-1005", odId: "sub5", tenant: "crossTech" as const, partner: "crossTech" as const, pipelineOdId: "pipe-cross",
+    products: ["personnel"], startDate: "2025-07-17T05:37:07.972Z", renewalDate: "2026-07-17T05:37:07.972Z",
+    lastPaymentAt: "2025-07-17T05:37:07.972Z", amount: 48000000,
+    graceStartedAt: "2026-08-16T05:37:07.972Z", archivedAt: null,
+    audit: [{ ts: "2025-07-17T05:37:07.972Z", msg: "Subscription activated · bank transfer verified" }],
+  },
+  {
+    code: "SUB-1006", odId: "sub6", tenant: "brandCorp" as const, partner: null, pipelineOdId: "pipe-brand",
+    products: ["ms"], startDate: "2026-08-11T05:37:07.972Z", renewalDate: "2027-08-11T05:37:07.972Z",
+    lastPaymentAt: "2026-08-11T05:37:07.972Z", amount: 36000000, graceStartedAt: null, archivedAt: null,
+    audit: [{ ts: "2026-08-11T05:37:07.972Z", msg: "Subscription activated · bank transfer verified" }],
+  },
+  {
     code: "SUB-1007", odId: "sub-hm-lab", tenant: "hammer" as const, partner: "hammer" as const, pipelineOdId: "pipe-hm-lab",
     products: ["lab"], startDate: "2025-08-06T05:37:07.972Z", renewalDate: "2026-08-16T05:37:07.972Z",
     lastPaymentAt: "2025-08-06T05:37:07.972Z", amount: 48000000,
@@ -199,6 +263,9 @@ const WORKSPACES = [
   { code: "WS-1001", odId: "ws1", tenant: "hammer" as const, subOdId: "sub1", product: "ms", name: "Management System", standard: "ISO 9001:2015", provisionedAt: "2025-11-04T05:37:07.972Z", audit: [{ ts: "2025-11-04T05:37:07.972Z", msg: "Workspace provisioned (Management System)" }] },
   { code: "WS-1002", odId: "ws2", tenant: "dc" as const, subOdId: "sub2", product: "ms", name: "Management System", standard: "ISO 9001:2015", provisionedAt: "2026-02-12T05:37:07.972Z", audit: [{ ts: "2026-02-12T05:37:07.972Z", msg: "Workspace provisioned (Management System)" }] },
   { code: "WS-1003", odId: "ws3", tenant: "dc" as const, subOdId: "sub3", product: "cab", name: "CAB MS", standard: "ISO/IEC 17021-1:2015", provisionedAt: "2025-06-27T05:37:07.972Z", audit: [{ ts: "2025-06-27T05:37:07.972Z", msg: "Workspace provisioned (CAB MS)" }] },
+  { code: "WS-1004", odId: "ws4", tenant: "alchemax" as const, subOdId: "sub4", product: "lab", name: "Lab IMS", standard: "ISO/IEC 17025:2017", provisionedAt: "2025-08-16T05:37:07.972Z", audit: [{ ts: "2025-08-16T05:37:07.972Z", msg: "Workspace provisioned (Lab IMS)" }] },
+  { code: "WS-1005", odId: "ws5", tenant: "crossTech" as const, subOdId: "sub5", product: "personnel", name: "Personnel Certification MS", standard: "ISO/IEC 17024:2012", provisionedAt: "2025-07-17T05:37:07.972Z", audit: [{ ts: "2025-07-17T05:37:07.972Z", msg: "Workspace provisioned (Personnel Certification MS)" }] },
+  { code: "WS-1006", odId: "ws6", tenant: "brandCorp" as const, subOdId: "sub6", product: "ms", name: "Management System", standard: "ISO 9001:2015", provisionedAt: "2026-08-11T05:37:07.972Z", audit: [{ ts: "2026-08-11T05:37:07.972Z", msg: "Workspace provisioned (Management System)" }] },
   { code: "WS-1007", odId: "ws-hm-lab", tenant: "hammer" as const, subOdId: "sub-hm-lab", product: "lab", name: "Lab IMS", standard: "ISO/IEC 17025:2017", provisionedAt: "2025-08-06T05:37:07.972Z", audit: [{ ts: "2025-08-06T05:37:07.972Z", msg: "Workspace provisioned (Lab IMS)" }] },
   { code: "WS-1008", odId: "ws-hm-cab", tenant: "hammer" as const, subOdId: "sub-hm-cab", product: "cab", name: "CAB MS", standard: "ISO/IEC 17021-1:2015", provisionedAt: "2025-07-07T05:37:07.972Z", audit: [{ ts: "2025-07-07T05:37:07.972Z", msg: "Workspace provisioned (CAB MS)" }] },
 ];
@@ -320,10 +387,15 @@ const TENANT_ROLES = [
 const CREATED_BY = "Jennifer Susan Walters";
 
 export async function seedSaasLifecycle(orgIds: OrgIds): Promise<void> {
-  const tenantId = (t: "hammer" | "dc" | null) =>
-    t === "hammer" ? orgIds.hammerTenantId : t === "dc" ? orgIds.dcTenantId : null;
-  const partnerId = (p: "hammer" | "dc" | null) =>
-    p === "hammer" ? orgIds.hammerPartnerId : p === "dc" ? orgIds.dcPartnerId : null;
+  const TENANT_ORG: Record<TenantKey, string> = {
+    hammer: orgIds.hammerTenantId, dc: orgIds.dcTenantId, alchemax: orgIds.alchemaxTenantId,
+    brandCorp: orgIds.brandCorpTenantId, crossTech: orgIds.crossTechTenantId,
+  };
+  const PARTNER_ORG: Record<PartnerKey, string> = {
+    hammer: orgIds.hammerPartnerId, dc: orgIds.dcPartnerId, crossTech: orgIds.crossTechPartnerId,
+  };
+  const tenantId = (t: TenantKey | null) => (t ? TENANT_ORG[t] : null);
+  const partnerId = (p: PartnerKey | null) => (p ? PARTNER_ORG[p] : null);
 
   const pipelineIdByOdId = new Map<string, string>();
   for (const p of PIPELINES) {

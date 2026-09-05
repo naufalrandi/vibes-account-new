@@ -30,7 +30,21 @@ DocumentFolder.init(
 );
 
 export type DocumentKind = "internal" | "external";
-export type DocumentStatus = "Draft" | "Published" | "Archived";
+/**
+ * OD `CD_STATUS` verbatim, in OD's order (js/core.js:19529) — the controlled
+ * internal-document lifecycle. Was Draft/Published/Archived only.
+ * `documents.status` is a plain STRING column (migration 0078), so widening
+ * needs no migration.
+ *
+ * NOTE: external documents run a different OD vocabulary, `CD_EXT_STATUS`
+ * (js/core.js:19530: Active / Under Review / Updated Version Available /
+ * Superseded / Obsolete / Archived), and this port shares one `status`
+ * column across both `kind`s. Adding those two extra members is a separate
+ * change and is not made here.
+ */
+export type DocumentStatus =
+  | "Draft" | "Under Review" | "Revision Requested" | "Approved" | "Published"
+  | "Review Due" | "Superseded" | "Obsolete" | "Archived" | "Rejected";
 
 export interface DocumentBlock {
   id: string;
@@ -48,11 +62,11 @@ export class Document extends Model<InferAttributes<Document>, InferCreationAttr
   declare kind: DocumentKind;
   declare title: string;
   declare docType: string | null;
-  // ponytail: single Draft/Published/Archived lifecycle only — OD's
-  // multi-stage review/signoff chain, ack tracking, and version lineage are
-  // out of scope for this pass. Upgrade path: a DocumentApproval sub-table
-  // mirroring approval.models.ts (ApprovalScheme/ApprovalRecord) once a
-  // review workflow is actually needed here.
+  // ponytail: flat status field only — the OD `CD_STATUS` vocabulary is now
+  // complete, but the transitions between its members are unenforced and OD's
+  // signoff chain, ack tracking and version lineage are still out of scope.
+  // Upgrade path: a DocumentApproval sub-table mirroring approval.models.ts
+  // (ApprovalScheme/ApprovalRecord) once a review workflow is actually needed.
   declare status: CreationOptional<DocumentStatus>;
   declare version: CreationOptional<string>;
   declare content: DocumentBlock[] | null;
@@ -75,7 +89,13 @@ Document.init(
     kind: { type: DataTypes.ENUM("internal", "external"), allowNull: false },
     title: { type: DataTypes.STRING, allowNull: false },
     docType: { type: DataTypes.STRING, allowNull: true, field: "doc_type" },
-    status: { type: DataTypes.ENUM("Draft", "Published", "Archived"), allowNull: false, defaultValue: "Draft" },
+    status: {
+      type: DataTypes.ENUM(
+        "Draft", "Under Review", "Revision Requested", "Approved", "Published",
+        "Review Due", "Superseded", "Obsolete", "Archived", "Rejected",
+      ),
+      allowNull: false, defaultValue: "Draft",
+    },
     version: { type: DataTypes.STRING, allowNull: false, defaultValue: "0.1" },
     content: { type: DataTypes.JSONB, allowNull: true },
     folderId: { type: DataTypes.UUID, allowNull: true, field: "folder_id" },

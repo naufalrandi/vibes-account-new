@@ -164,10 +164,18 @@ IsraScenarioResidual.init(
   { sequelize, tableName: "isra_scenario_residual", underscored: true },
 );
 
-/** `sc.closure`. */
+/** `sc.closure` — OD reads exactly two members off it: `closure.status`
+ * (`isra2Stage`, js/core.js:14851, which treats 'Closed' as the terminal
+ * stage) and `closure.nextReview`, the second link in the next-review
+ * fallback chain `reviewDue → closure.nextReview → treatment.acceptance
+ * .reviewDate (Retain only) → treatment.reviewDate` (`isra2NextReview`,
+ * js/core.js:14762). `closedAt`/`closedBy`/`reason` are this port's own
+ * audit columns, not OD fields. */
 export class IsraScenarioClosure extends Model<InferAttributes<IsraScenarioClosure>, InferCreationAttributes<IsraScenarioClosure>> {
   declare scenarioId: string;
   declare status: CreationOptional<string>;
+  /** `closure.nextReview` — js/core.js:14762. */
+  declare nextReview: string | null;
   declare closedAt: Date | null;
   declare closedBy: string | null;
   declare reason: string | null;
@@ -178,6 +186,7 @@ IsraScenarioClosure.init(
   {
     scenarioId: { type: DataTypes.UUID, primaryKey: true, field: "scenario_id" },
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Open" },
+    nextReview: { type: DataTypes.DATEONLY, allowNull: true, field: "next_review" },
     closedAt: { type: DataTypes.DATE, allowNull: true, field: "closed_at" },
     closedBy: { type: DataTypes.STRING, allowNull: true, field: "closed_by" },
     reason: { type: DataTypes.TEXT, allowNull: true },

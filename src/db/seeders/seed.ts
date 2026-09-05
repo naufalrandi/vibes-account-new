@@ -130,6 +130,10 @@ async function grantAccess(roleId: string, menuNames: string[], actionKeys: stri
   }
 }
 
+/** OD `seedTenants()`'s own `c(d)` helper: `new Date(2026, 4, d, 10, 0, 0)`
+ * (open-design core.js:6867). */
+const odMay = (day: number): Date => new Date(2026, 4, day, 10, 0, 0);
+
 async function ensureUser(
   username: string,
   fullName: string,
@@ -289,6 +293,14 @@ export async function seed(): Promise<void> {
 
   // Tenant acquired through the distributor (acquisition = Partner).
   const [tenant] = await Organization.findOrCreate({
+    // OD `idtn5` / `TEN-1005` — the PT Hammer Industries persona this org stands
+    // for. The org `code` stays `GARUDA`: `findOrCreate` keys on it, and the
+    // container runs `node dist/server.js` with no migrate/seed step, so the
+    // deployed database persists across releases. Renaming the code would not
+    // rename the existing row — it would seed a SECOND Damage Control / Garuda
+    // org beside it. Aligning codes to OD's TEN-nnnn is a data migration, not a
+    // seeder edit.
+    // in for throughout the seeds (open-design core.js:6894).
     where: { code: "GARUDA" },
     defaults: {
       name: "Garuda Manufacturing", code: "GARUDA", type: "Tenant", status: "Active",
@@ -505,6 +517,7 @@ export async function seed(): Promise<void> {
     },
   });
   const [damageControl] = await Organization.findOrCreate({
+    // OD `idtn1` / `TEN-1001` (open-design core.js:6870).
     where: { code: "DMGCTRL" },
     defaults: {
       name: "PT Damage Control", code: "DMGCTRL", type: "Tenant", status: "Active",
@@ -658,14 +671,130 @@ export async function seed(): Promise<void> {
   //      tenant's ISO 4.4 process register (see src/db/seeders/businessProcess.ts).
   await seedBpCatalog(tenant.id);
 
+  // 12d-2. OD `seedTenants()` (open-design core.js:6867-6900) — the remaining
+  //        three of OD's five tenant organizations. `TEN-1001` (PT Damage
+  //        Control) and `TEN-1005` (the Hammer persona, seeded above as Garuda
+  //        Manufacturing) already existed; `TEN-1002`/`TEN-1003`/`TEN-1004` had
+  //        no org at all, which is why `dataParity.ts` had to drop OD's
+  //        SUB-1004/1005/1006 + WS-1004/1005/1006 + PIPE-1002/1003/1004 rows.
+  //
+  //        Codes, names, acquisition, contact details, billing plan and audit
+  //        trails are OD verbatim. Each tenant's OD `admin` becomes a User row
+  //        (no password, no Role) so the Tenants list has an administrator to
+  //        show — roster entries, not login principals, exactly as
+  //        `odPartners.ts` seeds partner staff.
+  //
+  //        One deliberate omission: OD's per-tenant `sites[]`. OD's `site()`
+  //        helper (core.js:6868) derives `STE-1003`..`STE-1008` for them and
+  //        `Site.code` is globally unique here — `STE-1003` is already the
+  //        Garuda Warehouse seeded above. Site parity is its own slice.
+  const OD_TENANTS = [
+    {
+      odId: "idtn2", code: "TEN-1002", name: "PT Alchemax", acquisition: "Direct" as const,
+      partnerOrgCode: null, email: "admin@alchemax.co.id", phone: "+62 31 5550 2000",
+      website: "alchemax.co.id", country: "ID", address: "Jl. Rungkut Industri 5, Surabaya",
+      orgStatus: "Active" as const, profileStatus: "Active" as const,
+      createdAt: odMay(4), updatedAt: odMay(12),
+      admin: { fullName: "Samuel Thomas Wilson", username: "xavier.admin", email: "xavier@alchemax.co.id", status: "Active" as const },
+      billing: { plan: "Enterprise · Annual", status: "Active" },
+      audit: [
+        { ts: odMay(12).toISOString(), msg: 'Site "Makassar Branch" created' },
+        { ts: odMay(5).toISOString(), msg: "Tenant Administrator activated account" },
+        { ts: odMay(4).toISOString(), msg: "Tenant organization created (Direct)" },
+      ],
+    },
+    {
+      // OD seeds `idtn3` as Pending Activation, then `saasProvSeedIfNeeded()`
+      // flips it (and its admin) to Active — "activate the one legacy
+      // Pending-Activation tenant — new model provisions to Active on payment"
+      // (core.js:2941). SUB-1006/WS-1006 are seeded for it below, so Active is
+      // the post-seed OD state.
+      odId: "idtn3", code: "TEN-1003", name: "PT Brand Corporation", acquisition: "Direct" as const,
+      partnerOrgCode: null, email: "it@brandcorp.co.id", phone: "+62 22 5550 3000",
+      website: "brandcorp.co.id", country: "ID", address: "Jl. Soekarno Hatta 88, Bandung",
+      orgStatus: "Active" as const, profileStatus: "Active" as const,
+      createdAt: odMay(14), updatedAt: odMay(14),
+      admin: { fullName: "Elizabeth Ross", username: "julia.admin", email: "julia@brandcorp.co.id", status: "Active" as const },
+      billing: { plan: "Growth · Annual", status: "Pending" },
+      audit: [
+        { ts: odMay(14).toISOString(), msg: "Activation email sent" },
+        { ts: odMay(14).toISOString(), msg: 'Primary site "Bandung Plant" created' },
+        { ts: odMay(14).toISOString(), msg: "Tenant organization created (Direct)" },
+      ],
+    },
+    {
+      // OD `partnerId:'idpr4'` — `odPartners.ts` seeds that partner as
+      // `PRT-1004` / org code `RHEING`.
+      odId: "idtn4", code: "TEN-1004", name: "PT Cross Technological Enterprises", acquisition: "Partner" as const,
+      partnerOrgCode: "RHEING", email: "admin@cte.co.id", phone: "+62 361 5550 4000",
+      website: "cte.co.id", country: "ID", address: "Jl. Bypass Ngurah Rai No. 100, Denpasar, Bali",
+      orgStatus: "Suspended" as const, profileStatus: "Suspended" as const,
+      createdAt: odMay(1), updatedAt: odMay(15),
+      admin: { fullName: "Clinton Francis Barton", username: "lionel.admin", email: "lionel@cte.co.id", status: "Suspended" as const },
+      billing: { plan: "Starter · Annual", status: "Partner-managed" },
+      audit: [
+        { ts: odMay(15).toISOString(), msg: "Tenant suspended" },
+        { ts: odMay(2).toISOString(), msg: "Tenant Administrator activated account" },
+        { ts: odMay(1).toISOString(), msg: "Tenant organization created (Partner: Roxxon Energy GmbH)" },
+      ],
+    },
+  ];
+  // `idpr4` — seeded by `seedOdPartners` in step 8b, well before this point.
+  const rheinPartner = await Organization.findOne({ where: { code: "RHEING" } });
+  if (!rheinPartner) throw new Error("Partner org RHEING (OD idpr4) missing — seedOdPartners must run first");
+  const odTenantOrgIdByOdId = new Map<string, string>();
+  for (const t of OD_TENANTS) {
+    const partnerOrg = t.partnerOrgCode === "RHEING" ? rheinPartner : null;
+    const [org] = await Organization.findOrCreate({
+      where: { code: t.code },
+      defaults: {
+        name: t.name, code: t.code, type: "Tenant", status: t.orgStatus,
+        parentOrgId: partnerOrg?.id ?? so.id, tenantId: null,
+        email: t.email, phone: t.phone, website: t.website, country: t.country, address: t.address,
+        createdAt: t.createdAt, updatedAt: t.updatedAt,
+      },
+    });
+    odTenantOrgIdByOdId.set(t.odId, org.id);
+    const [adminUser] = await User.findOrCreate({
+      where: { email: t.admin.email },
+      defaults: {
+        orgId: org.id, tenantId: org.id, fullName: t.admin.fullName, username: t.admin.username,
+        email: t.admin.email, passwordHash: null, status: t.admin.status, position: "Administrator",
+        workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null,
+        provisioned: true, createdAt: t.createdAt,
+      },
+    });
+    await TenantProfile.findOrCreate({
+      where: { orgId: org.id },
+      defaults: {
+        orgId: org.id, acquisition: t.acquisition, partnerOrgId: partnerOrg?.id ?? null,
+        billingOwner: t.acquisition === "Partner" ? (partnerOrg?.name ?? null) : t.admin.fullName,
+        status: t.profileStatus, subscriptionSummary: null, adminUserId: adminUser.id,
+        billing: t.billing, audit: t.audit,
+      },
+    });
+  }
+
+  const odTenantOrg = (odId: string): string => {
+    const id = odTenantOrgIdByOdId.get(odId);
+    if (!id) throw new Error(`OD tenant ${odId} was not seeded`);
+    return id;
+  };
+
   // 12e. SOF-389 (data parity) — the 5 OD `db.*` collections that map 1:1 to
   //      an existing model but had zero seeded rows: saasSubs/saasWorkspaces/
   //      saasPipeline (see src/db/seeders/dataParity.ts), siteRequests, and
   //      tenantRoles. Reuses the tenant/distributor (Hammer persona) and
-  //      damageControl/stark (Damage Control persona) orgs from steps 7 & 11.
+  //      damageControl/stark (Damage Control persona) orgs from steps 7 & 11,
+  //      plus OD's TEN-1002/1003/1004 tenants from step 12d-2.
   const dataParityOrgIds = {
     hammerTenantId: tenant.id, hammerPartnerId: distributor.id,
     dcTenantId: damageControl.id, dcPartnerId: stark.id,
+    // OD idtn2/idtn3/idtn4 + idpr4, from step 12d-2 / `odPartners.ts`.
+    alchemaxTenantId: odTenantOrg("idtn2"),
+    brandCorpTenantId: odTenantOrg("idtn3"),
+    crossTechTenantId: odTenantOrg("idtn4"),
+    crossTechPartnerId: rheinPartner.id,
   };
   await seedSaasLifecycle(dataParityOrgIds);
   await seedSiteRequests(dataParityOrgIds);

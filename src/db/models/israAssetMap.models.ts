@@ -8,7 +8,14 @@ import { sequelize } from "../sequelize";
  * child levels so each level is independently queryable/indexable
  * (design doc §2.6).
  */
-export const ISRA_REF_SOURCE = ["platform", "org"] as const;
+/**
+ * Library provenance of an asset reference. OD tags a library row
+ * `_source === 'platform'` or `_source === 'tenant'` (`israLtBadge`,
+ * js/core.js:16074; `israLtRowMenu`, js/core.js:16063). "tenant" is OD's
+ * word for what this port calls an org — the stored value stays OD's.
+ * Nothing writes anything but "platform" yet.
+ */
+export const ISRA_REF_SOURCE = ["platform", "tenant"] as const;
 export type IsraRefSource = (typeof ISRA_REF_SOURCE)[number];
 
 /** One row per primary-asset-in-org mapping root. */

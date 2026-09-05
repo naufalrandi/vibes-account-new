@@ -52,3 +52,17 @@ export const CMS_MENU = [
   { odId: "MN-4", label: "About", target: "PG-0005" },
   { odId: "MN-5", label: "Contact", target: "PG-0006" },
 ];
+
+// `db.cmsSettings` default — verbatim from `cmsSeedIfNeeded()`
+// (open-design core.js:3755). OD's `primary` maps to `CmsSettings.primaryColor`.
+export const CMS_SETTINGS = {
+  siteName: "VIBES",
+  domain: "www.vibes.io",
+  tagline: "The management-system platform for certification-ready organizations.",
+  primaryColor: "#2f6bff",
+  seoTitle: "VIBES — ISO Management System Platform",
+  seoDesc:
+    "Run ISO 9001, 27001, 45001 and more on one platform — assessments, documents, audits, and certification workflows.",
+  analytics: "",
+  live: true,
+};

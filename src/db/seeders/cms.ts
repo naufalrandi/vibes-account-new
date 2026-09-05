@@ -1,5 +1,5 @@
 /**
- * SOF-336 — seeds OD's marketing CMS demo content (`db.cmsPages`,
+ * SOF-336 — seeds OD's marketing CMS demo content (`db.cmsSettings`, `db.cmsPages`,
  * `db.cmsPosts`, `db.cmsMedia`, `db.cmsMenu`) into the AXIA ServiceOwner org.
  * Data is `cms.data.ts`, transcribed verbatim from `cmsSeedIfNeeded()`
  * (open-design core.js:3750-3789).
@@ -9,12 +9,15 @@
  * is an OD page id string; resolved here to the real `CmsPage.id` created in
  * the same run.
  */
-import { CmsMedia, CmsMenuItem, CmsPage, CmsPost } from "../models";
-import { CMS_MEDIA, CMS_MENU, CMS_PAGES, CMS_POSTS } from "./cms.data";
+import { CmsMedia, CmsMenuItem, CmsPage, CmsPost, CmsSettings } from "../models";
+import { CMS_MEDIA, CMS_MENU, CMS_PAGES, CMS_POSTS, CMS_SETTINGS } from "./cms.data";
 
 const AUTHOR_FALLBACK = "System";
 
 export async function seedCms(orgId: string): Promise<void> {
+  // `db.cmsSettings` default block — open-design core.js:3755.
+  await CmsSettings.findOrCreate({ where: { orgId }, defaults: { orgId, ...CMS_SETTINGS } });
+
   const pageIdByOdId = new Map<string, string>();
   for (const p of CMS_PAGES) {
     const [row] = await CmsPage.findOrCreate({
