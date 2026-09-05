@@ -7,6 +7,9 @@ import { UnauthorizedError } from "../../lib/errors";
 const resumeSchema = z.object({
   recordType: z.string().min(1),
   title: z.string().min(1),
+  // OD `personAddEdu` (modules.js:5520) `level`; `personAddTraining` (:5522) `provider`.
+  level: z.string().nullish(),
+  provider: z.string().nullish(),
   organization: z.string().nullish(),
   fieldOfStudy: z.string().nullish(),
   location: z.string().nullish(),
@@ -27,6 +30,8 @@ const leaveSchema = z.object({
   leaveType: z.string().min(1),
   fromDate: z.string().min(1),
   toDate: z.string().min(1),
+  // OD `personAddLeave` (modules.js:5524) writes the `lv-status` select with it.
+  status: z.string().optional(),
 });
 
 const disciplinarySchema = z.object({
@@ -34,6 +39,8 @@ const disciplinarySchema = z.object({
   incidentDate: z.string().min(1),
   description: z.string().min(1),
   actionTaken: z.string().nullish(),
+  // OD `personAddDisc` (modules.js:5525) — the `di-sev` Low/Medium/High select.
+  severity: z.string().nullish(),
   status: z.string().optional(),
 });
 

@@ -4,13 +4,13 @@ import { sequelize } from "../sequelize";
 /**
  * OD's contract-document lifecycle is exactly Draft -> Issued -> Signed
  * (`cdIssue`/`cdRevise`/`cdSign`, js/modules.js:5390-5392; the status tag in
- * `personContractDocCard`, js/modules.js:5242) — all three are already here.
- * "Final" and "Expired" are port-only extras with no OD counterpart. Dropping
- * them needs src/modules/personnel-records/personnelContractComp.controller.ts:30
- * to narrow with it and the Postgres enum type to be recreated (a value cannot
- * be dropped in place — see migration 0086's `down`), so they stay for now.
+ * `personContractDocCard`, js/modules.js:5242, is a three-branch ternary with
+ * no fourth state). The port-only extras "Final" and "Expired" — which had no
+ * writer anywhere in src/ or the seeders — were dropped by migration 0101,
+ * which also recreated the Postgres enum type and reset `version`'s default to
+ * OD's 0 (`cdDraftContract` modules.js:5257; only `cdIssue` increments it).
  */
-export type ContractDocStatus = "Draft" | "Final" | "Signed" | "Expired" | "Issued";
+export type ContractDocStatus = "Draft" | "Issued" | "Signed";
 
 /** A single clause snapshot in `clauses` (OD `cdCapture`, `modules.js:5251`). */
 export interface ContractDocClause {
@@ -67,8 +67,8 @@ PersonnelContractDocument.init(
     userId: { type: DataTypes.UUID, allowNull: false, field: "user_id" },
     title: { type: DataTypes.STRING, allowNull: false },
     docType: { type: DataTypes.STRING, allowNull: true, field: "doc_type" },
-    status: { type: DataTypes.ENUM("Draft", "Final", "Signed", "Expired", "Issued"), allowNull: false, defaultValue: "Draft" },
-    version: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
+    status: { type: DataTypes.ENUM("Draft", "Issued", "Signed"), allowNull: false, defaultValue: "Draft" },
+    version: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
     content: { type: DataTypes.TEXT, allowNull: true },
     effectiveDate: { type: DataTypes.DATEONLY, allowNull: true, field: "effective_date" },
     expiryDate: { type: DataTypes.DATEONLY, allowNull: true, field: "expiry_date" },

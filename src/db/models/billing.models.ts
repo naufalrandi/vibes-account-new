@@ -12,7 +12,8 @@ export class Plan extends Model<InferAttributes<Plan>, InferCreationAttributes<P
   declare code: string;
   declare name: string;
   declare description: string | null;
-  declare billingFrequency: CreationOptional<BillingFrequency>;
+  /** OD `seedPlans` js/core.js:21595 / `planModal` js/core.js:21758 call this `frequency`. */
+  declare frequency: CreationOptional<BillingFrequency>;
   declare status: CreationOptional<PlanStatus>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -23,7 +24,7 @@ Plan.init(
     code: { type: DataTypes.STRING, allowNull: false, unique: true },
     name: { type: DataTypes.STRING, allowNull: false },
     description: { type: DataTypes.TEXT, allowNull: true },
-    billingFrequency: { type: DataTypes.ENUM("Monthly", "Annual"), allowNull: false, defaultValue: "Monthly", field: "billing_frequency" },
+    frequency: { type: DataTypes.ENUM("Monthly", "Annual"), allowNull: false, defaultValue: "Monthly" },
     status: { type: DataTypes.ENUM("Draft", "Active", "Inactive"), allowNull: false, defaultValue: "Draft" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,

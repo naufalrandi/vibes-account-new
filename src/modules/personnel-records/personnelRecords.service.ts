@@ -2,7 +2,7 @@ import { User, Organization, ResumeRecord, LeaveRecord, DisciplinaryRecord, Perf
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
-import { RESUME_RECORD_TYPES, LEAVE_TYPES, DISCIPLINARY_STATUSES, type ResumeRecordType, type DisciplinaryStatus } from "../../db/models/personnelRecords.models";
+import { RESUME_RECORD_TYPES, LEAVE_TYPES, LEAVE_STATUSES, DISCIPLINARY_STATUSES, type ResumeRecordType, type LeaveStatus, type DisciplinaryStatus } from "../../db/models/personnelRecords.models";
 
 /**
  * Resolve the target personnel record's owning User, enforcing the same
@@ -26,6 +26,8 @@ async function requireManagedUser(auth: AuthContext, userId: string): Promise<Us
 export interface CreateResumeRecordInput {
   recordType: string;
   title: string;
+  level?: string | null;
+  provider?: string | null;
   organization?: string | null;
   fieldOfStudy?: string | null;
   location?: string | null;
@@ -62,6 +64,8 @@ export async function createResumeRecord(
     userId: user.id,
     recordType: input.recordType as ResumeRecordType,
     title: input.title,
+    level: input.level ?? null,
+    provider: input.provider ?? null,
     organization: input.organization ?? null,
     fieldOfStudy: input.fieldOfStudy ?? null,
     location: input.location ?? null,
@@ -114,6 +118,7 @@ export interface CreateLeaveRecordInput {
   leaveType: string;
   fromDate: string;
   toDate: string;
+  status?: string;
 }
 
 /** Inclusive calendar days — matches OD's own `personAddLeave` leaf-level behavior. */
@@ -140,6 +145,12 @@ export async function createLeaveRecord(
   }
   const days = inclusiveCalendarDays(input.fromDate, input.toDate);
   if (days < 1) throw new BadRequestError("toDate must be on or after fromDate", "INVALID_DATE_RANGE");
+  // OD `personAddLeave` (modules.js:5524) writes the `lv-status` select onto the row;
+  // `modules.js:4926` defaults a missing value to 'Pending' when rendering.
+  const status = input.status ?? "Pending";
+  if (!LEAVE_STATUSES.includes(status as LeaveStatus)) {
+    throw new BadRequestError(`status must be one of ${LEAVE_STATUSES.join(", ")}`, "INVALID_STATUS");
+  }
   const record = await LeaveRecord.create({
     orgId: user.orgId,
     userId: user.id,
@@ -147,6 +158,7 @@ export async function createLeaveRecord(
     fromDate: input.fromDate,
     toDate: input.toDate,
     days,
+    status: status as LeaveStatus,
     createdBy: auth.userId,
   });
   await writeAudit({
@@ -186,6 +198,7 @@ export interface CreateDisciplinaryRecordInput {
   incidentDate: string;
   description: string;
   actionTaken?: string | null;
+  severity?: string | null;
   status?: string;
 }
 
@@ -212,6 +225,7 @@ export async function createDisciplinaryRecord(
     incidentDate: input.incidentDate,
     description: input.description,
     actionTaken: input.actionTaken ?? null,
+    severity: input.severity ?? null,
     status: status as DisciplinaryStatus,
     createdBy: auth.userId,
   });

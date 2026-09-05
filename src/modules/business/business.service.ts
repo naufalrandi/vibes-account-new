@@ -129,8 +129,12 @@ const BIZ_CODE_CONFIG: Record<string, BizCodeConfig> = {
   // sequential OD scheme to preserve (OD minted them with `rUid`/fixed
   // seeds), so these prefixes are new, chosen to read like the rest of this
   // table rather than invent a numbering OD never had.
-  "ent-pr": { prefix: "PR", base: 0, pad: 4 },
-  "ent-po": { prefix: "PO", base: 0, pad: 4 },
+  // `prNextId` modules.js:2927 mints PR-3001 up; `poNextId` modules.js:3758 mints PO-5001 up.
+  "ent-pr": { prefix: "PR", base: 3000, pad: 0 },
+  "ent-po": { prefix: "PO", base: 5000, pad: 0 },
+  // `supNextId` modules.js:3618-3620: the enterprise context numbers suppliers off
+  // `SUP_ID_CODE` ("84-1" up); the tenant context keeps its own "SUP-2001" series.
+  "ent-suppliers": { prefix: "84", base: 0, pad: 0 },
   "ex-cab": { prefix: "CB", base: 1000, pad: 0 },
   "mb-vehicle": { prefix: "MB", base: 0, pad: 4 },
   "mb-booking": { prefix: "BK", base: 0, pad: 4 },

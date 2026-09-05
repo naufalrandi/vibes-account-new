@@ -470,9 +470,9 @@ export async function seed(): Promise<void> {
   //     tenant, and a partner revenue-share statement computed from the paid
   //     invoice (Gold tier → 20%). Internally consistent so KPIs reconcile.
   const plans = [
-    { code: "PLN-0001", name: "Starter", description: "Entry plan for small organizations and single-site tenants.", billingFrequency: "Monthly" as const, status: "Active" as const },
-    { code: "PLN-0002", name: "Professional", description: "Multi-site implementation with standard framework support.", billingFrequency: "Monthly" as const, status: "Active" as const },
-    { code: "PLN-0003", name: "Enterprise", description: "Unlimited sites, priority support, and advanced frameworks.", billingFrequency: "Annual" as const, status: "Active" as const },
+    { code: "PLN-0001", name: "Starter", description: "Entry plan for small organizations and single-site tenants.", frequency: "Monthly" as const, status: "Active" as const },
+    { code: "PLN-0002", name: "Professional", description: "Multi-site implementation with standard framework support.", frequency: "Monthly" as const, status: "Active" as const },
+    { code: "PLN-0003", name: "Enterprise", description: "Unlimited sites, priority support, and advanced frameworks.", frequency: "Annual" as const, status: "Active" as const },
   ];
   for (const p of plans) await Plan.findOrCreate({ where: { code: p.code }, defaults: p });
 

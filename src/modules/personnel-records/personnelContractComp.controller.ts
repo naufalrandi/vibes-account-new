@@ -27,7 +27,7 @@ const wrap = (fn: (req: Request, res: Response) => Promise<void>) =>
 const contractDocSchema = z.object({
   title: z.string().min(1).optional(),
   docType: z.string().nullish(),
-  status: z.enum(["Draft", "Final", "Signed", "Expired", "Issued"]).optional(),
+  status: z.enum(["Draft", "Issued", "Signed"]).optional(),
   content: z.string().nullish(),
   effectiveDate: z.string().nullish(),
   expiryDate: z.string().nullish(),

@@ -7,7 +7,7 @@ import { UnauthorizedError } from "../../lib/errors";
 const planSchema = z.object({
   name: z.string().min(1),
   description: z.string().nullish(),
-  billingFrequency: z.enum(["Monthly", "Annual"]).optional(),
+  frequency: z.enum(["Monthly", "Annual"]).optional(),
   status: z.enum(["Draft", "Active", "Inactive"]).optional(),
 });
 const paySchema = z.object({ method: z.string().min(1) });

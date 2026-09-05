@@ -31,6 +31,10 @@ export class ResumeRecord extends Model<InferAttributes<ResumeRecord>, InferCrea
   declare organization: string | null;
   declare fieldOfStudy: string | null;
   declare location: string | null;
+  /** OD `personAddTraining` (js/modules.js:5522) writes `{name, provider, year}`. */
+  declare provider: string | null;
+  /** Plain strings, not dates: OD stores education `year` as '2006', experience
+   *  `to` as 'Present', certification `expiry` as '—'. See migration 0102. */
   declare startDate: string | null;
   declare endDate: string | null;
   declare isCurrent: CreationOptional<boolean>;
@@ -57,15 +61,16 @@ ResumeRecord.init(
     organization: { type: DataTypes.STRING, allowNull: true },
     fieldOfStudy: { type: DataTypes.STRING, allowNull: true, field: "field_of_study" },
     location: { type: DataTypes.STRING, allowNull: true },
-    startDate: { type: DataTypes.DATEONLY, allowNull: true, field: "start_date" },
-    endDate: { type: DataTypes.DATEONLY, allowNull: true, field: "end_date" },
+    provider: { type: DataTypes.STRING, allowNull: true },
+    startDate: { type: DataTypes.STRING, allowNull: true, field: "start_date" },
+    endDate: { type: DataTypes.STRING, allowNull: true, field: "end_date" },
     isCurrent: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: "is_current" },
     grade: { type: DataTypes.STRING, allowNull: true },
     description: { type: DataTypes.TEXT, allowNull: true },
     credentialId: { type: DataTypes.STRING, allowNull: true, field: "credential_id" },
     issuer: { type: DataTypes.STRING, allowNull: true },
     certificateNumber: { type: DataTypes.STRING, allowNull: true, field: "certificate_number" },
-    expiryDate: { type: DataTypes.DATEONLY, allowNull: true, field: "expiry_date" },
+    expiryDate: { type: DataTypes.STRING, allowNull: true, field: "expiry_date" },
     attachmentUrl: { type: DataTypes.STRING, allowNull: true, field: "attachment_url" },
     notes: { type: DataTypes.TEXT, allowNull: true },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
@@ -136,6 +141,9 @@ export class DisciplinaryRecord extends Model<InferAttributes<DisciplinaryRecord
   declare incidentDate: string;
   declare description: string;
   declare actionTaken: string | null;
+  /** OD `personAddDisc` (js/modules.js:5525) — Low / Medium / High, rendered as
+   *  its own tag column at js/modules.js:4929. */
+  declare severity: string | null;
   declare status: CreationOptional<DisciplinaryStatus>;
   declare createdBy: string | null;
   declare createdAt: CreationOptional<Date>;
@@ -150,6 +158,7 @@ DisciplinaryRecord.init(
     incidentDate: { type: DataTypes.DATEONLY, allowNull: false, field: "incident_date" },
     description: { type: DataTypes.TEXT, allowNull: false },
     actionTaken: { type: DataTypes.TEXT, allowNull: true, field: "action_taken" },
+    severity: { type: DataTypes.STRING, allowNull: true },
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Open" },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
     createdAt: DataTypes.DATE,

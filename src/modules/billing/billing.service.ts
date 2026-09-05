@@ -20,14 +20,14 @@ const TIER_PCT: Record<PartnerTier, number> = { Bronze: 15, Silver: 20, Gold: 30
 export interface PlanInput {
   name: string;
   description?: string | null;
-  billingFrequency?: BillingFrequency;
+  frequency?: BillingFrequency;
   status?: PlanStatus;
 }
 
 function planView(p: Plan) {
   return {
     id: p.id, code: p.code, name: p.name, description: p.description,
-    billingFrequency: p.billingFrequency, status: p.status,
+    frequency: p.frequency, status: p.status,
     createdAt: p.createdAt, updatedAt: p.updatedAt,
   };
 }
@@ -52,7 +52,8 @@ export async function createPlan(auth: AuthContext, input: PlanInput, ip: string
   const plan = await Plan.create({
     code: nextCode(await Plan.findAll({ attributes: ["code"] }), "PLN"),
     name: input.name, description: input.description ?? null,
-    billingFrequency: input.billingFrequency ?? "Monthly", status: input.status ?? "Active",
+    // OD `planModal` (js/core.js:21765) pre-selects "Draft" for a new plan.
+    frequency: input.frequency ?? "Monthly", status: input.status ?? "Draft",
   });
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "billing.plan.created", entityType: "Plan", entityId: plan.id, sourceIp: ip, result: "Success" });
   return planView(plan);
@@ -64,7 +65,7 @@ export async function updatePlan(auth: AuthContext, id: string, input: Partial<P
   if (!plan) throw new NotFoundError("Plan does not exist", "PLAN_NOT_FOUND");
   if (input.name !== undefined) plan.name = input.name;
   if (input.description !== undefined) plan.description = input.description ?? null;
-  if (input.billingFrequency !== undefined) plan.billingFrequency = input.billingFrequency;
+  if (input.frequency !== undefined) plan.frequency = input.frequency;
   if (input.status !== undefined) plan.status = input.status;
   await plan.save();
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "billing.plan.updated", entityType: "Plan", entityId: plan.id, sourceIp: ip, result: "Success" });
@@ -101,7 +102,7 @@ export async function listSubscriptions(auth: AuthContext) {
     const fmt = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : "—");
     return {
       id: s.id, tenant: names.get(s.orgId) ?? "—", plan: plan?.name ?? s.plan,
-      frequency: plan?.billingFrequency ?? "Monthly",
+      frequency: plan?.frequency ?? "Monthly",
       term: `${fmt(s.startDate)} → ${fmt(s.endDate)}`, status: s.status,
     };
   });

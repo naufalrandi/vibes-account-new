@@ -102,8 +102,17 @@ async function seedRow(
   owner: string | null,
   company: string,
   data: Record<string, unknown>,
+  odCode?: string,
 ): Promise<SeedRowResult> {
-  const code = await nextCode(orgId, area, module, data);
+  // `odCode` keeps the design's own record id where OD defines a real one that a
+  // sequential mint cannot reproduce: `purchaseOrders` is PO-2044/2046/2048/2049/2051
+  // (non-contiguous), `suppliers` carries two disjoint namespaces ("84-1".."84-14"
+  // enterprise, "SUP-2001".."SUP-2007" tenant — `supNextId` modules.js:3618-3620), and
+  // `purchaseRequests` is not stored in id order. Minting over these renumbered the
+  // register while each row's own `data.activity` kept narrating the OD id
+  // (modules.js:3097 `summary:'PR-3002'`), so the ID column and the activity rail
+  // disagreed on screen. Callers without a design id keep the generated sequence.
+  const code = odCode ?? (await nextCode(orgId, area, module, data));
   const r = await BusinessRecord.create({ orgId, area, module, code, title, status, owner, company, data });
   return { id: r.id, code: r.code };
 }
@@ -467,7 +476,7 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
   const prMap = new Map<string, string>();
   for (const row of loadDump("purchaseRequests")) {
     const data = pickData("ent-pr", row, { poId: undefined });
-    const r = await seedRow(orgId, "enterprise", "ent-pr", str(row, "title") || str(row, "description"), str(row, "status", "Draft"), str(row, "requester") || null, companyFor("enterprise", row), data);
+    const r = await seedRow(orgId, "enterprise", "ent-pr", str(row, "title") || str(row, "description"), str(row, "status", "Draft"), str(row, "requester") || null, companyFor("enterprise", row), data, str(row, "id") || undefined);
     prMap.set(String(row.id), r.id);
     purchaseRequestRows.push({ odId: String(row.id), recordId: r.id });
     bump("ent-pr");
@@ -477,7 +486,7 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
   for (const row of loadDump("purchaseOrders")) {
     const prId = row.prId ? prMap.get(String(row.prId)) ?? String(row.prId) : undefined;
     const data = pickData("ent-po", row, { prId });
-    const r = await seedRow(orgId, "enterprise", "ent-po", str(row, "supplierName"), str(row, "status", "Issued"), null, companyFor("enterprise", row), data);
+    const r = await seedRow(orgId, "enterprise", "ent-po", str(row, "supplierName"), str(row, "status", "Issued"), null, companyFor("enterprise", row), data, str(row, "id") || undefined);
     poMap.set(String(row.id), r.id);
     bump("ent-po");
   }
@@ -530,11 +539,16 @@ export async function seedTenantSuppliers(orgId: string): Promise<void> {
     return;
   }
 
-  const rows = loadDump<Record<string, unknown>>("suppliers");
+  // OD keeps ONE `db.suppliers` array partitioned by id namespace, not two copies of all 21
+  // rows: `supNextId` (modules.js:3618-3620) mints "SUP-2001" up when `SUP_CTX==='tn'` and
+  // "84-1" up otherwise. Take only this side's namespace and keep the design's own id as the
+  // code — seeding all 21 rows into both stores under a shared SUP-0001..SUP-0021 sequence
+  // gave the two screens identical codes for different records.
+  const rows = loadDump<Record<string, unknown>>("suppliers").filter((r) => /^SUP-\d+$/.test(String(r.id ?? "")));
   let n = 0;
   for (const row of rows) {
     n += 1;
-    const code = `SUP-${String(n).padStart(4, "0")}`;
+    const code = str(row, "id");
     const data: Record<string, unknown> = {
       entityName: row.entityName, taxNumber: row.taxNumber, type: row.type, website: row.website,
       categories: row.categories, contact: row.contact, email: row.email, phone: row.phone,
@@ -579,7 +593,9 @@ export async function seedEnterpriseSuppliers(orgId: string): Promise<void> {
     return;
   }
 
-  const rows = loadDump<Record<string, unknown>>("suppliers");
+  // Enterprise half of OD's single `db.suppliers` array — the `SUP_ID_CODE` ("84-") namespace
+  // of `supNextId` (modules.js:3618-3620). See `seedTenantSuppliers` for the same split.
+  const rows = loadDump<Record<string, unknown>>("suppliers").filter((r) => /^84-\d+$/.test(String(r.id ?? "")));
   let n = 0;
   for (const row of rows) {
     n += 1;
@@ -592,7 +608,7 @@ export async function seedEnterpriseSuppliers(orgId: string): Promise<void> {
       qualifiedDate: row.qualifiedDate, requalDate: row.requalDate, notes: row.notes,
       evaluations: row.evaluations, activity: row.activity,
     };
-    await seedRow(orgId, "enterprise", "ent-suppliers", str(row, "name"), str(row, "status", "Approved"), null, companyFor("enterprise", row), data);
+    await seedRow(orgId, "enterprise", "ent-suppliers", str(row, "name"), str(row, "status", "Approved"), null, companyFor("enterprise", row), data, str(row, "id") || undefined);
   }
   // eslint-disable-next-line no-console
   console.log(`  Enterprise suppliers seeded: ${n}`);

@@ -398,7 +398,44 @@ function pick(value: unknown, allowed: string[], fallback: string): string {
 }
 
 // ---- Banks ----------------------------------------------------------------
+/**
+ * OD `bankSeedIfNeeded` (js/modules.js:1386-1393) seeds these 18 banks — Indonesian
+ * 3-digit sandi codes, US ABA routing numbers, UK sort codes — and the Banks screen
+ * renders `code` in its own "Clearing code" column (js/modules.js:1400). Nothing here
+ * seeded `reference_banks` at all, so that screen came up empty on a fresh org.
+ * Seeded lazily on first read, the same way `getFiscalConfig` below creates its row.
+ */
+const BANK_SEED = [
+  { country: "ID", name: "Bank Mandiri", code: "008", swift: "BMRIIDJA", type: "State" },
+  { country: "ID", name: "Bank Rakyat Indonesia (BRI)", code: "002", swift: "BRINIDJA", type: "State" },
+  { country: "ID", name: "Bank Negara Indonesia (BNI)", code: "009", swift: "BNINIDJA", type: "State" },
+  { country: "ID", name: "Bank Central Asia (BCA)", code: "014", swift: "CENAIDJA", type: "Commercial" },
+  { country: "ID", name: "Bank CIMB Niaga", code: "022", swift: "BNIAIDJA", type: "Commercial" },
+  { country: "ID", name: "Bank Danamon", code: "011", swift: "BDINIDJA", type: "Commercial" },
+  { country: "ID", name: "Bank Permata", code: "013", swift: "BBBAIDJA", type: "Commercial" },
+  { country: "ID", name: "Bank Syariah Indonesia (BSI)", code: "451", swift: "BSMDIDJA", type: "Islamic" },
+  { country: "ID", name: "Bank Jago", code: "542", swift: "JAGOIDJA", type: "Digital" },
+  { country: "ID", name: "Bank Tabungan Negara (BTN)", code: "200", swift: "BTANIDJA", type: "State" },
+  { country: "US", name: "JPMorgan Chase", code: "021000021", swift: "CHASUS33", type: "Commercial" },
+  { country: "US", name: "Bank of America", code: "026009593", swift: "BOFAUS3N", type: "Commercial" },
+  { country: "US", name: "Wells Fargo", code: "121000248", swift: "WFBIUS6S", type: "Commercial" },
+  { country: "US", name: "Citibank", code: "021000089", swift: "CITIUS33", type: "Commercial" },
+  { country: "GB", name: "Barclays", code: "20-00-00", swift: "BARCGB22", type: "Commercial" },
+  { country: "GB", name: "HSBC UK", code: "40-02-50", swift: "HBUKGB4B", type: "Commercial" },
+  { country: "GB", name: "Lloyds Bank", code: "30-96-26", swift: "LOYDGB21", type: "Commercial" },
+  { country: "GB", name: "NatWest", code: "60-00-01", swift: "NWBKGB2L", type: "Commercial" },
+] as const;
+
 export async function listBanks(auth: AuthContext) {
+  const existing = await ReferenceBank.count({ where: { orgId: auth.orgId } });
+  if (existing === 0) {
+    await ReferenceBank.bulkCreate(
+      BANK_SEED.map((b) => ({
+        orgId: auth.orgId, name: b.name, country: b.country, countryName: "",
+        code: b.code, swift: b.swift, type: b.type,
+      })),
+    );
+  }
   return (await ReferenceBank.findAll({ where: { orgId: auth.orgId }, order: [["name", "ASC"]] })).map((r) => r.get({ plain: true }));
 }
 export async function createBank(auth: AuthContext, input: Record<string, unknown>, ip: string | null) {
@@ -532,6 +569,9 @@ export async function deleteBpProcess(auth: AuthContext, id: string, ip: string 
 // ---- Fiscal periods -------------------------------------------------------
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
+/** OD `fiscalCfg` (js/modules.js:2859) — `{startMonth:1, periodType:'Monthly', fy:'2026'}`. */
+const DEFAULT_FISCAL_YEAR = "2026";
+
 /**
  * Generate the period rows for a fiscal year — 12 monthly or 4 quarterly.
  *
@@ -559,7 +599,11 @@ export function buildPeriods(fy: string, startMonth: number, periodType: string)
     const em = endOffset % 12;
     const last = new Date(Date.UTC(ey, em + 1, 0)).getUTCDate();
     rows.push({
-      id: `${fy}-P${i + 1}`,
+      // OD `fiscalGen` (js/modules.js:2861) mints `FP-<fy>-01`..`FP-<fy>-12`; the
+      // fiscal year is part of the id. This is the id the Fiscal Periods screen
+      // round-trips through `updateFiscalPeriodStatus`, and the shape the seeded
+      // `fiscalPeriods.json` dump (FP-2026-01..FP-2026-12) already uses.
+      id: `FP-${fy}-${String(i + 1).padStart(2, "0")}`,
       name: periodType === "Quarterly" ? `Q${i + 1} ${y}` : `${MONTHS[m]} ${y}`,
       start: `${y}-${String(m + 1).padStart(2, "0")}-01`,
       end: `${ey}-${String(em + 1).padStart(2, "0")}-${String(last).padStart(2, "0")}`,
@@ -573,7 +617,11 @@ export function buildPeriods(fy: string, startMonth: number, periodType: string)
 export async function getFiscalConfig(auth: AuthContext) {
   const existing = await ReferenceFiscalConfig.findOne({ where: { orgId: auth.orgId } });
   if (existing) return existing.get({ plain: true });
-  const fy = String(new Date().getFullYear());
+  // OD `fiscalCfg` (js/modules.js:2859) hard-codes `fy:'2026'`, and every seeded
+  // dataset in the product is a 2026 span (`fiscalPeriods.json` is FP-2026-01..12).
+  // Deriving it from the server clock made a fresh org's periods drift away from
+  // the data every other module is seeded against.
+  const fy = DEFAULT_FISCAL_YEAR;
   const row = await ReferenceFiscalConfig.create({
     orgId: auth.orgId, fy, startMonth: 1, periodType: "Monthly", periods: buildPeriods(fy, 1, "Monthly"),
   });

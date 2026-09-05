@@ -58,7 +58,7 @@ describe("billing", () => {
 
   it("plan CRUD with auto codes", async () => {
     const { token } = await setup();
-    const a = await request(app).post("/v1/billing/plans").set(authed(token)).send({ name: "Starter", billingFrequency: "Monthly" });
+    const a = await request(app).post("/v1/billing/plans").set(authed(token)).send({ name: "Starter", frequency: "Monthly" });
     expect(a.status).toBe(201);
     expect(a.body.data.code).toMatch(/^PLN-\d{4}$/);
     const upd = await request(app).put(`/v1/billing/plans/${a.body.data.id}`).set(authed(token)).send({ status: "Inactive" });
