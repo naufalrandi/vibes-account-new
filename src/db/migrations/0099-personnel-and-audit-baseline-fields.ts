@@ -85,9 +85,18 @@ export const up: Migration = async ({ context: q }) => {
   await addColumnIfMissing(q, "performance_records", "reviewer", { type: DataTypes.STRING, allowNull: true });
   await addColumnIfMissing(q, "perf_evals", "objectives", { type: DataTypes.JSONB, allowNull: false, defaultValue: [] });
 
+  // `defaultValue: DataTypes.NOW` is a Sequelize-side default, not a SQL one, so
+  // this rendered as `ADD COLUMN "post_date" TIMESTAMPTZ NOT NULL` — which
+  // Postgres rejects outright on a table that already has rows. That is what
+  // failed the original run. Add nullable, backfill from created_at, then
+  // tighten, so the column ends up exactly as the model declares it.
   for (const table of POST_DATE_TABLES) {
-    const added = await addColumnIfMissing(q, table, "post_date", { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW });
-    if (added) await q.sequelize.query(`UPDATE "${table}" SET "post_date" = "created_at"`);
+    const added = await addColumnIfMissing(q, table, "post_date", { type: DataTypes.DATE, allowNull: true });
+    if (added) {
+      await q.sequelize.query(`UPDATE "${table}" SET "post_date" = COALESCE("created_at", NOW()) WHERE "post_date" IS NULL`);
+      await q.sequelize.query(`ALTER TABLE "${table}" ALTER COLUMN "post_date" SET DEFAULT NOW()`);
+      await q.sequelize.query(`ALTER TABLE "${table}" ALTER COLUMN "post_date" SET NOT NULL`);
+    }
   }
 
   await q.sequelize.query(`ALTER TYPE "enum_doa_matrix_entries_approver_kind" ADD VALUE IF NOT EXISTS 'auto'`);
