@@ -69,7 +69,7 @@ describe("partners", () => {
     const org = await Organization.findByPk(res.body.data.id);
     expect(org?.type).toBe("Distributor");
     const admin = await User.findOne({ where: { username: "andi.admin" } });
-    expect(admin?.status).toBe("PendingActivation");
+    expect(admin?.status).toBe("Pending Activation");
   });
 
   it("refuses to render another org's agreement template", async () => {

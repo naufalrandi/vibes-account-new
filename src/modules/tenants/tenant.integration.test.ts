@@ -51,7 +51,7 @@ describe("tenants", () => {
     expect(res.body.data.status).toBe("Draft");
     expect(res.body.data.acquisitionSource).toBe("Direct");
     expect(res.body.data.primarySite.isPrimary).toBe(true);
-    expect(res.body.data.admin.status).toBe("PendingActivation");
+    expect(res.body.data.admin.status).toBe("Pending Activation");
     expect(res.body.data.siteCount).toBe(1);
 
     const org = await Organization.findByPk(res.body.data.id);

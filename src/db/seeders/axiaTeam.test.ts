@@ -24,7 +24,7 @@ describe("AXIA_TEAM — OD seedUsers() parity", () => {
 
   it("keeps OD's non-Active statuses rather than making everyone Active", () => {
     const byName = Object.fromEntries(AXIA_TEAM.map((m) => [m.fullName, m.status]));
-    expect(byName["Steven Grant Rogers"]).toBe("PendingActivation");
+    expect(byName["Steven Grant Rogers"]).toBe("Pending Activation");
     expect(byName["Jean Elaine Grey"]).toBe("Suspended");
     expect(AXIA_TEAM.filter((m) => m.status === "Active")).toHaveLength(12);
   });

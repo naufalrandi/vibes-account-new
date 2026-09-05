@@ -79,6 +79,6 @@ describe("seedOdPartners", () => {
     expect(staff.every((u) => u.passwordHash === null)).toBe(true);
     // A partner admin who never activated stays Pending Activation rather than
     // being quietly seeded as a working account.
-    expect(staff.find((u) => u.email === "christian@secureedge.sg")!.status).toBe("PendingActivation");
+    expect(staff.find((u) => u.email === "christian@secureedge.sg")!.status).toBe("Pending Activation");
   });
 });

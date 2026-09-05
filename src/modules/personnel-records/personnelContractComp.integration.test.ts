@@ -222,7 +222,7 @@ describe("personnel contract documents / activity / onboarding / compensation", 
     expect(res.status).toBe(201);
     expect(res.body.data.fullName).toBe("New Hire");
     expect(res.body.data.personnelType).toBe("Employee");
-    expect(res.body.data.status).toBe("PendingActivation");
+    expect(res.body.data.status).toBe("Pending Activation");
   });
 
   it("forbids a Distributor actor from reading/managing personnel records on an out-of-scope user", async () => {

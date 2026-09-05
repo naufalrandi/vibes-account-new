@@ -32,7 +32,7 @@ export interface CreateUserInput {
   workUnit?: string | null;
   department?: string | null;
   // AXIA Team additions (Phase 2). `password` sets an initial credential (the
-  // account still starts PendingActivation with an activation invite);
+  // account still starts "Pending Activation" with an activation invite);
   // permissionMode/permissions are the permission-grid metadata.
   password?: string;
   permissionMode?: PermissionMode | null;
@@ -48,7 +48,7 @@ export interface UpdateUserInput {
   role?: string;
   permissionMode?: PermissionMode | null;
   permissions?: string[] | null;
-  status?: "PendingActivation" | "Active" | "Suspended" | "Inactive";
+  status?: "Pending Activation" | "Active" | "Suspended" | "Inactive";
   position?: string | null;
   phone?: string | null;
   photo?: string | null;
@@ -164,7 +164,7 @@ export async function createUser(auth: AuthContext, input: CreateUserInput, ip: 
     username: input.username,
     email: input.email,
     passwordHash: input.password ? await hashPassword(input.password) : null,
-    status: "PendingActivation",
+    status: "Pending Activation",
     position: input.position ?? null,
     phone: input.phone ?? null,
     photo: input.photo ?? null,
@@ -215,7 +215,7 @@ export async function resendActivation(auth: AuthContext, userId: string, ip: st
   }
   // Resending only makes sense while the account is awaiting activation; an
   // Active/Suspended/Inactive account has no pending invite to reissue.
-  if (user.status !== "PendingActivation") {
+  if (user.status !== "Pending Activation") {
     throw new BadRequestError("User is not pending activation", "NOT_PENDING_ACTIVATION");
   }
 

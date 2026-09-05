@@ -79,7 +79,7 @@ export const AXIA_TEAM: readonly AxiaTeamMember[] = [
   { odId: "axia5", username: "andres.support", email: "steven.rogers@axia.io", fullName: "Steven Grant Rogers",
     roleGroup: "Technical Support", permissionMode: null, permissions: ["ticket"],
     title: "Support Engineer", department: "Customer Success", phone: null,
-    status: "PendingActivation", superAdmin: false, provisioned: true, units: [], createdAt: may(8), lastLogin: null },
+    status: "Pending Activation", superAdmin: false, provisioned: true, units: [], createdAt: may(8), lastLogin: null },
   { odId: "axia6", username: "samantha.billing", email: "jean.grey@axia.io", fullName: "Jean Elaine Grey",
     roleGroup: "Billing Manager", permissionMode: null, permissions: ["billing"],
     title: "Billing Officer", department: "Finance", phone: null,

@@ -236,7 +236,7 @@ export async function createPartner(
         username: input.admin.username,
         email: input.admin.email,
         passwordHash: null,
-        status: "PendingActivation",
+        status: "Pending Activation",
         position: "Partner Administrator",
         workUnit: null,
         lastLogin: null,

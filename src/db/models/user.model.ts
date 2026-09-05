@@ -1,7 +1,7 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
 
-export type UserStatus = "PendingActivation" | "Active" | "Suspended" | "Inactive" | "Deleted";
+export type UserStatus = "Pending Activation" | "Active" | "Suspended" | "Inactive" | "Deleted";
 
 /** Per-user permission mode (Administrators only); null for fixed-module role groups. */
 export type PermissionMode = "Full Access" | "Custom Access";
@@ -91,9 +91,9 @@ User.init(
     email: { type: DataTypes.STRING, allowNull: false, unique: true },
     passwordHash: { type: DataTypes.STRING, allowNull: true, field: "password_hash" },
     status: {
-      type: DataTypes.ENUM("PendingActivation", "Active", "Suspended", "Inactive", "Deleted"),
+      type: DataTypes.ENUM("Pending Activation", "Active", "Suspended", "Inactive", "Deleted"),
       allowNull: false,
-      defaultValue: "PendingActivation",
+      defaultValue: "Pending Activation",
     },
     position: { type: DataTypes.STRING, allowNull: true },
     phone: { type: DataTypes.STRING, allowNull: true },

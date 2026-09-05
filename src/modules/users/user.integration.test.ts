@@ -131,7 +131,7 @@ describe("users", () => {
       .set("authorization", `Bearer ${token}`)
       .send({ orgId: tenantOrgId, fullName: "Jane Doe", username: "jdoe", email: "jane@acme.com" });
     expect(res.status).toBe(201);
-    expect(res.body.data.status).toBe("PendingActivation");
+    expect(res.body.data.status).toBe("Pending Activation");
     // Credential-bearing fields must never leak in the response (the
     // activationToken authorizes /v1/auth/activate).
     expect(res.body.data).not.toHaveProperty("passwordHash");
@@ -159,10 +159,10 @@ describe("users", () => {
     const { token, tenantOrgId } = await seedAdminAndLogin();
     await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
       .send({ orgId: tenantOrgId, fullName: "A", username: "a", email: "a@acme.com" });
-    const res = await request(app).get("/v1/users?status=PendingActivation").set("authorization", `Bearer ${token}`);
+    const res = await request(app).get("/v1/users?status=Pending%20Activation").set("authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body.data.length).toBeGreaterThanOrEqual(1);
-    expect(res.body.data.every((u: { status: string }) => u.status === "PendingActivation")).toBe(true);
+    expect(res.body.data.every((u: { status: string }) => u.status === "Pending Activation")).toBe(true);
     expect(
       res.body.data.every(
         (u: Record<string, unknown>) =>

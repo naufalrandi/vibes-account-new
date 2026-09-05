@@ -29,14 +29,14 @@ describe("partner detail (admin / team / tenants / billing)", () => {
     });
     const pid = partner.body.data.id;
     // General tab: the Partner Administrator card.
-    expect(partner.body.data.admin).toMatchObject({ fullName: "Andi Wijaya", username: "andi.admin", status: "PendingActivation" });
+    expect(partner.body.data.admin).toMatchObject({ fullName: "Andi Wijaya", username: "andi.admin", status: "Pending Activation" });
     const got = await request(app).get(`/v1/partners/${pid}`).set(authed(token));
     expect(got.body.data.admin.fullName).toBe("Andi Wijaya");
 
     // Team tab: the admin appears as Administrator.
     const team = await request(app).get(`/v1/partners/${pid}/team`).set(authed(token));
     expect(team.body.data).toHaveLength(1);
-    expect(team.body.data[0]).toMatchObject({ fullName: "Andi Wijaya", roleGroup: "Administrator", status: "PendingActivation" });
+    expect(team.body.data[0]).toMatchObject({ fullName: "Andi Wijaya", roleGroup: "Administrator", status: "Pending Activation" });
 
     // Tenants tab: a partner-acquired tenant (child org) with its subscription + renewal.
     const tenant = await Organization.create({ name: "Hammer Industries", code: "TEN-1", type: "Tenant", status: "Active", parentOrgId: pid, tenantId: null, email: null, phone: null, website: null, country: null, address: null });

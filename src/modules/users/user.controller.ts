@@ -47,7 +47,7 @@ const updateSchema = z.object({
   roleGroup: z.string().optional(),
   permissionMode: permissionModeSchema.nullish(),
   permissions: permissionsSchema.nullish(),
-  status: z.enum(["PendingActivation", "Active", "Suspended", "Inactive"]).optional(),
+  status: z.enum(["Pending Activation", "Active", "Suspended", "Inactive"]).optional(),
   position: z.string().nullish(),
   phone: z.string().nullish(),
   photo: z.string().nullish(),

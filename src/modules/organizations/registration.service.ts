@@ -238,7 +238,7 @@ export async function approveRegistration(auth: AuthContext, requestId: string, 
     const admin = await User.create(
       {
         orgId: tenant.id, tenantId: tenant.id, fullName: p.adminFullName, username: p.adminUsername, email: p.adminEmail,
-        passwordHash: null, status: "PendingActivation", position: "Administrator", workUnit: null,
+        passwordHash: null, status: "Pending Activation", position: "Administrator", workUnit: null,
         lastLogin: null, activationToken, resetToken: null, resetExpires: null,
       },
       { transaction: tx },

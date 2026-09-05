@@ -47,7 +47,7 @@ describe("registration workflow", () => {
     const tenant = await Organization.findOne({ where: { code: "ACME" } });
     expect(tenant?.parentOrgId).toBe(dist.org.id);
     const admin = await User.findOne({ where: { username: "acmeadmin" } });
-    expect(admin?.status).toBe("PendingActivation");
+    expect(admin?.status).toBe("Pending Activation");
     const req = await RegistrationRequest.findByPk(reqId);
     expect(req?.status).toBe("Approved");
   });

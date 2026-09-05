@@ -243,7 +243,7 @@ export async function provisionTenant(auth: AuthContext, input: ProvisionTenantI
     const activationToken = randomUUID();
     const admin = await User.create({
       orgId: org.id, tenantId: org.id, fullName: input.admin.fullName, username: input.admin.username,
-      email: input.admin.email, passwordHash: null, status: "PendingActivation",
+      email: input.admin.email, passwordHash: null, status: "Pending Activation",
       position: "Tenant Administrator", workUnit: null, lastLogin: null,
       activationToken, resetToken: null, resetExpires: null,
     }, { transaction: tx });
@@ -337,7 +337,7 @@ async function transition(
   org.status = ORG_STATUS_FOR[opts.to];
   await org.save();
   if (opts.invite) {
-    const admin = await User.findOne({ where: { orgId, status: "PendingActivation" }, order: [["createdAt", "ASC"]] });
+    const admin = await User.findOne({ where: { orgId, status: "Pending Activation" }, order: [["createdAt", "ASC"]] });
     if (admin) {
       const token = admin.activationToken ?? randomUUID();
       admin.activationToken = token;

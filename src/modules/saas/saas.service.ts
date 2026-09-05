@@ -393,7 +393,7 @@ async function createTenantFromPipeline(fresh: SaasPipeline, tx: Transaction): P
   const admin = await User.create(
     {
       orgId: org.id, tenantId: org.id, fullName: adminName, username, email: adminEmail,
-      passwordHash: null, status: "PendingActivation", position: "Administrator", workUnit: null,
+      passwordHash: null, status: "Pending Activation", position: "Administrator", workUnit: null,
       lastLogin: null, activationToken, resetToken: null, resetExpires: null,
     },
     { transaction: tx },

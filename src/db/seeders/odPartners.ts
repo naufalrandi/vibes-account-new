@@ -80,7 +80,7 @@ export const OD_PARTNERS: readonly OdPartner[] = [
     country: "SG", address: "1 Raffles Place, Singapore",
     status: "Pending Approval", tier: "Silver",
     createdAt: "2026-04-14T10:00:00.000Z", updatedAt: "2026-04-15T10:00:00.000Z",
-    admin: { fullName: "Robert Bruce Banner", username: "christian.admin", email: "christian@secureedge.sg", status: "PendingActivation" },
+    admin: { fullName: "Robert Bruce Banner", username: "christian.admin", email: "christian@secureedge.sg", status: "Pending Activation" },
     team: [],
     agreement: {
       templateName: "Standard Reseller Agreement", number: "AGR-2026-0002", version: "v2.1",
@@ -98,7 +98,7 @@ export const OD_PARTNERS: readonly OdPartner[] = [
     country: "CL", address: "Av. Apoquindo 4500, Las Condes, Santiago",
     status: "Draft", tier: "Bronze",
     createdAt: "2026-04-18T10:00:00.000Z", updatedAt: "2026-04-18T10:00:00.000Z",
-    admin: { fullName: "Susan Storm", username: "charlize.admin", email: "charlize@andescompliance.cl", status: "PendingActivation" },
+    admin: { fullName: "Susan Storm", username: "charlize.admin", email: "charlize@andescompliance.cl", status: "Pending Activation" },
     team: [],
     agreement: {
       // OD leaves a Draft partner's agreement unnumbered and undated — it has
