@@ -80,14 +80,16 @@ describe("personnel contract documents / activity / onboarding / compensation", 
     });
     expect(created.status).toBe(201);
     expect(created.body.data.status).toBe("Draft");
-    expect(created.body.data.version).toBe(1);
+    // OD `cdDraftContract` (js/modules.js:5257) drafts at version 0; only an edit
+    // or `cdIssue` produces v1. Migration 0101 moved the column default to match.
+    expect(created.body.data.version).toBe(0);
 
     const updated = await request(app)
       .put(`/v1/users/${targetUserId}/contract-documents/${created.body.data.id}`)
       .set(bearer)
       .send({ content: "Terms..." });
     expect(updated.status).toBe(200);
-    expect(updated.body.data.version).toBe(2);
+    expect(updated.body.data.version).toBe(1);
 
     const signed = await request(app).post(`/v1/users/${targetUserId}/contract-documents/${created.body.data.id}/sign`).set(bearer);
     expect(signed.status).toBe(200);
