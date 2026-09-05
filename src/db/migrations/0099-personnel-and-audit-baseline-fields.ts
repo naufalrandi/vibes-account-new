@@ -58,15 +58,36 @@ import type { Migration } from "../migrate";
 
 const POST_DATE_TABLES = ["work_units", "ia_programs", "ia_plans", "ia_sessions", "ia_findings", "ia_reports"];
 
+/**
+ * This migration is not wrapped in a transaction (see the note above), so a run
+ * that fails partway leaves the columns it already added in place — and the
+ * retry then dies on `check_for_column_name_collision` before reaching the rest,
+ * which is exactly what happened on the deploy target. Every add is therefore
+ * guarded: adding an existing column is a no-op rather than a hard failure.
+ */
+async function addColumnIfMissing(
+  q: Parameters<Migration>[0]["context"],
+  table: string,
+  column: string,
+  spec: Parameters<typeof q.addColumn>[2],
+): Promise<boolean> {
+  const [rows] = await q.sequelize.query(
+    `SELECT 1 FROM information_schema.columns WHERE table_name = '${table}' AND column_name = '${column}'`,
+  );
+  if ((rows as unknown[]).length > 0) return false;
+  await q.addColumn(table, column, spec);
+  return true;
+}
+
 export const up: Migration = async ({ context: q }) => {
-  await q.addColumn("leave_records", "status", { type: DataTypes.STRING, allowNull: false, defaultValue: "Pending" });
-  await q.addColumn("resume_records", "level", { type: DataTypes.STRING, allowNull: true });
-  await q.addColumn("performance_records", "reviewer", { type: DataTypes.STRING, allowNull: true });
-  await q.addColumn("perf_evals", "objectives", { type: DataTypes.JSONB, allowNull: false, defaultValue: [] });
+  await addColumnIfMissing(q, "leave_records", "status", { type: DataTypes.STRING, allowNull: false, defaultValue: "Pending" });
+  await addColumnIfMissing(q, "resume_records", "level", { type: DataTypes.STRING, allowNull: true });
+  await addColumnIfMissing(q, "performance_records", "reviewer", { type: DataTypes.STRING, allowNull: true });
+  await addColumnIfMissing(q, "perf_evals", "objectives", { type: DataTypes.JSONB, allowNull: false, defaultValue: [] });
 
   for (const table of POST_DATE_TABLES) {
-    await q.addColumn(table, "post_date", { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW });
-    await q.sequelize.query(`UPDATE "${table}" SET "post_date" = "created_at"`);
+    const added = await addColumnIfMissing(q, table, "post_date", { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW });
+    if (added) await q.sequelize.query(`UPDATE "${table}" SET "post_date" = "created_at"`);
   }
 
   await q.sequelize.query(`ALTER TYPE "enum_doa_matrix_entries_approver_kind" ADD VALUE IF NOT EXISTS 'auto'`);
