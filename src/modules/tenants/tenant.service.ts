@@ -83,7 +83,7 @@ export interface ProvisionTenantInput {
 
 const ORG_STATUS_FOR: Record<TenantStatus, Organization["status"]> = {
   Draft: "Draft",
-  "Pending Activation": "PendingApproval",
+  "Pending Activation": "Pending Approval",
   Active: "Active",
   Suspended: "Suspended",
   Inactive: "Inactive",

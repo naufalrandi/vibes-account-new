@@ -66,10 +66,10 @@ const MODULE_FIELDS: Record<string, string[]> = {
    "body", "category", "co", "country", "domain", "scope", "title",
   ],
   "ent-db-courses": [
-   "active", "audience", "category", "co", "cpdHours", "credential", "delivery", "disciplineId",
-   "durationUnit", "durationVal", "elearnMedia", "elearnSupport", "format", "frameworkId",
-   "language", "level", "maxPax", "objectives", "outline", "prereqIds", "prereqText", "price",
-   "scheme", "summary",
+   "active", "audience", "category", "co", "code", "cpdHours", "credential", "currency",
+   "delivery", "disciplineId", "durationUnit", "durationVal", "elearnMedia", "elearnSupport",
+   "examFee", "format", "frameworkId", "fxRate", "language", "level", "materialsFee", "maxPax",
+   "objectives", "outline", "prereqIds", "prereqText", "price", "scheme", "standard", "summary",
   ],
   "ent-db-disciplines": [
    "co", "name", "order",
@@ -123,8 +123,9 @@ const MODULE_FIELDS: Record<string, string[]> = {
    "variant",
   ],
   "ent-proposals": [
-   "activity", "cert", "clauseIds", "co", "contractTypeId", "currency", "discount", "inqId",
-   "items", "leadId", "leadName", "notes", "service", "serviceName", "taxPct", "termIds",
+   "activity", "cert", "clauseIds", "co", "contractTypeId", "contractTypeTitle", "currency",
+   "decidedAt", "discount", "inqId", "items", "leadId", "leadName", "notes", "projectId",
+   "sentAt", "service", "serviceId", "serviceName", "taxPct", "termIds", "terms", "totalValue",
    "totals", "validUntil", "variant",
   ],
   "ent-recruitment": [

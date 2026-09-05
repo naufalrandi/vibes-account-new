@@ -49,7 +49,7 @@ const settingsInputSchema = z.object({
   siteName: z.string().max(200).nullish(),
   domain: z.string().max(200).nullish(),
   tagline: z.string().max(300).nullish(),
-  primaryColor: z.string().max(20).nullish(),
+  primary: z.string().max(20).nullish(),
   seoTitle: z.string().max(200).nullish(),
   seoDesc: z.string().max(500).nullish(),
   analytics: z.string().max(100).nullish(),

@@ -103,6 +103,8 @@ export class CmsMedia extends Model<InferAttributes<CmsMedia>, InferCreationAttr
   declare url: string;
   declare uploadedAt: CreationOptional<Date>;
   declare createdBy: string | null;
+  /** OD `db.cmsMedia[].uploadedBy` (js/core.js:3770). */
+  declare uploadedBy: string | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -118,6 +120,7 @@ CmsMedia.init(
     url: { type: DataTypes.STRING, allowNull: false },
     uploadedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: "uploaded_at" },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
+    uploadedBy: { type: DataTypes.STRING, allowNull: true, field: "uploaded_by" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },
@@ -157,7 +160,8 @@ export class CmsSettings extends Model<InferAttributes<CmsSettings>, InferCreati
   declare siteName: string | null;
   declare domain: string | null;
   declare tagline: string | null;
-  declare primaryColor: string | null;
+  /** OD `db.cmsSettings.primary` (js/core.js:3755). */
+  declare primary: string | null;
   declare seoTitle: string | null;
   declare seoDesc: string | null;
   declare analytics: string | null;
@@ -173,7 +177,7 @@ CmsSettings.init(
     siteName: { type: DataTypes.STRING, allowNull: true, field: "site_name" },
     domain: { type: DataTypes.STRING, allowNull: true },
     tagline: { type: DataTypes.STRING, allowNull: true },
-    primaryColor: { type: DataTypes.STRING, allowNull: true, field: "primary_color" },
+    primary: { type: DataTypes.STRING, allowNull: true },
     seoTitle: { type: DataTypes.STRING, allowNull: true, field: "seo_title" },
     seoDesc: { type: DataTypes.STRING, allowNull: true, field: "seo_desc" },
     analytics: { type: DataTypes.STRING, allowNull: true },

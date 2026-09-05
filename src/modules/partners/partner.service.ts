@@ -201,7 +201,7 @@ export async function createPartner(
         name: input.name,
         code,
         type: "Distributor",
-        status: send ? "PendingApproval" : "Draft",
+        status: send ? "Pending Approval" : "Draft",
         parentOrgId: auth.orgId,
         tenantId: null,
         email: input.email ?? null,
@@ -482,7 +482,7 @@ async function generateForPartner(
   // Move the partner into Pending Approval (from Draft) and record it.
   if (profile.status === "Draft") {
     profile.status = "Pending Approval";
-    org.status = "PendingApproval";
+    org.status = "Pending Approval";
     await org.save({ transaction: tx });
   }
   profile.audit = [nowEntry(`Partnership agreement ${number} generated & sent`), ...profile.audit];

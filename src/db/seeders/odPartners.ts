@@ -6,7 +6,8 @@ import type { UserStatus } from "../models/user.model";
 /**
  * OD `seedPartners()` (js/core.js) — the five-partner commercial demo set.
  *
- * Only `PRT-1001` was seeded before this (the Nusantara Partners fixture in
+ * Only `PRT-1001` was seeded before this (the `seed.ts` fixture, still named
+ * Nusantara Partners there —
  * `seed.ts`), so against a real API the Partners list held a single Active Gold
  * row: no Draft, no Pending Approval, no Suspended partner, no Silver or Bronze
  * tier, and no Terminated agreement. The FE mock client has carried all five
@@ -75,12 +76,12 @@ interface OdPartner {
  */
 export const OD_PARTNERS: readonly OdPartner[] = [
   {
-    odId: "idpr2", code: "PRT-1002", name: "SecureEdge Pte Ltd", orgCode: "SECEDGE",
-    email: "hello@secureedge.sg", phone: "+65 6555 2000", website: "secureedge.sg",
-    country: "SG", address: "1 Raffles Place, Singapore",
+    odId: "idpr2", code: "PRT-1002", name: "Oscorp Industries Pte Ltd", orgCode: "OSCORP",
+    email: "hello@oscorp.com", phone: "+65 6555 8800", website: "oscorp.com",
+    country: "SG", address: "10 Anson Road, #20-01, Singapore",
     status: "Pending Approval", tier: "Silver",
     createdAt: "2026-04-14T10:00:00.000Z", updatedAt: "2026-04-15T10:00:00.000Z",
-    admin: { fullName: "Robert Bruce Banner", username: "christian.admin", email: "christian@secureedge.sg", status: "Pending Activation" },
+    admin: { fullName: "Robert Bruce Banner", username: "christian.admin", email: "christian@oscorp.com", status: "Pending Activation" },
     team: [],
     agreement: {
       templateName: "Standard Reseller Agreement", number: "AGR-2026-0002", version: "v2.1",
@@ -93,12 +94,12 @@ export const OD_PARTNERS: readonly OdPartner[] = [
     ],
   },
   {
-    odId: "idpr3", code: "PRT-1003", name: "Andes Compliance SpA", orgCode: "ANDESC",
-    email: "contacto@andescompliance.cl", phone: "+56 2 2555 3000", website: "andescompliance.cl",
+    odId: "idpr3", code: "PRT-1003", name: "Pym Technologies SpA", orgCode: "PYMTECH",
+    email: "contacto@pymtech.com", phone: "+56 2 2555 4400", website: "pymtech.com",
     country: "CL", address: "Av. Apoquindo 4500, Las Condes, Santiago",
     status: "Draft", tier: "Bronze",
     createdAt: "2026-04-18T10:00:00.000Z", updatedAt: "2026-04-18T10:00:00.000Z",
-    admin: { fullName: "Susan Storm", username: "charlize.admin", email: "charlize@andescompliance.cl", status: "Pending Activation" },
+    admin: { fullName: "Susan Storm", username: "charlize.admin", email: "charlize@pymtech.com", status: "Pending Activation" },
     team: [],
     agreement: {
       // OD leaves a Draft partner's agreement unnumbered and undated — it has
@@ -110,12 +111,12 @@ export const OD_PARTNERS: readonly OdPartner[] = [
     audit: [{ ts: "2026-04-18T10:00:00.000Z", msg: "Partner organization created" }],
   },
   {
-    odId: "idpr4", code: "PRT-1004", name: "Rhein Governance GmbH", orgCode: "RHEING",
-    email: "kontakt@rheingov.de", phone: "+49 30 5555 4000", website: "rheingov.de",
+    odId: "idpr4", code: "PRT-1004", name: "Roxxon Energy GmbH", orgCode: "ROXXON",
+    email: "kontakt@roxxon.com", phone: "+49 30 5555 7700", website: "roxxon.com",
     country: "DE", address: "Friedrichstraße 88, Berlin",
     status: "Suspended", tier: "Silver",
     createdAt: "2026-04-04T10:00:00.000Z", updatedAt: "2026-04-20T10:00:00.000Z",
-    admin: { fullName: "Scott Summers", username: "robert.admin", email: "robert@rheingov.de", status: "Suspended" },
+    admin: { fullName: "Scott Summers", username: "robert.admin", email: "robert@roxxon.com", status: "Suspended" },
     team: [],
     agreement: {
       templateName: "Distributor Agreement", number: "AGR-2025-0019", version: "v1.4",
@@ -129,13 +130,13 @@ export const OD_PARTNERS: readonly OdPartner[] = [
     ],
   },
   {
-    odId: "idpr5", code: "PRT-1005", name: "ABC Consulting", orgCode: "ABCCON",
-    email: "partners@abc.co", phone: "+62 21 5555 5000", website: "abc.co",
+    odId: "idpr5", code: "PRT-1005", name: "PT Parker Industries", orgCode: "PARKIND",
+    email: "partners@parkerindustries.co.id", phone: "+62 21 5555 9000", website: "parkerindustries.co.id",
     country: "ID", address: "Jl. Thamrin 5, Jakarta",
     status: "Active", tier: "Gold",
     createdAt: "2026-04-01T10:00:00.000Z", updatedAt: "2026-04-15T10:00:00.000Z",
-    admin: { fullName: "Peter Benjamin Parker", username: "zinedine.admin", email: "zinedine@abc.co", status: "Active" },
-    team: [{ fullName: "Kamala Khan", email: "anne@abc.co", roleGroup: "Billing Manager", status: "Active" }],
+    admin: { fullName: "Peter Benjamin Parker", username: "zinedine.admin", email: "zinedine@parkerindustries.co.id", status: "Active" },
+    team: [{ fullName: "Kamala Khan", email: "anne@parkerindustries.co.id", roleGroup: "Billing Manager", status: "Active" }],
     agreement: {
       templateName: "Distributor Agreement", number: "AGR-2026-0024", version: "v1.4",
       status: "Approved", effectiveDate: "2026-01-01", expirationDate: "2027-12-31",

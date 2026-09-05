@@ -2,7 +2,7 @@ import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, t
 import { sequelize } from "../sequelize";
 
 export type OrgType = "ServiceOwner" | "Distributor" | "Tenant";
-export type OrgStatus = "Draft" | "PendingApproval" | "Active" | "Suspended" | "Inactive";
+export type OrgStatus = "Draft" | "Pending Approval" | "Active" | "Suspended" | "Inactive";
 
 /** Branding config (Org Profile → Branding tab). Stored as a JSONB blob. */
 export interface OrgBranding {
@@ -60,7 +60,7 @@ Organization.init(
     code: { type: DataTypes.STRING, allowNull: false, unique: true },
     type: { type: DataTypes.ENUM("ServiceOwner", "Distributor", "Tenant"), allowNull: false },
     status: {
-      type: DataTypes.ENUM("Draft", "PendingApproval", "Active", "Suspended", "Inactive"),
+      type: DataTypes.ENUM("Draft", "Pending Approval", "Active", "Suspended", "Inactive"),
       allowNull: false,
       defaultValue: "Draft",
     },

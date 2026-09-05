@@ -6,7 +6,7 @@ export interface SettingsInput {
   siteName?: string | null;
   domain?: string | null;
   tagline?: string | null;
-  primaryColor?: string | null;
+  primary?: string | null;
   seoTitle?: string | null;
   seoDesc?: string | null;
   analytics?: string | null;
@@ -25,7 +25,7 @@ export async function putSettings(auth: AuthContext, input: SettingsInput, ip: s
   if (input.siteName !== undefined) row.siteName = input.siteName;
   if (input.domain !== undefined) row.domain = input.domain;
   if (input.tagline !== undefined) row.tagline = input.tagline;
-  if (input.primaryColor !== undefined) row.primaryColor = input.primaryColor;
+  if (input.primary !== undefined) row.primary = input.primary;
   if (input.seoTitle !== undefined) row.seoTitle = input.seoTitle;
   if (input.seoDesc !== undefined) row.seoDesc = input.seoDesc;
   if (input.analytics !== undefined) row.analytics = input.analytics;

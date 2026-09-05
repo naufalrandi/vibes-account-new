@@ -65,20 +65,20 @@ describe("seedOdPartners", () => {
     const root = await so();
     await seedOdPartners(root.id);
 
-    const suspended = await Organization.findOne({ where: { code: "RHEING" } });
+    const suspended = await Organization.findOne({ where: { code: "ROXXON" } });
     expect(suspended!.status).toBe("Suspended");
-    expect((await Organization.findOne({ where: { code: "ABCCON" } }))!.status).toBe("Active");
+    expect((await Organization.findOne({ where: { code: "PARKIND" } }))!.status).toBe("Active");
   });
 
   it("seeds partner staff without passwords — org members, not platform logins", async () => {
     const root = await so();
     await seedOdPartners(root.id);
 
-    const staff = await User.findAll({ where: { email: ["christian@secureedge.sg", "zinedine@abc.co", "anne@abc.co"] } });
+    const staff = await User.findAll({ where: { email: ["christian@oscorp.com", "zinedine@parkerindustries.co.id", "anne@parkerindustries.co.id"] } });
     expect(staff).toHaveLength(3);
     expect(staff.every((u) => u.passwordHash === null)).toBe(true);
     // A partner admin who never activated stays Pending Activation rather than
     // being quietly seeded as a working account.
-    expect(staff.find((u) => u.email === "christian@secureedge.sg")!.status).toBe("Pending Activation");
+    expect(staff.find((u) => u.email === "christian@oscorp.com")!.status).toBe("Pending Activation");
   });
 });

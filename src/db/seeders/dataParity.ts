@@ -38,7 +38,7 @@ interface OrgIds {
   brandCorpTenantId: string;
   /** OD `idtn4` PT Cross Technological Enterprises — `TEN-1004`. */
   crossTechTenantId: string;
-  /** OD `idpr4`, PT Cross Technological Enterprises' partner — `PRT-1004` / `RHEING`. */
+  /** OD `idpr4`, PT Cross Technological Enterprises' partner — `PRT-1004` / `ROXXON`. */
   crossTechPartnerId: string;
 }
 

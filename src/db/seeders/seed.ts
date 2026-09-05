@@ -724,9 +724,9 @@ export async function seed(): Promise<void> {
     },
     {
       // OD `partnerId:'idpr4'` — `odPartners.ts` seeds that partner as
-      // `PRT-1004` / org code `RHEING`.
+      // `PRT-1004` / org code `ROXXON`.
       odId: "idtn4", code: "TEN-1004", name: "PT Cross Technological Enterprises", acquisition: "Partner" as const,
-      partnerOrgCode: "RHEING", email: "admin@cte.co.id", phone: "+62 361 5550 4000",
+      partnerOrgCode: "ROXXON", email: "admin@cte.co.id", phone: "+62 361 5550 4000",
       website: "cte.co.id", country: "ID", address: "Jl. Bypass Ngurah Rai No. 100, Denpasar, Bali",
       orgStatus: "Suspended" as const, profileStatus: "Suspended" as const,
       createdAt: odMay(1), updatedAt: odMay(15),
@@ -740,11 +740,11 @@ export async function seed(): Promise<void> {
     },
   ];
   // `idpr4` — seeded by `seedOdPartners` in step 8b, well before this point.
-  const rheinPartner = await Organization.findOne({ where: { code: "RHEING" } });
-  if (!rheinPartner) throw new Error("Partner org RHEING (OD idpr4) missing — seedOdPartners must run first");
+  const roxxonPartner = await Organization.findOne({ where: { code: "ROXXON" } });
+  if (!roxxonPartner) throw new Error("Partner org ROXXON (OD idpr4) missing — seedOdPartners must run first");
   const odTenantOrgIdByOdId = new Map<string, string>();
   for (const t of OD_TENANTS) {
-    const partnerOrg = t.partnerOrgCode === "RHEING" ? rheinPartner : null;
+    const partnerOrg = t.partnerOrgCode === "ROXXON" ? roxxonPartner : null;
     const [org] = await Organization.findOrCreate({
       where: { code: t.code },
       defaults: {
@@ -794,7 +794,7 @@ export async function seed(): Promise<void> {
     alchemaxTenantId: odTenantOrg("idtn2"),
     brandCorpTenantId: odTenantOrg("idtn3"),
     crossTechTenantId: odTenantOrg("idtn4"),
-    crossTechPartnerId: rheinPartner.id,
+    crossTechPartnerId: roxxonPartner.id,
   };
   await seedSaasLifecycle(dataParityOrgIds);
   await seedSiteRequests(dataParityOrgIds);
