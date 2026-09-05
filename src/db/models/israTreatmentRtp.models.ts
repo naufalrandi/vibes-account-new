@@ -51,6 +51,7 @@ export type IsraRtpStatus = (typeof ISRA_RTP_STATUS)[number];
 /** OD `ISRA4_ACT_STATUS` (js/core.js:15409) copied verbatim, plus 'Planned' —
  * the value OD's Manage Action Plan modal offers and every OD seed writes
  * (`isra2ApmStatusOpts`, js/core.js:15265), and this port's column default. */
+/** OD `ISRA4_ACT_STATUS` (js/core.js:15409) — exactly these eight, in this order. */
 export const ISRA_RTP_ACTION_STATUS = [
   "Not started",
   "In progress",
@@ -60,11 +61,28 @@ export const ISRA_RTP_ACTION_STATUS = [
   "Rejected",
   "Needs rework",
   "Cancelled",
-  "Planned",
 ] as const;
 export type IsraRtpActionStatus = (typeof ISRA_RTP_ACTION_STATUS)[number];
 
-export interface IsraAcceptance { justification: string; approver: string; reviewDate: string }
+/**
+ * The baseline gives two incompatible shapes for this object: isra-spec.md:97 says
+ * {justification, approver, reviewDate}, while the running prototype at
+ * js/core.js:15154 writes {rationale, owner, approver, acceptanceDate, reviewDate}.
+ * Rather than pick a side the design does not pick, this is the union — every key
+ * either baseline defines is representable. `approver`/`reviewDate` are common to both.
+ */
+export interface IsraAcceptance {
+  approver: string;
+  reviewDate: string;
+  /** isra-spec.md:97 */
+  justification?: string;
+  /** js/core.js:15154 — the prototype's name for the same text. */
+  rationale?: string;
+  /** js/core.js:15154 */
+  owner?: string;
+  /** js/core.js:15154 */
+  acceptanceDate?: string;
+}
 export interface IsraRecommendedControl { annexRef: string; fromVulns: string[] }
 export interface IsraFundingLine { amount: number; remark: string }
 
@@ -305,6 +323,18 @@ export class IsraRtpAction extends Model<InferAttributes<IsraRtpAction>, InferCr
   declare templateId: string | null;
   declare templateVer: number | null;
   declare evidence: CreationOptional<string[]>;
+  /** OD "implementation action lifecycle" (js/core.js:15414); written at :16652
+   *  and seeded at :16700. Verification outcomes come from `ISRA4_VERIFY_OUT`
+   *  (js/core.js:15410). */
+  declare actualStart: string | null;
+  declare actualCompletion: string | null;
+  declare implementedBy: string | null;
+  declare implementationNotes: string | null;
+  declare submissionDate: string | null;
+  declare verificationStatus: string | null;
+  declare verifiedBy: string | null;
+  declare verificationDate: string | null;
+  declare verificationNotes: string | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -319,10 +349,19 @@ IsraRtpAction.init(
     targetDate: { type: DataTypes.DATEONLY, allowNull: true, field: "target_date" },
     evidenceRequired: { type: DataTypes.TEXT, allowNull: true, field: "evidence_required" },
     completionCriteria: { type: DataTypes.TEXT, allowNull: true, field: "completion_criteria" },
-    status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Planned" },
+    status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Not started" },
     templateId: { type: DataTypes.STRING, allowNull: true, field: "template_id" },
     templateVer: { type: DataTypes.INTEGER, allowNull: true, field: "template_ver" },
     evidence: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+    actualStart: { type: DataTypes.DATEONLY, allowNull: true, field: "actual_start" },
+    actualCompletion: { type: DataTypes.DATEONLY, allowNull: true, field: "actual_completion" },
+    implementedBy: { type: DataTypes.STRING, allowNull: true, field: "implemented_by" },
+    implementationNotes: { type: DataTypes.TEXT, allowNull: true, field: "implementation_notes" },
+    submissionDate: { type: DataTypes.DATEONLY, allowNull: true, field: "submission_date" },
+    verificationStatus: { type: DataTypes.STRING, allowNull: true, field: "verification_status" },
+    verifiedBy: { type: DataTypes.STRING, allowNull: true, field: "verified_by" },
+    verificationDate: { type: DataTypes.DATEONLY, allowNull: true, field: "verification_date" },
+    verificationNotes: { type: DataTypes.TEXT, allowNull: true, field: "verification_notes" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

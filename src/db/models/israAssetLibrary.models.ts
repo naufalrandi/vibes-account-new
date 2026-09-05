@@ -17,7 +17,13 @@ import { sequelize } from "../sequelize";
  * platform seed carries it on all 1950 edges
  * (src/db/seeders/isra.kmVulnControl.data.ts) — it is not an OD edge status.
  */
-export const ISRA_VULN_CONTROL_STATUS = ["Draft", "Under review", "Approved", "Rejected", "Retired", "Published"] as const;
+/**
+ * OD `ISRA_KM_STATUSES` (js/core.js:15795) — the per-edge review vocabulary that
+ * `isra2KmSetStatus` (:15797) writes. "Published" is deliberately NOT here: it is
+ * the map-level status `isra2KmPublish` (:15854) sets on `_israMapMeta`, never an
+ * edge state.
+ */
+export const ISRA_VULN_CONTROL_STATUS = ["Draft", "Under review", "Approved", "Rejected", "Retired"] as const;
 export type IsraVulnControlStatus = (typeof ISRA_VULN_CONTROL_STATUS)[number];
 
 export interface IsraKmComment { ts: string; user: string; text: string }

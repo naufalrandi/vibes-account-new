@@ -53,3 +53,38 @@ DoaMatrixEntry.init(
   },
   { sequelize, tableName: "doa_matrix_entries", underscored: true },
 );
+
+/** OD `doaMethodFor` (js/modules.js:4312) coerces anything but 'Order' to 'Direct'. */
+export type DoaSourcingMethod = "Direct" | "Order";
+
+/**
+ * Per-category default sourcing method — OD's `db.doaMethod` map
+ * (`doaMethodMap`, js/modules.js:4311), which the same Procurement Policy
+ * editor reads alongside the spend bands. It is a separate collection from
+ * `db.doaMatrix` because it is keyed by category, not by band: the two bands
+ * of one category share a single sourcing method.
+ *
+ * `doaEffQuotes` (js/modules.js:4313) makes it load-bearing rather than
+ * cosmetic — the effective competitive-quote requirement is the band's own
+ * `quotes` flag OR the category's method being 'Order'.
+ */
+export class DoaMethod extends Model<InferAttributes<DoaMethod>, InferCreationAttributes<DoaMethod>> {
+  declare id: CreationOptional<string>;
+  declare orgId: string;
+  declare type: string;
+  declare method: DoaSourcingMethod;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+
+DoaMethod.init(
+  {
+    id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    orgId: { type: DataTypes.UUID, allowNull: false, field: "org_id" },
+    type: { type: DataTypes.STRING, allowNull: false },
+    method: { type: DataTypes.ENUM("Direct", "Order"), allowNull: false, defaultValue: "Direct" },
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE,
+  },
+  { sequelize, tableName: "doa_methods", underscored: true, indexes: [{ unique: true, fields: ["org_id", "type"] }] },
+);

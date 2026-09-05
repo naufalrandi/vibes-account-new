@@ -21,7 +21,14 @@ import { sequelize } from "../sequelize";
  * status endpoint's contract test pins them
  * (src/modules/isra/isra.integration.test.ts:87,100).
  */
-export const ISRA_SA_SUBGROUP_STATUS = ["Draft", "Under review", "Approved", "Rejected", "Retired"] as const;
+/**
+ * OD SA sub-group review states (KM v2, js/core.js:15784) are 'Under review',
+ * 'Approved', 'Rejected'; the group roll-up `isra2SaKmSetSubStatus` (:15788)
+ * additionally produces 'Partially approved'. `isra2SaKmSetSubStatus` also treats
+ * a missing value as 'Under review', which is what the seeded rows carry
+ * (db.israSaSubgroups, js/core.js:16536) — hence the column default below.
+ */
+export const ISRA_SA_SUBGROUP_STATUS = ["Under review", "Approved", "Rejected", "Partially approved"] as const;
 export type IsraSaSubgroupStatus = (typeof ISRA_SA_SUBGROUP_STATUS)[number];
 
 export const ISRA_LIB_ITEM_STATUS = ["Active", "Retired"] as const;
@@ -180,7 +187,7 @@ IsraSaSubgroup.init(
     name: { type: DataTypes.STRING, allowNull: false },
     description: { type: DataTypes.TEXT, allowNull: true },
     examples: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
-    status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Draft" },
+    status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Under review" },
     version: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,

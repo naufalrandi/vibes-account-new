@@ -42,6 +42,9 @@ export interface IsraMaturity { gov?: number; doc?: number; impl?: number; mon?:
 /** `israScenarios2` — the anchor entity. `primaryAssetRef`/`secondaryAssetRef`
  * are soft references (design doc §2.10); `threatId` is unambiguously
  * platform-only and gets a real FK. */
+/** OD `sc.accepted` (js/core.js:14657). */
+export interface IsraAcceptedStamp { at: string; by: string; score: number }
+
 export class IsraScenario extends Model<InferAttributes<IsraScenario>, InferCreationAttributes<IsraScenario>> {
   declare id: CreationOptional<string>;
   declare orgId: string;
@@ -63,6 +66,10 @@ export class IsraScenario extends Model<InferAttributes<IsraScenario>, InferCrea
   declare ciaDesc: CreationOptional<{ c?: string; i?: string; a?: string }>;
   declare evalCycle: CreationOptional<number>;
   declare reviewDue: string | null;
+  /** OD `sc.accepted = {at, by, score}` (js/core.js:14657; seeded :16721). Gates the
+   *  Retain/accepted test (:14633), the overdue-review check (:14770), the
+   *  "Accepted — within appetite" band (:14853) and `isra2Adequacy` (:15304). */
+  declare accepted: IsraAcceptedStamp | null;
   declare createdBy: string | null;
   declare activity: CreationOptional<IsraActivityEntry[]>;
   declare comments: CreationOptional<IsraComment[]>;
@@ -89,6 +96,7 @@ IsraScenario.init(
     ciaDesc: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "cia_desc" },
     evalCycle: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1, field: "eval_cycle" },
     reviewDue: { type: DataTypes.DATEONLY, allowNull: true, field: "review_due" },
+    accepted: { type: DataTypes.JSONB, allowNull: true },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
     activity: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     comments: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },

@@ -150,6 +150,9 @@ function scenarioRows(orgId: string, rows: IsraDemoScenarioRow[], idOf: Map<stri
     likelihoodNote: s.likelihoodNote ?? null,
     evalCycle: s.evalCycle ?? 1,
     reviewDue: dateOnly(s.reviewDue),
+    // OD `sc.accepted = {at, by, score}` (js/core.js:14657); RSC-0005 in the dump
+    // carries it and it was silently dropped.
+    accepted: (() => { const a = obj(s.accepted); return a && Object.keys(a).length ? (a as never) : null; })(),
     createdBy: s.createdBy ?? null,
     activity: s.activity ?? [],
     comments: [],
@@ -301,8 +304,19 @@ export async function seedIsraTenantDemo(orgId: string): Promise<IsraTenantDemoR
           action: String(a.action ?? ""),
           owners: str(a.owner) ? [String(a.owner)] : [],
           targetDate: dateOnly(a.targetDate),
-          status: str(a.status) ?? "Planned",
+          status: str(a.status) ?? "Not started",
           evidence: str(a.evidenceRequired) ? [String(a.evidenceRequired)] : [],
+          // OD's implementation/verification lifecycle (js/core.js:16652, :16700).
+          // The dump carries all nine on ACT-B1; they were being dropped here.
+          actualStart: dateOnly(a.actualStart),
+          actualCompletion: dateOnly(a.actualCompletion),
+          implementedBy: str(a.implementedBy),
+          implementationNotes: str(a.implementationNotes),
+          submissionDate: dateOnly(a.submissionDate),
+          verificationStatus: str(a.verificationStatus),
+          verifiedBy: str(a.verifiedBy),
+          verificationDate: dateOnly(a.verificationDate),
+          verificationNotes: str(a.verificationNotes),
         });
         const ref = str(a.addedControlRef);
         if (ref) actionControlRows.push({ rtpActionId: actionId, annexRef: ref });

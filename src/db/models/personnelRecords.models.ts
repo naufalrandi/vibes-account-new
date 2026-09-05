@@ -139,7 +139,8 @@ export class DisciplinaryRecord extends Model<InferAttributes<DisciplinaryRecord
   declare userId: string;
   declare disciplineType: string;
   declare incidentDate: string;
-  declare description: string;
+  /** OD's optional `note` (js/modules.js:5525); the design imposes no required text. */
+  declare description: string | null;
   declare actionTaken: string | null;
   /** OD `personAddDisc` (js/modules.js:5525) — Low / Medium / High, rendered as
    *  its own tag column at js/modules.js:4929. */
@@ -156,7 +157,7 @@ DisciplinaryRecord.init(
     userId: { type: DataTypes.UUID, allowNull: false, field: "user_id" },
     disciplineType: { type: DataTypes.STRING, allowNull: false, field: "discipline_type" },
     incidentDate: { type: DataTypes.DATEONLY, allowNull: false, field: "incident_date" },
-    description: { type: DataTypes.TEXT, allowNull: false },
+    description: { type: DataTypes.TEXT, allowNull: true },
     actionTaken: { type: DataTypes.TEXT, allowNull: true, field: "action_taken" },
     severity: { type: DataTypes.STRING, allowNull: true },
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Open" },

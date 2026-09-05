@@ -17,7 +17,7 @@ const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? 
 export interface SchemeView { id: string; name: string; kind: string; selfServe: boolean; description: string | null; gates: SchemeGate[] }
 function builtins(): SchemeView[] {
   return [
-    { id: "S0", name: "Single Review", kind: "builtin", selfServe: false, description: "One MS Team review that also publishes. For lower-risk items.", gates: [{ label: "MS Team Review", pool: "mst", isFinalGate: true }] },
+    { id: "S0", name: "Single Review", kind: "builtin", selfServe: false, description: "One MS Team review that also publishes. For lower-risk items that don’t need top-management sign-off.", gates: [{ label: "MS Team Review", pool: "mst", isFinalGate: true }] },
     { id: "S1", name: "Two-Gate Approval", kind: "builtin", selfServe: false, description: "MS Team reviews first, then Top Management gives the final sign-off that publishes. The default for governance documents.", gates: [{ label: "MS Team Review", pool: "mst", isFinalGate: false }, { label: "Top Management", pool: "top", isFinalGate: true }] },
     { id: "S2", name: "Self-Serve", kind: "builtin", selfServe: true, description: "The author publishes directly, no separate approver. Self-approval is recorded in the audit trail.", gates: [] },
   ];

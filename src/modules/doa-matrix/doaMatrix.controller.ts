@@ -10,7 +10,7 @@ const inputSchema = z.object({
   max: z.number().nullish(),
   currency: z.string().optional(),
   approver: z.string().optional(),
-  approverKind: z.enum(["role", "user"]).optional(),
+  approverKind: z.enum(["role", "user", "auto"]).optional(),
   finance: z.boolean().optional(),
   quotes: z.boolean().optional(),
 });
@@ -43,5 +43,24 @@ export async function remove(req: Request, res: Response, next: NextFunction) {
   try {
     await service.deleteEntry(guard(req), req.params.id as string, req.ip ?? null);
     sendOk(res, { id: req.params.id });
+  } catch (e) { next(e); }
+}
+
+const methodSchema = z.object({
+  type: z.string().min(1),
+  method: z.string(),
+});
+
+export async function listMethods(req: Request, res: Response, next: NextFunction) {
+  try {
+    const rows = await service.listMethods(guard(req));
+    sendOk(res, rows, 200, { page: 1, limit: rows.length, total: rows.length });
+  } catch (e) { next(e); }
+}
+
+export async function setMethod(req: Request, res: Response, next: NextFunction) {
+  try {
+    const input = methodSchema.parse(req.body);
+    sendOk(res, await service.setMethod(guard(req), input.type, input.method, req.ip ?? null));
   } catch (e) { next(e); }
 }

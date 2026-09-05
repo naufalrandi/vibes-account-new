@@ -119,7 +119,7 @@ export const MR_TOPIC_CATALOG = [
   "Compliance obligations fulfilment",
   "Risk and opportunity status",
   "Resource adequacy",
-  "Competence awareness and training status",
+  "Competence, awareness, and training status",
   "Supplier and external provider performance",
   "Communication and consultation results",
   "Incident trends",

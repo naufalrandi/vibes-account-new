@@ -69,7 +69,7 @@ import { BusinessProcess, BusinessProcessStep } from "./businessProcess.models";
 import { DocumentFolder, Document } from "./document.model";
 import { CmsPage, CmsPost, CmsMedia, CmsMenuItem, CmsSettings } from "./cms.model";
 import { ResumeRecord, LeaveRecord, DisciplinaryRecord, PerformanceRecord } from "./personnelRecords.models";
-import { DoaMatrixEntry } from "./doaMatrix.model";
+import { DoaMatrixEntry, DoaMethod } from "./doaMatrix.model";
 
 let initialized = false;
 
@@ -540,6 +540,8 @@ export function initModels(): void {
   // SOF-58 §3 — DOA (Delegation of Authority) spend-band matrix.
   Organization.hasMany(DoaMatrixEntry, { foreignKey: "orgId" });
   DoaMatrixEntry.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasMany(DoaMethod, { foreignKey: "orgId" });
+  DoaMethod.belongsTo(Organization, { foreignKey: "orgId" });
 
   // SOF-58 §4 — relations that already existed as bare FK columns but had no
   // registered Sequelize association, needed so the corresponding
@@ -730,6 +732,7 @@ export {
   PersonnelOnboardingItem,
   PersonnelCompensation,
   DoaMatrixEntry,
+  DoaMethod,
   ReferenceBank,
   ReferenceHoliday,
   ReferenceBpProcess,

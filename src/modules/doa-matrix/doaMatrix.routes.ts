@@ -9,6 +9,10 @@ import { ACTIONS } from "../iam/actions.catalog";
 // in-flight edits this change avoids touching).
 export const doaMatrixRoutes = Router();
 doaMatrixRoutes.get("/", requireAction(ACTIONS.APPROVAL_READ), c.list);
+// OD keeps the per-category sourcing method in a sibling collection
+// (`db.doaMethod`, js/modules.js:4311) read by the same editor.
+doaMatrixRoutes.get("/methods", requireAction(ACTIONS.APPROVAL_READ), c.listMethods);
+doaMatrixRoutes.put("/methods", requireAction(ACTIONS.APPROVAL_MANAGE), c.setMethod);
 doaMatrixRoutes.post("/", requireAction(ACTIONS.APPROVAL_MANAGE), c.create);
 doaMatrixRoutes.put("/:id", requireAction(ACTIONS.APPROVAL_MANAGE), c.update);
 doaMatrixRoutes.delete("/:id", requireAction(ACTIONS.APPROVAL_MANAGE), c.remove);

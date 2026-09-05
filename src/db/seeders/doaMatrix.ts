@@ -14,7 +14,7 @@
 import { DoaMatrixEntry, User } from "../models";
 
 /** OD `PR_ITEM_CATS`, js/modules.js:2932 — copied verbatim (see `lib/procurement/suppliers.ts`). */
-const PR_ITEM_CATS = [
+export const PR_ITEM_CATS = [
   "Vehicle", "Electronics - Endpoint Devices", "Electronics - Network and Infrastructure",
   "Electronics - Other Devices", "Non-Electronics", "Software", "Professional Services",
   "Land", "Buildings", "Machinery", "Furniture and Fixtures",
