@@ -189,6 +189,13 @@ const entProjectsDataSchema = z
     proposalCode: z.string().optional(),
     leadName: z.string().optional(),
     totalValue: z.number().optional(),
+    // Stamped by EnterpriseServiceContractsPage's `createProject`. OD's
+    // `projectConvert` (js/modules.js:2669) has no counterpart for these — they are
+    // this port's own delivery-tracking additions, but the payload 400'd without them.
+    contractCode: z.string().optional(),
+    targetCompletionDate: z.string().optional(),
+    progress: z.number().optional(),
+    milestones: unknownArray.optional(),
   })
   .strict();
 
@@ -550,6 +557,14 @@ const entSvcContractsDataSchema = z
     notes: str,
     activity: arr,
     co,
+    /** OD `contractIssue` (js/modules.js:2657) copies the accepted proposal's
+     *  `contractTypeId` and its `termIds` onto the contract. Both were missing here,
+     *  so an issued contract could never carry the contract type or its clauses. */
+    contractTypeId: str,
+    /** OD stores clause ids (`(p.termIds||[]).slice()`); this port currently sends the
+     *  proposal's prose payment-milestone string. Accepts both pending a decision on
+     *  which representation is canonical — see the `propDefaultTerms` question. */
+    terms: z.union([z.string(), z.array(z.string())]).optional(),
   })
   .strict();
 

@@ -117,9 +117,10 @@ const MODULE_FIELDS: Record<string, string[]> = {
    "requester", "selectReason", "supplier", "supplierName", "unit", "unitValue",
   ],
   "ent-projects": [
-   "activity", "client", "co", "contractId", "currency", "deliver", "endDate", "inqId",
-   "leadId", "leadName", "proposalCode", "proposalId", "service", "serviceName", "startDate",
-   "totalValue", "value", "variant",
+   "activity", "client", "co", "contractCode", "contractId", "currency", "deliver", "endDate",
+   "inqId", "leadId", "leadName", "milestones", "progress", "proposalCode", "proposalId",
+   "service", "serviceName", "startDate", "targetCompletionDate", "totalValue", "value",
+   "variant",
   ],
   "ent-proposals": [
    "activity", "cert", "clauseIds", "co", "contractTypeId", "currency", "discount", "inqId",
@@ -140,8 +141,8 @@ const MODULE_FIELDS: Record<string, string[]> = {
    "leaveEligible", "name", "personnelType", "probationApplies", "renewable",
   ],
   "ent-svc-contracts": [
-   "activity", "co", "currency", "endDate", "inqId", "leadId", "leadName", "notes", "propId",
-   "service", "serviceName", "startDate", "value", "variant",
+   "activity", "co", "contractTypeId", "currency", "endDate", "inqId", "leadId", "leadName",
+   "notes", "propId", "service", "serviceName", "startDate", "terms", "value", "variant",
   ],
   "ent-svc-ctypes": [
    "co", "conversionTarget", "countryProfiles", "defaultTerms", "domain", "hasEndDate",

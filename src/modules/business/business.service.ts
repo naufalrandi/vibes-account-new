@@ -260,6 +260,42 @@ function leadIdentityOf(data: Record<string, unknown> | undefined, title: string
  * app.html:29337: "Inquiries can create leads on the fly (inqForm), so
  * duplicates arrive without anyone typing them").
  */
+/**
+ * OD `certProposalStart` (js/modules.js:2219) opens with
+ * `if(!q||!q.ar||q.ar.status!=='Approved')return;` — an auto-priced certification proposal
+ * may only be raised once the inquiry's Application Review has cleared the AR-Manager gate.
+ *
+ * `assertValidCertInput` only checks that the man-day inputs are well-shaped, so before this
+ * any payload carrying `data.cert` was auto-priced at the certification rate regardless of
+ * whether the review had been approved — the commercial gate was absent, not merely lenient.
+ */
+async function assertCertProposalApproved(
+  auth: AuthContext,
+  data: Record<string, unknown> | undefined,
+): Promise<void> {
+  const d = data ?? {};
+  if (d.cert === undefined) return;
+
+  const inqId = typeof d.inqId === "string" ? d.inqId.trim() : "";
+  if (!inqId) {
+    throw new BadRequestError(
+      "An auto-priced certification proposal must reference the inquiry it was reviewed under (inqId)",
+      "CERT_PROPOSAL_INQUIRY_REQUIRED",
+    );
+  }
+
+  const inquiry = await BusinessRecord.findOne({
+    where: { orgId: auth.orgId, area: "enterprise", module: "ent-inq", id: inqId },
+  });
+  const ar = (inquiry?.data as { ar?: { status?: unknown } } | undefined)?.ar;
+  if (!inquiry || !ar || String(ar.status ?? "") !== "Approved") {
+    throw new BadRequestError(
+      "The inquiry's Application Review must be Approved before a certification proposal can be auto-priced",
+      "CERT_PROPOSAL_AR_NOT_APPROVED",
+    );
+  }
+}
+
 async function assertNoDuplicateLead(
   auth: AuthContext,
   company: OperatingCompany,
@@ -372,7 +408,8 @@ export async function createBusiness(auth: AuthContext, area: string, module: st
     assertValidInquiryData(data);
   }
   if (area === "enterprise" && module === "ent-proposals") {
-    data = assertValidProposalData(data);
+    await assertCertProposalApproved(auth, data);
+    data = assertValidProposalData(data, { isCreate: true });
   }
   if (area === "datana" && isDatanaModule(module)) {
     data = assertValidDatanaData(module, data);

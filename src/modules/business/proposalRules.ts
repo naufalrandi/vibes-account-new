@@ -86,6 +86,13 @@ function certPricedItems(cert: ProposalCertInput): ProposalItem[] {
   ];
 }
 
+/** OD `proposalStart`/`certProposalStart` both open a proposal at 11% tax. */
+export const OD_DEFAULT_TAX_PCT = 11;
+/** OD `certProposalStart` (js/modules.js:2221) — a certification proposal is always IDR. */
+const CERT_PROPOSAL_CURRENCY = "IDR";
+/** OD `certProposalStart` — a certification proposal is always the audit contract type. */
+const CERT_PROPOSAL_CONTRACT_TYPE_ID = "ct-svc-audit";
+
 function assertValidCertInput(raw: unknown): ProposalCertInput {
   const c = (raw ?? {}) as Record<string, unknown>;
   if (!Array.isArray(c.standards) || !c.standards.length || c.standards.some((s) => typeof s !== "string")) {
@@ -105,8 +112,20 @@ function assertValidCertInput(raw: unknown): ProposalCertInput {
 /** Validates and normalizes proposal `data`, computing server-authoritative `totals`. Returns
  *  the (possibly unmodified) data object with `totals` set — callers write the return value back
  *  into `input.data`/`r.data`, never the caller's original object. */
-export function assertValidProposalData(data: Record<string, unknown> | undefined): Record<string, unknown> {
+export function assertValidProposalData(
+  data: Record<string, unknown> | undefined,
+  opts: { isCreate?: boolean } = {},
+): Record<string, unknown> {
   const d = data ?? {};
+
+  const cert = d.cert !== undefined ? assertValidCertInput(d.cert) : undefined;
+
+  // OD `certProposalStart` (js/modules.js:2221) fixes a certification proposal's currency to
+  // IDR and its contract type to `ct-svc-audit`; the man-day rate is quoted per IDR man-day.
+  if (cert && opts.isCreate) {
+    if (!String(d.currency ?? "").trim()) d.currency = CERT_PROPOSAL_CURRENCY;
+    if (!String(d.contractTypeId ?? "").trim()) d.contractTypeId = CERT_PROPOSAL_CONTRACT_TYPE_ID;
+  }
 
   const currency = String(d.currency ?? "").trim();
   if (!currency) throw new BadRequestError("Proposal currency is required", "CURRENCY_REQUIRED");
@@ -114,13 +133,16 @@ export function assertValidProposalData(data: Record<string, unknown> | undefine
   // Certification-proposal auto-pricing: `data.cert` present overrides any client-supplied
   // `items` with the server-computed man-day items — same "server never trusts client totals"
   // posture `computeProposalTotals` already takes for `totals` itself, extended one level up.
-  const cert = d.cert !== undefined ? assertValidCertInput(d.cert) : undefined;
   const items = assertValidItems(cert ? certPricedItems(cert) : (d.items ?? []));
 
   const discount = Number(d.discount ?? 0);
   if (!Number.isFinite(discount) || discount < 0) throw new BadRequestError("Discount must be >= 0", "INVALID_DISCOUNT");
 
-  const taxPct = Number(d.taxPct ?? 0);
+  // OD opens every proposal at 11% — `proposalStart` (js/modules.js:2502) and
+  // `certProposalStart` (:2221) both hard-code `taxPct:11`. Defaulting to 0 quoted every
+  // proposal created without an explicit rate tax-free. Applied on create only: re-defaulting
+  // on update would silently re-tax records already saved under the old default.
+  const taxPct = Number(d.taxPct ?? (opts.isCreate ? OD_DEFAULT_TAX_PCT : 0));
   if (!Number.isFinite(taxPct) || taxPct < 0 || taxPct > 100) throw new BadRequestError("Tax % must be between 0 and 100", "INVALID_TAX_PCT");
 
   if (d.contractTypeId !== undefined && d.contractTypeId !== "" && !String(d.contractTypeId).trim()) {
