@@ -140,6 +140,11 @@ const BIZ_CODE_CONFIG: Record<string, BizCodeConfig> = {
   "mb-booking": { prefix: "BK", base: 0, pad: 4 },
   "mb-support": { prefix: "TK", base: 0, pad: 4 },
   "ent-comp": { prefix: "COMP", base: 0, pad: 4 },
+  // The design is self-contradictory here and neither shape fits prefix/base/pad:
+  // `payrollSeedIfNeeded` (js/modules.js:2885) mints `PY-<fy>-01`..`PY-<fy>-12`
+  // while `payrollNextId` (:2884) returns `PY-N<n>`. The 12 seeded cycles — the
+  // ids actually on screen — keep their dump values (`PY-2026-01`..`PY-2026-12`)
+  // via seedRow's design-id path; only cycles minted later fall back to this.
   "ent-payroll": { prefix: "PY", base: 0, pad: 0 },
   "ent-minwage": { prefix: "MW", base: 0, pad: 4 },
   "ent-db-courses": { prefix: "CRS", base: 0, pad: 4 },

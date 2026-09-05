@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { BusinessRecord, ImplementationRecord, IpParty, IpRequirement, MReview, MsScope } from "../models";
+import { BusinessRecord, Framework, ImplementationRecord, IpParty, IpRequirement, MReview, MsScope } from "../models";
 import type { BusinessArea } from "../models/businessRecord.model";
 import { getBusinessDataSchema } from "../../modules/business/dataSchemas";
 import { nextCode } from "../../modules/business/business.service";
@@ -61,7 +61,9 @@ function schemaKeys(module: string): Set<string> {
 function pickData(
   module: string,
   row: Record<string, unknown>,
-  refs: Record<string, string | null | undefined> = {},
+  // A ref value may be an array: `termIds`/`defaultTerms` are lists of clause ids
+  // that need the same OD-slug -> generated-id remap as the scalar references.
+  refs: Record<string, string | string[] | null | undefined> = {},
 ): Record<string, unknown> {
   const keys = schemaKeys(module);
   const data: Record<string, unknown> = {};
@@ -188,12 +190,29 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
     bump("ent-db-disciplines");
   }
 
+  // OD's course rows reference frameworks by its own opaque ids ("fw_dig57pn").
+  // Framework rows here are created by `Framework.findOrCreate({ where: { name } })`
+  // with UUID keys (complianceEngine.ts:130-138), so those slugs could never
+  // resolve — `courseScopeLabel` (js/modules.js:1863) renders the standard name
+  // from this reference, so the "Discipline / Standard" column was dangling.
+  const OD_FRAMEWORK_NAMES: Record<string, string> = {
+    fw_dig57pn: "ISO 9001:2015",
+    fw_m47qbu4: "ISO 45001:2018",
+    fw_a2qeo46: "ISO/IEC 27001:2022",
+    fw_jl2ypan: "ISO/IEC 27701:2025",
+  };
+  const frameworkIdByName = new Map(
+    (await Framework.findAll({ attributes: ["id", "name"] })).map((f) => [f.name, f.id]),
+  );
+
   const coursesMap = new Map<string, string>();
   for (const row of loadDump("courses")) {
     const disciplineId = row.disciplineId ? disciplinesMap.get(String(row.disciplineId)) ?? String(row.disciplineId) : undefined;
-    const data = pickData("ent-db-courses", row, { disciplineId });
+    const odFw = row.frameworkId ? OD_FRAMEWORK_NAMES[String(row.frameworkId)] : undefined;
+    const frameworkId = odFw ? frameworkIdByName.get(odFw) ?? undefined : undefined;
+    const data = pickData("ent-db-courses", row, { disciplineId, frameworkId, standard: odFw });
     const status = row.active === false ? "Inactive" : "Active";
-    const r = await seedRow(orgId, "enterprise", "ent-db-courses", str(row, "title"), status, null, companyFor("enterprise", row), data);
+    const r = await seedRow(orgId, "enterprise", "ent-db-courses", str(row, "title"), status, null, companyFor("enterprise", row), data, str(row, "code") || undefined);
     coursesMap.set(String(row.id), r.id);
     bump("ent-db-courses");
   }
@@ -227,7 +246,7 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
 
   for (const row of loadDump("payrollCycles")) {
     const data = pickData("ent-payroll", row);
-    await seedRow(orgId, "enterprise", "ent-payroll", str(row, "name"), str(row, "status", "Scheduled"), null, companyFor("enterprise", row), data);
+    await seedRow(orgId, "enterprise", "ent-payroll", str(row, "name"), str(row, "status", "Scheduled"), null, companyFor("enterprise", row), data, str(row, "id") || undefined);
     bump("ent-payroll");
   }
 
@@ -292,7 +311,10 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
   for (const row of loadDump("contractTypes")) {
     const domain = str(row, "domain", "Employment");
     const module = domain === "Service" ? "ent-svc-ctypes" : domain === "Supplier" ? "ent-sup-ctypes" : "ent-ctypes";
-    const data = pickData(module, row);
+    const defaultTerms = Array.isArray(row.defaultTerms)
+      ? (row.defaultTerms as unknown[]).map((t) => clausesMap.get(String(t)) ?? String(t))
+      : undefined;
+    const data = pickData(module, row, { defaultTerms });
     const r = await seedRow(orgId, "enterprise", module, str(row, "name"), str(row, "status", "Active"), null, companyFor("enterprise", row), data);
     contractTypesMap.set(String(row.id), r.id);
     bump(module);
@@ -420,7 +442,17 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
   for (const row of loadDump("proposals")) {
     const inqId = row.inqId ? inquiriesMap.get(String(row.inqId)) ?? String(row.inqId) : undefined;
     const leadId = row.leadId ? leadsMap.get(String(row.leadId)) ?? String(row.leadId) : undefined;
-    const data = pickData("ent-proposals", row, { inqId, leadId });
+    // OD's proposal detail resolves the service contract type by id
+    // (`contractType(p.contractTypeId).name`, js/modules.js:2512). The dump carries
+    // OD slugs ("ct-svc-audit"), so without this remap the reference dangles — the
+    // same bug the `typeId` remaps a few loops up already avoid.
+    const contractTypeId = row.contractTypeId
+      ? contractTypesMap.get(String(row.contractTypeId)) ?? String(row.contractTypeId)
+      : undefined;
+    const termIds = Array.isArray(row.termIds)
+      ? (row.termIds as unknown[]).map((t) => clausesMap.get(String(t)) ?? String(t))
+      : undefined;
+    const data = pickData("ent-proposals", row, { inqId, leadId, contractTypeId, termIds });
     const r = await seedRow(orgId, "enterprise", "ent-proposals", `${str(row, "leadName")} · ${str(row, "serviceName")}`, str(row, "status", "Draft"), null, companyFor("enterprise", row), data);
     proposalsMap.set(String(row.id), r.id);
     bump("ent-proposals");

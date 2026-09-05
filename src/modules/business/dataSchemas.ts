@@ -214,9 +214,21 @@ const entProposalsDataSchema = z
     validUntil: z.string().optional(),
     notes: z.string().optional(),
     activity: unknownArray.optional(),
-    contractTypeId: z.string().optional(),
+    // `.nullish()`: EnterpriseProposalsPage.tsx clears the field by posting null.
+    contractTypeId: z.string().nullish(),
     termIds: unknownArray.optional(),
     co: z.string().optional(),
+    // Posted by EnterpriseProposalsPage.tsx:215-233. `projectId` is additionally
+    // written server-side by createProjectFromProposal (business.service.ts:596),
+    // so without it here the server stamped a key the next client save could not
+    // round-trip through this `.strict()` object.
+    serviceId: z.string().nullish(),
+    contractTypeTitle: z.string().nullish(),
+    totalValue: z.number().nullish(),
+    sentAt: z.string().nullish(),
+    decidedAt: z.string().nullish(),
+    projectId: z.string().nullish(),
+    terms: unknownArray.optional(),
     // Server-computed by `assertValidProposalData` (proposalRules.ts) after
     // this schema runs — round-tripped back on the next save.
     totals: unknownObject.optional(),
@@ -406,6 +418,10 @@ const entDbDisciplinesDataSchema = z.object({ name: str, order: numeric, co }).s
 /** `courses` (`parity/backend.md`). */
 const entDbCoursesDataSchema = z
   .object({
+    // OD `courseCatSeedIfNeeded` (js/modules.js:1877-1882) mints a meaningful
+    // 4-digit code per level band (7001 foundation, 71xx awareness, 72xx/73xx/74xx
+    // requirements/implementation/audit) and the catalog's "Cat #" column renders it.
+    code: str,
     category: str,
     level: numeric,
     summary: str,
@@ -428,6 +444,14 @@ const entDbCoursesDataSchema = z
     elearnSupport: arr,
     disciplineId: str,
     frameworkId: str,
+    // Posted by CourseEditModal.tsx:164-186 and read by the catalog's
+    // "Discipline / Standard" column (courseCatalogConstants.ts:213), which is
+    // OD `courseScopeLabel` -> `courseStdName(c.frameworkId)` (js/modules.js:1863).
+    standard: str,
+    materialsFee: numeric,
+    examFee: numeric,
+    currency: str,
+    fxRate: numeric,
     scheme: str,
     co,
   })

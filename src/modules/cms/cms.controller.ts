@@ -8,9 +8,9 @@ import * as settingsService from "./cmsSettings.service";
 import { sendOk } from "../../lib/apiResponse";
 import { BadRequestError, UnauthorizedError } from "../../lib/errors";
 
-const pageTemplateSchema = z.enum(["Home", "Pricing", "Contact", "Landing"]);
-const pageStatusSchema = z.enum(["Draft", "InReview", "Published", "Archived"]);
-const postStatusSchema = z.enum(["Draft", "InReview", "Published", "Archived", "Scheduled"]);
+const pageTemplateSchema = z.enum(["Landing", "Standard", "Pricing", "Contact", "Blog Index", "Legal"]);
+const pageStatusSchema = z.enum(["Draft", "In Review", "Published", "Archived"]);
+const postStatusSchema = z.enum(["Draft", "In Review", "Scheduled", "Published", "Archived"]);
 
 const pageInputSchema = z.object({
   title: z.string().max(300).optional(),

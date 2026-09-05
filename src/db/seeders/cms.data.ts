@@ -10,8 +10,9 @@
  * close that gap.
  *
  * `CmsPageTemplate` (cms.model.ts) only has Home/Pricing/Contact/Landing —
- * OD's `'Standard'` template has no equivalent column value, so those pages
- * are remapped to `'Landing'` (closest generic template) here.
+ * Templates and statuses are OD's own (`CMS_TEMPLATES` js/core.js:3744,
+ * `CMS_PAGE_STATUS` :3742); `cmsSeedIfNeeded` (:3752-3760) gives PG-0001
+ * 'Landing' and PG-0002/3/5/7/8 'Standard'.
  */
 const NOW = Date.parse("2026-05-15T09:00:00.000Z");
 const d = (n: number) => new Date(NOW - n * 86400000).toISOString();
@@ -19,13 +20,13 @@ const AUTHOR = "System";
 
 export const CMS_PAGES = [
   { odId: "PG-0001", title: "Home", slug: "home", template: "Landing" as const, status: "Published" as const, author: AUTHOR, seoTitle: "VIBES — One Platform for Every Management System", seoDesc: "Assessments, documents, audits, risk and certification workflows for ISO 9001, 27001, 45001 and beyond.", body: "# Run every management system in one place\n\nVIBES unifies framework implementation, competence, documents, audits, risk and certification into a single operating platform.\n\n- Multi-framework: ISO 9001, 27001, 45001, 17025, 17021, 17024\n- Asset-based information security risk assessment\n- Audit programmes, findings and management review", path: "/", updatedAt: d(3), createdAt: d(60) },
-  { odId: "PG-0002", title: "Platform", slug: "platform", template: "Landing" as const, status: "Published" as const, author: AUTHOR, seoTitle: "The VIBES Platform", seoDesc: "A modular platform covering the full ISO management-system lifecycle.", body: "# The Platform\n\nFrom framework cross-reference to residual-risk monitoring, VIBES covers the full lifecycle.", path: "/platform", updatedAt: d(8), createdAt: d(58) },
-  { odId: "PG-0003", title: "Solutions", slug: "solutions", template: "Landing" as const, status: "Published" as const, author: AUTHOR, seoTitle: "Solutions by Standard", seoDesc: "Purpose-built extensions per ISO standard.", body: "# Solutions\n\nFramework extensions for Quality, Health & Safety and Information Security.", path: "/solutions", updatedAt: d(12), createdAt: d(58) },
+  { odId: "PG-0002", title: "Platform", slug: "platform", template: "Standard" as const, status: "Published" as const, author: AUTHOR, seoTitle: "The VIBES Platform", seoDesc: "A modular platform covering the full ISO management-system lifecycle.", body: "# The Platform\n\nFrom framework cross-reference to residual-risk monitoring, VIBES covers the full lifecycle.", path: "/platform", updatedAt: d(8), createdAt: d(58) },
+  { odId: "PG-0003", title: "Solutions", slug: "solutions", template: "Standard" as const, status: "Published" as const, author: AUTHOR, seoTitle: "Solutions by Standard", seoDesc: "Purpose-built extensions per ISO standard.", body: "# Solutions\n\nFramework extensions for Quality, Health & Safety and Information Security.", path: "/solutions", updatedAt: d(12), createdAt: d(58) },
   { odId: "PG-0004", title: "Pricing", slug: "pricing", template: "Pricing" as const, status: "Published" as const, author: AUTHOR, seoTitle: "VIBES Pricing", seoDesc: "Simple per-workspace subscription pricing with bank-transfer billing.", body: "# Pricing\n\nPer-workspace subscriptions, billed per bundle. Bank transfer with manual verification.", path: "/pricing", updatedAt: d(5), createdAt: d(40) },
-  { odId: "PG-0005", title: "About", slug: "about", template: "Landing" as const, status: "Published" as const, author: AUTHOR, seoTitle: "About VIBES", seoDesc: "Who we are and why we built VIBES.", body: "# About\n\nWe build software for certification-ready organizations.", path: "/about", updatedAt: d(20), createdAt: d(58) },
+  { odId: "PG-0005", title: "About", slug: "about", template: "Standard" as const, status: "Published" as const, author: AUTHOR, seoTitle: "About VIBES", seoDesc: "Who we are and why we built VIBES.", body: "# About\n\nWe build software for certification-ready organizations.", path: "/about", updatedAt: d(20), createdAt: d(58) },
   { odId: "PG-0006", title: "Contact", slug: "contact", template: "Contact" as const, status: "Published" as const, author: AUTHOR, seoTitle: "Contact VIBES", seoDesc: "Talk to our team.", body: "# Contact\n\nRequest a demo or talk to sales.", path: "/contact", updatedAt: d(20), createdAt: d(58) },
-  { odId: "PG-0007", title: "Security & Trust", slug: "security", template: "Landing" as const, status: "InReview" as const, author: AUTHOR, seoTitle: "Security & Trust", seoDesc: "How VIBES protects your data.", body: "# Security & Trust\n\nOur own ISMS, sub-processors and data-protection commitments.", path: "/security", updatedAt: d(1), createdAt: d(9) },
-  { odId: "PG-0008", title: "Careers", slug: "careers", template: "Landing" as const, status: "Draft" as const, author: AUTHOR, seoTitle: "Careers at VIBES", seoDesc: "Join the team.", body: "# Careers\n\nOpen roles across engineering, product and customer success.", path: "/careers", updatedAt: d(2), createdAt: d(6) },
+  { odId: "PG-0007", title: "Security & Trust", slug: "security", template: "Standard" as const, status: "In Review" as const, author: AUTHOR, seoTitle: "Security & Trust", seoDesc: "How VIBES protects your data.", body: "# Security & Trust\n\nOur own ISMS, sub-processors and data-protection commitments.", path: "/security", updatedAt: d(1), createdAt: d(9) },
+  { odId: "PG-0008", title: "Careers", slug: "careers", template: "Standard" as const, status: "Draft" as const, author: AUTHOR, seoTitle: "Careers at VIBES", seoDesc: "Join the team.", body: "# Careers\n\nOpen roles across engineering, product and customer success.", path: "/careers", updatedAt: d(2), createdAt: d(6) },
 ];
 
 export const CMS_POSTS = [

@@ -2,27 +2,19 @@ import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, t
 import { sequelize } from "../sequelize";
 
 /**
- * NOTE (baseline conformance, deliberately NOT changed here — both gaps need
- * files outside this change to move in the same commit):
+ * OD closed vocabularies, ported verbatim: `CMS_PAGE_STATUS` (js/core.js:3742),
+ * `CMS_POST_STATUS` (:3743) and `CMS_TEMPLATES` (:3744). The review state is
+ * spelled "In Review", with a space, on both sides — fe-vibes-new
+ * app/(app)/platform/website-cms/cms-shared.tsx:23-25 already declares all three
+ * lists exactly this way.
  *
- * 1. OD `CMS_TEMPLATES` is `['Landing','Standard','Pricing','Contact',
- *    'Blog Index','Legal']` (js/core.js:3744) — "Standard", "Blog Index" and
- *    "Legal" are missing below and "Home" is not an OD template. Adding members
- *    breaks the exhaustive `Record<CmsPageTemplate, …>` renderer table at
- *    src/modules/cms/cmsPublic.routes.ts:81, and the request schema at
- *    src/modules/cms/cms.controller.ts:11 repeats the list.
- * 2. OD spells the review state `'In Review'`, with a space —
- *    `CMS_PAGE_STATUS` (js/core.js:3742) and `CMS_POST_STATUS`
- *    (js/core.js:3743). Both OD lists are otherwise complete below. Renaming
- *    "InReview" means src/modules/cms/cms.controller.ts:12-13,
- *    src/db/seeders/cms.data.ts and a backfill of stored rows.
- *
- * `cms_pages.template`/`.status` and `cms_posts.status` are plain STRING
- * columns (migration 0079), so neither fix needs a migration.
+ * `cms_pages.template`/`.status` and `cms_posts.status` are plain STRING columns
+ * (migration 0079), so the member lists below are validation only; migration 0107
+ * rewrites the stored values.
  */
-export type CmsPageTemplate = "Home" | "Pricing" | "Contact" | "Landing";
-export type CmsPageStatus = "Draft" | "InReview" | "Published" | "Archived";
-export type CmsPostStatus = "Draft" | "InReview" | "Published" | "Archived" | "Scheduled";
+export type CmsPageTemplate = "Landing" | "Standard" | "Pricing" | "Contact" | "Blog Index" | "Legal";
+export type CmsPageStatus = "Draft" | "In Review" | "Published" | "Archived";
+export type CmsPostStatus = "Draft" | "In Review" | "Scheduled" | "Published" | "Archived";
 
 /** A CMS page — org-scoped, plain-text/HTML `body` (no block editor). */
 export class CmsPage extends Model<InferAttributes<CmsPage>, InferCreationAttributes<CmsPage>> {
@@ -49,8 +41,8 @@ CmsPage.init(
     title: { type: DataTypes.STRING, allowNull: false },
     slug: { type: DataTypes.STRING, allowNull: false },
     path: { type: DataTypes.STRING, allowNull: true },
-    template: { type: DataTypes.ENUM("Home", "Pricing", "Contact", "Landing"), allowNull: false, defaultValue: "Landing" },
-    status: { type: DataTypes.ENUM("Draft", "InReview", "Published", "Archived"), allowNull: false, defaultValue: "Draft" },
+    template: { type: DataTypes.ENUM("Landing", "Standard", "Pricing", "Contact", "Blog Index", "Legal"), allowNull: false, defaultValue: "Landing" },
+    status: { type: DataTypes.ENUM("Draft", "In Review", "Published", "Archived"), allowNull: false, defaultValue: "Draft" },
     author: { type: DataTypes.STRING, allowNull: true },
     seoTitle: { type: DataTypes.STRING, allowNull: true, field: "seo_title" },
     seoDesc: { type: DataTypes.STRING, allowNull: true, field: "seo_desc" },
@@ -89,7 +81,7 @@ CmsPost.init(
     author: { type: DataTypes.STRING, allowNull: true },
     category: { type: DataTypes.STRING, allowNull: true },
     tags: { type: DataTypes.ARRAY(DataTypes.STRING), allowNull: false, defaultValue: [] },
-    status: { type: DataTypes.ENUM("Draft", "InReview", "Published", "Archived", "Scheduled"), allowNull: false, defaultValue: "Draft" },
+    status: { type: DataTypes.ENUM("Draft", "In Review", "Scheduled", "Published", "Archived"), allowNull: false, defaultValue: "Draft" },
     excerpt: { type: DataTypes.STRING, allowNull: true },
     body: { type: DataTypes.TEXT, allowNull: false, defaultValue: "" },
     publishDate: { type: DataTypes.DATE, allowNull: true, field: "publish_date" },

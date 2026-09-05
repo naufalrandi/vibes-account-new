@@ -79,11 +79,17 @@ function renderLanding(page: CmsPage): string {
 <section class="landing-body">${page.body}</section>`);
 }
 
+// OD `CMS_TEMPLATES` (js/core.js:3744). "Home" was not one of them — the home
+// page is a Landing (`cmsSeedIfNeeded` gives PG-0001 template 'Landing'), so
+// `renderHome` now backs that template and the three OD templates that had no
+// renderer fall back to the generic body layout.
 const RENDERERS: Record<CmsPageTemplate, (page: CmsPage) => string> = {
-  Home: renderHome,
+  Landing: renderHome,
+  Standard: renderLanding,
   Pricing: renderPricing,
   Contact: renderContact,
-  Landing: renderLanding,
+  "Blog Index": renderLanding,
+  Legal: renderLanding,
 };
 
 cmsPublicRoutes.get("/:orgId/pages/:slug", async (req: Request, res: Response, next: NextFunction) => {
