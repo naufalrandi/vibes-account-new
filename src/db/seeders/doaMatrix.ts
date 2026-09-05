@@ -13,7 +13,7 @@
  */
 import { DoaMatrixEntry, User } from "../models";
 
-/** OD `PR_ITEM_CATS`, app.html:30734 — copied verbatim (see `lib/procurement/suppliers.ts`). */
+/** OD `PR_ITEM_CATS`, js/modules.js:2932 — copied verbatim (see `lib/procurement/suppliers.ts`). */
 const PR_ITEM_CATS = [
   "Vehicle", "Electronics - Endpoint Devices", "Electronics - Network and Infrastructure",
   "Electronics - Other Devices", "Non-Electronics", "Software", "Professional Services",
@@ -22,23 +22,38 @@ const PR_ITEM_CATS = [
 
 const FINANCE_FALLBACK_APPROVER = "Head of Department";
 
+/**
+ * OD `doaSeedIfNeeded` (js/modules.js:4297-4300) sets the Role band's ceiling to
+ * `ps ? '1000000' : '5000000'` — Professional Services is gated an order of magnitude
+ * lower than every other category. An unset ceiling is not the same thing: `doaBandFor`
+ * treats a null `max` as unbounded, so seeding both bands at null collapses the matrix
+ * to a single band and every request routes to the Line Manager with no Finance gate.
+ */
+const ROLE_BAND_CEILING_IDR = 5_000_000;
+const ROLE_BAND_CEILING_PROFESSIONAL_SERVICES_IDR = 1_000_000;
+
 export async function seedDoaMatrix(orgId: string): Promise<void> {
   const ceo = await User.findOne({ where: { orgId, empLevel: "L1" } });
   const financeApprover = ceo?.fullName ?? FINANCE_FALLBACK_APPROVER;
 
   for (const type of PR_ITEM_CATS) {
+    const isProfessionalServices = type === "Professional Services";
     await DoaMatrixEntry.findOrCreate({
       where: { orgId, type, finance: false },
       defaults: {
-        orgId, type, max: null, approver: "Line Manager", approverKind: "role",
+        orgId, type,
+        max: isProfessionalServices ? ROLE_BAND_CEILING_PROFESSIONAL_SERVICES_IDR : ROLE_BAND_CEILING_IDR,
+        approver: "Line Manager", approverKind: "role",
         finance: false, quotes: false,
       },
     });
     await DoaMatrixEntry.findOrCreate({
       where: { orgId, type, finance: true },
+      // OD's top band is open-ended (`max:''`) and requires competitive quotes for every
+      // category except Professional Services (`quotes:!ps`, js/modules.js:4299).
       defaults: {
         orgId, type, max: null, approver: financeApprover, approverKind: "user",
-        finance: true, quotes: false,
+        finance: true, quotes: !isProfessionalServices,
       },
     });
   }

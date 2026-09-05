@@ -63,7 +63,11 @@ CompetenceSkill.init(
 export const ROLE_STATUS = ["Draft", "Active", "Under review", "Archived"] as const;
 export const NECESSITY = ["Required", "Preferred"] as const;
 export const ASSESS_STATUS = ["Competent", "Competent with conditions", "Not yet competent"] as const;
-export const GAP_STATUS = ["Open", "Planned", "Resolved"] as const;
+/** OD competence-gap states — `gapStatusBadge` (js/modules.js:968) styles Resolved,
+ *  Planned, Reviewed and Waived and falls through to Open, which it renders as "Raised".
+ *  The demo seed (js/modules.js:350-351) persists Reviewed and Waived, so a three-value
+ *  enum silently made those two unrepresentable. */
+export const GAP_STATUS = ["Open", "Reviewed", "Planned", "Resolved", "Waived"] as const;
 export const PROF_LEVELS = ["", "Awareness", "Working", "Proficient", "Expert"] as const;
 
 /** A competence linked to a responsibility/authority on a role profile. */
@@ -255,6 +259,8 @@ export class CompetenceGap extends Model<InferAttributes<CompetenceGap>, InferCr
   /** OD `gap.reviewedBy`/`gap.reviewedDate` — who/when a gap's disposition was reviewed. */
   declare reviewedBy: string | null;
   declare reviewedDate: string | null;
+  /** OD `gap.waiveReason` (js/modules.js:351) — why a gap was waived rather than closed. */
+  declare waiveReason: string | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -290,6 +296,7 @@ CompetenceGap.init(
     reassessResult: { type: DataTypes.STRING, allowNull: true, field: "reassess_result" },
     reviewedBy: { type: DataTypes.STRING, allowNull: true, field: "reviewed_by" },
     reviewedDate: { type: DataTypes.DATEONLY, allowNull: true, field: "reviewed_date" },
+    waiveReason: { type: DataTypes.TEXT, allowNull: true, field: "waive_reason" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

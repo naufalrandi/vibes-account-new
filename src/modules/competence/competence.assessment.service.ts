@@ -401,7 +401,7 @@ async function requireGap(auth: AuthContext, id: string): Promise<CompetenceGap>
 /** OD `compGapTpBadge` (index.html:14215), ported onto this backend's single
  * `CompetenceGap` model. OD checks `gap.status==='Closed'` for the terminal
  * "Gap Closed" state; this ported gap vocabulary's terminal state is
- * `'Resolved'` (`GAP_STATUS = ["Open","Planned","Resolved"]`), so `'Resolved'`
+ * `'Resolved'` (`GAP_STATUS = ["Open","Reviewed","Planned","Resolved","Waived"]`), so `'Resolved'`
  * is treated as OD's `'Closed'` equivalent here.
  *
  * `linkedPlanStatus` is the linked Training Plan's own `status` (owned by the
