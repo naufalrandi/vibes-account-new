@@ -25,8 +25,37 @@ import { EDU_FRAMEWORK_SEED } from "./data/eduFrameworkSeed";
 // NACE Rev.2 framework instead of copying a tree into every country.
 const EU_MEMBERS = ["AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE"];
 
-function nodeToFrameworkLevel(n: HierNode) {
-  return { code: n.code, label: n.label, lv: n.level, parent: n.parent, isic: n.isic ?? null };
+/**
+ * R73 — the framework-node shape the FE reads.
+ *
+ * `lv` is OD's ZERO-based depth (a Section is `lv:0`, js/nace.js), and the FE's
+ * own editor derives it that way (`deriveNodeLvParent` returns 0 for a bare
+ * letter). Emitting the raw 1-based `HierNode.level` here put every seeded node
+ * one tier deeper than a hand-added one.
+ *
+ * `isic` is OD's ISIC NODE ID, not the bare code: the FE's "Maps to ISIC" picker
+ * lists `<option value={sector.id}>`, so a bare "A" never matched an option and
+ * the mapping read as unset on every seeded node. This port's sector ids are
+ * generated rows, so the code is resolved through `isicIdByCode`.
+ *
+ * Knowing divergence: OD writes `parent:''` at the top level; `null` is kept
+ * here because the FE's tree builder treats null as "root" and an empty string
+ * would orphan every Section.
+ */
+function nodeToFrameworkLevel(isicIdByCode: Map<string, string>) {
+  return (n: HierNode) => ({
+    code: n.code,
+    label: n.label,
+    lv: Math.max(0, n.level - 1),
+    parent: n.parent,
+    isic: n.isic ? isicIdByCode.get(n.isic) ?? null : null,
+  });
+}
+
+/** `code -> row id` for this org's seeded ISIC tree, for the mapping above. */
+async function isicIdsByCode(orgId: string): Promise<Map<string, string>> {
+  const rows = await ReferenceIndustrySector.findAll({ where: { orgId }, attributes: ["id", "code"] });
+  return new Map(rows.map((r) => [r.code, r.id]));
 }
 
 /** Resolves each node's string `parent` code to the freshly-generated row id
@@ -61,8 +90,11 @@ async function ensureEducationLevelsSeeded(orgId: string): Promise<void> {
 async function ensureSectorFrameworksSeeded(orgId: string): Promise<string> {
   const existing = await ReferenceSectorFramework.findOne({ where: { orgId, name: "NACE Rev.2" } });
   if (existing) return existing.id;
+  // The ISIC tree has to exist first — a NACE node's `isic` is a sector row id.
+  await ensureIndustrySectorsSeeded(orgId);
+  const toLevel = nodeToFrameworkLevel(await isicIdsByCode(orgId));
   const row = await ReferenceSectorFramework.create({
-    orgId, name: "NACE Rev.2", region: "European Union", levels: NACE.map(nodeToFrameworkLevel),
+    orgId, name: "NACE Rev.2", region: "European Union", levels: NACE.map(toLevel),
   });
   return row.id;
 }
@@ -76,7 +108,7 @@ const EDU_FRAMEWORK_BY_COUNTRY = new Map(EDU_FRAMEWORK_SEED.map((f) => [f.code, 
 async function ensureCountriesSeeded(orgId: string): Promise<void> {
   if (await ReferenceCountry.count({ where: { orgId } })) return;
   const naceFrameworkId = await ensureSectorFrameworksSeeded(orgId);
-  const kbliLevels = KBLI.map(nodeToFrameworkLevel);
+  const kbliLevels = KBLI.map(nodeToFrameworkLevel(await isicIdsByCode(orgId)));
   await ReferenceCountry.bulkCreate(COUNTRY_SEED.map((c) => {
     const eduSeed = EDU_FRAMEWORK_BY_COUNTRY.get(c.code);
     return {
