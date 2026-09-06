@@ -84,7 +84,9 @@ describe("isra taxonomy + asset library (F-2a)", () => {
     const sub = await request(app).post("/v1/isra/taxonomy/sa-subgroups").set(authed(token))
       .send({ groupId, name: "Backend Services and APIs", description: "desc" });
     expect(sub.body.data.id).toMatch(/^SSG-\d{3}$/);
-    expect(sub.body.data.status).toBe("Draft");
+    // R47 — OD's SA sub-group vocabulary (KM v2, 15784) opens at "Under review";
+    // "Draft" is not one of its members and "Retired" is not a transition target.
+    expect(sub.body.data.status).toBe("Under review");
     const subId = sub.body.data.id;
 
     const badStatus = await request(app).post(`/v1/isra/taxonomy/sa-subgroups/${subId}/status`).set(authed(token)).send({ status: "Bogus" });
@@ -97,8 +99,8 @@ describe("isra taxonomy + asset library (F-2a)", () => {
     const approved = await request(app).post(`/v1/isra/taxonomy/sa-subgroups/${subId}/status`).set(authed(token)).send({ status: "Approved" });
     expect(approved.body.data.status).toBe("Approved");
 
-    const retired = await request(app).post(`/v1/isra/taxonomy/sa-subgroups/${subId}/status`).set(authed(token)).send({ status: "Retired" });
-    expect(retired.body.data.status).toBe("Retired");
+    const rejected = await request(app).post(`/v1/isra/taxonomy/sa-subgroups/${subId}/status`).set(authed(token)).send({ status: "Rejected" });
+    expect(rejected.body.data.status).toBe("Rejected");
   });
 
   it("forbids non-Service-Owner actors from taxonomy/catalogue admin mutations even with the admin grant", async () => {
