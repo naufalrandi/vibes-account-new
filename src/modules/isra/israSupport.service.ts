@@ -2,6 +2,7 @@ import { Op } from "sequelize";
 import {
   IsraOrgSettings,
   ISRA_REVIEW_PERIOD_DEFAULT,
+  israRiskScheme,
   IsraAppetiteLog,
   IsraScenario,
   IsraExistingControl,
@@ -27,6 +28,8 @@ export async function getOrgSettings(auth: AuthContext) {
       reviewPeriodAboveMonths: ISRA_REVIEW_PERIOD_DEFAULT.above,
       ciaSeverityMap: { low: 2, medium: 3, high: 4, critical: 5 },
       conseqCiaRelation: {},
+      // R289 — null keeps OD's five-band fallback until the tenant sets its own.
+      riskLevels: null,
     });
   }
   return settings.get({ plain: true });
@@ -54,6 +57,7 @@ export async function saveOrgSettings(auth: AuthContext, input: Record<string, u
       reviewPeriodAboveMonths: typeof input.reviewPeriodAboveMonths === "number" ? input.reviewPeriodAboveMonths : ISRA_REVIEW_PERIOD_DEFAULT.above,
       ciaSeverityMap: (input.ciaSeverityMap as any) || { low: 2, medium: 3, high: 4, critical: 5 },
       conseqCiaRelation: (input.conseqCiaRelation as any) || {},
+      riskLevels: input.riskLevels !== undefined ? israRiskScheme(input.riskLevels as string[]) : null,
     });
   } else {
     if (input.matrix !== undefined) settings.matrix = matrix;
@@ -68,6 +72,11 @@ export async function saveOrgSettings(auth: AuthContext, input: Record<string, u
     if (input.reviewPeriodAboveMonths !== undefined) settings.reviewPeriodAboveMonths = Number(input.reviewPeriodAboveMonths);
     if (input.ciaSeverityMap !== undefined) settings.ciaSeverityMap = input.ciaSeverityMap as any;
     if (input.conseqCiaRelation !== undefined) settings.conseqCiaRelation = input.conseqCiaRelation as any;
+    // R289 / OD `israRlSetCount` — the scheme is normalised (2..6 names, each
+    // falling back to its default) before it is stored.
+    if (input.riskLevels !== undefined) {
+      settings.riskLevels = input.riskLevels === null ? null : israRiskScheme(input.riskLevels as string[]);
+    }
     await settings.save();
   }
 
