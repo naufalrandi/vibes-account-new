@@ -176,7 +176,7 @@ const MODULE_FIELDS: Record<string, string[]> = {
    "roster", "start", "type",
   ],
   "ex-cab": [
-   "certNo", "co", "companyId", "complexity", "cycleStart", "findings", "ims", "leadAuditor",
+   "certNo", "co", "companyId", "complexity", "cycleStart", "factorScores", "findings", "ims", "leadAuditor",
    "legalName", "name", "personnel", "ratePerMd", "scheme", "scope", "sector", "sites", "stage",
    "standards", "validFrom", "validTo", "workflow",
   ],

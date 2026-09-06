@@ -672,6 +672,10 @@ const exCabDataSchema = z
     validFrom: str,
     validTo: str,
     complexity: obj,
+    // R714 — OD's `cabEdit` save path writes `factorScores:cabReadFactors(stds)`
+    // (js/core.js:4177) onto every client. The strict schema rejected the whole
+    // record for carrying it, so per-factor complexity could never be stored.
+    factorScores: obj,
     ratePerMd: numeric,
     workflow: obj,
     co,

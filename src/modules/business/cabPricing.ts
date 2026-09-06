@@ -78,20 +78,73 @@ export const CAB_COMPLEXITY_LEVELS: Record<string, Record<CabComplexityLevel, nu
 };
 
 /**
+ * R97/R714 — the four named complexity factors each standard is scored against
+ * (core.js:3959-3964). One factor carries `1/n` of that standard's full swing,
+ * so four `Above` factors sum to exactly its `High` level.
+ */
+export const CAB_COMPLEXITY_FACTORS: Record<string, readonly string[]> = {
+  "ISO 9001:2015": ["Process complexity & interactions", "Regulated / safety-critical products", "Degree of automation vs manual work", "Number of similar / repetitive processes"],
+  "ISO 14001:2015": ["Number & significance of environmental aspects", "Regulatory permits & obligations", "Waste, emissions & discharge complexity", "Environmental sensitivity of location"],
+  "ISO 45001:2018": ["Hazard severity & high-risk activities", "Incident / injury history", "Workforce hazard exposure", "Contractor & multi-site safety complexity"],
+  [CAB_ISMS_STANDARD]: ["Criticality & sensitivity of information", "Technology diversity (platforms, networks)", "Extent of outsourcing / third parties", "Information system development activity"],
+};
+
+export type CabFactorRating = "Below" | "Average" | "Above";
+
+/** OD `cabFactorRating` (core.js:3984) — a stored per-factor rating wins over the coarse level. */
+export function cabFactorRating(
+  std: string,
+  index: number,
+  factorScores: Record<string, CabFactorRating[]> | undefined,
+  level: CabComplexityLevel | undefined,
+): CabFactorRating {
+  const stored = factorScores?.[std]?.[index];
+  if (stored) return stored;
+  if (level === "High") return "Above";
+  if (level === "Low") return "Below";
+  return "Average";
+}
+
+/** OD `cabFactorPct` (core.js:3988). */
+export function cabFactorPct(std: string, rating: CabFactorRating): number {
+  const levels = CAB_COMPLEXITY_LEVELS[std];
+  const factors = CAB_COMPLEXITY_FACTORS[std];
+  if (!levels || !factors?.length) return 0;
+  if (rating === "Above") return levels.High / factors.length;
+  if (rating === "Below") return levels.Low / factors.length;
+  return 0;
+}
+
+/** OD `cabStdAdj` (core.js:3991) — the sum of one standard's four factor contributions. */
+export function cabStdAdj(
+  std: string,
+  level: CabComplexityLevel | undefined,
+  factorScores?: Record<string, CabFactorRating[]>,
+): number {
+  const factors = CAB_COMPLEXITY_FACTORS[std];
+  if (!factors) return 0;
+  let sum = 0;
+  for (let i = 0; i < factors.length; i++) sum += cabFactorPct(std, cabFactorRating(std, i, factorScores, level));
+  return sum;
+}
+
+/**
  * Overall complexity adjustment across the certified standards (core.js:3966).
  * `complexity` maps standard → Low/Standard/High; a standard absent from the
  * map (or not in `CAB_COMPLEXITY_LEVELS`) contributes 0 (`Standard`).
  * Averaged across the given standards, capped at −30%.
  */
-export function cabComplexityAdj(standards: readonly string[], complexity: Record<string, CabComplexityLevel> = {}): number {
+export function cabComplexityAdj(
+  standards: readonly string[],
+  complexity: Record<string, CabComplexityLevel> = {},
+  factorScores?: Record<string, CabFactorRating[]>,
+): number {
   if (!standards.length) return 0;
   let sum = 0;
   let k = 0;
   for (const std of standards) {
-    const levels = CAB_COMPLEXITY_LEVELS[std];
-    if (!levels) continue;
-    const level = complexity[std] ?? "Standard";
-    sum += levels[level] ?? 0;
+    if (!CAB_COMPLEXITY_LEVELS[std]) continue;
+    sum += cabStdAdj(std, complexity[std], factorScores);
     k++;
   }
   const adj = k ? sum / k : 0;
