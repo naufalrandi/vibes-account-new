@@ -180,11 +180,18 @@ function collectComps(items: ProfileItem[]): Map<string, ProfileRequirement> {
       const key = `${c.kind}:${c.refId}`;
       const prev = out.get(key);
       if (!prev) { out.set(key, { ...c }); continue; }
-      // Dedup: strongest necessity + highest level wins.
+      // Dedup: strongest necessity + highest level wins, and the TIGHTEST review
+      // cadence wins — OD (js/modules.js:722) keeps `f < a[refId].freq`, so a
+      // second link with a shorter reviewFreq lowers assessValidUntil. Keeping
+      // the first-seen value silently dropped that.
+      const prevFreq = Number.parseInt(String(prev.reviewFreq ?? ""), 10);
+      const nextFreq = Number.parseInt(String(c.reviewFreq ?? ""), 10);
+      const freq = [prevFreq, nextFreq].filter((n) => Number.isFinite(n) && n > 0);
       out.set(key, {
         ...prev,
         necessity: prev.necessity === "Required" || c.necessity === "Required" ? "Required" : "Preferred",
         level: Math.max(prev.level ?? 0, c.level ?? 0) || undefined,
+        reviewFreq: freq.length ? String(Math.min(...freq)) : (prev.reviewFreq ?? c.reviewFreq),
       });
     }
   }
@@ -199,24 +206,60 @@ export async function buildChecklist(role: CompetenceRole): Promise<AssessReqRes
     key: "", kind: "", label: "", necessity: "Required", evalType: "threshold", reqLevel: 0, assessedLevel: 0,
     result: "", methods: [], method: "", reviewFreq: "", evidence: "", reviewNotes: "", attachments: [], ...o,
   });
+  // Eligibility rows first (OD js/modules.js:720-721), then the competence
+  // groups in the fixed order training -> hard -> soft, each alphabetised by
+  // name (:723). The port emitted one insertion-ordered pass, so the three
+  // groups interleaved and none was sorted.
   if (role.eduMinLevelId) {
     const edu = await CompetenceEducation.findByPk(role.eduMinLevelId);
-    reqs.push(blank({ key: "edu", kind: "education", label: `Education — min ${edu?.label ?? "ISCED level"}`, evalType: "threshold" }));
+    reqs.push(blank({
+      key: "edu", kind: "education", refId: role.eduMinLevelId,
+      label: `Minimum education — ${edu?.label ?? ""}`, evalType: "threshold",
+      methods: ["Record review"], method: "Record review",
+    }));
   }
   for (const e of role.expReqs ?? []) {
-    reqs.push(blank({ key: `exp:${e.id}`, kind: "experience", label: `Experience — ${e.years || "?"}y (sector ${e.sector || "any"})`, evalType: "threshold" }));
+    // OD skips an experience row that carries neither a sector nor a year count.
+    if (!e.sector && !e.years) continue;
+    const sector = e.sector ? ` — ${e.sector}` : "";
+    const years = e.years ? ` · ≥ ${e.years} year${String(e.years) === "1" ? "" : "s"}` : "";
+    reqs.push(blank({
+      key: `exp:${e.id}`, kind: "experience", label: `Work experience${sector}${years}`,
+      evalType: "threshold", methods: ["Record review"], method: "Record review",
+    }));
   }
+
   const comps = collectComps([...(role.responsibilities ?? []), ...(role.authorities ?? [])]);
-  for (const [key, c] of comps) {
-    if (c.kind === "training") {
-      const t = training.get(c.refId);
-      reqs.push(blank({ key: `training:${c.refId}`, kind: "training", refId: c.refId, label: t?.name ?? "Training", necessity: c.necessity, evalType: "passfail", methods: ["Written exam"], method: "Written exam" }));
-    } else {
-      const s = skills.get(c.refId);
-      reqs.push(blank({
-        key, kind: c.kind, refId: c.refId, label: s?.name ?? "Skill", necessity: c.necessity, evalType: "proficiency",
-        reqLevel: c.level ?? (c.necessity === "Required" ? 3 : 2), methods: s?.methods ?? [], method: (s?.methods ?? []).length === 1 ? (s?.methods ?? [])[0] : "", reviewFreq: c.reviewFreq ?? "",
-      }));
+  const nameOf = (kind: string, refId: string) =>
+    kind === "training" ? training.get(refId)?.name ?? "Training" : skills.get(refId)?.name ?? "Skill";
+
+  for (const kind of ["training", "hard", "soft"] as const) {
+    const group = [...comps.values()]
+      .filter((c) => c.kind === kind)
+      .sort((a, b) => nameOf(kind, a.refId).localeCompare(nameOf(kind, b.refId)));
+    for (const c of group) {
+      if (kind === "training") {
+        reqs.push(blank({
+          key: `training:${c.refId}`, kind, refId: c.refId, label: nameOf(kind, c.refId),
+          necessity: c.necessity, evalType: "passfail",
+          // OD's training line is verified by completion, not by a written exam —
+          // "Written exam" additionally surfaced AssessRunner's Launch Exam action
+          // on every training row.
+          methods: ["Training completion"], method: "Training completion",
+          reviewFreq: c.reviewFreq ?? "",
+        }));
+      } else {
+        const s = skills.get(c.refId);
+        const methods = s?.methods ?? [];
+        reqs.push(blank({
+          key: `${kind}:${c.refId}`, kind, refId: c.refId, label: nameOf(kind, c.refId),
+          necessity: c.necessity, evalType: "proficiency",
+          // OD falls back to 3 for every skill line regardless of necessity.
+          reqLevel: c.level || 3,
+          methods, method: methods.length === 1 ? methods[0] : "",
+          reviewFreq: c.reviewFreq ?? "",
+        }));
+      }
     }
   }
   return reqs;

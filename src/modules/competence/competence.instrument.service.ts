@@ -175,9 +175,16 @@ export async function createExamInstrument(auth: AuthContext, input: Record<stri
   if (dup) throw new BadRequestError(`An exam already exists for ${skill.name} at L${level}.`, "EXAM_EXISTS");
   const row = await CompetenceExamInstrument.create({
     orgId: ownerOrgId(auth),
-    skillId, level, name: str(input.name) ?? `${skill.name} — L${level} Exam`, status: "Draft",
+    skillId, level,
+    // OD names it "<skill> — L<n> <proficiency> Exam" (e.g. "Internal Auditing —
+    // L1 Awareness Exam"); the proficiency label was being dropped.
+    name: str(input.name) ?? `${skill.name} — L${level} ${PROF_LEVELS[level] ?? ""} Exam`.replace(/\s+/g, " ").trim(),
+    status: "Draft",
     passMark: input.passMark !== undefined ? num(input.passMark) : 70, durationMin: input.durationMin !== undefined ? num(input.durationMin) : 30,
-    attempts: num(input.attempts), shuffleQ: input.shuffleQ === true, drawCount: num(input.drawCount),
+    // OD defaults a new exam to two attempts with shuffled questions.
+    attempts: input.attempts !== undefined ? num(input.attempts) : 2,
+    shuffleQ: input.shuffleQ !== undefined ? input.shuffleQ === true : true,
+    drawCount: num(input.drawCount),
     questions: (Array.isArray(input.questions) ? input.questions : []) as ExamQuestion[],
   });
   await audit(auth, "competence.exam.created", "CompetenceExamInstrument", row.id, ip);
