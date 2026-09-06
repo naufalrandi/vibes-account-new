@@ -714,7 +714,7 @@ export async function withdraw(auth: AuthContext, module: string, recordId: stri
   if (!ar) throw new NotFoundError("No active approval to withdraw", "NO_APPROVAL");
   const who = await actorName(auth);
   if (ar.authorName && ar.authorName !== who) throw new ForbiddenError("Only the submitter can withdraw this record.");
-  if (ar.gates.some((g) => g.approvals.length > 0)) throw new ConflictError("Cannot withdraw after an approver has signed.", "ALREADY_SIGNED");
+  if (ar.gates.some((g) => g.approvals.length > 0)) throw new ConflictError("Withdraw is no longer available — an approver has already signed off.", "ALREADY_SIGNED");
   const rec = await governedRecord(auth, module, recordId);
   rec.status = cfg.draft;
   await rec.save();
