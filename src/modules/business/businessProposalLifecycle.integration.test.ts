@@ -73,7 +73,7 @@ describe("Proposal lifecycle (enterprise/ent-proposals) — transitions + item/d
     expect(res.body.error.code).toBe("INVALID_TRANSITION");
   });
 
-  it("walks the full legal chain Draft → Pending SM → Submitted → Sent → Accepted", async () => {
+  it("walks the full legal chain Draft → Pending SM → Submitted → Accepted", async () => {
     const a = await actor("SP", "sp1", ALL);
     const created = await createProposal(a.token);
     const id = created.body.data.id;
@@ -82,15 +82,29 @@ describe("Proposal lifecycle (enterprise/ent-proposals) — transitions + item/d
     expect(s1.status).toBe(200);
     const s2 = await put(a.token, id, "Submitted", s1.body.data.data);
     expect(s2.status).toBe(200);
-    const s3 = await put(a.token, id, "Sent", s2.body.data.data);
+    // R550 — the client decides straight off Submitted; "Sent" is the
+    // non-certification branch out of Draft, not a step after Submitted.
+    const s3 = await put(a.token, id, "Accepted", s2.body.data.data);
     expect(s3.status).toBe(200);
-    const s4 = await put(a.token, id, "Accepted", s3.body.data.data);
-    expect(s4.status).toBe(200);
-    expect(s4.body.data.status).toBe("Accepted");
+    expect(s3.body.data.status).toBe("Accepted");
 
-    const illegal = await put(a.token, id, "Draft", s4.body.data.data);
+    const illegal = await put(a.token, id, "Draft", s3.body.data.data);
     expect(illegal.status).toBe(400);
     expect(illegal.body.error.code).toBe("INVALID_TRANSITION");
+  });
+
+  it("routes a negotiated proposal back through Sales Manager review (R550)", async () => {
+    const a = await actor("SP", "sp1", ALL);
+    const created = await createProposal(a.token);
+    const id = created.body.data.id;
+
+    const s1 = await put(a.token, id, "Pending SM", created.body.data.data);
+    const s2 = await put(a.token, id, "Submitted", s1.body.data.data);
+    const s3 = await put(a.token, id, "Negotiating", s2.body.data.data);
+    expect(s3.status).toBe(200);
+    expect(s3.body.data.status).toBe("Negotiating");
+    const s4 = await put(a.token, id, "Pending SM", s3.body.data.data);
+    expect(s4.status).toBe(200);
   });
 
   it("Rejected is reachable from Submitted", async () => {
@@ -108,10 +122,9 @@ describe("Proposal lifecycle (enterprise/ent-proposals) — transitions + item/d
     const a = await actor("SP", "sp1", ALL);
     const created = await createProposal(a.token);
     const id = created.body.data.id;
-    const p1 = await put(a.token, id, "Pending SM", created.body.data.data);
-    const p2 = await put(a.token, id, "Submitted", p1.body.data.data);
-    const p3 = await put(a.token, id, "Sent", p2.body.data.data);
-    const rejected = await put(a.token, id, "Rejected", p3.body.data.data);
+    // R550 — Sent is the non-certification branch straight out of Draft.
+    const p1 = await put(a.token, id, "Sent", created.body.data.data);
+    const rejected = await put(a.token, id, "Rejected", p1.body.data.data);
     expect(rejected.status).toBe(200);
     expect(rejected.body.data.status).toBe("Rejected");
   });
