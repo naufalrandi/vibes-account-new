@@ -569,6 +569,32 @@ const entPoDataSchema = z
 /** `poTermsStd` (`parity/backend.md`) — one standard PO term per row. */
 const entPoTermsDataSchema = z.object({ text: str, order: numeric, co }).strict();
 
+/**
+ * R822 / R173 — the Website CMS's five `ent-mkt-*` collections. The FE posts
+ * to them (`app/(app)/platform/website-cms/cms-shared.tsx`) but they had no
+ * registered schema, so every CMS write fell through unvalidated and the
+ * module-key drift gate could not see them. Field sets are the ones each tab
+ * actually writes; OD's own `db.cms*` arrays are the source (app.html:6789+).
+ */
+const entMktPagesDataSchema = z
+  .object({ slug: str, path: str, template: str, body: str, seoTitle: str, seoDesc: str, author: str, co })
+  .strict();
+const entMktPostsDataSchema = z
+  .object({ slug: str, category: str, publishDate: str, tags: arr, excerpt: str, body: str, author: str, co })
+  .strict();
+const entMktMediaDataSchema = z
+  .object({ type: str, size: numeric, alt: str, uploadedBy: str, co })
+  .strict();
+const entMktMenuDataSchema = z
+  .object({ target: str, url: str, order: numeric, co })
+  .strict();
+const entMktSettingsDataSchema = z
+  .object({
+    siteName: str, domain: str, tagline: str, primary: str,
+    analytics: str, seoTitle: str, seoDesc: str, live: bool, co,
+  })
+  .strict();
+
 /** `serviceContracts` (`parity/backend.md`). */
 const entSvcContractsDataSchema = z
   .object({
@@ -714,6 +740,11 @@ export const BUSINESS_DATA_SCHEMAS: Record<string, z.ZodTypeAny> = {
   "ent-minwage": entMinwageDataSchema,
   "ent-payroll": entPayrollDataSchema,
   "ent-po": entPoDataSchema,
+  "ent-mkt-media": entMktMediaDataSchema,
+  "ent-mkt-menu": entMktMenuDataSchema,
+  "ent-mkt-pages": entMktPagesDataSchema,
+  "ent-mkt-posts": entMktPostsDataSchema,
+  "ent-mkt-settings": entMktSettingsDataSchema,
   "ent-po-terms": entPoTermsDataSchema,
   "ent-pr": entPrDataSchema,
   "ent-recruitment": entRecruitmentDataSchema,

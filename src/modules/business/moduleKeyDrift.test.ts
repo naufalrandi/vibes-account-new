@@ -22,6 +22,13 @@ const FE_POSTED_MODULE_KEYS = [
   "ent-inq",
   "ent-leads",
   "ent-leads-people",
+  // R822 — the Website CMS's five collections were missing from this list, so
+  // the gate read green while five real FE-posted keys were unregistered.
+  "ent-mkt-media",
+  "ent-mkt-menu",
+  "ent-mkt-pages",
+  "ent-mkt-posts",
+  "ent-mkt-settings",
   "ent-projects",
   "ent-proposals",
   "ent-comp",

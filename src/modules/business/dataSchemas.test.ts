@@ -107,6 +107,22 @@ const MODULE_FIELDS: Record<string, string[]> = {
    "payAdvance", "payAnchor", "payRetention", "prId", "sentAt", "sentCount", "supplierId",
    "supplierName", "terms", "voided", "voidedAt",
   ],
+  // R822 — the Website CMS's five collections (FE app/(app)/platform/website-cms).
+  "ent-mkt-media": [
+   "alt", "co", "size", "type", "uploadedBy",
+  ],
+  "ent-mkt-menu": [
+   "co", "order", "target", "url",
+  ],
+  "ent-mkt-pages": [
+   "author", "body", "co", "path", "seoDesc", "seoTitle", "slug", "template",
+  ],
+  "ent-mkt-posts": [
+   "author", "body", "category", "co", "excerpt", "publishDate", "slug", "tags",
+  ],
+  "ent-mkt-settings": [
+   "analytics", "co", "domain", "live", "primary", "seoDesc", "seoTitle", "siteName", "tagline",
+  ],
   "ent-po-terms": [
    "co", "order", "text",
   ],
