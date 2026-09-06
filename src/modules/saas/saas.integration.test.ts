@@ -190,6 +190,31 @@ describe("saas lifecycle module (G-73)", () => {
     expect(reloadedWs?.status).toBe("Active");
   });
 
+  // R468 — the frontend renders OD's grace bar / lockout card from this route,
+  // so it has to answer even while `tenantScope` is refusing everything else.
+  it("reports the caller's own SaaS access, and still answers a locked-out tenant", async () => {
+    const { token: tnToken, tenant } = await seedTenant();
+    const { token: soToken } = await seedServiceOwner([ACTIONS.SAAS_READ]);
+
+    const full = await request(app).get("/v1/saas-access").set(authed(tnToken));
+    expect(full.status).toBe(200);
+    expect(full.body.data.access).toBe("full");
+
+    await seedWorkspace(tenant.id, 40); // Grace 2 / Locked
+    expect((await request(app).get("/v1/org-settings").set(authed(tnToken))).status).toBe(423);
+
+    const locked = await request(app).get("/v1/saas-access").set(authed(tnToken));
+    expect(locked.status).toBe(200);
+    expect(locked.body.data.access).toBe("none");
+    expect(locked.body.data.wsState).toBe("Locked");
+    expect(locked.body.data.subState.state).toBe("Grace 2");
+    expect(locked.body.data.tenantName).toBe(tenant.name);
+
+    // Service-provider staff are never grace-gated.
+    const sp = await request(app).get("/v1/saas-access").set(authed(soToken));
+    expect(sp.body.data.access).toBe("full");
+  });
+
   it("renewing a lapsed subscription lifts the G-75 lockout for that tenant", async () => {
     const { token: soToken } = await seedServiceOwner([ACTIONS.SAAS_READ, ACTIONS.SAAS_MANAGE]);
     const { token: tnToken, tenant } = await seedTenant();

@@ -67,6 +67,7 @@ import { israRoutes } from "./modules/isra/isra.routes";
 import { israAssetLibraryRoutes } from "./modules/isra/israAssetLibrary.routes";
 import { riskRoutes } from "./modules/risks/risk.routes";
 import { saasRoutes } from "./modules/saas/saas.routes";
+import { saasAccessRoutes } from "./modules/saas/access.routes";
 import { personnelRecordsRoutes } from "./modules/personnel-records/personnelRecords.routes";
 import { personnelContractRoutes } from "./modules/personnel-records/personnelContractComp.routes";
 import { personnelProfileRoutes } from "./modules/personnel-records/personnelProfile.routes";
@@ -101,6 +102,11 @@ export function createApp() {
   // Supplier PO confirmation opened from an emailed link — unauthenticated by
   // design, so it must stay above the blanket authenticate below.
   app.use("/v1/public/purchase-orders", poConfirmationRoutes);
+  // R468 — mounted WITHOUT `tenantScope`, and ahead of the `app.use("/v1", …,
+  // tenantScope, roleRoutes)` mount below whose middleware runs for every /v1
+  // path: a locked tenant must still be able to read its own lockout state in
+  // order to render the lockout card.
+  app.use("/v1/saas-access", authenticate, saasAccessRoutes);
   app.use("/v1/users", authenticate, tenantScope, userRoutes);
   // Personnel sub-record logs (resume/leave/disciplinary/performance), nested
   // under a single user (the personnel record) — SOF-53/SOF-48-3.
