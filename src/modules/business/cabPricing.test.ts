@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  cabAuditDays, cabCertManDays, cabComplexityAdj, cabInitialDays, cabSampleSize, canIssueCertificate,
-  CAB_ISMS_STANDARD,
+  cabAuditDays, cabCertManDays, cabComplexityAdj, cabFactorPct, cabInitialDays, cabSampleSize, cabStdAdj,
+  canIssueCertificate, CAB_ISMS_STANDARD, type CabFactorRating,
 } from "./cabPricing";
 
 describe("cabPricing — Exelera CAB man-day engine (ported from design source core.js)", () => {
@@ -64,5 +64,39 @@ describe("cabPricing — Exelera CAB man-day engine (ported from design source c
     expect(canIssueCertificate([{ grade: "Major", open: false }])).toBe(true); // resolved Major doesn't block
     expect(canIssueCertificate([{ grade: "Minor", open: true }, { grade: "OFI", open: true }])).toBe(true);
     expect(canIssueCertificate([])).toBe(true);
+  });
+});
+
+// R97/R714 — per-factor complexity scoring.
+describe("cabStdAdj / cabFactorPct (core.js:3988-3991)", () => {
+  const ISMS = "ISO/IEC 27001:2022";
+
+  it("splits a standard's full swing across its four factors", () => {
+    expect(cabFactorPct(ISMS, "Above")).toBeCloseTo(0.30 / 4, 6);
+    expect(cabFactorPct(ISMS, "Below")).toBeCloseTo(-0.10 / 4, 6);
+    expect(cabFactorPct(ISMS, "Average")).toBe(0);
+  });
+
+  it("four Above factors sum to exactly the standard's High level", () => {
+    const scores = { [ISMS]: ["Above", "Above", "Above", "Above"] as CabFactorRating[] };
+    expect(cabStdAdj(ISMS, undefined, scores)).toBeCloseTo(0.30, 6);
+  });
+
+  it("falls back to the coarse level when no factor is scored", () => {
+    expect(cabStdAdj(ISMS, "High")).toBeCloseTo(0.30, 6);
+    expect(cabStdAdj(ISMS, "Low")).toBeCloseTo(-0.10, 6);
+    expect(cabStdAdj(ISMS, "Standard")).toBe(0);
+  });
+
+  it("a stored factor rating overrides the coarse level for that factor only", () => {
+    const scores = { [ISMS]: ["Below"] as CabFactorRating[] };
+    // factor 0 Below, factors 1-3 fall back to High -> Above
+    expect(cabStdAdj(ISMS, "High", scores)).toBeCloseTo(-0.10 / 4 + 3 * (0.30 / 4), 6);
+  });
+
+  it("feeds cabComplexityAdj, still averaged across standards and floored at -30%", () => {
+    const scores = { [ISMS]: ["Above", "Above", "Above", "Above"] as CabFactorRating[] };
+    expect(cabComplexityAdj([ISMS], {}, scores)).toBeCloseTo(0.30, 6);
+    expect(cabComplexityAdj([ISMS, "ISO 9001:2015"], {}, scores)).toBeCloseTo(0.15, 6);
   });
 });
