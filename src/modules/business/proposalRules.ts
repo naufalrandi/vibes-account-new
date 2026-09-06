@@ -121,6 +121,35 @@ const CERT_PROPOSAL_CURRENCY = "IDR";
 /** OD `certProposalStart` — a certification proposal is always the audit contract type. */
 const CERT_PROPOSAL_CONTRACT_TYPE_ID = "ct-svc-audit";
 
+/**
+ * R99/R532 — `ct-svc-audit`'s own `defaultTerms`, which OD seeds onto a
+ * certification proposal as `termIds`. The seeded contract type carries the
+ * same list (`src/db/seeders/data/businessRecords/contractTypes.json`); it is
+ * mirrored here because a proposal is priced server-side with no contract-type
+ * lookup in the request.
+ */
+const CERT_PROPOSAL_TERM_IDS = [
+  "cl-svc-scope", "cl-svc-fees", "cl-svc-term", "cl-svc-liab", "cl-common-conf", "cl-common-law",
+] as const;
+
+/** OD `ssMoney` — a plain thousands-grouped figure for the notes line. */
+function ssMoney(n: number): string {
+  return new Intl.NumberFormat("id-ID").format(Math.round(n));
+}
+
+/**
+ * R99 / OD `certProposalStart` (js/modules.js:2221) — the audit-time note the
+ * quote carries.
+ */
+function certNotes(cert: ProposalCertInput): string {
+  const rate = Number(cert.ratePerMd) > 0 ? Number(cert.ratePerMd) : CAB_RATE_DEFAULT;
+  const adj = typeof cert.complexity === "string"
+    ? (CAB_PROPOSAL_COMPLEXITY_ADJ[cert.complexity] ?? 0)
+    : cabComplexityAdj(cert.standards, cert.complexity || {});
+  const { ia, sa } = cabCertManDays(cert.personnel, cert.standards, adj);
+  return `Audit time: IA ${ia} + SA ${sa}\u00d72 = ${ia + sa * 2} md @ IDR ${ssMoney(rate)}/md (MD5/27006-1).`;
+}
+
 function assertValidCertInput(raw: unknown): ProposalCertInput {
   const c = (raw ?? {}) as Record<string, unknown>;
   if (!Array.isArray(c.standards) || !c.standards.length || c.standards.some((s) => typeof s !== "string")) {
@@ -153,6 +182,10 @@ export function assertValidProposalData(
   if (cert && opts.isCreate) {
     if (!String(d.currency ?? "").trim()) d.currency = CERT_PROPOSAL_CURRENCY;
     if (!String(d.contractTypeId ?? "").trim()) d.contractTypeId = CERT_PROPOSAL_CONTRACT_TYPE_ID;
+    // R99/R532 — the audit contract type's clauses, and OD's own audit-time
+    // note, so the quote states the man-days it was priced from.
+    if (!Array.isArray(d.termIds) || d.termIds.length === 0) d.termIds = [...CERT_PROPOSAL_TERM_IDS];
+    if (!String(d.notes ?? "").trim()) d.notes = certNotes(cert);
   }
 
   const currency = String(d.currency ?? "").trim();
