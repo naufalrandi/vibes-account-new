@@ -119,7 +119,7 @@
   },
   {
    "id": "INQ-3005",
-   "leadId": "LD-2004",
+   "leadId": "LD-3204",
    "service": "impl",
    "variant": "Full Consultancy",
    "status": "Qualified",
@@ -132,7 +132,7 @@
     "headcount": "220"
    },
    "notes": "Integrated QMS rollout across two sites.",
-   "leadName": "",
+   "leadName": "PT Damage Control",
    "serviceName": "Framework Implementation",
    "createdAt": "2026-08-31T09:40:42.290Z",
    "activity": [
@@ -148,11 +148,11 @@
   },
   {
    "id": "INQ-3006",
-   "leadId": "LD-2005",
+   "leadId": "LD-3205",
    "service": "audit",
    "variant": "1st-party (internal)",
    "status": "Potential",
-   "leadName": "",
+   "leadName": "PT Alchemax",
    "serviceName": "Framework Audit",
    "sq": {},
    "notes": "",
@@ -183,7 +183,7 @@
     "headcount": "90"
    },
    "notes": "ISMS implementation for SaaS platform.",
-   "leadName": "",
+   "leadName": "Meridian Systems Inc.",
    "serviceName": "Framework Implementation",
    "createdAt": "2026-08-31T09:40:42.290Z",
    "activity": [
@@ -211,7 +211,7 @@
     "dates": "Sep 2026",
     "scheme": "PECB"
    },
-   "leadName": "",
+   "leadName": "Lorong Technologies Pte Ltd",
    "serviceName": "Competence Development",
    "notes": "",
    "createdAt": "2026-08-31T09:40:42.290Z",
@@ -232,7 +232,7 @@
    "service": "assess",
    "variant": "Maturity Assessment",
    "status": "Cold Leads",
-   "leadName": "",
+   "leadName": "PT Bahana Sentosa Tbk",
    "serviceName": "Framework Assessment",
    "sq": {},
    "notes": "",
@@ -250,7 +250,7 @@
   },
   {
    "id": "INQ-3010",
-   "leadId": "LD-2004",
+   "leadId": "LD-3206",
    "service": "comp",
    "variant": "In-house training",
    "status": "Acquired",
@@ -265,7 +265,7 @@
     "language": "Bahasa Indonesia"
    },
    "notes": "Auditor training bundled with the QMS project.",
-   "leadName": "",
+   "leadName": "PT Brand Corporation",
    "serviceName": "Competence Development",
    "createdAt": "2026-08-31T09:40:42.290Z",
    "activity": [
