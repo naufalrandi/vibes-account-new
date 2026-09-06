@@ -60,7 +60,7 @@ import { IsraAssetMap, IsraAssetMapUsage, IsraAssetMapSecondary, IsraAssetMapThr
 import { IsraScenario, IsraScenarioVuln, IsraScenarioPotentialImpact, IsraExistingControl, IsraExistingControlAnnexRef, IsraScenarioCurrentRisk } from "./israScenario.models";
 import { IsraScenarioTreatmentDecision, IsraScenarioRecommendationSnapshot, IsraScenarioRecommendationDisposition, IsraScenarioAddedControl, IsraRtp, IsraRtpAction, IsraRtpActionControl } from "./israTreatmentRtp.models";
 import { IsraScenarioProjectedResidual, IsraScenarioActualResidual, IsraScenarioResidual, IsraScenarioClosure, IsraScenarioCycle, IsraInitiative, IsraInitiativeScenario, IsraAppetiteLog } from "./israResidualCycle.models";
-import { IsraEvidence, IsraAudit, IsraScenarioTemplate, IsraSoaJustification, IsraOrgSettings } from "./israSupport.models";
+import { IsraEvidence, IsraAudit, IsraScenarioTemplate, IsraSoaJustification, IsraOrgSettings, ISRA_REVIEW_PERIOD_DEFAULT, israAddMonthsIso, ISRA_RL_NAMES, israRiskScheme, israClampLevelCount } from "./israSupport.models";
 import { SaasPipeline, SaasSubscription, SaasWorkspace } from "./saas.models";
 import { PersonnelContractDocument, PersonnelActivityLog, PersonnelOnboardingItem, PersonnelCompensation } from "./personnelContractComp.models";
 import { OrgUnit } from "./orgUnit.model";
@@ -70,6 +70,7 @@ import { DocumentFolder, Document } from "./document.model";
 import { CmsPage, CmsPost, CmsMedia, CmsMenuItem, CmsSettings } from "./cms.model";
 import { ResumeRecord, LeaveRecord, DisciplinaryRecord, PerformanceRecord } from "./personnelRecords.models";
 import { DoaMatrixEntry, DoaMethod } from "./doaMatrix.model";
+import { CabSettings } from "./cabSettings.model";
 
 let initialized = false;
 
@@ -473,6 +474,9 @@ export function initModels(): void {
   IsraSoaJustification.belongsTo(Organization, { foreignKey: "orgId" });
   IsraAnnexAControl.hasMany(IsraSoaJustification, { foreignKey: "annexRef" });
   IsraSoaJustification.belongsTo(IsraAnnexAControl, { foreignKey: "annexRef" });
+  Organization.hasOne(CabSettings, { foreignKey: "orgId" });
+  CabSettings.belongsTo(Organization, { foreignKey: "orgId" });
+
   Organization.hasOne(IsraOrgSettings, { foreignKey: "orgId" });
   IsraOrgSettings.belongsTo(Organization, { foreignKey: "orgId" });
 
@@ -708,6 +712,12 @@ export {
   IsraScenarioTemplate,
   IsraSoaJustification,
   IsraOrgSettings,
+  ISRA_REVIEW_PERIOD_DEFAULT,
+  israAddMonthsIso,
+  ISRA_RL_NAMES,
+  israRiskScheme,
+  israClampLevelCount,
+  CabSettings,
   SaasPipeline,
   SaasSubscription,
   SaasWorkspace,

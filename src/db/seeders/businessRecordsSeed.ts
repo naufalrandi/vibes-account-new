@@ -7,6 +7,7 @@ import type { BusinessArea } from "../models/businessRecord.model";
 import { getBusinessDataSchema } from "../../modules/business/dataSchemas";
 import { nextCode } from "../../modules/business/business.service";
 import { DN_BACKLOG, DN_CLIENTS, DN_ENGAGEMENTS, DN_FINDINGS, DN_PROJECTS } from "../../modules/business/datanaRules";
+import { PR_ITEM_CATS } from "./doaMatrix";
 
 /**
  * SOF-38 — seeds the 39 OD collections that `business_records` (the generic Business Unit
@@ -248,6 +249,32 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
     const data = pickData("ent-payroll", row);
     await seedRow(orgId, "enterprise", "ent-payroll", str(row, "name"), str(row, "status", "Scheduled"), null, companyFor("enterprise", row), data, str(row, "id") || undefined);
     bump("ent-payroll");
+  }
+
+  // R496 / OD `doaSeedIfNeeded` (app.html:32117) — the Delegation of Authority
+  // matrix ships populated: two approval bands per procurement category, so the
+  // Procurement Policy screen and every DOA band lookup work out of the box
+  // instead of starting empty (and routing every request to no approver).
+  for (const category of PR_ITEM_CATS) {
+    const professional = category === "Professional Services";
+    await seedRow(orgId, "enterprise", "ent-doa", `${category} — band 1`, "role", null, "axia", {
+      type: category,
+      max: professional ? "1000000" : "5000000",
+      currency: "IDR",
+      approver: "Line Manager",
+      finance: false,
+      quotes: false,
+    });
+    bump("ent-doa");
+    await seedRow(orgId, "enterprise", "ent-doa", `${category} — band 2`, "user", null, "axia", {
+      type: category,
+      max: "",
+      currency: "IDR",
+      approver: "",
+      finance: true,
+      quotes: !professional,
+    });
+    bump("ent-doa");
   }
 
   for (const row of loadDump("poTermsStd")) {

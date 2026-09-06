@@ -23,9 +23,13 @@ export interface ProposalItem {
   courseLink?: string;
 }
 
+/** OD `propCalc` (js/modules.js:2452) names the discount key `disc` and returns the
+ *  RAW entered amount, not the clamped applied one. fe-vibes-new was aligned to that
+ *  in the sales pass; this is the backend half so the persisted `data.totals` object
+ *  round-trips with the same key on both sides. */
 export interface ProposalTotals {
   sub: number;
-  discount: number;
+  disc: number;
   tax: number;
   total: number;
 }
@@ -37,7 +41,7 @@ export function computeProposalTotals(items: ProposalItem[], discount: number, t
   const disc = Number(discount) || 0;
   const afterDisc = Math.max(0, sub - disc);
   const tax = afterDisc * ((Number(taxPct) || 0) / 100);
-  return { sub, discount: disc, tax, total: afterDisc + tax };
+  return { sub, disc, tax, total: afterDisc + tax };
 }
 
 function assertValidItems(itemsRaw: unknown): ProposalItem[] {
@@ -57,11 +61,30 @@ function assertValidItems(itemsRaw: unknown): ProposalItem[] {
   });
 }
 
+/** OD `cabInqReview` (js/modules.js:2213) — the commercial funnel's one overall rating. */
+export type CabOverallComplexity = "Low" | "Standard" | "High";
+
+/**
+ * R92 — the PROPOSAL path adjusts man-days off a single overall rating, not
+ * the per-standard `CAB_COMPLEXITY_LEVELS` table the Application Review uses:
+ * `var adj={Low:-0.1,Standard:0,High:0.2}[q.ar.cx]||0;`.
+ */
+export const CAB_PROPOSAL_COMPLEXITY_ADJ: Record<CabOverallComplexity, number> = {
+  Low: -0.1,
+  Standard: 0,
+  High: 0.2,
+};
+
 export interface ProposalCertInput {
   standards: string[];
   personnel: number;
   sites?: number;
-  complexity?: Record<string, CabComplexityLevel>;
+  /**
+   * OD `q.ar.cx` — one overall rating for the whole scope. A per-standard map
+   * is still accepted (an Application Review writes one) and folded through
+   * `cabComplexityAdj` so an older record keeps pricing.
+   */
+  complexity?: CabOverallComplexity | Record<string, CabComplexityLevel>;
   ratePerMd?: number;
 }
 
@@ -76,8 +99,13 @@ export interface ProposalCertInput {
  * its own five modules.
  */
 function certPricedItems(cert: ProposalCertInput): ProposalItem[] {
+  // R93 — the rate is resolved server-side from the org's stored setting before
+  // this runs (`business.service.ts` `resolveCabRate`); `CAB_RATE_DEFAULT` is
+  // OD's own fallback for an org that has never set one.
   const rate = Number(cert.ratePerMd) > 0 ? Number(cert.ratePerMd) : CAB_RATE_DEFAULT;
-  const adj = cabComplexityAdj(cert.standards, cert.complexity || {});
+  const adj = typeof cert.complexity === "string"
+    ? (CAB_PROPOSAL_COMPLEXITY_ADJ[cert.complexity] ?? 0)
+    : cabComplexityAdj(cert.standards, cert.complexity || {});
   const { ia, sa } = cabCertManDays(cert.personnel, cert.standards, adj);
   return [
     { description: "Initial certification audit (Stage 1 + Stage 2)", qty: ia, unitPrice: rate },
@@ -104,7 +132,7 @@ function assertValidCertInput(raw: unknown): ProposalCertInput {
     standards: c.standards as string[],
     personnel,
     sites: c.sites !== undefined ? Number(c.sites) : undefined,
-    complexity: c.complexity as Record<string, CabComplexityLevel> | undefined,
+    complexity: c.complexity as ProposalCertInput["complexity"],
     ratePerMd: c.ratePerMd !== undefined ? Number(c.ratePerMd) : undefined,
   };
 }

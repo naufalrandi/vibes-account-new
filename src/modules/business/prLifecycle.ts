@@ -149,7 +149,12 @@ export const INQ_TRANSITIONS: Record<string, readonly string[]> = {
 export const PROPOSAL_TRANSITIONS: Record<string, readonly string[]> = {
   Draft: ["Pending SM", "Sent"],
   "Pending SM": ["Submitted", "Draft"],
-  Submitted: ["Sent", "Rejected"],
+  // R550 — from Submitted the client decides: Approve, Negotiate or Reject
+  // (OD `propClientApprove`/`propNegotiate`/`propClientReject`, modules.js
+  // 2520-2526). `Negotiating` was missing entirely, so a negotiated proposal
+  // had nowhere to sit and went back through Draft.
+  Submitted: ["Accepted", "Negotiating", "Rejected"],
+  Negotiating: ["Pending SM"],
   Sent: ["Accepted", "Rejected"],
   Accepted: [],
   Rejected: [],

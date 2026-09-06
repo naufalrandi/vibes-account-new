@@ -59,8 +59,12 @@ export const review = wrap(async (req, res) => {
 /* Two-stage document review — OD `cdReviewerSign`/`cdEscalate`/`cdPeriodicReview`. */
 export const reviewerSign = wrap(async (req, res) => {
   documentsOnly(req);
-  const b = z.object({ comments: z.string().max(4000).nullish() }).parse(req.body ?? {});
-  sendOk(res, await service.signAsReviewer(guard(req), rec(req).recordId, b.comments ?? null, ip(req)));
+  const b = z.object({
+    comments: z.string().max(4000).nullish(),
+    reviewer: z.string().max(200).nullish(),
+    decision: z.enum(["Reviewed", "Request changes"]).optional(),
+  }).parse(req.body ?? {});
+  sendOk(res, await service.signAsReviewer(guard(req), rec(req).recordId, b.comments ?? null, ip(req), b.reviewer ?? null, b.decision ?? "Reviewed"));
 });
 export const escalateReview = wrap(async (req, res) => {
   documentsOnly(req);

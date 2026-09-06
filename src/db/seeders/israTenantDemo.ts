@@ -492,8 +492,8 @@ export async function seedIsraTenantDemo(orgId: string): Promise<IsraTenantDemoR
     overrideAllowed: s.override === true,
     residualEnabled: s.residual === true,
     reviewFreq: s.reviewFreq ?? null,
-    reviewPeriodWithinDays: null,
-    reviewPeriodAboveDays: null,
+    reviewPeriodWithinMonths: null,
+    reviewPeriodAboveMonths: null,
   });
 
   const baseline = ISRA_DEMO_CONTROL_BASELINE.filter((b) => annexRefs.has(b.annexRef));

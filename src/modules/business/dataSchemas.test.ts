@@ -107,14 +107,35 @@ const MODULE_FIELDS: Record<string, string[]> = {
    "payAdvance", "payAnchor", "payRetention", "prId", "sentAt", "sentCount", "supplierId",
    "supplierName", "terms", "voided", "voidedAt",
   ],
+  // R496 — the DOA matrix: approval bands and per-category sourcing methods.
+  "ent-doa": [
+   "approver", "co", "currency", "finance", "kind", "max", "method", "quotes", "type",
+  ],
+  // R822 — the Website CMS's five collections (FE app/(app)/platform/website-cms).
+  "ent-mkt-media": [
+   "alt", "co", "size", "type", "uploadedBy",
+  ],
+  "ent-mkt-menu": [
+   "co", "order", "target", "url",
+  ],
+  "ent-mkt-pages": [
+   "author", "body", "co", "path", "seoDesc", "seoTitle", "slug", "template",
+  ],
+  "ent-mkt-posts": [
+   "author", "body", "category", "co", "excerpt", "publishDate", "slug", "tags",
+  ],
+  "ent-mkt-settings": [
+   "analytics", "co", "domain", "live", "primary", "seoDesc", "seoTitle", "siteName", "tagline",
+  ],
   "ent-po-terms": [
    "co", "order", "text",
   ],
   "ent-pr": [
    "activity", "category", "co", "currency", "department", "description", "duration", "estCost",
-   "exRate", "intakeReview", "invoice", "kind", "method", "needBy", "origCurrency", "poId",
-   "purpose", "qc", "qty", "quotes", "rateBasis", "receipt", "remarks", "requestType",
-   "requester", "selectReason", "supplier", "supplierName", "unit", "unitValue",
+   "exRate", "handoverQc", "intakeReview", "invoice", "kind", "method", "needBy", "origCurrency",
+   "poId", "purpose", "qc", "qcDamageCharge", "qty", "quotes", "rateBasis", "receipt", "remarks",
+   "requestType", "requester", "selectReason", "sourceNote", "supplier", "supplierName", "unit",
+   "unitValue",
   ],
   "ent-projects": [
    "activity", "client", "co", "contractCode", "contractId", "currency", "deliver", "endDate",

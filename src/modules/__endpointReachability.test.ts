@@ -35,6 +35,8 @@ const UNCALLED: Record<string, string> = {
   "/v1/doa-matrix": "SOF-87: matches OD's db.doaMatrix table, but FE never got wired to it — EnterpriseProcurementPolicyPage uses the generic business-record escape hatch instead. Kept, not deleted; needs a follow-up to wire the FE.",
   "/v1/management-review": "SOF-86: duplicate surface of /implementation/reviews, but MReview owns the OD-faithful MR_TOPIC_CATALOG merge semantics (mrSave/mrRecord) that the generic ImplementationRecord path lacks. Restored after a prior pass deleted it outright — kept mounted, unwired, until a follow-up decides whether the FE repoints here or the merge semantics get ported to the generic path.",
   "/v1/performance-evaluation": "SOF-86: duplicate surface of /implementation/performance, but PerfEval owns the only ISO 9.1 indicator engine (perfIndicators.ts) in the codebase. Restored after a prior pass deleted it outright — kept mounted, unwired, until a follow-up decides whether the FE repoints here or the indicator engine gets ported to the generic path.",
+  "/v1/processes": "R823: the BusinessProcess surface (list/create/sync-catalog). The FE's process pickers read the reference-db catalogue at /reference-db/business-processes instead, which is what the old substring check mistook for a call to this prefix. Kept mounted, unwired, pending a follow-up that decides which of the two is the process register.",
+  "/v1/cms": "R823: first-class CMS tables (cms_pages/posts/media/menu/settings), but the Website CMS screen posts to the generic ent-mkt-* business records instead — exactly as unwired as /v1/doa-matrix and /v1/org-units above. The bare substring check below used to count realClient's never-called helpers and the unrelated /public/cms/ marketing fetches as a call, so this hid. The ent-mkt-* keys are registered and validated (R822) until a follow-up decides which of the two contracts wins.",
 };
 
 function frontendSource(): string {
@@ -51,15 +53,31 @@ function frontendSource(): string {
   return out.join("\n");
 }
 
+/**
+ * R823 — a bare `fe.includes("/cms")` counted any occurrence of the substring
+ * anywhere in the frontend: a never-called helper in realClient, and the
+ * unrelated `/public/cms/` marketing fetches. A prefix counts as called only
+ * when the frontend builds a request path that STARTS with it — i.e. the
+ * segment is followed by `/`, a quote, or a template hole, and is not itself
+ * preceded by another path segment.
+ */
+function isCalled(fe: string, mount: string): boolean {
+  const seg = mount.replace("/v1", "").split("/:")[0];
+  if (!seg || seg === "/") return true;
+  const esc = seg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // `"/cms/pages"`, `` `/cms/${id}` `` or `"/cms"` — but not `/public/cms/`.
+  // The segment may open a string/template OR follow a template hole, as in
+  // `` `${BASE}/public/cms/${orgId}/posts` ``.
+  return new RegExp(`(?:["'\`]|\\})${esc}(?:["'\`/?]|\\$\\{)`).test(fe);
+}
+
 describe("backend endpoint reachability", () => {
   const app = fs.readFileSync(path.join(__dirname, "../app.ts"), "utf8");
   const mounts = [...new Set([...app.matchAll(/\.use\(\s*["'`](\/v1[^"'`]*)/g)].map((m) => m[1]))];
 
   it("mounts no /v1 prefix the frontend never calls", () => {
     const fe = frontendSource();
-    const orphans = mounts
-      .filter((m) => !fe.includes(m.replace("/v1", "").split("/:")[0]))
-      .filter((m) => !(m in UNCALLED));
+    const orphans = mounts.filter((m) => !isCalled(fe, m)).filter((m) => !(m in UNCALLED));
     expect(orphans).toEqual([]);
   });
 

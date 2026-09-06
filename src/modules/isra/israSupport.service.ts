@@ -1,6 +1,8 @@
 import { Op } from "sequelize";
 import {
   IsraOrgSettings,
+  ISRA_REVIEW_PERIOD_DEFAULT,
+  israRiskScheme,
   IsraAppetiteLog,
   IsraScenario,
   IsraExistingControl,
@@ -22,10 +24,12 @@ export async function getOrgSettings(auth: AuthContext) {
       overrideAllowed: true,
       residualEnabled: true,
       reviewFreq: "Annual",
-      reviewPeriodWithinDays: 365,
-      reviewPeriodAboveDays: 90,
+      reviewPeriodWithinMonths: ISRA_REVIEW_PERIOD_DEFAULT.within,
+      reviewPeriodAboveMonths: ISRA_REVIEW_PERIOD_DEFAULT.above,
       ciaSeverityMap: { low: 2, medium: 3, high: 4, critical: 5 },
       conseqCiaRelation: {},
+      // R289 — null keeps OD's five-band fallback until the tenant sets its own.
+      riskLevels: null,
     });
   }
   return settings.get({ plain: true });
@@ -49,10 +53,11 @@ export async function saveOrgSettings(auth: AuthContext, input: Record<string, u
       overrideAllowed: input.overrideAllowed !== undefined ? Boolean(input.overrideAllowed) : true,
       residualEnabled: input.residualEnabled !== undefined ? Boolean(input.residualEnabled) : true,
       reviewFreq: (input.reviewFreq as string) || "Annual",
-      reviewPeriodWithinDays: typeof input.reviewPeriodWithinDays === "number" ? input.reviewPeriodWithinDays : 365,
-      reviewPeriodAboveDays: typeof input.reviewPeriodAboveDays === "number" ? input.reviewPeriodAboveDays : 90,
+      reviewPeriodWithinMonths: typeof input.reviewPeriodWithinMonths === "number" ? input.reviewPeriodWithinMonths : ISRA_REVIEW_PERIOD_DEFAULT.within,
+      reviewPeriodAboveMonths: typeof input.reviewPeriodAboveMonths === "number" ? input.reviewPeriodAboveMonths : ISRA_REVIEW_PERIOD_DEFAULT.above,
       ciaSeverityMap: (input.ciaSeverityMap as any) || { low: 2, medium: 3, high: 4, critical: 5 },
       conseqCiaRelation: (input.conseqCiaRelation as any) || {},
+      riskLevels: input.riskLevels !== undefined ? israRiskScheme(input.riskLevels as string[]) : null,
     });
   } else {
     if (input.matrix !== undefined) settings.matrix = matrix;
@@ -63,10 +68,15 @@ export async function saveOrgSettings(auth: AuthContext, input: Record<string, u
     if (input.overrideAllowed !== undefined) settings.overrideAllowed = Boolean(input.overrideAllowed);
     if (input.residualEnabled !== undefined) settings.residualEnabled = Boolean(input.residualEnabled);
     if (input.reviewFreq !== undefined) settings.reviewFreq = input.reviewFreq as string;
-    if (input.reviewPeriodWithinDays !== undefined) settings.reviewPeriodWithinDays = Number(input.reviewPeriodWithinDays);
-    if (input.reviewPeriodAboveDays !== undefined) settings.reviewPeriodAboveDays = Number(input.reviewPeriodAboveDays);
+    if (input.reviewPeriodWithinMonths !== undefined) settings.reviewPeriodWithinMonths = Number(input.reviewPeriodWithinMonths);
+    if (input.reviewPeriodAboveMonths !== undefined) settings.reviewPeriodAboveMonths = Number(input.reviewPeriodAboveMonths);
     if (input.ciaSeverityMap !== undefined) settings.ciaSeverityMap = input.ciaSeverityMap as any;
     if (input.conseqCiaRelation !== undefined) settings.conseqCiaRelation = input.conseqCiaRelation as any;
+    // R289 / OD `israRlSetCount` — the scheme is normalised (2..6 names, each
+    // falling back to its default) before it is stored.
+    if (input.riskLevels !== undefined) {
+      settings.riskLevels = input.riskLevels === null ? null : israRiskScheme(input.riskLevels as string[]);
+    }
     await settings.save();
   }
 

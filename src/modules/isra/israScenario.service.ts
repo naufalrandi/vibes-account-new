@@ -24,6 +24,8 @@ import {
   IsraVulnControlOverlay,
   IsraAppetiteLog,
   IsraOrgSettings,
+  ISRA_REVIEW_PERIOD_DEFAULT,
+  israAddMonthsIso,
 } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
@@ -434,6 +436,9 @@ export async function listScenarios(auth: AuthContext) {
     // unrated scenario as "Low" instead of "not assessed" (G-21; matches OD's
     // isra2OverallImpact/isra2InherentScore, which never inflate sev to 1).
     plain.overallImpact = weighted.sev;
+    // R287 / OD `isra2WeightedSeverity` also returns the 0-100 exposure index,
+    // which the port computed and then discarded before the response.
+    plain.exposure = weighted.exposure;
     plain.inherentScore = plain.inherentL > 0 && plain.overallImpact > 0 ? plain.inherentL * plain.overallImpact : 0;
     plain.inherentBand = plain.inherentScore > 0 ? getRiskBand(plain.inherentScore) : "";
 
@@ -491,6 +496,7 @@ export async function getScenarioById(auth: AuthContext, id: string) {
   const weighted = calculateWeightedSeverity(plain.potentialImpacts, plain.impactOverride);
   // See listScenarios above — unassessed (sev === 0) must stay 0 (G-21).
   plain.overallImpact = weighted.sev;
+  plain.exposure = weighted.exposure;
   plain.inherentScore = plain.inherentL > 0 && plain.overallImpact > 0 ? plain.inherentL * plain.overallImpact : 0;
   plain.inherentBand = plain.inherentScore > 0 ? getRiskBand(plain.inherentScore) : "";
 
@@ -1263,15 +1269,14 @@ export async function promoteResidual(auth: AuthContext, scenarioId: string, _ip
     await current.save();
   }
 
-  // 4. Review due — isra2ReviewPeriodMonths(within), mapped onto this
-  // backend's pre-existing IsraOrgSettings.reviewPeriodWithinDays/AboveDays
-  // (days, not OD's tenant-configurable within/above MONTHS setting — reused
-  // rather than adding a second, parallel period config).
+  // 4. Review due — OD `isra2ReviewPeriodMonths(within)` + `isra2AddMonthsISO`
+  // (core.js:14767): the tenant's within/above period is in calendar MONTHS,
+  // defaulting to 6 / 2.
   const orgSettings = await IsraOrgSettings.findOne({ where: { orgId: auth.orgId } });
-  const reviewDays = within ? (orgSettings?.reviewPeriodWithinDays ?? 365) : (orgSettings?.reviewPeriodAboveDays ?? 90);
-  const nextReview = new Date();
-  nextReview.setDate(nextReview.getDate() + reviewDays);
-  scenario.reviewDue = nextReview.toISOString().slice(0, 10);
+  const reviewMonths = within
+    ? (orgSettings?.reviewPeriodWithinMonths ?? ISRA_REVIEW_PERIOD_DEFAULT.within)
+    : (orgSettings?.reviewPeriodAboveMonths ?? ISRA_REVIEW_PERIOD_DEFAULT.above);
+  scenario.reviewDue = israAddMonthsIso(new Date(), reviewMonths);
 
   // 5. Within appetite: accept + archive the RTP out of "current" + clear added controls.
   //    Above appetite: leave acceptance unset — further treatment is needed.

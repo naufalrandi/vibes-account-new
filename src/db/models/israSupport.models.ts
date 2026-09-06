@@ -1,6 +1,37 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
 
+/** OD `ISRA_REVIEW_PERIOD_DEFAULT` (js/core.js:14767) — review period in MONTHS. */
+export const ISRA_REVIEW_PERIOD_DEFAULT = { within: 6, above: 2 } as const;
+
+/** OD `ISRA_RL_NAMES` (js/core.js:13572) — the band names for each level count. */
+export const ISRA_RL_NAMES: Record<number, string[]> = {
+  2: ["Low", "High"],
+  3: ["Low", "Medium", "High"],
+  4: ["Low", "Medium", "High", "Critical"],
+  5: ["Low", "Medium", "High", "Very High", "Critical"],
+  6: ["Low", "Medium", "High", "Very High", "Critical", "Extreme"],
+};
+
+/** OD `israRlSetCount` — the level count is clamped to 2..6. */
+export function israClampLevelCount(n: number): number {
+  return Math.max(2, Math.min(6, Math.round(n) || 5));
+}
+
+/** OD `israRiskScheme` — the tenant's band names, falling back to the five-band default. */
+export function israRiskScheme(levels: string[] | null | undefined): string[] {
+  if (!Array.isArray(levels) || levels.length < 2) return ISRA_RL_NAMES[5];
+  const count = israClampLevelCount(levels.length);
+  return levels.slice(0, count).map((n, i) => String(n).trim() || ISRA_RL_NAMES[count][i]);
+}
+
+/** OD `isra2AddMonthsISO` — add calendar months, returned as `YYYY-MM-DD`. */
+export function israAddMonthsIso(from: Date, months: number): string {
+  const d = new Date(from.getTime());
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
  * ISRA + SoA — Group G (migration 0068): Evidence, the general ISRA audit
  * trail, Scenario Templates, SoA per-control Justifications, and the
@@ -158,8 +189,15 @@ export class IsraOrgSettings extends Model<InferAttributes<IsraOrgSettings>, Inf
   declare overrideAllowed: CreationOptional<boolean>;
   declare residualEnabled: CreationOptional<boolean>;
   declare reviewFreq: string | null;
-  declare reviewPeriodWithinDays: number | null;
-  declare reviewPeriodAboveDays: number | null;
+  /** OD `ISRA_REVIEW_PERIOD_DEFAULT.within` — months, default 6 (js/core.js:14767). */
+  declare reviewPeriodWithinMonths: number | null;
+  /** OD `ISRA_REVIEW_PERIOD_DEFAULT.above` — months, default 2. */
+  declare reviewPeriodAboveMonths: number | null;
+  /**
+   * R289 / OD `t.israRiskLevels` — the tenant's own ISRA band names, 2-6 of
+   * them, in ascending severity. Null falls back to `ISRA_RL_NAMES[5]`.
+   */
+  declare riskLevels: string[] | null;
   declare exportColumns: CreationOptional<string[]>;
   declare ciaSeverityMap: CreationOptional<IsraCiaSeverityMap>;
   declare conseqCiaRelation: CreationOptional<Record<string, unknown>>;
@@ -177,8 +215,9 @@ IsraOrgSettings.init(
     overrideAllowed: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: "override_allowed" },
     residualEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: "residual_enabled" },
     reviewFreq: { type: DataTypes.STRING, allowNull: true, field: "review_freq" },
-    reviewPeriodWithinDays: { type: DataTypes.INTEGER, allowNull: true, field: "review_period_within_days" },
-    reviewPeriodAboveDays: { type: DataTypes.INTEGER, allowNull: true, field: "review_period_above_days" },
+    reviewPeriodWithinMonths: { type: DataTypes.INTEGER, allowNull: true, field: "review_period_within_months" },
+    reviewPeriodAboveMonths: { type: DataTypes.INTEGER, allowNull: true, field: "review_period_above_months" },
+    riskLevels: { type: DataTypes.JSONB, allowNull: true, field: "risk_levels" },
     exportColumns: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "export_columns" },
     ciaSeverityMap: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "cia_severity_map" },
     conseqCiaRelation: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "conseq_cia_relation" },

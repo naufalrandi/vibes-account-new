@@ -1,5 +1,5 @@
 import { Op } from "sequelize";
-import { BusinessRecord } from "../../db/models";
+import { BusinessRecord, CabSettings } from "../../db/models";
 import type { BusinessArea } from "../../db/models/businessRecord.model";
 import type { AuthContext } from "../../lib/scope";
 import { sequelize } from "../../db/sequelize";
@@ -305,6 +305,43 @@ async function assertCertProposalApproved(
   }
 }
 
+/**
+ * R93 / OD `cabRate()` (js/modules.js:2204) — the man-day rate is the org's
+ * stored setting, defaulting to 8,000,000 IDR. The client's own `ratePerMd` is
+ * discarded: it is a price, and the server owns prices.
+ */
+async function resolveCabRate(auth: AuthContext): Promise<number> {
+  const row = await CabSettings.findOne({ where: { orgId: auth.orgId } });
+  const rate = Number(row?.ratePerMd ?? 0);
+  return rate > 0 ? rate : CAB_RATE_DEFAULT;
+}
+
+/** OD `cabRate()` — the org's current man-day rate, for the settings screen. */
+export async function getCabRate(auth: AuthContext): Promise<{ ratePerMd: number }> {
+  return { ratePerMd: await resolveCabRate(auth) };
+}
+
+/** OD `cabSetRate` — the only writer of `db.cabRatePerMd`. */
+export async function setCabRate(auth: AuthContext, ratePerMd: number, ip: string | null): Promise<{ ratePerMd: number }> {
+  const [row] = await CabSettings.findOrCreate({ where: { orgId: auth.orgId }, defaults: { orgId: auth.orgId, ratePerMd } });
+  if (row.ratePerMd !== ratePerMd) {
+    row.ratePerMd = ratePerMd;
+    await row.save();
+  }
+  await writeAudit({
+    actorUserId: auth.userId, organizationId: auth.orgId, action: "business.exelera.cab.rateSet",
+    entityType: "CabSettings", entityId: row.id, sourceIp: ip, result: "Success",
+  });
+  return { ratePerMd };
+}
+
+/** Stamps the server-owned rate onto a certification proposal's `cert` block. */
+async function applyCabRate<T extends Record<string, unknown> | undefined>(auth: AuthContext, data: T): Promise<T> {
+  if (!data || data.cert === undefined) return data;
+  const cert = { ...((data.cert ?? {}) as Record<string, unknown>), ratePerMd: await resolveCabRate(auth) };
+  return { ...data, cert } as T;
+}
+
 async function assertNoDuplicateLead(
   auth: AuthContext,
   company: OperatingCompany,
@@ -418,6 +455,7 @@ export async function createBusiness(auth: AuthContext, area: string, module: st
   }
   if (area === "enterprise" && module === "ent-proposals") {
     await assertCertProposalApproved(auth, data);
+    data = await applyCabRate(auth, data);
     data = assertValidProposalData(data, { isCreate: true });
   }
   if (area === "datana" && isDatanaModule(module)) {
@@ -503,7 +541,7 @@ export async function updateBusiness(auth: AuthContext, area: string, module: st
     assertValidInquiryData(r.data as Record<string, unknown> | undefined);
   }
   if (area === "enterprise" && module === "ent-proposals") {
-    r.data = assertValidProposalData(r.data as Record<string, unknown> | undefined);
+    r.data = assertValidProposalData(await applyCabRate(auth, r.data as Record<string, unknown> | undefined));
   }
   if (area === "datana" && isDatanaModule(module)) {
     r.data = assertValidDatanaData(module, r.data as Record<string, unknown> | undefined);
@@ -693,9 +731,10 @@ export async function priceCabClient(
   const initialAuditDays = cabInitialDays(personnel, standards, adj);
   const sample = cabSampleSize(sites, type);
 
+  const cabRate = await resolveCabRate(auth);
   const pricing = {
     auditType: type, adj, days, initialAuditDays, sample, sites,
-    ratePerMd: CAB_RATE_DEFAULT, price: days * CAB_RATE_DEFAULT,
+    ratePerMd: cabRate, price: days * cabRate,
     computedAt: new Date().toISOString(),
   };
   r.data = { ...data, pricing };
