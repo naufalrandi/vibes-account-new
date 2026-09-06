@@ -84,7 +84,18 @@ const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v)
  * Kept identical to the FE mock's `mockPoConfirmation`, so the screen renders
  * the same against either client.
  */
-function toView(r: BusinessRecord): PoConfirmationView {
+/** The PR's own line, falling back to the PO total when the PR is unavailable. */
+function prLineItem(pr: BusinessRecord | null | undefined, title: string, amount: number): PoConfirmationLineItem {
+  const p = (pr?.data ?? {}) as Record<string, unknown>;
+  const qty = num(p.qty) || 0;
+  const unitValue = num(p.unitValue) || 0;
+  const desc = str(p.description) || title;
+  const unit = str(p.unit) || "Lot";
+  if (!qty || !unitValue) return { desc, qty: qty || 1, unit, price: amount, total: amount };
+  return { desc, qty, unit, price: unitValue, total: qty * unitValue };
+}
+
+function toView(r: BusinessRecord, pr?: BusinessRecord | null): PoConfirmationView {
   const d = (r.data ?? {}) as Record<string, unknown>;
   const amount = num(d.amount) || Number(d.amount) || 0;
   const buyer = r.company === "exelera" ? "PT Exelera Sertifikasi Nusantara" : "PT AXIA Global Indonesia";
@@ -103,7 +114,11 @@ function toView(r: BusinessRecord): PoConfirmationView {
     issuedDate: str(d.issuedDate) || r.createdAt.toISOString(),
     deliveryDate: str(d.deliveryBy),
     currency: str(d.currency) || "IDR",
-    items: [{ desc: title, qty: 1, unit: "Lot", price: amount, total: amount }],
+    // R474 / OD `poDocHtml` — the single row is the purchase request's own
+    // line: its description, its quantity and unit, and its unit price. A
+    // hardcoded "1 Lot" of the PO title told the supplier nothing about what
+    // they were being asked to supply.
+    items: [prLineItem(pr, title, amount)],
     subtotal: amount,
     tax: 0,
     total: amount,
@@ -132,9 +147,16 @@ export async function findPoByToken(code: string, token: string): Promise<Busine
   return null;
 }
 
+/** The purchase request a PO was raised from, when it names one. */
+async function requestOf(r: BusinessRecord): Promise<BusinessRecord | null> {
+  const prId = str((r.data as Record<string, unknown> | null)?.prId);
+  if (!prId) return null;
+  return BusinessRecord.findOne({ where: { area: PO_AREA, module: "ent-pr", id: prId } });
+}
+
 export async function getPoConfirmation(code: string, token: string): Promise<PoConfirmationView | null> {
   const r = await findPoByToken(code, token);
-  return r ? toView(r) : null;
+  return r ? toView(r, await requestOf(r)) : null;
 }
 
 export type PoRespondResult =
@@ -179,5 +201,5 @@ export async function respondPoConfirmation(
     activity: [{ ts: at, user: by, action, summary: trimmed || r.code }, ...activity],
   };
   await r.save();
-  return { ok: true, view: toView(r) };
+  return { ok: true, view: toView(r, await requestOf(r)) };
 }
