@@ -36,6 +36,8 @@ export const deleteExistingControl = wrap(async (req, res) => {
 });
 
 export const saveTreatmentDecision = wrap(async (req, res) => ok(res, await service.saveTreatmentDecision(guard(req), req.params.id as string, req.body, req.ip || null)));
+export const setRecommendationDisposition = wrap(async (req, res) =>
+  ok(res, await service.setRecommendationDisposition(guard(req), req.params.id as string, req.params.annexRef as string, req.body)));
 export const generateRecommendations = wrap(async (req, res) => ok(res, await service.generateRecommendations(guard(req), req.params.id as string)));
 
 export const saveRtp = wrap(async (req, res) => ok(res, await service.saveRtp(guard(req), req.params.id as string, req.body, req.ip || null)));

@@ -25,6 +25,8 @@ israScenarioRoutes.delete("/:id/controls/:controlId", manage, controller.deleteE
 // Treatments & Recommendations
 israScenarioRoutes.post("/:id/treatment", manage, controller.saveTreatmentDecision);
 israScenarioRoutes.post("/:id/recommendations", manage, controller.generateRecommendations);
+// R336 — the Applicability ruling on one recommended control.
+israScenarioRoutes.put("/:id/recommendations/:annexRef/disposition", manage, controller.setRecommendationDisposition);
 
 // RTP
 israScenarioRoutes.post("/:id/rtp", manage, controller.saveRtp);

@@ -831,6 +831,47 @@ export async function saveTreatmentDecision(auth: AuthContext, scenarioId: strin
   return row.get({ plain: true });
 }
 
+/**
+ * R336 / OD's Applicability toggle on the recommendations table
+ * (`dtoggle`, js/core.js:15366). A recommended control is Selected, Not
+ * selected, or — until someone rules on it — Not assessed. The disposition
+ * table existed and was already returned with the scenario; nothing could
+ * write to it, so the column had no state to render and was left out.
+ */
+export const ISRA_DISPOSITIONS = ["Selected", "Not selected", "Not assessed"] as const;
+
+export async function setRecommendationDisposition(
+  auth: AuthContext,
+  scenarioId: string,
+  annexRef: string,
+  input: { disposition: string; rationale?: string | null },
+) {
+  const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId: auth.orgId } });
+  if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
+  const disposition = String(input.disposition || "");
+  if (!(ISRA_DISPOSITIONS as readonly string[]).includes(disposition)) {
+    throw new BadRequestError(`disposition must be one of ${ISRA_DISPOSITIONS.join(", ")}`);
+  }
+
+  const existing = await IsraScenarioRecommendationDisposition.findOne({ where: { scenarioId, annexRef } });
+  // "Not assessed" is the absence of a ruling, so it clears the row rather
+  // than storing a third state the reader would have to interpret.
+  if (disposition === "Not assessed") {
+    if (existing) await existing.destroy();
+    return { scenarioId, annexRef, disposition, rationale: null };
+  }
+  if (existing) {
+    existing.disposition = disposition;
+    if (input.rationale !== undefined) existing.rationale = input.rationale ?? null;
+    await existing.save();
+    return existing.get({ plain: true });
+  }
+  const row = await IsraScenarioRecommendationDisposition.create({
+    scenarioId, annexRef, disposition, rationale: input.rationale ?? null, existingControlId: null,
+  });
+  return row.get({ plain: true });
+}
+
 export async function generateRecommendations(auth: AuthContext, scenarioId: string) {
   const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId: auth.orgId } });
   if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
