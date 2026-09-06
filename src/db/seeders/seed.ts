@@ -192,6 +192,15 @@ export async function seed(): Promise<void> {
     where: { name: "User", orgId: so.id },
     defaults: { name: "User", tierScope: "ServiceOwner", orgId: so.id, isSuperAdmin: false, status: true },
   });
+  // R7 / OD `ROLE_GROUPS` (js/core.js:111) — 'Basic User' is one of the four
+  // groups Team Management offers, and it is the profile-only preset: the
+  // Organization Settings profile page and nothing else. Without it the group
+  // is unassignable, and the nearest analogue ('User', seeded above) carries
+  // 21 menus and 24 read actions — a far wider grant than OD's.
+  const [basicUserRole] = await Role.findOrCreate({
+    where: { name: "Basic User", orgId: so.id },
+    defaults: { name: "Basic User", tierScope: "ServiceOwner", orgId: so.id, isSuperAdmin: false, status: true },
+  });
   // OD `ROLE_GROUPS` — the role groups Team Management actually offers a
   // Service Provider user (`role.catalog.ts` ServiceOwner). Without these two,
   // every seeded staff member collapses onto Administrator, and the ticket
@@ -210,6 +219,8 @@ export async function seed(): Promise<void> {
   //    grant matrix UI shows it fully enabled). Administrator = full CRUD.
   await grantEverything(superAdminRole.id);
   await grantEverything(adminRole.id);
+  // R7 — 'Basic User' is the profile-only preset: `['org-profile']`, no actions.
+  await grantAccess(basicUserRole.id, ["Organization Settings"], []);
   // User = read-only: can view the main sections + read, nothing that mutates.
   await grantAccess(
     userRole.id,
