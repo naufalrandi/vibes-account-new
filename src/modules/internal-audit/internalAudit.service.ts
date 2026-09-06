@@ -272,7 +272,8 @@ export async function createSession(auth: AuthContext, input: Record<string, unk
   const row = await IaSession.create({
     orgId: org, code: await nextCode(IaSession, "IAS"), planId, programId: plan.programId,
     title, date, start, end, tz: str(input.tz) || "Asia/Jakarta", auditor, auditee: str(input.auditee),
-    criteria: arr(input.criteria), process, workUnit: str(input.workUnit), methods: arr(input.methods),
+    criteria: arr(input.criteria), criteriaReqs: arr(input.criteriaReqs),
+    process, workUnit: str(input.workUnit), methods: arr(input.methods),
     location: str(input.location), link: str(input.link), notes: str(input.notes), status: "Scheduled",
     createdBy: who, lastUpdatedBy: who, activity: pushActivity([], who, "created", "Session scheduled"),
   });
@@ -286,7 +287,9 @@ export async function updateSession(auth: AuthContext, id: string, input: Record
   await targetOrg(auth, row.orgId);
   const rec = row as unknown as Record<string, unknown>;
   for (const k of ["title", "date", "start", "end", "tz", "auditor", "auditee", "process", "workUnit", "location", "link", "notes"] as const) if (input[k] !== undefined) rec[k] = str(input[k]);
-  for (const k of ["criteria", "methods"] as const) if (input[k] !== undefined) rec[k] = arr(input[k]);
+  // R259 — `criteriaReqs` is the clause layer of the audit criteria; the
+  // column existed but nothing ever wrote it.
+  for (const k of ["criteria", "criteriaReqs", "methods"] as const) if (input[k] !== undefined) rec[k] = arr(input[k]);
   const who = await actorName(auth);
   row.lastUpdatedBy = who;
   row.activity = pushActivity(row.activity, who, "updated", "Session updated");
