@@ -90,6 +90,9 @@ export async function updatePrimaryAsset(auth: AuthContext, id: string, input: R
   if (input.cia !== undefined) row.cia = jsonObj(input.cia);
   if (input.privacy !== undefined) row.privacy = input.privacy === true;
   if (input.typicalSecondary !== undefined) row.typicalSecondary = arr(input.typicalSecondary);
+  // R334 / OD — a platform edit advances the master's version, which is what
+  // tells a tenant sitting on a customization that the master moved on.
+  row.platformVersion = Number(row.platformVersion ?? 1) + 1;
   await row.save();
   await logAudit(auth, "isra.primaryAsset.updated", "IsraPrimaryAssetLibrary", row.id, ip);
   return row.get({ plain: true });
@@ -141,6 +144,9 @@ export async function updateSecondaryAsset(auth: AuthContext, id: string, input:
   if (input.groupId !== undefined) row.groupId = nextGroupId;
   if (input.subgroupId !== undefined) row.subgroupId = nextSubgroupId;
   if (input.description !== undefined) row.description = str(input.description);
+  // R334 / OD — a platform edit advances the master's version, which is what
+  // tells a tenant sitting on a customization that the master moved on.
+  row.platformVersion = Number(row.platformVersion ?? 1) + 1;
   await row.save();
   await logAudit(auth, "isra.secondaryAsset.updated", "IsraSecondaryAssetLibrary", row.id, ip);
   return row.get({ plain: true });

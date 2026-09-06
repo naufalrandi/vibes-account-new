@@ -105,6 +105,15 @@ export interface EffectiveLibraryRow {
   customized: boolean;
   archived: boolean;
   overrideVersion: number;
+  /**
+   * R334 / OD `israLtPlatformUpdate` — the platform master's current version
+   * and the version this override was taken against. When the master has
+   * advanced the tenant is holding a stale customization and OD offers to
+   * review it; nothing is ever merged automatically.
+   */
+  platformVersion: number;
+  basePlatformVersion: number | null;
+  platformUpdateAvailable: boolean;
   fields: Record<string, unknown>;
 }
 
@@ -126,6 +135,7 @@ export async function listEffectiveLibrary(auth: AuthContext, libType: string, o
     const id = String(m.id);
     const key = libKey("platform", null, id);
     const ov = overrideByPlatformId.get(id);
+    const platformVersion = Number(m.platformVersion ?? 1);
     const merged = { ...m, ...(ov?.fields ?? {}) };
     return {
       key, source: "platform", platformItemId: id, tenantItemId: null,
@@ -135,6 +145,9 @@ export async function listEffectiveLibrary(auth: AuthContext, libType: string, o
       description: (merged.description as string | undefined) ?? null,
       category: (merged.category as string | undefined) ?? null,
       customized: !!ov, archived: archivedKeys.has(key), overrideVersion: ov?.overrideVersion ?? 0,
+      platformVersion,
+      basePlatformVersion: ov?.basePlatformVersion ?? null,
+      platformUpdateAvailable: !!ov && platformVersion > Number(ov.basePlatformVersion ?? 1),
       fields: merged,
     };
   });
@@ -145,6 +158,8 @@ export async function listEffectiveLibrary(auth: AuthContext, libType: string, o
       name: ti.name, groupId: ti.groupId, subgroupId: ti.subgroupId, description: ti.description,
       category: (ti.customFields?.category as string | undefined) ?? null,
       customized: false, archived: archivedKeys.has(key), overrideVersion: 0,
+      // A wholly-tenant item has no platform master behind it.
+      platformVersion: 0, basePlatformVersion: null, platformUpdateAvailable: false,
       fields: { ...ti.customFields, name: ti.name, groupId: ti.groupId, subgroupId: ti.subgroupId, description: ti.description },
     };
   });

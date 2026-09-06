@@ -37,6 +37,9 @@ export class IsraPrimaryAssetLibrary extends Model<InferAttributes<IsraPrimaryAs
   declare cia: CreationOptional<Record<string, unknown>>;
   declare privacy: CreationOptional<boolean>;
   declare typicalSecondary: CreationOptional<string[]>;
+  /** R334 / OD `platformVersion` — bumped whenever the platform edits this
+   *  master, so a tenant override can tell that the master moved on. */
+  declare platformVersion: CreationOptional<number>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -50,6 +53,7 @@ IsraPrimaryAssetLibrary.init(
     cia: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
     privacy: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     typicalSecondary: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "typical_secondary" },
+    platformVersion: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1, field: "platform_version" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },
@@ -62,6 +66,9 @@ export class IsraSecondaryAssetLibrary extends Model<InferAttributes<IsraSeconda
   declare groupId: string | null;
   declare subgroupId: string | null;
   declare description: string | null;
+  /** R334 / OD `platformVersion` — bumped whenever the platform edits this
+   *  master, so a tenant override can tell that the master moved on. */
+  declare platformVersion: CreationOptional<number>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -72,6 +79,7 @@ IsraSecondaryAssetLibrary.init(
     groupId: { type: DataTypes.STRING, allowNull: true, field: "group_id" },
     subgroupId: { type: DataTypes.STRING, allowNull: true, field: "subgroup_id" },
     description: { type: DataTypes.TEXT, allowNull: true },
+    platformVersion: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1, field: "platform_version" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

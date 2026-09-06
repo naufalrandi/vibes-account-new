@@ -74,6 +74,9 @@ export class IsraThreatLibrary extends Model<InferAttributes<IsraThreatLibrary>,
   declare category: string | null;
   declare description: string | null;
   declare status: CreationOptional<string>;
+  /** R334 / OD `platformVersion` — bumped whenever the platform edits this
+   *  master, so a tenant override can tell that the master moved on. */
+  declare platformVersion: CreationOptional<number>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -84,6 +87,7 @@ IsraThreatLibrary.init(
     category: { type: DataTypes.STRING, allowNull: true },
     description: { type: DataTypes.TEXT, allowNull: true },
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Active" },
+    platformVersion: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1, field: "platform_version" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },
@@ -96,6 +100,9 @@ export class IsraVulnLibrary extends Model<InferAttributes<IsraVulnLibrary>, Inf
   declare category: string | null;
   declare description: string | null;
   declare status: CreationOptional<string>;
+  /** R334 / OD `platformVersion` — bumped whenever the platform edits this
+   *  master, so a tenant override can tell that the master moved on. */
+  declare platformVersion: CreationOptional<number>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -106,6 +113,7 @@ IsraVulnLibrary.init(
     category: { type: DataTypes.STRING, allowNull: true },
     description: { type: DataTypes.TEXT, allowNull: true },
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Active" },
+    platformVersion: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1, field: "platform_version" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },
