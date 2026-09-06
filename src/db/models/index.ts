@@ -60,7 +60,7 @@ import { IsraAssetMap, IsraAssetMapUsage, IsraAssetMapSecondary, IsraAssetMapThr
 import { IsraScenario, IsraScenarioVuln, IsraScenarioPotentialImpact, IsraExistingControl, IsraExistingControlAnnexRef, IsraScenarioCurrentRisk } from "./israScenario.models";
 import { IsraScenarioTreatmentDecision, IsraScenarioRecommendationSnapshot, IsraScenarioRecommendationDisposition, IsraScenarioAddedControl, IsraRtp, IsraRtpAction, IsraRtpActionControl } from "./israTreatmentRtp.models";
 import { IsraScenarioProjectedResidual, IsraScenarioActualResidual, IsraScenarioResidual, IsraScenarioClosure, IsraScenarioCycle, IsraInitiative, IsraInitiativeScenario, IsraAppetiteLog } from "./israResidualCycle.models";
-import { IsraEvidence, IsraAudit, IsraScenarioTemplate, IsraSoaJustification, IsraOrgSettings } from "./israSupport.models";
+import { IsraEvidence, IsraAudit, IsraScenarioTemplate, IsraSoaJustification, IsraOrgSettings, ISRA_REVIEW_PERIOD_DEFAULT, israAddMonthsIso } from "./israSupport.models";
 import { SaasPipeline, SaasSubscription, SaasWorkspace } from "./saas.models";
 import { PersonnelContractDocument, PersonnelActivityLog, PersonnelOnboardingItem, PersonnelCompensation } from "./personnelContractComp.models";
 import { OrgUnit } from "./orgUnit.model";
@@ -708,6 +708,8 @@ export {
   IsraScenarioTemplate,
   IsraSoaJustification,
   IsraOrgSettings,
+  ISRA_REVIEW_PERIOD_DEFAULT,
+  israAddMonthsIso,
   SaasPipeline,
   SaasSubscription,
   SaasWorkspace,

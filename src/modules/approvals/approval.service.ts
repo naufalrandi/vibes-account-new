@@ -606,7 +606,8 @@ export async function publishDocument(auth: AuthContext, recordId: string, ip: s
  * published document reconfirmed at its periodic review. All three 404'd.
  * ------------------------------------------------------------------------- */
 
-interface ReviewerSignoff { by: string; at: string; comments?: string }
+/** R220 — OD `cdReviewerSignSave` records the decision alongside the sign-off. */
+interface ReviewerSignoff { by: string; at: string; comments?: string; decision?: "Reviewed" | "Request changes" }
 
 const signoffsOf = (data: Record<string, unknown>): ReviewerSignoff[] =>
   Array.isArray(data.reviewerSignoffs) ? (data.reviewerSignoffs as ReviewerSignoff[]) : [];
@@ -630,11 +631,25 @@ async function initialStageRecord(auth: AuthContext, recordId: string) {
   return { rec, data };
 }
 
-/** OD `cdReviewerSign` — record one initial reviewer's sign-off. */
-export async function signAsReviewer(auth: AuthContext, recordId: string, comments: string | null, ip: string | null) {
+/**
+ * OD `cdReviewerSign` — record one initial reviewer's sign-off.
+ *
+ * R220: OD's form picks WHICH assigned reviewer is signing (`cd-rvw`) and with
+ * what decision (`cd-rvwd`). "Request changes" returns the document to the
+ * author as `Revision Requested` and clears the review stage, which is the
+ * only route back from Under Review during the initial stage.
+ */
+export async function signAsReviewer(
+  auth: AuthContext,
+  recordId: string,
+  comments: string | null,
+  ip: string | null,
+  reviewer?: string | null,
+  decision: "Reviewed" | "Request changes" = "Reviewed",
+) {
   const { rec, data } = await initialStageRecord(auth, recordId);
-  const who = await actorName(auth);
   const reviewers = reviewersOf(data);
+  const who = (reviewer ?? "").trim() || (await actorName(auth));
   const signoffs = signoffsOf(data);
   if (signoffs.some((s) => s.by === who)) {
     throw new ConflictError("You have already signed off on this document", "ALREADY_SIGNED");
@@ -644,8 +659,12 @@ export async function signAsReviewer(auth: AuthContext, recordId: string, commen
     throw new ForbiddenError("You are not an assigned reviewer for this document");
   }
   const trimmed = (comments ?? "").trim();
-  const next = [...signoffs, { by: who, at: new Date().toISOString(), ...(trimmed ? { comments: trimmed } : {}) }];
+  const next = [...signoffs, { by: who, at: new Date().toISOString(), decision, ...(trimmed ? { comments: trimmed } : {}) }];
   rec.data = { ...data, reviewerSignoffs: next };
+  if (decision === "Request changes") {
+    rec.status = "Revision Requested";
+    rec.data = { ...(rec.data as Record<string, unknown>), reviewStage: null };
+  }
   await rec.save();
   await audit(auth, "approval.document.reviewerSigned", "ImplementationRecord", rec.id, ip);
   await logActivity(auth, rec.orgId, "documents", rec.id, `Initial review sign-off by ${who}`);

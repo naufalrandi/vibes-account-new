@@ -1,6 +1,16 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
 
+/** OD `ISRA_REVIEW_PERIOD_DEFAULT` (js/core.js:14767) — review period in MONTHS. */
+export const ISRA_REVIEW_PERIOD_DEFAULT = { within: 6, above: 2 } as const;
+
+/** OD `isra2AddMonthsISO` — add calendar months, returned as `YYYY-MM-DD`. */
+export function israAddMonthsIso(from: Date, months: number): string {
+  const d = new Date(from.getTime());
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
  * ISRA + SoA — Group G (migration 0068): Evidence, the general ISRA audit
  * trail, Scenario Templates, SoA per-control Justifications, and the
@@ -158,8 +168,10 @@ export class IsraOrgSettings extends Model<InferAttributes<IsraOrgSettings>, Inf
   declare overrideAllowed: CreationOptional<boolean>;
   declare residualEnabled: CreationOptional<boolean>;
   declare reviewFreq: string | null;
-  declare reviewPeriodWithinDays: number | null;
-  declare reviewPeriodAboveDays: number | null;
+  /** OD `ISRA_REVIEW_PERIOD_DEFAULT.within` — months, default 6 (js/core.js:14767). */
+  declare reviewPeriodWithinMonths: number | null;
+  /** OD `ISRA_REVIEW_PERIOD_DEFAULT.above` — months, default 2. */
+  declare reviewPeriodAboveMonths: number | null;
   declare exportColumns: CreationOptional<string[]>;
   declare ciaSeverityMap: CreationOptional<IsraCiaSeverityMap>;
   declare conseqCiaRelation: CreationOptional<Record<string, unknown>>;
@@ -177,8 +189,8 @@ IsraOrgSettings.init(
     overrideAllowed: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: "override_allowed" },
     residualEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: "residual_enabled" },
     reviewFreq: { type: DataTypes.STRING, allowNull: true, field: "review_freq" },
-    reviewPeriodWithinDays: { type: DataTypes.INTEGER, allowNull: true, field: "review_period_within_days" },
-    reviewPeriodAboveDays: { type: DataTypes.INTEGER, allowNull: true, field: "review_period_above_days" },
+    reviewPeriodWithinMonths: { type: DataTypes.INTEGER, allowNull: true, field: "review_period_within_months" },
+    reviewPeriodAboveMonths: { type: DataTypes.INTEGER, allowNull: true, field: "review_period_above_months" },
     exportColumns: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "export_columns" },
     ciaSeverityMap: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "cia_severity_map" },
     conseqCiaRelation: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "conseq_cia_relation" },
