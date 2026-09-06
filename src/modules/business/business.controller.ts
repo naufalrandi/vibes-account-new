@@ -101,6 +101,20 @@ export async function priceCabClient(req: Request, res: Response, next: NextFunc
   } catch (e) { next(e); }
 }
 
+export async function getCabRate(req: Request, res: Response, next: NextFunction) {
+  try {
+    sendOk(res, await service.getCabRate(guard(req)));
+  } catch (e) { next(e); }
+}
+
+/** OD `cabSetRate` — the "Rate per man-day" modal's only write path. */
+export async function setCabRate(req: Request, res: Response, next: NextFunction) {
+  try {
+    const input = z.object({ ratePerMd: z.number().int().positive().max(1_000_000_000) }).parse(req.body ?? {});
+    sendOk(res, await service.setCabRate(guard(req), input.ratePerMd, req.ip ?? null));
+  } catch (e) { next(e); }
+}
+
 export async function issueCabCertificate(req: Request, res: Response, next: NextFunction) {
   try {
     const company = resolveCompanyParam(req);

@@ -70,6 +70,7 @@ import { DocumentFolder, Document } from "./document.model";
 import { CmsPage, CmsPost, CmsMedia, CmsMenuItem, CmsSettings } from "./cms.model";
 import { ResumeRecord, LeaveRecord, DisciplinaryRecord, PerformanceRecord } from "./personnelRecords.models";
 import { DoaMatrixEntry, DoaMethod } from "./doaMatrix.model";
+import { CabSettings } from "./cabSettings.model";
 
 let initialized = false;
 
@@ -473,6 +474,9 @@ export function initModels(): void {
   IsraSoaJustification.belongsTo(Organization, { foreignKey: "orgId" });
   IsraAnnexAControl.hasMany(IsraSoaJustification, { foreignKey: "annexRef" });
   IsraSoaJustification.belongsTo(IsraAnnexAControl, { foreignKey: "annexRef" });
+  Organization.hasOne(CabSettings, { foreignKey: "orgId" });
+  CabSettings.belongsTo(Organization, { foreignKey: "orgId" });
+
   Organization.hasOne(IsraOrgSettings, { foreignKey: "orgId" });
   IsraOrgSettings.belongsTo(Organization, { foreignKey: "orgId" });
 
@@ -710,6 +714,7 @@ export {
   IsraOrgSettings,
   ISRA_REVIEW_PERIOD_DEFAULT,
   israAddMonthsIso,
+  CabSettings,
   SaasPipeline,
   SaasSubscription,
   SaasWorkspace,

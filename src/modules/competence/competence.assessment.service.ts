@@ -308,7 +308,11 @@ export function assessCompute(requirements: AssessReqResult[]): { status: string
 }
 
 function addMonths(dateStr: string, months: number): string {
-  const d = new Date(dateStr + "T00:00:00.000Z");
+  // R128 / OD `cmpAddMonths` — an unparseable assessment date falls back to
+  // today rather than propagating an Invalid Date into `validUntil` (which
+  // throws on `.toISOString()`, taking the whole request with it).
+  let d = new Date(dateStr + "T00:00:00.000Z");
+  if (Number.isNaN(d.getTime())) d = new Date();
   d.setUTCMonth(d.getUTCMonth() + months);
   return d.toISOString().slice(0, 10);
 }
@@ -418,9 +422,17 @@ export async function approveAssessment(auth: AuthContext, id: string, ip: strin
   return row.get({ plain: true });
 }
 
-/** Reassessment queue: bucket active assignments by validity horizon. */
+/**
+ * Reassessment queue: bucket assignments by validity horizon.
+ *
+ * R120 / OD queues every assignment that is not Archived — a Draft or
+ * Inactive assignment still owes a reassessment, and filtering to Active hid
+ * exactly the ones most likely to be overdue.
+ */
 export async function reassessQueue(auth: AuthContext, scope?: "enterprise") {
-  const rows = await CompetenceAssignment.findAll({ where: { ...(await orgWhere(auth, scope)), status: "Active" } });
+  const rows = await CompetenceAssignment.findAll({
+    where: { ...(await orgWhere(auth, scope)), status: { [Op.ne]: "Archived" } },
+  });
   const today = new Date().toISOString().slice(0, 10);
   const buckets = { never: [] as unknown[], overdue: [] as unknown[], due: [] as unknown[] };
   for (const a of rows) {

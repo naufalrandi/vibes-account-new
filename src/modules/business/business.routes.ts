@@ -5,6 +5,8 @@ import { ACTIONS } from "../iam/actions.catalog";
 
 export const businessRoutes = Router();
 businessRoutes.post("/enterprise/ent-projects/from-proposal/:proposalId", requireAction(ACTIONS.BUSINESS_MANAGE), c.createFromProposal);
+businessRoutes.get("/exelera/cab-rate", requireAction(ACTIONS.BUSINESS_READ), c.getCabRate);
+businessRoutes.put("/exelera/cab-rate", requireAction(ACTIONS.BUSINESS_MANAGE), c.setCabRate);
 businessRoutes.post("/exelera/ex-cab/:id/price", requireAction(ACTIONS.BUSINESS_MANAGE), c.priceCabClient);
 businessRoutes.post("/exelera/ex-cab/:id/issue-certificate", requireAction(ACTIONS.BUSINESS_MANAGE), c.issueCabCertificate);
 businessRoutes.get("/:area/:module", requireAction(ACTIONS.BUSINESS_READ), c.list);
