@@ -393,13 +393,21 @@ export async function updateUser(
   // Member-level access axes (SOF-84): independent of permissionMode/permissions
   // above, but locked the same way — a Super Administrator already has every
   // axis granted (OD acSave's `sa` branch) and can't be individually edited.
+  // R796 / OD acSave (js/core.js:5229-5230) writes the access flag and its
+  // permission list as ONE pair: `const ek = ACX.entGranted ? [...ACX.entSet] : []`.
+  // Four independent assignments let a stale grant survive the revocation —
+  // PATCH {entAccess:false} left the previously stored entPerms in place, so
+  // re-granting access silently restored permissions nobody re-approved.
   if (input.entAccess !== undefined) {
     if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
     user.entAccess = input.entAccess;
+    if (!input.entAccess) user.entPerms = [];
   }
   if (input.entPerms !== undefined) {
     if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
-    user.entPerms = input.entPerms;
+    // A permission list only survives while the domain is granted.
+    const granted = input.entAccess !== undefined ? input.entAccess : user.entAccess;
+    user.entPerms = granted ? input.entPerms : [];
   }
   if (input.units !== undefined) {
     if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
@@ -408,10 +416,18 @@ export async function updateUser(
   if (input.unitAccess !== undefined) {
     if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
     user.unitAccess = input.unitAccess;
-  }
-  if (input.unitPerms !== undefined) {
+    // R796 / OD js/core.js:5241 — same coupling, per business unit.
+    const perms = { ...(input.unitPerms ?? user.unitPerms ?? {}) };
+    for (const [key, granted] of Object.entries(input.unitAccess)) {
+      if (!granted && perms[key]?.length) perms[key] = [];
+    }
+    user.unitPerms = perms;
+  } else if (input.unitPerms !== undefined) {
     if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
-    user.unitPerms = input.unitPerms;
+    const access = user.unitAccess ?? {};
+    const perms = { ...input.unitPerms };
+    for (const key of Object.keys(perms)) if (!access[key]) perms[key] = [];
+    user.unitPerms = perms;
   }
   // OD `u.navPerms` (js/core.js:5225) — the granted Service Provider menu keys.
   if (input.navPerms !== undefined) {

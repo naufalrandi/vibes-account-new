@@ -318,6 +318,43 @@ describe("users", () => {
     expect(res.body.data.unitPerms).toEqual({ "unit-a": ["view", "edit"] });
   });
 
+  // R796 / OD acSave (js/core.js:5229-5230, 5241) writes each access flag and
+  // its permission list as one pair, so revoking a domain empties its grants.
+  it("clears a domain's permissions when its access is revoked", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Marge", username: "marge", email: "marge@acme.com" });
+    const id = created.body.data.id as string;
+
+    await request(app).patch(`/v1/users/${id}`).set("authorization", `Bearer ${token}`)
+      .send({
+        entAccess: true,
+        entPerms: ["hr", "finance"],
+        units: ["unit-a"],
+        unitAccess: { "unit-a": true },
+        unitPerms: { "unit-a": ["view", "edit"] },
+      });
+
+    const off = await request(app).patch(`/v1/users/${id}`).set("authorization", `Bearer ${token}`)
+      .send({ entAccess: false, unitAccess: { "unit-a": false } });
+    expect(off.status).toBe(200);
+    expect(off.body.data.entAccess).toBe(false);
+    expect(off.body.data.entPerms).toEqual([]);
+    expect(off.body.data.unitPerms).toEqual({ "unit-a": [] });
+  });
+
+  it("refuses to store permissions for a domain that is not granted", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Ned", username: "ned", email: "ned@acme.com" });
+    const id = created.body.data.id as string;
+
+    const res = await request(app).patch(`/v1/users/${id}`).set("authorization", `Bearer ${token}`)
+      .send({ entAccess: false, entPerms: ["hr"] });
+    expect(res.status).toBe(200);
+    expect(res.body.data.entPerms).toEqual([]);
+  });
+
   it("locks member-level access axes of a Super Administrator on edit", async () => {
     const { token, tenantOrgId } = await seedAdminAndLogin();
     const superRole = await Role.create({ name: "Administrator", tierScope: "Tenant", orgId: tenantOrgId, isSuperAdmin: true, status: true });
