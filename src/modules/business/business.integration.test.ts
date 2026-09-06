@@ -56,8 +56,10 @@ describe("business unit registers", () => {
     const a = await actor("SP", "sp1", ALL);
     const mk = (area: string, mod: string, title: string, data?: Record<string, unknown>) =>
       request(app).post(`/v1/business/${area}/${mod}`).set(authed(a.token)).send({ title, data });
-    expect((await mk("enterprise", "ent-pr", "Developer laptops")).body.data.code).toBe("PR-0001");
-    expect((await mk("enterprise", "ent-po", "Stark Industries Supply")).body.data.code).toBe("PO-0001");
+    // OD's own generators set these bases: `prNextId` starts at PR-3001
+    // (js/modules.js:2927) and `poNextId` at PO-5001 (:3758).
+    expect((await mk("enterprise", "ent-pr", "Developer laptops")).body.data.code).toBe("PR-3001");
+    expect((await mk("enterprise", "ent-po", "Stark Industries Supply")).body.data.code).toBe("PO-5001");
     expect((await mk("exelera", "ex-cab", "PT Sinar Jaya — ISO 9001")).body.data.code).toBe("CB-1001");
     expect((await mk("motoran", "mb-vehicle", "B 1234 XY")).body.data.code).toBe("MB-0001");
     expect((await mk("motoran", "mb-booking", "Fleet booking")).body.data.code).toBe("BK-0001");
