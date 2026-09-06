@@ -3,6 +3,7 @@ import request from "supertest";
 import { createApp } from "../../app";
 import { initModels, Organization, User, Role } from "../../db/models";
 import { IsraThreatLibrary, IsraVulnLibrary, IsraAnnexAControl } from "../../db/models/israLibrary.models";
+import { IsraRtp, IsraRtpAction } from "../../db/models/israTreatmentRtp.models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
@@ -233,6 +234,25 @@ describe("ISRA Core: Asset Map, Scenarios, Method C Scoring & SoA (F-3 to F-6)",
     const approveRes = await request(app).post(`/v1/isra/scenarios/${scen.id}/rtp/approve`).set(authed(token));
     expect(approveRes.status).toBe(200);
     expect(approveRes.body.data.status).toBe("Approved");
+
+    // R339 — editing an APPROVED plan versions it instead of amending it.
+    const editRes = await request(app)
+      .post(`/v1/isra/scenarios/${scen.id}/rtp`)
+      .set(authed(token))
+      .send({ monitoring: "Daily log audits" });
+    expect(editRes.status).toBe(200);
+    expect(editRes.body.data.version).toBe(2);
+    expect(editRes.body.data.status).toBe("Draft");
+    expect(editRes.body.data.approvedBy).toBeNull();
+    expect(editRes.body.data.needsReview).toBe(true);
+    expect(editRes.body.data.monitoring).toBe("Daily log audits");
+    // The approved version survives as history, and the roster came forward.
+    const versions = await IsraRtp.findAll({ where: { scenarioId: scen.id } });
+    expect(versions).toHaveLength(2);
+    const approvedRow = versions.find((r) => r.version === 1);
+    expect(approvedRow?.status).toBe("Approved");
+    expect(approvedRow?.isCurrent).toBe(false);
+    expect(await IsraRtpAction.count({ where: { rtpId: editRes.body.data.id } })).toBe(1);
 
     // 6. Query derived SoA
     const soaRes = await request(app).get("/v1/isra/soa").set(authed(token));

@@ -896,6 +896,55 @@ export async function saveRtp(auth: AuthContext, scenarioId: string, input: Reco
       completionCriteria: str(input.completionCriteria) || "",
       isCurrent: true,
     });
+  } else if (rtp.status === "Approved") {
+    /**
+     * R339 / OD `isra2RtpSave` (js/core.js:15250) — editing an APPROVED plan
+     * does not amend it. The approved version is preserved (it is what an
+     * auditor was shown) and the edit becomes v+1 in Draft with the approval
+     * cleared, because the new content has not been approved by anyone.
+     * Before this, an approved plan could be rewritten in place and still
+     * read "Approved" over content nobody signed off.
+     */
+    const approved = rtp;
+    approved.isCurrent = false;
+    await approved.save();
+    rtp = await IsraRtp.create({
+      scenarioId,
+      cycle: approved.cycle,
+      option: approved.option,
+      title: approved.title,
+      description: approved.description,
+      addedControlIds: approved.addedControlIds,
+      owner: approved.owner,
+      supporting: approved.supporting,
+      resources: approved.resources,
+      startDate: approved.startDate,
+      targetDate: approved.targetDate,
+      expectedEvidence: approved.expectedEvidence,
+      dependencies: approved.dependencies,
+      version: (approved.version || 1) + 1,
+      status: "Draft",
+      createdBy: auth.userId ?? approved.createdBy,
+      approvedBy: null,
+      approvedAt: null,
+      funding: (input.funding as any) ?? approved.funding,
+      monitoring: str(input.monitoring) || approved.monitoring,
+      completionCriteria: str(input.completionCriteria) || approved.completionCriteria,
+      needsReview: true,
+      isCurrent: true,
+    });
+    // Carry the approved version's roster forward, so a v+1 opened without an
+    // explicit `actions` payload is not an empty plan.
+    if (!Array.isArray(input.actions)) {
+      const prior = await IsraRtpAction.findAll({ where: { rtpId: approved.id } });
+      for (const a of prior) {
+        const copy = await IsraRtpAction.create({
+          rtpId: rtp.id, action: a.action, owners: a.owners, targetDate: a.targetDate, status: a.status,
+        });
+        const refs = await IsraRtpActionControl.findAll({ where: { rtpActionId: a.id } });
+        for (const r of refs) await IsraRtpActionControl.create({ rtpActionId: copy.id, annexRef: r.annexRef });
+      }
+    }
   } else {
     rtp.funding = (input.funding as any) || rtp.funding;
     rtp.monitoring = str(input.monitoring) || rtp.monitoring;
