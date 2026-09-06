@@ -66,6 +66,12 @@ export interface PoConfirmationLineItem {
 }
 export interface PoConfirmationView {
   id: string; buyer: string; supplierName: string; supplierEmail: string;
+  /**
+   * R473 — the purchase request this order was raised against, so the supplier
+   * sees the same "Against request …" line the buyer's printed copy carries.
+   * Code only: the request's own contents are not the supplier's to read.
+   */
+  requestCode: string;
   issuedDate: string; deliveryDate: string; currency: string;
   items: PoConfirmationLineItem[];
   subtotal: number; tax: number; total: number;
@@ -111,6 +117,7 @@ function toView(r: BusinessRecord, pr?: BusinessRecord | null): PoConfirmationVi
     supplierName: str(d.supplierName) || title,
     // Not stored on the PO; the supplier is addressed by the emailed link.
     supplierEmail: "",
+    requestCode: pr?.code ?? "",
     issuedDate: str(d.issuedDate) || r.createdAt.toISOString(),
     deliveryDate: str(d.deliveryBy),
     currency: str(d.currency) || "IDR",
