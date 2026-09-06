@@ -6,11 +6,10 @@ import { writeAudit } from "../audit/audit.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 /**
- * The fixed KB category catalog (KB_CATEGORIES). Descriptions mirror the FE's
- * `lib/api/types.ts` KB_CATEGORIES constant (the authoritative source — see
- * the OD→FE/BE gap analysis §2.5 "kb"); OD's own text ("Release Notes: What's
- * new in VIBES.") is superseded by the FE's AXIA-branded rename, which this
- * catalog must agree with rather than carry a third, independent wording.
+ * The fixed KB category catalog (KB_CATEGORIES), matching OD's own text and
+ * fe-vibes-new's `lib/api/types.ts` constant. Both repos previously carried an
+ * AXIA-branded rewrite of the Release Notes line ("What's new in AXIA.") and
+ * agreed with each other while diverging from the design together.
  */
 export const KB_CATEGORIES: { id: string; name: string; desc: string }[] = [
   { id: "platform", name: "Platform Guides", desc: "Getting started and day-to-day platform tasks." },
@@ -19,7 +18,7 @@ export const KB_CATEGORIES: { id: string; name: string; desc: string }[] = [
   { id: "partner", name: "Partner Program", desc: "Partner tiers, revenue share, and onboarding." },
   { id: "troubleshooting", name: "Troubleshooting", desc: "Fixes for common issues." },
   { id: "faq", name: "FAQs", desc: "Frequently asked questions." },
-  { id: "release", name: "Release Notes", desc: "What's new in AXIA." },
+  { id: "release", name: "Release Notes", desc: "What’s new in VIBES." },
 ];
 const CAT_NAME: Record<string, string> = Object.fromEntries(KB_CATEGORIES.map((c) => [c.id, c.name]));
 
