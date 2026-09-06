@@ -107,6 +107,10 @@ const MODULE_FIELDS: Record<string, string[]> = {
    "payAdvance", "payAnchor", "payRetention", "prId", "sentAt", "sentCount", "supplierId",
    "supplierName", "terms", "voided", "voidedAt",
   ],
+  // R496 — the DOA matrix: approval bands and per-category sourcing methods.
+  "ent-doa": [
+   "approver", "co", "currency", "finance", "kind", "max", "method", "quotes", "type",
+  ],
   // R822 — the Website CMS's five collections (FE app/(app)/platform/website-cms).
   "ent-mkt-media": [
    "alt", "co", "size", "type", "uploadedBy",

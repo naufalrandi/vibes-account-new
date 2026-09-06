@@ -570,6 +570,28 @@ const entPoDataSchema = z
 const entPoTermsDataSchema = z.object({ text: str, order: numeric, co }).strict();
 
 /**
+ * R496 — the Delegation of Authority matrix (`ent-doa`). One module holds two
+ * record shapes: an approval BAND (`max`/`currency`/`approver`/`finance`/
+ * `quotes`, with the approver kind carried in `status`) and a per-category
+ * sourcing METHOD (`kind: "method"`, with Order/Direct in `status`). The FE
+ * has posted to this key all along with no registered schema — see
+ * `EnterpriseProcurementPolicyPage`.
+ */
+const entDoaDataSchema = z
+  .object({
+    kind: str,
+    type: str,
+    max: numeric,
+    currency: str,
+    approver: str,
+    finance: bool,
+    quotes: bool,
+    method: str,
+    co,
+  })
+  .strict();
+
+/**
  * R822 / R173 — the Website CMS's five `ent-mkt-*` collections. The FE posts
  * to them (`app/(app)/platform/website-cms/cms-shared.tsx`) but they had no
  * registered schema, so every CMS write fell through unvalidated and the
@@ -740,6 +762,7 @@ export const BUSINESS_DATA_SCHEMAS: Record<string, z.ZodTypeAny> = {
   "ent-minwage": entMinwageDataSchema,
   "ent-payroll": entPayrollDataSchema,
   "ent-po": entPoDataSchema,
+  "ent-doa": entDoaDataSchema,
   "ent-mkt-media": entMktMediaDataSchema,
   "ent-mkt-menu": entMktMenuDataSchema,
   "ent-mkt-pages": entMktPagesDataSchema,

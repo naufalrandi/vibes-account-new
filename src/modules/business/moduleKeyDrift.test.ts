@@ -61,7 +61,6 @@ const KNOWN_UNREGISTERED_FE_KEYS = new Set([
   "dn-pentest",
   "dn-software",
   "ent-orgstructure",
-  "ent-doa",
   "ent-suppliers",
 ]);
 
