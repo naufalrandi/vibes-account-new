@@ -55,7 +55,7 @@ describe("Proposal lifecycle (enterprise/ent-proposals) — transitions + item/d
     expect(res.status).toBe(201);
     expect(res.body.data.code).toMatch(/^PRO-\d+$/);
     // sub = 10*1,000,000 = 10,000,000; tax = 10,000,000*0.11 = 1,100,000; total = 11,100,000
-    expect(res.body.data.data.totals).toEqual({ sub: 10_000_000, discount: 0, tax: 1_100_000, total: 11_100_000 });
+    expect(res.body.data.data.totals).toEqual({ sub: 10_000_000, disc: 0, tax: 1_100_000, total: 11_100_000 });
   });
 
   it("discards a client-supplied totals value and recomputes it server-side", async () => {
@@ -174,7 +174,7 @@ describe("Proposal lifecycle (enterprise/ent-proposals) — transitions + item/d
       taxPct: 11,
     });
     expect(res.status).toBe(201);
-    expect(res.body.data.data.totals).toEqual({ sub: 100, discount: 1000, tax: 0, total: 0 });
+    expect(res.body.data.data.totals).toEqual({ sub: 100, disc: 1000, tax: 0, total: 0 });
   });
 
   it("rejects a proposal missing currency", async () => {

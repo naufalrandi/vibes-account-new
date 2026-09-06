@@ -23,9 +23,13 @@ export interface ProposalItem {
   courseLink?: string;
 }
 
+/** OD `propCalc` (js/modules.js:2452) names the discount key `disc` and returns the
+ *  RAW entered amount, not the clamped applied one. fe-vibes-new was aligned to that
+ *  in the sales pass; this is the backend half so the persisted `data.totals` object
+ *  round-trips with the same key on both sides. */
 export interface ProposalTotals {
   sub: number;
-  discount: number;
+  disc: number;
   tax: number;
   total: number;
 }
@@ -37,7 +41,7 @@ export function computeProposalTotals(items: ProposalItem[], discount: number, t
   const disc = Number(discount) || 0;
   const afterDisc = Math.max(0, sub - disc);
   const tax = afterDisc * ((Number(taxPct) || 0) / 100);
-  return { sub, discount: disc, tax, total: afterDisc + tax };
+  return { sub, disc, tax, total: afterDisc + tax };
 }
 
 function assertValidItems(itemsRaw: unknown): ProposalItem[] {
