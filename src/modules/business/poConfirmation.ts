@@ -147,11 +147,26 @@ export async function findPoByToken(code: string, token: string): Promise<Busine
   return null;
 }
 
-/** The purchase request a PO was raised from, when it names one. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The purchase request a PO was raised from, when it names one. `prId` may be
+ * the record's UUID or its human code (`PR-3001`) depending on who wrote the
+ * PO, and a non-UUID in a UUID column throws — so the shape decides the lookup.
+ */
 async function requestOf(r: BusinessRecord): Promise<BusinessRecord | null> {
   const prId = str((r.data as Record<string, unknown> | null)?.prId);
   if (!prId) return null;
-  return BusinessRecord.findOne({ where: { area: PO_AREA, module: "ent-pr", id: prId } });
+  const where = UUID_RE.test(prId)
+    ? { area: PO_AREA, module: "ent-pr", id: prId }
+    : { area: PO_AREA, module: "ent-pr", code: prId };
+  try {
+    return await BusinessRecord.findOne({ where });
+  } catch {
+    // A malformed reference must not take the public confirmation page down —
+    // the view falls back to the PO's own total.
+    return null;
+  }
 }
 
 export async function getPoConfirmation(code: string, token: string): Promise<PoConfirmationView | null> {
