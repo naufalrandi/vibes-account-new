@@ -112,9 +112,10 @@ const MODULE_FIELDS: Record<string, string[]> = {
   ],
   "ent-pr": [
    "activity", "category", "co", "currency", "department", "description", "duration", "estCost",
-   "exRate", "intakeReview", "invoice", "kind", "method", "needBy", "origCurrency", "poId",
-   "purpose", "qc", "qty", "quotes", "rateBasis", "receipt", "remarks", "requestType",
-   "requester", "selectReason", "supplier", "supplierName", "unit", "unitValue",
+   "exRate", "handoverQc", "intakeReview", "invoice", "kind", "method", "needBy", "origCurrency",
+   "poId", "purpose", "qc", "qcDamageCharge", "qty", "quotes", "rateBasis", "receipt", "remarks",
+   "requestType", "requester", "selectReason", "sourceNote", "supplier", "supplierName", "unit",
+   "unitValue",
   ],
   "ent-projects": [
    "activity", "client", "co", "contractCode", "contractId", "currency", "deliver", "endDate",

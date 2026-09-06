@@ -527,10 +527,15 @@ const entPrDataSchema = z
     supplierName: str,
     quotes: arr,
     selectReason: str,
+    sourceNote: str,
     intakeReview: nullableObj,
     poId: str,
     receipt: nullableObj,
     qc: nullableObj,
+    // R495 — a Rental's handover inspection is its own record, and the return
+    // stamps whether it closed with a damage charge.
+    handoverQc: nullableObj,
+    qcDamageCharge: z.boolean().optional(),
     invoice: nullableObj,
     co,
   })
