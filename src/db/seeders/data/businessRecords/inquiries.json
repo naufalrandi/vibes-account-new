@@ -1,5 +1,5 @@
 {
- "count": 22,
+ "count": 27,
  "fields": [
   "id",
   "leadId",
@@ -682,6 +682,116 @@
     }
    ],
    "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3014",
+   "leadId": "LD-3206",
+   "service": "assess",
+   "variant": "Maturity Assessment",
+   "status": "Cold Leads",
+   "sq": {},
+   "leadName": "PT Brand Corporation",
+   "serviceName": "Framework Assessment",
+   "notes": "",
+   "createdAt": "2026-08-31T09:40:42.327Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.327Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Framework Assessment"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3015",
+   "leadId": "LD-3206",
+   "service": "comp",
+   "variant": "Personnel certification",
+   "status": "Qualified",
+   "sq": {},
+   "leadName": "PT Brand Corporation",
+   "serviceName": "Competence Development",
+   "notes": "",
+   "createdAt": "2026-08-31T09:40:42.327Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.327Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Competence Development"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3016",
+   "leadId": "LD-3207",
+   "service": "impl",
+   "variant": "Full Consultancy",
+   "status": "Negotiation",
+   "sq": {},
+   "leadName": "PT Cross Technological Enterprises",
+   "serviceName": "Framework Implementation",
+   "notes": "",
+   "createdAt": "2026-08-31T09:40:42.327Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.327Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Framework Implementation"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3017",
+   "leadId": "LD-3207",
+   "service": "audit",
+   "variant": "1st-party (internal)",
+   "status": "Potential",
+   "sq": {},
+   "leadName": "PT Cross Technological Enterprises",
+   "serviceName": "Framework Audit",
+   "notes": "",
+   "createdAt": "2026-08-31T09:40:42.327Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.327Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Framework Audit"
+    }
+   ],
+   "lifecycle": "Open",
+   "source": "On-behalf"
+  },
+  {
+   "id": "INQ-3018",
+   "leadId": "LD-3208",
+   "service": "comp",
+   "variant": "In-house training",
+   "status": "Acquired",
+   "sq": {},
+   "leadName": "PT Hammer Industries",
+   "serviceName": "Competence Development",
+   "notes": "",
+   "createdAt": "2026-08-31T09:40:42.327Z",
+   "activity": [
+    {
+     "ts": "2026-08-31T09:40:42.327Z",
+     "user": "System",
+     "action": "created",
+     "summary": "Competence Development"
+    }
+   ],
+   "lifecycle": "Acquired",
    "source": "On-behalf"
   }
  ]
