@@ -256,8 +256,6 @@ const KNOWN_UNVALIDATED_FE_FIELDS: Record<string, string[]> = {
   // `EnterpriseInquiriesPage` convert-to-proposal, `EnterpriseProposalsPage`
   // convert-to-contract, `EnterpriseServiceContractsPage` convert-to-project.
   "ent-inq": ["proposalId", "proposalCode", "contractId", "contractCode", "projectId", "projectCode"],
-  // `EnterpriseProposalsPage` stamps the contract it produced.
-  "ent-proposals": ["contractId", "contractCode"],
   // `EnterpriseServiceContractsPage` stamps the project it produced. The
   // schema declares `propId` (upstream) but nothing downstream.
   "ent-svc-contracts": ["projectId"],

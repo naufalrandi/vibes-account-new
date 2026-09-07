@@ -158,10 +158,10 @@ const MODULE_FIELDS: Record<string, string[]> = {
    "variant",
   ],
   "ent-proposals": [
-   "activity", "cert", "clauseIds", "co", "contractTypeId", "contractTypeTitle", "currency",
-   "decidedAt", "discount", "inqId", "items", "leadId", "leadName", "notes", "projectId",
-   "sentAt", "service", "serviceId", "serviceName", "taxPct", "termIds", "terms", "totalValue",
-   "totals", "validUntil", "variant",
+   "activity", "cert", "clauseIds", "co", "contractCode", "contractId", "contractTypeId",
+   "contractTypeTitle", "currency", "decidedAt", "discount", "inqId", "items", "leadId",
+   "leadName", "notes", "projectId", "sentAt", "service", "serviceId", "serviceName", "taxPct",
+   "termIds", "terms", "totalValue", "totals", "validUntil", "variant",
   ],
   "ent-recruitment": [
    "activity", "appliedDate", "co", "contract", "department", "description", "education",
@@ -244,6 +244,18 @@ describe("ent-proposals data schema", () => {
       totals: { sub: 100, discount: 0, tax: 11, total: 111 },
       cert: { standards: ["ISO 9001"], personnel: 5 },
       clauseIds: ["c1"],
+    };
+    expect(schema.parse(data)).toEqual(data);
+  });
+
+  /** R548 / M-151 — `issueContract` re-saves the proposal with the contract it
+   *  just minted stamped on; `.strict()` 400'd the whole save without these. */
+  it("accepts the contractId/contractCode stamp and the prose terms string", () => {
+    const data = {
+      leadId: "LD-2001", leadName: "Acme", serviceId: "impl", service: "impl",
+      contractTypeId: null, contractTypeTitle: null, terms: "50% on signing, 50% on delivery",
+      termIds: ["c1"], sentAt: null, decidedAt: null, projectId: null,
+      contractId: "SC-9001", contractCode: "SCT-0007",
     };
     expect(schema.parse(data)).toEqual(data);
   });

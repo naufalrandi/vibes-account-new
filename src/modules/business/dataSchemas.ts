@@ -238,6 +238,10 @@ const entProposalsDataSchema = z
     sentAt: z.string().nullish(),
     decidedAt: z.string().nullish(),
     projectId: z.string().nullish(),
+    // R548 — stamped back onto the proposal by EnterpriseProposalsPage's contract
+    // issue (`issueContract`), the same pair `ent-inq` already accepts above.
+    contractId: z.string().nullish(),
+    contractCode: z.string().nullish(),
     /** OD `proposalStart` (js/modules.js:2502) stores clause ids in `termIds` and has no
      *  `terms` key at all; this port's proposal form additionally posts the prose
      *  payment-milestone text here (`propDefaultTerms`). Accepts both — same union as
