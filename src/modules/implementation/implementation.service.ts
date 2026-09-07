@@ -5,6 +5,7 @@ import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
 import { MS_MODULES, isMsModule, enrichData, riskBandsFor } from "./registry";
+import { assertDesignTransition } from "./designLifecycle";
 import {
   assertReviewCreateStatus, assertReviewSchedule, assertReviewTransition,
   assignReviewTopicIds, reviewTransitionStamp,
@@ -703,6 +704,11 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
   if (input.title !== undefined) r.title = input.title.trim();
   if (input.status !== undefined) {
     assertStatus(module, input.status);
+    // The design stage machine's own contract: "Enforced on every status write, not
+    // just the dedicated Advance action" (designLifecycle.ts). It was enforced
+    // nowhere, so an out-of-order jump — Concept straight to Released — went
+    // through any ordinary status edit.
+    if (module === "design") assertDesignTransition(r.status, input.status);
     r.status = input.status;
   }
   if (input.owner !== undefined) r.owner = input.owner;

@@ -167,6 +167,28 @@ describe("ISO clause registers (implementation)", () => {
     expect(archived.body.data.status).toBe("Archived");
   });
 
+  // `designLifecycle.ts` states its own contract — "Enforced on every status write,
+  // not just the dedicated Advance action" — and was enforced nowhere: the guard was
+  // written and unit-tested but no call site existed, so an ordinary status edit could
+  // jump Concept straight to Released. "On Hold"/"Retired" sit outside the ladder and
+  // stay freely reachable, which the test above already pins.
+  it("refuses an out-of-order design stage jump but allows the next stage", async () => {
+    const { token } = await makeTenant("t1", "TEN1");
+    const created = await request(app).post("/v1/implementation/design").set(authed(token))
+      .send({ title: "Sensor Gate V4", status: "Concept", data: { kind: "Product" } });
+    const id = created.body.data.id;
+
+    const skipped = await request(app).put(`/v1/implementation/design/${id}`).set(authed(token))
+      .send({ title: "Sensor Gate V4", status: "Released" });
+    expect(skipped.status).toBe(400);
+    expect(skipped.body.error.code).toBe("INVALID_TRANSITION");
+
+    const stepped = await request(app).put(`/v1/implementation/design/${id}`).set(authed(token))
+      .send({ title: "Sensor Gate V4", status: "In Design" });
+    expect(stepped.status).toBe(200);
+    expect(stepped.body.data.status).toBe("In Design");
+  });
+
   // G-55: OD `bpForm`/`bpArchive` (app.html:24565,24570) refuse to save any
   // change to a Seeded business process ("Seeded processes cannot be
   // edited"/"...cannot be archived"). A Tenant Created process is unaffected.
