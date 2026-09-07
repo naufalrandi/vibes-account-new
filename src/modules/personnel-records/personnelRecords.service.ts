@@ -2,7 +2,7 @@ import { User, Organization, ResumeRecord, LeaveRecord, DisciplinaryRecord, Perf
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
-import { RESUME_RECORD_TYPES, LEAVE_TYPES, LEAVE_STATUSES, DISCIPLINARY_STATUSES, type ResumeRecordType, type LeaveStatus, type DisciplinaryStatus } from "../../db/models/personnelRecords.models";
+import { RESUME_RECORD_TYPES, LEAVE_TYPES, LEAVE_STATUSES, DISCIPLINARY_STATUSES, DISCIPLINARY_SEVERITIES, PERFORMANCE_RATINGS, type ResumeRecordType, type LeaveStatus, type DisciplinaryStatus, type DisciplinarySeverity, type PerformanceRating } from "../../db/models/personnelRecords.models";
 
 /**
  * Resolve the target personnel record's owning User, enforcing the same
@@ -218,6 +218,11 @@ export async function createDisciplinaryRecord(
   if (!DISCIPLINARY_STATUSES.includes(status as DisciplinaryStatus)) {
     throw new BadRequestError(`status must be one of ${DISCIPLINARY_STATUSES.join(", ")}`, "INVALID_STATUS");
   }
+  // OD `personAddDisc` (modules.js:5525) writes the `di-sev` Low/Medium/High select.
+  const severity = input.severity ?? null;
+  if (severity !== null && !DISCIPLINARY_SEVERITIES.includes(severity as DisciplinarySeverity)) {
+    throw new BadRequestError(`severity must be one of ${DISCIPLINARY_SEVERITIES.join(", ")}`, "INVALID_SEVERITY");
+  }
   const record = await DisciplinaryRecord.create({
     orgId: user.orgId,
     userId: user.id,
@@ -225,7 +230,7 @@ export async function createDisciplinaryRecord(
     incidentDate: input.incidentDate,
     description: input.description,
     actionTaken: input.actionTaken ?? null,
-    severity: input.severity ?? null,
+    severity: severity as DisciplinarySeverity | null,
     status: status as DisciplinaryStatus,
     createdBy: auth.userId,
   });
@@ -264,6 +269,8 @@ export async function deleteDisciplinaryRecord(auth: AuthContext, userId: string
 export interface CreatePerformanceRecordInput {
   reviewPeriod: string;
   rating: string;
+  /** Free text, as OD stores it — `<input id="pf-rev">` (modules.js:5526), seeded 'Board'. */
+  reviewer?: string | null;
   reviewerId?: string | null;
   comments?: string | null;
 }
@@ -280,11 +287,16 @@ export async function createPerformanceRecord(
   ip: string | null,
 ): Promise<PerformanceRecord> {
   const user = await requireManagedUser(auth, userId);
+  // OD `personAddPerf` (modules.js:5526) writes the `pf-rating` Exceeds/Meets/Below select.
+  if (!PERFORMANCE_RATINGS.includes(input.rating as PerformanceRating)) {
+    throw new BadRequestError(`rating must be one of ${PERFORMANCE_RATINGS.join(", ")}`, "INVALID_RATING");
+  }
   const record = await PerformanceRecord.create({
     orgId: user.orgId,
     userId: user.id,
     reviewPeriod: input.reviewPeriod,
-    rating: input.rating,
+    rating: input.rating as PerformanceRating,
+    reviewer: input.reviewer ?? null,
     reviewerId: input.reviewerId ?? null,
     comments: input.comments ?? null,
     createdBy: auth.userId,

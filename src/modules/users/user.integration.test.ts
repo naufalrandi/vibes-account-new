@@ -284,13 +284,60 @@ describe("users", () => {
     const id = created.body.data.id as string;
 
     const res = await request(app).patch(`/v1/users/${id}`).set("authorization", `Bearer ${token}`)
-      .send({ fullName: "Hank Hill", status: "Active", permissionMode: "Custom Access", permissions: ["team", "tenant"] });
+      .send({
+        fullName: "Hank Hill", status: "Active", permissionMode: "Custom Access",
+        // OD `acSave` (js/core.js:5222) derives `permissions` from the menu-key
+        // set, so the grant is expressed as navPerms; the caller's `permissions`
+        // array is ignored on purpose.
+        navPerms: ["sp-billing", "sp-tickets"], permissions: ["team", "tenant"],
+      });
     expect(res.status).toBe(200);
     expect(res.body.data.fullName).toBe("Hank Hill");
     expect(res.body.data.status).toBe("Active");
     expect(res.body.data.permissionMode).toBe("Custom Access");
-    expect(res.body.data.permissions).toEqual(["team", "tenant"]);
+    expect(res.body.data.navPerms).toEqual(["sp-billing", "sp-tickets"]);
+    expect(res.body.data.permissions).toEqual(["billing", "ticket"]);
+    // Every granted menu carries an action list, and 'view' is always in it.
+    expect(res.body.data.navActions["sp-billing"]).toContain("view");
     expect(res.body.data).not.toHaveProperty("passwordHash");
+  });
+
+  // R795 / OD js/core.js:5222 — `permissions` is computed from the role group on
+  // every save, so a fixed-module group can never hold another group's modules.
+  it("derives permissions from the role group and ignores the caller's array", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    await Role.create({ name: "Billing Manager", tierScope: "Tenant", orgId: tenantOrgId, isSuperAdmin: false, status: true });
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Dale", username: "dale", email: "dale@acme.com" });
+    const id = created.body.data.id as string;
+
+    const res = await request(app).patch(`/v1/users/${id}`).set("authorization", `Bearer ${token}`)
+      .send({ role: "Billing Manager", permissions: ["framework", "tenant"] });
+    expect(res.status).toBe(200);
+    expect(res.body.data.permissions).toEqual(["billing"]);
+    // js/core.js:5219 — only an Administrator holds a permission mode.
+    expect(res.body.data.permissionMode).toBeNull();
+    // acPreset('Billing Manager') (js/core.js:4999), 'org-profile' included.
+    expect(res.body.data.navPerms).toEqual(["org-profile", "sp-billing", "sp-subs"]);
+    // R797 / js/core.js:5226 — granting access to an unprovisioned member resets
+    // it to Pending Activation and mails a fresh activation link.
+    expect(res.body.data.status).toBe("Pending Activation");
+    expect((await User.findByPk(id))?.activationToken).toBeTruthy();
+  });
+
+  // R796 / OD js/core.js:5221 — an Administrator in Custom Access with no menu
+  // keys aborts the whole save; the derived module list is not evidence of a grant.
+  it("refuses an Administrator in Custom Access with no menu keys", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    await Role.create({ name: "Administrator", tierScope: "Tenant", orgId: tenantOrgId, isSuperAdmin: false, status: true });
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Nancy", username: "nancy", email: "nancy@acme.com", role: "Administrator" });
+    const id = created.body.data.id as string;
+
+    const res = await request(app).patch(`/v1/users/${id}`).set("authorization", `Bearer ${token}`)
+      .send({ permissionMode: "Custom Access", navPerms: [], permissions: ["team"] });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("EMPTY_CUSTOM_ACCESS");
   });
 
   // Member-level access axes (SOF-84, split out of SOF-74): Enterprise
@@ -305,17 +352,40 @@ describe("users", () => {
     const res = await request(app).patch(`/v1/users/${id}`).set("authorization", `Bearer ${token}`)
       .send({
         entAccess: true,
-        entPerms: ["hr", "finance"],
-        units: ["unit-a", "unit-b"],
-        unitAccess: { "unit-a": true, "unit-b": false },
-        unitPerms: { "unit-a": ["view", "edit"] },
+        entPerms: ["ent-doa", "ent-audits"],
+        units: ["lims", "atr"],
+        unitAccess: { lims: true, atr: false },
+        unitPerms: { lims: ["lims-samples", "lims-tests"] },
       });
     expect(res.status).toBe(200);
     expect(res.body.data.entAccess).toBe(true);
-    expect(res.body.data.entPerms).toEqual(["hr", "finance"]);
-    expect(res.body.data.units).toEqual(["unit-a", "unit-b"]);
-    expect(res.body.data.unitAccess).toEqual({ "unit-a": true, "unit-b": false });
-    expect(res.body.data.unitPerms).toEqual({ "unit-a": ["view", "edit"] });
+    expect(res.body.data.entPerms).toEqual(["ent-doa", "ent-audits"]);
+    expect(res.body.data.units).toEqual(["lims", "atr"]);
+    // R798 / js/core.js:5240-5242 — all six AC_UNITS, explicit boolean per key.
+    expect(res.body.data.unitAccess).toEqual({
+      lims: true, atr: false, acert: false, abizc: false, datana: false, motoran: false,
+    });
+    expect(res.body.data.unitPerms.lims).toEqual(["lims-samples", "lims-tests"]);
+    expect(res.body.data.unitPerms.atr).toEqual([]);
+    expect(res.body.data.unitActions.lims["lims-samples"]).toContain("view");
+    expect(res.body.data.entActions["ent-doa"]).toContain("view");
+  });
+
+  // R815 / OD `acSave` only ever writes catalog members (MODULES js/core.js:112,
+  // acEntAllKeys :5020, AC_UNITS :5041) — an unknown key is a client bug.
+  it("rejects access keys outside the OD catalogs", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
+      .send({ orgId: tenantOrgId, fullName: "Bill", username: "billd", email: "billd@acme.com" });
+    const id = created.body.data.id as string;
+    const patch = (body: Record<string, unknown>) =>
+      request(app).patch(`/v1/users/${id}`).set("authorization", `Bearer ${token}`).send(body);
+
+    expect((await patch({ units: ["nonexistent"] })).status).toBe(400);
+    expect((await patch({ entPerms: ["not-an-ent-key"] })).status).toBe(400);
+    expect((await patch({ unitAccess: { nope: true } })).status).toBe(400);
+    // A unit may only hold its own item keys.
+    expect((await patch({ unitPerms: { lims: ["atr-courses"] } })).status).toBe(400);
   });
 
   // R796 / OD acSave (js/core.js:5229-5230, 5241) writes each access flag and
@@ -329,18 +399,19 @@ describe("users", () => {
     await request(app).patch(`/v1/users/${id}`).set("authorization", `Bearer ${token}`)
       .send({
         entAccess: true,
-        entPerms: ["hr", "finance"],
-        units: ["unit-a"],
-        unitAccess: { "unit-a": true },
-        unitPerms: { "unit-a": ["view", "edit"] },
+        entPerms: ["ent-doa", "ent-audits"],
+        units: ["lims"],
+        unitAccess: { lims: true },
+        unitPerms: { lims: ["lims-samples", "lims-tests"] },
       });
 
     const off = await request(app).patch(`/v1/users/${id}`).set("authorization", `Bearer ${token}`)
-      .send({ entAccess: false, unitAccess: { "unit-a": false } });
+      .send({ entAccess: false, unitAccess: { lims: false } });
     expect(off.status).toBe(200);
     expect(off.body.data.entAccess).toBe(false);
     expect(off.body.data.entPerms).toEqual([]);
-    expect(off.body.data.unitPerms).toEqual({ "unit-a": [] });
+    expect(off.body.data.unitPerms.lims).toEqual([]);
+    expect(off.body.data.unitActions.lims).toEqual({});
   });
 
   it("refuses to store permissions for a domain that is not granted", async () => {
@@ -350,7 +421,7 @@ describe("users", () => {
     const id = created.body.data.id as string;
 
     const res = await request(app).patch(`/v1/users/${id}`).set("authorization", `Bearer ${token}`)
-      .send({ entAccess: false, entPerms: ["hr"] });
+      .send({ entAccess: false, entPerms: ["ent-doa"] });
     expect(res.status).toBe(200);
     expect(res.body.data.entPerms).toEqual([]);
   });

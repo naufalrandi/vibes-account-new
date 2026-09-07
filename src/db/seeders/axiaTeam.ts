@@ -21,11 +21,14 @@ import type { PermissionMode, UserStatus } from "../models/user.model";
  *    `ensureUser("admin", ...)`. OD collapses the platform owner and the demo
  *    administrator login into one row; here they are two.
  *
- * `axia2` previously deviated too (`natalia.romanova@axia.io`), on the grounds
- * that `seedCompetenceRolesAndAssignments` had already created her under that
- * address — but that seeder derives `SP_TEAM` from this very table
- * (`competenceRoles.ts`), so there was never a collision to avoid. Restored to
- * OD's `billing@axia.io` (core.js:152).
+ * Every other email here is OD's RUNTIME value, not its `seedUsers` literal:
+ * `alignSeedEmails`/`alignEmailOn` (js/core.js:340-348) rewrites every
+ * `db.users[].email` to `first.last@<domain>` on every boot, called
+ * unconditionally from `render()` (js/core.js:2682). So `billing@axia.io`
+ * (core.js:152) is never what Team Management shows for Natalia Alianovna
+ * Romanova — `natalia.romanova@axia.io` is — and the same holds for axia3-6,
+ * axia10 and axia12. Transcribing the seed literals put six wrong addresses in
+ * the Email column; the other eight seed literals already equal first.last.
  *
  * Everything else — usernames, titles, departments, statuses, role groups,
  * permission modes, permission keys and unit grants — is OD verbatim.
@@ -64,7 +67,7 @@ export const AXIA_TEAM: readonly AxiaTeamMember[] = [
     roleGroup: "Administrator", permissionMode: "Full Access", permissions: [...SP_MODULES],
     title: "Platform Owner", department: "Executive", phone: "+62 811 1000 100",
     status: "Active", superAdmin: true, provisioned: true, units: [], createdAt: may(1), lastLogin: may(20) },
-  { odId: "axia2", username: "billing.lead", email: "billing@axia.io", fullName: "Natalia Alianovna Romanova",
+  { odId: "axia2", username: "billing.lead", email: "natalia.romanova@axia.io", fullName: "Natalia Alianovna Romanova",
     roleGroup: "Billing Manager", permissionMode: null, permissions: ["billing"],
     title: "Billing Lead", department: "Finance", phone: null,
     status: "Active", superAdmin: false, provisioned: true, units: [], createdAt: may(1), lastLogin: null },
@@ -138,8 +141,8 @@ export async function seedAxiaTeam(spOrgId: string): Promise<Map<string, string>
     const [user, created] = await User.findOrCreate({
       where: { email: m.email },
       defaults: {
-        orgId: spOrgId, tenantId: null, fullName: m.fullName, username: m.username, email: m.email,
-        passwordHash: null, status: m.status, position: m.title, workUnit: null,
+        orgId: spOrgId, tenantId: null, code: m.odId, fullName: m.fullName, username: m.username, email: m.email,
+        passwordHash: null, status: m.status, position: m.title, workUnit: null, superAdmin: m.superAdmin,
         lastLogin: m.lastLogin, activationToken: null, resetToken: null, resetExpires: null,
         permissionMode: m.permissionMode, permissions: m.permissions,
         department: m.department, provisioned: m.provisioned, units: m.units,
@@ -156,6 +159,7 @@ export async function seedAxiaTeam(spOrgId: string): Promise<Map<string, string>
     const bare = !created && user.department === null;
     if (bare) {
       user.set({
+        code: m.odId, superAdmin: m.superAdmin,
         fullName: m.fullName, username: m.username, status: m.status, position: m.title,
         phone: m.phone, permissionMode: m.permissionMode, permissions: m.permissions,
         department: m.department, provisioned: m.provisioned, units: m.units, lastLogin: m.lastLogin,
@@ -164,7 +168,12 @@ export async function seedAxiaTeam(spOrgId: string): Promise<Map<string, string>
     }
 
     if (created || bare) {
-      const role = m.roleGroup ? roleByName.get(m.superAdmin ? "Super Admin" : m.roleGroup) : undefined;
+      // OD's super-admin is the per-user boolean `u.superAdmin` (core.js:151)
+      // sitting ALONGSIDE a role group drawn from `ROLE_GROUPS`; it extends the
+      // group, it does not replace it. Attaching the platform owner to a hidden
+      // "Super Admin" role instead left him holding a group the design has no
+      // member for — the flag now lives on `User.superAdmin`.
+      const role = m.roleGroup ? roleByName.get(m.roleGroup) : undefined;
       await (user as unknown as { setRoles(roles: Role[]): Promise<void> }).setRoles(role ? [role] : []);
     }
     idByOdId.set(m.odId, user.id);

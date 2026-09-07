@@ -121,7 +121,10 @@ describe("ISRA reference-library seed (F-2b)", () => {
     // no generated ones, and OD's runtime enrichment applied.
     const curated = await IsraKmVulnControl.findAll({ where: { vulnId: "VUL-0143" } });
     expect(curated.map((e) => e.annexRef).sort()).toEqual(["A.8.26", "A.8.28"]);
-    expect(curated.every((e) => e.status === "Published" && e.source === "platform")).toBe(true);
+    // "Approved", not "Published" — OD's edge vocabulary (ISRA_KM_STATUSES,
+    // js/core.js:15795) has no "Published"; that is the map-level state on
+    // `_israMapMeta`, asserted separately below.
+    expect(curated.every((e) => e.status === "Approved" && e.source === "platform")).toBe(true);
     expect(curated.every((e) => e.role !== null && e.affects !== null && e.strength !== null)).toBe(true);
 
     // VUL-0001 "Unsupported hardware" is generated-only — the first row of

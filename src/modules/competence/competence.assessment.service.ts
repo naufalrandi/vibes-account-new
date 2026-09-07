@@ -2,9 +2,10 @@ import { Op, Model, type ModelStatic } from "sequelize";
 import {
   CompetenceRole, CompetenceAssignment, CompetenceAssessment, CompetenceGap,
   CompetenceSkill, CompetenceTraining, CompetenceEducation, User,
+  ReferenceIndustrySector,
 } from "../../db/models";
 import {
-  ROLE_STATUS, ASSESS_STATUS,
+  ROLE_STATUS, ASSESS_STATUS, GAP_STATUS,
   type AssessReqResult, type ProfileItem, type ProfileRequirement,
 } from "../../db/models/competence.models";
 import type { AuthContext } from "../../lib/scope";
@@ -13,6 +14,7 @@ import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
 import { assertMayApprove } from "../approvals/approval.service";
 import { getCompSettings } from "./competence.service";
+import { ISIC } from "../reference/data/isic";
 import { BadRequestError, ForbiddenError, NotFoundError, ConflictError } from "../../lib/errors";
 
 const nowIso = () => new Date().toISOString();
@@ -198,6 +200,38 @@ function collectComps(items: ProfileItem[]): Map<string, ProfileRequirement> {
   return out;
 }
 
+/**
+ * OD `secCbxDisplay` (js/modules.js:485) — a role's work-experience sector
+ * renders as "`code` — `label`" ("C — Manufacturing"), never as the stored
+ * reference. OD keeps one `db.sectors` store so the stored value IS the row
+ * id; this port stores the ISIC `code` (the picker's own value, see
+ * referenceDb.service `deleteIndustrySector`), and OD-derived role profiles
+ * still carry the `isic-` id prefix, so both forms resolve to the same row.
+ *
+ * The tenant's own `reference_industry_sectors` copy wins where it exists — it
+ * is editable — and the shared ISIC dataset it is seeded from covers a tenant
+ * that has not opened the Reference DB yet. Unknown codes render as OD does:
+ * no sector segment at all.
+ */
+const sectorCode = (v: string): string => v.replace(/^[a-z]+-/, "");
+async function sectorDisplayMap(orgId: string | null, sectors: readonly string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const wanted = sectors.filter(Boolean);
+  if (!wanted.length) return out;
+  const codes = Array.from(new Set(wanted.map(sectorCode)));
+  const byCode = new Map<string, string>();
+  for (const row of ISIC) if (codes.includes(row.code)) byCode.set(row.code, `${row.code} — ${row.label}`);
+  if (orgId) {
+    const rows = await ReferenceIndustrySector.findAll({ where: { orgId, code: { [Op.in]: codes } } });
+    for (const r of rows) byCode.set(r.code, `${r.code} — ${r.label}`);
+  }
+  for (const raw of wanted) {
+    const display = byCode.get(sectorCode(raw));
+    if (display) out.set(raw, display);
+  }
+  return out;
+}
+
 export async function buildChecklist(role: CompetenceRole): Promise<AssessReqResult[]> {
   const skills = new Map((await CompetenceSkill.findAll()).map((s) => [s.id, s]));
   const training = new Map((await CompetenceTraining.findAll()).map((t) => [t.id, t]));
@@ -218,10 +252,11 @@ export async function buildChecklist(role: CompetenceRole): Promise<AssessReqRes
       methods: ["Record review"], method: "Record review",
     }));
   }
-  for (const e of role.expReqs ?? []) {
-    // OD skips an experience row that carries neither a sector nor a year count.
-    if (!e.sector && !e.years) continue;
-    const sector = e.sector ? ` — ${e.sector}` : "";
+  // OD skips an experience row that carries neither a sector nor a year count.
+  const expReqs = (role.expReqs ?? []).filter((e) => e.sector || e.years);
+  const sectorDisplay = await sectorDisplayMap(role.orgId, expReqs.map((e) => e.sector));
+  for (const e of expReqs) {
+    const sector = e.sector && sectorDisplay.get(e.sector) ? ` — ${sectorDisplay.get(e.sector)}` : "";
     const years = e.years ? ` · ≥ ${e.years} year${String(e.years) === "1" ? "" : "s"}` : "";
     reqs.push(blank({
       key: `exp:${e.id}`, kind: "experience", label: `Work experience${sector}${years}`,
@@ -491,7 +526,9 @@ export async function updateGap(auth: AuthContext, id: string, input: Record<str
   }
   if (input.status !== undefined) {
     const s = str(input.status) ?? "Open";
-    if (["Open", "Reviewed", "Planned", "Resolved"].includes(s)) row.status = s;
+    // R53 — the whitelist has to be the enum itself. Dropping "Waived" silently
+    // made the fifth `gapStatusBadge` state (js/modules.js:968) unwritable.
+    if ((GAP_STATUS as readonly string[]).includes(s)) row.status = s;
   }
   await row.save();
   await audit(auth, row.orgId, "competence.gap.updated", "CompetenceGap", row.id, ip);
@@ -558,6 +595,8 @@ export async function reopenGap(auth: AuthContext, id: string, ip: string | null
   row.reviewedDate = null;
   row.noTraining = false;
   row.noTrainingReason = null;
+  // OD `tpGapReopen` (js/core.js:20387) clears the waive justification with it.
+  row.waiveReason = null;
   await row.save();
   await audit(auth, row.orgId, "competence.gap.reopened", "CompetenceGap", row.id, ip);
   return withDisposition(row.get({ plain: true }));
@@ -577,15 +616,23 @@ export async function linkGapTrainingPlan(auth: AuthContext, id: string, trainin
   return withDisposition(row.get({ plain: true }));
 }
 
-/** OD `compGapNoTraining` (index.html:14222-14226) — justification is
- * mandatory server-side, matching OD's `if(!r){toast('Justification is
- * required');return;}` guard (OD only enforces this client-side). */
+/** OD `tpGapWaive` (js/core.js:20385) — the Waive action behind this port's
+ * "No Training Required" disposition. Justification is mandatory server-side,
+ * matching OD's `if(!r){toast('Justification is required');return;}` guard (OD
+ * only enforces this client-side).
+ *
+ * R53/R131 — OD moves the gap itself to `Waived` and stores `waiveReason`;
+ * the port recorded only the `noTraining` boolean, so the fifth gap status was
+ * declared in `GAP_STATUS` but nothing could ever write it. Both are set: the
+ * boolean still drives `computeGapDisposition`, the status drives the badge. */
 export async function markGapNoTrainingRequired(auth: AuthContext, id: string, reason: string, ip: string | null) {
   const row = await requireGap(auth, id);
   const trimmed = (reason ?? "").trim();
   if (!trimmed) throw new BadRequestError("Justification is required", "REASON_REQUIRED");
   row.noTraining = true;
   row.noTrainingReason = trimmed;
+  row.status = "Waived";
+  row.waiveReason = trimmed;
   await row.save();
   await gapActivity(auth, row.orgId, "competence.gap.noTrainingRequired", row.id, ip, "marked no training required", ocTrunc(trimmed, 50));
   return withDisposition(row.get({ plain: true }));

@@ -113,6 +113,26 @@ describe("public supplier PO confirmation", () => {
     ]);
   });
 
+  it("spells out the structured payment terms OD's poPaymentTermsText builds", async () => {
+    const a = await actor();
+    const data = {
+      supplierName: "Stark Industries Supply", issuedDate: "2026-08-01", deliveryBy: "2026-09-01",
+      currency: "IDR", terms: "45", payAnchor: "delivery", payAdvance: 20, payRetention: 5, amount: 1000,
+    };
+    const created = await request(app).post("/v1/business/enterprise/ent-po").set(authed(a.token))
+      .send({ title: "Stark Industries Supply", status: "Issued", data });
+    const sent = await request(app).put(`/v1/business/enterprise/ent-po/${created.body.data.id as string}`).set(authed(a.token))
+      .send({ title: "Stark Industries Supply", status: "Sent", data: { ...data, sentAt: "2026-08-01T00:00:00.000Z", sentCount: 1 } });
+    const code = sent.body.data.code as string;
+    const tok = sent.body.data.data.confirmToken as string;
+
+    const res = await request(app).get(`/v1/public/purchase-orders/${code}/confirmation?t=${encodeURIComponent(tok)}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.terms).toBe(
+      "20% advance on PO issue; 80% Net 45 business days after delivery. 5% retention released after the warranty period",
+    );
+  });
+
   it("records an acknowledgement once, and refuses a replay", async () => {
     const a = await actor();
     const po = await sentPo(a.token);

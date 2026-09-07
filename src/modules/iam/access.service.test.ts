@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import { initModels, Organization, User, Role, Menu, Action, UserRole, RoleActionGrant, RoleMenuGrant } from "../../db/models";
-import { getEffectiveAccess, buildMenuForUser } from "./access.service";
+import { getEffectiveAccess, buildMenuForUser, acDefaultLevel, levelActions, PERM_LEVELS } from "./access.service";
 import { resetDb } from "../../../test/helpers";
 
 async function makeUserWithRole(opts: { isSuperAdmin?: boolean }) {
@@ -51,5 +51,25 @@ describe("access.service", () => {
     const tree = await buildMenuForUser(user.id);
     expect(tree.access["audit.read"]).toBe(true);
     expect(tree.menu.some((m) => m.route === "/audit")).toBe(true);
+  });
+});
+
+describe("permission levels (OD js/core.js:5063-5070)", () => {
+  it("exposes the four OD levels in order", () => {
+    expect(PERM_LEVELS).toEqual(["View", "Edit", "Approve", "Manage"]);
+  });
+
+  it("narrows the level whitelist to the menu archetype's actions", () => {
+    // 'team' is a `record` menu: view/create/edit/delete/export/assign.
+    expect(levelActions("View", "team")).toEqual(["view", "export"]);
+    expect(levelActions("Edit", "team")).toEqual(["view", "create", "edit", "export"]);
+    expect(levelActions("Manage", "team")).toEqual(["view", "create", "edit", "delete", "export", "assign"]);
+  });
+
+  it("defaults the level from the role: Administrator->Manage, Basic User->View, else Edit", () => {
+    expect(acDefaultLevel("Administrator")).toBe("Manage");
+    expect(acDefaultLevel("Basic User")).toBe("View");
+    expect(acDefaultLevel("Billing Manager")).toBe("Edit");
+    expect(acDefaultLevel(null)).toBe("Edit");
   });
 });

@@ -3,31 +3,32 @@ import { sequelize } from "../sequelize";
 
 /**
  * OD `PERSON_EMP_STATUS` (js/modules.js). Probation is deliberately absent —
- * OD treats it as a contract type (`ContractType`'s "Probation") plus a
- * probation end date, not as an employment status.
+ * OD carries probation as a period inside the contract (`contract.probationEnd`,
+ * js/modules.js:4657/4712), not as an employment status and not as a contract
+ * type.
  */
 export const EMPLOYMENT_STATUSES = [
   "Onboarding", "Active", "On Leave", "Suspended", "Offboarding", "Exited", "Alumni",
 ] as const;
 export type EmploymentStatus = (typeof EMPLOYMENT_STATUSES)[number];
 /**
- * OD `CONTRACT_TYPE_SEED` names the four real contract types: "Permanent",
- * "Fixed Duration", "Internship", "Contractor (SOW)" (js/modules.js:5041-5044).
- * The two OD spellings this port was missing are added here (migration 0097).
+ * OD `CONTRACT_TYPE_SEED` (js/modules.js:5040-5044) names exactly four contract
+ * types — "Permanent", "Fixed Duration", "Internship", "Contractor (SOW)"
+ * (ids ct-perm/ct-fixed/ct-intern/ct-sow) — paired with the `PERSON_TYPES`
+ * vocabulary at js/modules.js:1019.
  *
- * "Fixed-Term", "Outsourced" and "Probation" are port-only and NOT in OD —
- * OD treats probation as a clause plus a probation-end date inside a
- * contract, not as a contract type (js/modules.js:5185). They stay because
- * `convertContract` branches on "Probation"
- * (src/modules/users/personnelProfile.service.ts:208) and the request schema
- * repeats the old five (src/modules/users/personnelProfile.controller.ts:30),
- * neither of which this change may touch. Removing them is a follow-up that
- * must move those two files and the integration test together, and recreate
- * the Postgres enum type (values cannot be dropped in place).
+ * The three port-only members ("Fixed-Term", "Probation", "Outsourced") appear
+ * nowhere in OD as contract types and are dropped by migration 0117.
+ *
+ * OD itself stores a reference, `h.contract.typeId` (js/modules.js:1043, picker
+ * at :5027), into the `ent-ctypes` register — the same register
+ * `personnelContractComp.models.ts` already points at. This column stays a name
+ * enum because moving it to that id is an API shape change that has to land
+ * with the frontend; the names here now match the register's rows
+ * (src/db/seeders/data/businessRecords/contractTypes.json).
  */
 export const CONTRACT_TYPES = [
   "Permanent", "Fixed Duration", "Internship", "Contractor (SOW)",
-  "Fixed-Term", "Probation", "Outsourced",
 ] as const;
 export type ContractType = (typeof CONTRACT_TYPES)[number];
 

@@ -4,7 +4,7 @@ import * as userService from "./user.service";
 import { sendOk } from "../../lib/apiResponse";
 import { paginate } from "../../lib/pagination";
 import { UnauthorizedError } from "../../lib/errors";
-import { isModuleKey, isSpMenuKey } from "../iam/modules.catalog";
+import { acUnitKeys, isEntKey, isModuleKey, isNavPermKey, isUnitKey } from "../iam/modules.catalog";
 
 const permissionModeSchema = z.enum(["Full Access", "Custom Access"]);
 
@@ -18,7 +18,32 @@ const permissionsSchema = z
   .refine((keys) => keys.every(isModuleKey), { message: "Unknown module key" });
 const navPermsSchema = z
   .array(z.string())
-  .refine((keys) => keys.every(isSpMenuKey), { message: "Unknown Service Provider menu key" });
+  .refine((keys) => keys.every(isNavPermKey), { message: "Unknown Service Provider menu key" });
+
+// The Enterprise and business-unit axes are closed sets too — OD `acEntAllKeys`
+// (js/core.js:5020) and `AC_UNITS` (js/core.js:5041-5048). `acSave` can only
+// ever write members of them, so an unknown key is rejected rather than stored.
+const entPermsSchema = z
+  .array(z.string())
+  .refine((keys) => keys.every(isEntKey), { message: "Unknown Enterprise menu key" });
+const unitsSchema = z
+  .array(z.string())
+  .refine((keys) => keys.every(isUnitKey), { message: "Unknown business unit" });
+const unitAccessSchema = z
+  .record(z.string(), z.boolean())
+  .refine((map) => Object.keys(map).every(isUnitKey), { message: "Unknown business unit" });
+const unitPermsSchema = z
+  .record(z.string(), z.array(z.string()))
+  .refine((map) => Object.keys(map).every(isUnitKey), { message: "Unknown business unit" })
+  .refine((map) => Object.entries(map).every(([u, keys]) => keys.every((k) => acUnitKeys(u).includes(k))), {
+    message: "Unknown business-unit menu key",
+  });
+
+// OD `acSave` per-action grant maps (js/core.js:5223/5232/5242). Keys outside
+// the granted set are dropped by `updateUser`, which rebuilds each map from the
+// grant it belongs to, so only the shape is checked here.
+const actionMapSchema = z.record(z.string(), z.array(z.string()));
+const unitActionMapSchema = z.record(z.string(), actionMapSchema);
 
 const createSchema = z.object({
   orgId: z.string().uuid(),
@@ -47,7 +72,7 @@ const updateSchema = z.object({
   roleGroup: z.string().optional(),
   permissionMode: permissionModeSchema.nullish(),
   permissions: permissionsSchema.nullish(),
-  status: z.enum(["Pending Activation", "Active", "Suspended", "Inactive"]).optional(),
+  status: z.enum(["Pending Activation", "Active", "Suspended"]).optional(),
   position: z.string().nullish(),
   phone: z.string().nullish(),
   photo: z.string().nullish(),
@@ -59,17 +84,20 @@ const updateSchema = z.object({
   // Member-level access axes (SOF-84): Enterprise system-of-record access and
   // per-business-unit grants, independent of permissionMode/permissions above.
   entAccess: z.boolean().optional(),
-  entPerms: z.array(z.string()).optional(),
-  units: z.array(z.string()).optional(),
-  unitAccess: z.record(z.string(), z.boolean()).optional(),
-  unitPerms: z.record(z.string(), z.array(z.string())).optional(),
+  entPerms: entPermsSchema.optional(),
+  units: unitsSchema.optional(),
+  unitAccess: unitAccessSchema.optional(),
+  unitPerms: unitPermsSchema.optional(),
+  entActions: actionMapSchema.optional(),
+  unitActions: unitActionMapSchema.optional(),
   // OD acSave Service Provider axis (js/core.js:5225) + the platform-access
   // switch (js/core.js:5216); setting `provisioned: false` clears the SP block.
   navPerms: navPermsSchema.optional(),
+  navActions: actionMapSchema.optional(),
   provisioned: z.boolean().optional(),
 });
 
-const statusSchema = z.object({ status: z.enum(["Active", "Suspended", "Inactive"]) });
+const statusSchema = z.object({ status: z.enum(["Active", "Suspended"]) });
 
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {

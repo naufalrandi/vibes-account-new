@@ -16,10 +16,11 @@ export type RoleGroup = (typeof ROLE_GROUPS)[number];
 // gated separately in assignRole via tierScope, never assigned by name through
 // createUser's catalog validation.
 export const ROLES_BY_ORG_TYPE: Record<OrgType, string[]> = {
-  // Service Provider = OD ROLE_GROUPS above.
+  // OD has exactly one role-group enum (js/core.js:111) and no per-tier variant:
+  // every organization type draws from the same four groups.
   ServiceOwner: [...ROLE_GROUPS],
-  Distributor: ["Administrator", "Billing Manager", "Technical Support"],
-  Tenant: ["Administrator", "Billing Manager", "Team Member"],
+  Distributor: [...ROLE_GROUPS],
+  Tenant: [...ROLE_GROUPS],
 };
 
 /** True when roleName is an assignable role for the given organization type. */

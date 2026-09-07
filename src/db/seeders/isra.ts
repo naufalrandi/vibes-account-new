@@ -149,10 +149,15 @@ async function seedKmThreatVuln(knownSubgroups: Set<string>): Promise<{ seeded: 
   return { seeded: ready.length, skipped };
 }
 
+/** `status` is deliberately absent from `updateOnDuplicate`: it is the per-edge
+ * review state OD's `isra2KmSetStatus` (js/core.js:15797) writes, so a reseed
+ * must not roll a reviewed edge back to the seeded value (nor undo migration
+ * 0105's 'Published' -> 'Approved' remap). Every other column is platform-owned
+ * and refreshes on reseed. */
 async function seedKmVulnControl(): Promise<void> {
   await IsraKmVulnControl.bulkCreate(
     ISRA_KM_VULN_CONTROL_SEED.map((spec) => ({ ...spec, references: [...spec.references], comments: [] })),
-    { updateOnDuplicate: ["vulnId", "annexRef", "role", "affects", "strength", "mechanism", "references", "status", "version", "source", "reviewer", "reviewDate"] },
+    { updateOnDuplicate: ["vulnId", "annexRef", "role", "affects", "strength", "mechanism", "references", "version", "source", "reviewer", "reviewDate"] },
   );
 }
 

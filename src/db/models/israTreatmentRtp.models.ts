@@ -83,7 +83,13 @@ export interface IsraAcceptance {
   /** js/core.js:15154 */
   acceptanceDate?: string;
 }
-export interface IsraRecommendedControl { annexRef: string; fromVulns: string[] }
+/**
+ * One snapshotted recommendation. `annexRef`/`fromVulns` are isra-spec.md:95's
+ * flat shape; `title` and `rationale[]` are the per-item fields OD's own
+ * `isra2SnapEnsure` writes (js/core.js:15113) — without them the snapshot
+ * cannot reproduce what the assessor was shown when it was taken.
+ */
+export interface IsraRecommendedControl { annexRef: string; fromVulns: string[]; title?: string; rationale?: string[] }
 export interface IsraFundingLine { amount: number; remark: string }
 
 /** `treatment` + `treatmentHistory[]` unified with an `isCurrent` flag — one
@@ -124,7 +130,7 @@ IsraScenarioTreatmentDecision.init(
     approvalDate: { type: DataTypes.DATEONLY, allowNull: true, field: "approval_date" },
     reviewDate: { type: DataTypes.DATEONLY, allowNull: true, field: "review_date" },
     acceptance: { type: DataTypes.JSONB, allowNull: true },
-    status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Draft" },
+    status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Planning" },
     needsReview: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: "needs_review" },
     isCurrent: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: "is_current" },
     createdAt: DataTypes.DATE,
@@ -139,9 +145,18 @@ IsraScenarioTreatmentDecision.init(
 export class IsraScenarioRecommendationSnapshot extends Model<InferAttributes<IsraScenarioRecommendationSnapshot>, InferCreationAttributes<IsraScenarioRecommendationSnapshot>> {
   declare id: CreationOptional<string>;
   declare scenarioId: string;
+  /** OD `recSnapshot.version` (js/core.js:15113); isra-spec.md:163 requires a
+   * "new snapshot + new version stamp" on every refresh. */
+  declare version: CreationOptional<number>;
   declare controls: CreationOptional<IsraRecommendedControl[]>;
+  /** OD `recSnapshot.includedVulnIds[]` — the vulnerabilities in scope when
+   * the snapshot was taken (js/core.js:15113). */
+  declare includedVulnIds: CreationOptional<string[]>;
   declare mapVersion: number | null;
   declare generatedAt: CreationOptional<Date>;
+  /** OD `recSnapshot.needsReview` — raised when the knowledge map moves under
+   * a taken snapshot (js/core.js:15113). */
+  declare needsReview: CreationOptional<boolean>;
   declare isCurrent: CreationOptional<boolean>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -150,9 +165,12 @@ IsraScenarioRecommendationSnapshot.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     scenarioId: { type: DataTypes.UUID, allowNull: false, field: "scenario_id" },
+    version: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
     controls: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
+    includedVulnIds: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "included_vuln_ids" },
     mapVersion: { type: DataTypes.INTEGER, allowNull: true, field: "map_version" },
     generatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: "generated_at" },
+    needsReview: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: "needs_review" },
     isCurrent: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: "is_current" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
@@ -205,6 +223,9 @@ export class IsraScenarioAddedControl extends Model<InferAttributes<IsraScenario
   /** `status` — OD only ever writes 'Committed' on selection (js/core.js:15166). */
   declare status: CreationOptional<string>;
   declare selectionDate: Date | null;
+  /** OD's optional back-link to the Existing Control that already covers this
+   * Annex A ref — validated at js/core.js:15428. */
+  declare existingControlId: string | null;
   declare source: string | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -223,6 +244,7 @@ IsraScenarioAddedControl.init(
     owner: { type: DataTypes.STRING, allowNull: true },
     status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Committed" },
     selectionDate: { type: DataTypes.DATE, allowNull: true, field: "selection_date" },
+    existingControlId: { type: DataTypes.UUID, allowNull: true, field: "existing_control_id" },
     source: { type: DataTypes.STRING, allowNull: true },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,

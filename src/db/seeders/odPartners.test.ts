@@ -15,13 +15,13 @@ describe("agreementHistoryFor — OD slicing", () => {
 
 describe("OD_PARTNERS — OD seedPartners() parity", () => {
   it("covers the lifecycle states a single seeded partner cannot show", () => {
-    expect(OD_PARTNERS.map((p) => p.code)).toEqual(["PRT-1002", "PRT-1003", "PRT-1004", "PRT-1005"]);
-    // PRT-1001 (the seed.ts fixture) is Active/Gold; these four are what make
+    expect(OD_PARTNERS.map((p) => p.code)).toEqual(["PRT-1001", "PRT-1002", "PRT-1003", "PRT-1004"]);
+    // PRT-1005 (the seed.ts fixture) is Active/Gold; these four are what make
     // the status and tier filters on the Partners list reachable.
-    expect(OD_PARTNERS.map((p) => p.status)).toEqual(["Pending Approval", "Draft", "Suspended", "Active"]);
-    expect(new Set(OD_PARTNERS.map((p) => p.tier))).toEqual(new Set(["Silver", "Bronze", "Gold"]));
-    expect(OD_PARTNERS.map((p) => p.agreement.status)).toEqual(["Pending Approval", "Draft", "Terminated", "Approved"]);
-    expect(new Set(OD_PARTNERS.map((p) => p.country))).toEqual(new Set(["SG", "CL", "DE", "ID"]));
+    expect(OD_PARTNERS.map((p) => p.status)).toEqual(["Active", "Pending Approval", "Draft", "Suspended"]);
+    expect(new Set(OD_PARTNERS.map((p) => p.tier))).toEqual(new Set(["Gold", "Silver", "Bronze"]));
+    expect(OD_PARTNERS.map((p) => p.agreement.status)).toEqual(["Approved", "Pending Approval", "Draft", "Terminated"]);
+    expect(new Set(OD_PARTNERS.map((p) => p.country))).toEqual(new Set(["ID", "SG", "CL", "DE"]));
   });
 
   it("leaves a Draft partner's agreement unissued", () => {
@@ -54,27 +54,30 @@ describe("seedOdPartners", () => {
     expect(await PartnerAgreement.count()).toBe(4);
 
     const profiles = await PartnerProfile.findAll({ order: [["code", "ASC"]] });
-    expect(profiles.map((p) => p.status)).toEqual(["Pending Approval", "Draft", "Suspended", "Active"]);
+    expect(profiles.map((p) => p.status)).toEqual(["Active", "Pending Approval", "Draft", "Suspended"]);
 
     // Every partner is reachable from its own admin — the detail page reads the
     // admin off `adminUserId`, so a null there renders a partner with no owner.
     expect(profiles.every((p) => p.adminUserId !== null)).toBe(true);
   });
 
-  it("suspends the organization of a suspended partner, and leaves the others active", async () => {
+  it("gives each partner organization its own partner status", async () => {
     const root = await so();
     await seedOdPartners(root.id);
 
-    const suspended = await Organization.findOne({ where: { code: "ROXXON" } });
-    expect(suspended!.status).toBe("Suspended");
-    expect((await Organization.findOne({ where: { code: "PARKIND" } }))!.status).toBe("Active");
+    expect((await Organization.findOne({ where: { code: "ROXXON" } }))!.status).toBe("Suspended");
+    expect((await Organization.findOne({ where: { code: "STARKIND" } }))!.status).toBe("Active");
+    // OD carries one status per partner — the org row must not flatten a
+    // Pending Approval / Draft partner to "Active".
+    expect((await Organization.findOne({ where: { code: "OSCORP" } }))!.status).toBe("Pending Approval");
+    expect((await Organization.findOne({ where: { code: "PYMTECH" } }))!.status).toBe("Draft");
   });
 
   it("seeds partner staff without passwords — org members, not platform logins", async () => {
     const root = await so();
     await seedOdPartners(root.id);
 
-    const staff = await User.findAll({ where: { email: ["christian@oscorp.com", "zinedine@parkerindustries.co.id", "anne@parkerindustries.co.id"] } });
+    const staff = await User.findAll({ where: { email: ["christian@oscorp.com", "leonardo@starkindustries.com", "natalie@starkindustries.com"] } });
     expect(staff).toHaveLength(3);
     expect(staff.every((u) => u.passwordHash === null)).toBe(true);
     // A partner admin who never activated stays Pending Activation rather than

@@ -26,6 +26,7 @@ import {
   IsraOrgSettings,
   ISRA_REVIEW_PERIOD_DEFAULT,
   israAddMonthsIso,
+  israRiskScheme,
 } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
@@ -58,11 +59,42 @@ export const ISRA_BANDS: [number, number, string][] = [
   [20, 25, "Critical"],
 ];
 
-export function getRiskBand(score: number): string {
-  for (const [min, max, name] of ISRA_BANDS) {
+/** The highest score a 5x5 matrix can produce — OD `israBandRange`. */
+const ISRA_MAX_SCORE = 25;
+
+/**
+ * R289 / OD `israBandRange` (js/core.js:13574) — the 1..25 score space split
+ * across the tenant's own band scheme (`t.israRiskLevels`, 2-6 levels). At
+ * five bands this reproduces OD's 1-4 / 5-9 / 10-14 / 15-19 / 20-25 fallback
+ * exactly, which is why `ISRA_BANDS` above stays the shape of the default.
+ */
+export function israRiskBands(levels: readonly string[] | null | undefined): [number, number, string][] {
+  const names = israRiskScheme(levels as string[] | null | undefined);
+  if (names.length === ISRA_BANDS.length) return ISRA_BANDS.map(([min, max], i) => [min, max, names[i]]);
+  const out: [number, number, string][] = [];
+  let min = 1;
+  for (let i = 0; i < names.length; i++) {
+    // Each boundary sits one BELOW the even split, the top band takes the
+    // remainder — the rule OD's own five-band fallback follows.
+    const max = i === names.length - 1 ? ISRA_MAX_SCORE : Math.round(((i + 1) * ISRA_MAX_SCORE) / names.length) - 1;
+    out.push([min, Math.max(min, max), names[i]]);
+    min = Math.max(min, max) + 1;
+  }
+  return out;
+}
+
+/** The org's active ISRA band scheme; the five-band default when it has none. */
+export async function israBandsForOrg(orgId: string): Promise<[number, number, string][]> {
+  const settings = await IsraOrgSettings.findOne({ where: { orgId }, attributes: ["orgId", "riskLevels"] });
+  return israRiskBands(settings?.riskLevels ?? null);
+}
+
+export function getRiskBand(score: number, bands: [number, number, string][] = ISRA_BANDS): string {
+  for (const [min, max, name] of bands) {
     if (score >= min && score <= max) return name;
   }
-  return score > 25 ? "Critical" : "Low";
+  const top = bands[bands.length - 1];
+  return score > ISRA_MAX_SCORE ? top[2] : bands[0][2];
 }
 
 /** Ports OD's `isra2AdqEval(score)` (app.html:19383) — the adequacy verdict
@@ -145,6 +177,9 @@ export async function recalculateScenarioScores(scenarioId: string, orgId: strin
   const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId } });
   if (!scenario) return null;
 
+  // R289 — every band on this scenario is read off the tenant's own ISRA
+  // scheme, not the hardcoded five-band fallback.
+  const bands = await israBandsForOrg(orgId);
   const impacts = await IsraScenarioPotentialImpact.findAll({ where: { scenarioId } });
   const impactResult = calculateWeightedSeverity(
     impacts.map((i) => ({ area: i.area, severity: i.severity })),
@@ -154,7 +189,7 @@ export async function recalculateScenarioScores(scenarioId: string, orgId: strin
   const inherentImpact = impactResult.sev || 0;
   const inherentL = scenario.inherentL || 0;
   const inherentScore = inherentL > 0 && inherentImpact > 0 ? inherentL * inherentImpact : 0;
-  const inherentBand = inherentScore > 0 ? getRiskBand(inherentScore) : "";
+  const inherentBand = inherentScore > 0 ? getRiskBand(inherentScore, bands) : "";
 
   // Load existing controls
   const controls = await IsraExistingControl.findAll({ where: { scenarioId, orgId } });
@@ -290,7 +325,7 @@ export async function recalculateScenarioScores(scenarioId: string, orgId: strin
   const suggestedL = inherentL > 0 ? Math.max(1, inherentL - dropL) : 0;
   const suggestedImpact = inherentImpact > 0 ? Math.max(1, inherentImpact - dropC) : 0;
   const suggestedScore = suggestedL > 0 && suggestedImpact > 0 ? suggestedL * suggestedImpact : 0;
-  const suggestedBand = suggestedScore > 0 ? getRiskBand(suggestedScore) : "";
+  const suggestedBand = suggestedScore > 0 ? getRiskBand(suggestedScore, bands) : "";
 
   // Auto-adopt Current Risk
   let currentRisk = await IsraScenarioCurrentRisk.findOne({ where: { scenarioId } });
@@ -340,7 +375,7 @@ export async function recalculateScenarioScores(scenarioId: string, orgId: strin
   const actL = inherentL > 0 ? Math.max(1, inherentL - actDropL) : 0;
   const actImpact = inherentImpact > 0 ? Math.max(1, inherentImpact - actDropC) : 0;
   const actScore = actL > 0 && actImpact > 0 ? actL * actImpact : 0;
-  const actBand = actScore > 0 ? getRiskBand(actScore) : "";
+  const actBand = actScore > 0 ? getRiskBand(actScore, bands) : "";
 
   let actualRes = await IsraScenarioActualResidual.findOne({ where: { scenarioId } });
   if (!actualRes) {
@@ -388,6 +423,7 @@ export async function listScenarios(auth: AuthContext) {
     order: [["createdAt", "ASC"]],
   });
 
+  const bands = await israBandsForOrg(auth.orgId);
   const scenarioIds = scenarios.map((s) => s.id);
   const vulns = scenarioIds.length ? await IsraScenarioVuln.findAll({ where: { scenarioId: { [Op.in]: scenarioIds } } }) : [];
   const impacts = scenarioIds.length ? await IsraScenarioPotentialImpact.findAll({ where: { scenarioId: { [Op.in]: scenarioIds } } }) : [];
@@ -440,7 +476,7 @@ export async function listScenarios(auth: AuthContext) {
     // which the port computed and then discarded before the response.
     plain.exposure = weighted.exposure;
     plain.inherentScore = plain.inherentL > 0 && plain.overallImpact > 0 ? plain.inherentL * plain.overallImpact : 0;
-    plain.inherentBand = plain.inherentScore > 0 ? getRiskBand(plain.inherentScore) : "";
+    plain.inherentBand = plain.inherentScore > 0 ? getRiskBand(plain.inherentScore, bands) : "";
 
     return plain;
   });
@@ -450,6 +486,7 @@ export async function getScenarioById(auth: AuthContext, id: string) {
   const scenario = await IsraScenario.findOne({ where: { id, orgId: auth.orgId } });
   if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
 
+  const bands = await israBandsForOrg(auth.orgId);
   const vulns = await IsraScenarioVuln.findAll({ where: { scenarioId: id } });
   const impacts = await IsraScenarioPotentialImpact.findAll({ where: { scenarioId: id } });
   const controls = await IsraExistingControl.findAll({ where: { scenarioId: id, orgId: auth.orgId } });
@@ -498,7 +535,7 @@ export async function getScenarioById(auth: AuthContext, id: string) {
   plain.overallImpact = weighted.sev;
   plain.exposure = weighted.exposure;
   plain.inherentScore = plain.inherentL > 0 && plain.overallImpact > 0 ? plain.inherentL * plain.overallImpact : 0;
-  plain.inherentBand = plain.inherentScore > 0 ? getRiskBand(plain.inherentScore) : "";
+  plain.inherentBand = plain.inherentScore > 0 ? getRiskBand(plain.inherentScore, bands) : "";
 
   // Auto-suggested residual for this cycle (isra2SuggestResidual) — computed
   // fresh on every read, exactly as OD does (isra2ResidualForm/
@@ -824,7 +861,9 @@ export async function saveTreatmentDecision(auth: AuthContext, scenarioId: strin
     decisionDate: new Date().toISOString().slice(0, 10),
     approvalStatus: str(input.approvalStatus) || "Approved",
     acceptance: (input.acceptance as any) || null,
-    status: "Active",
+    // R49 / OD `isra2TreatForm` (js/core.js:15152): the decision's own status is
+    // derived from the option, never entered — `opt==='Retain'?'Accepted':'Planning'`.
+    status: option === "Retain" ? "Accepted" : "Planning",
     isCurrent: true,
   });
 
@@ -963,19 +1002,40 @@ export async function generateRecommendations(auth: AuthContext, scenarioId: str
     fromVulns,
   }));
 
-  // Mark old snapshot not current
+  // Mark old snapshot not current. R63 / isra-spec.md:163 — a refresh is a NEW
+  // snapshot with a NEW version stamp, never a mutation of the one an assessor
+  // already ruled on.
+  const prior = await IsraScenarioRecommendationSnapshot.findOne({ where: { scenarioId }, order: [["version", "DESC"]] });
   await IsraScenarioRecommendationSnapshot.update({ isCurrent: false }, { where: { scenarioId, isCurrent: true } });
 
   const snapshot = await IsraScenarioRecommendationSnapshot.create({
     scenarioId,
+    version: (prior?.version ?? 0) + 1,
     controls,
+    // OD `isra2SnapEnsure` (js/core.js:15113) records the vulnerability scope
+    // the snapshot was taken over.
+    includedVulnIds: vulnIds,
     mapVersion: 1,
     generatedAt: new Date(),
+    needsReview: false,
     isCurrent: true,
   });
 
   return snapshot.get({ plain: true });
 }
+
+/**
+ * R321 / OD's RTP status select (js/core.js:15236) — the six states a plan can
+ * be moved through by hand. `Approved` is the seventh value the record can
+ * hold, but only `isra2RtpApprove` (js/core.js:15250) writes it, so it is not
+ * offered here: a plan cannot be approved by editing its own status field.
+ */
+export const ISRA_RTP_PLAN_STATUS = ["Draft", "Planned", "In Progress", "Completed", "On Hold", "Cancelled"] as const;
+
+const planStatusOf = (v: unknown, fallback: string): string => {
+  const s = str(v);
+  return s && (ISRA_RTP_PLAN_STATUS as readonly string[]).includes(s) ? s : fallback;
+};
 
 export async function saveRtp(auth: AuthContext, scenarioId: string, input: Record<string, unknown>, _ip: string | null) {
   const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId: auth.orgId } });
@@ -986,7 +1046,7 @@ export async function saveRtp(auth: AuthContext, scenarioId: string, input: Reco
     rtp = await IsraRtp.create({
       scenarioId,
       version: 1,
-      status: "Draft",
+      status: planStatusOf(input.status, "Draft"),
       funding: (input.funding as any) || [],
       monitoring: str(input.monitoring) || "",
       completionCriteria: str(input.completionCriteria) || "",
@@ -1045,6 +1105,7 @@ export async function saveRtp(auth: AuthContext, scenarioId: string, input: Reco
     rtp.funding = (input.funding as any) || rtp.funding;
     rtp.monitoring = str(input.monitoring) || rtp.monitoring;
     rtp.completionCriteria = str(input.completionCriteria) || rtp.completionCriteria;
+    if (input.status !== undefined) rtp.status = planStatusOf(input.status, rtp.status);
     await rtp.save();
   }
 
@@ -1057,7 +1118,9 @@ export async function saveRtp(auth: AuthContext, scenarioId: string, input: Reco
         action: a.action || "",
         owners: a.owners || [],
         targetDate: a.targetDate || null,
-        status: a.status || "Planned",
+        // R45 / OD `ISRA4_ACT_STATUS` (js/core.js:15409) opens at 'Not started';
+        // 'Planned' is the port-only value migration 0105 moved away from.
+        status: a.status || "Not started",
       });
 
       if (Array.isArray(a.addedControlRefs)) {
@@ -1119,6 +1182,7 @@ export async function suggestResidual(scenarioId: string, orgId: string): Promis
   const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId } });
   if (!scenario) return null;
 
+  const bands = await israBandsForOrg(orgId);
   const current = await IsraScenarioCurrentRisk.findOne({ where: { scenarioId } });
   const curL = current?.confirmedL ?? null;
   const curImpact = current?.confirmedImpact ?? null;
@@ -1142,7 +1206,7 @@ export async function suggestResidual(scenarioId: string, orgId: string): Promis
     const l = actualRes.suggestedL ?? 0;
     const impact = actualRes.suggestedImpact ?? 0;
     const score = actualRes.suggestedScore ?? l * impact;
-    pick = { l, impact, score, band: actualRes.suggestedBand || getRiskBand(score), basis: "verified" };
+    pick = { l, impact, score, band: actualRes.suggestedBand || getRiskBand(score, bands), basis: "verified" };
   }
 
   // Tier 2 — projected (user-assessed, never Method C).
@@ -1150,7 +1214,7 @@ export async function suggestResidual(scenarioId: string, orgId: string): Promis
     const projected = await IsraScenarioProjectedResidual.findOne({ where: { scenarioId } });
     if (projected && projected.confirmedL && projected.confirmedImpact) {
       const score = projected.confirmedScore ?? projected.confirmedL * projected.confirmedImpact;
-      pick = { l: projected.confirmedL, impact: projected.confirmedImpact, score, band: projected.confirmedBand || getRiskBand(score), basis: "projected" };
+      pick = { l: projected.confirmedL, impact: projected.confirmedImpact, score, band: projected.confirmedBand || getRiskBand(score, bands), basis: "projected" };
     }
   }
 
@@ -1159,7 +1223,7 @@ export async function suggestResidual(scenarioId: string, orgId: string): Promis
   // all) falls through to inherent below instead of duplicating the Method C
   // derivation for a case OD's own "derive fresh" branch would otherwise cover.
   if (!pick && curMeaningful) {
-    pick = { l: curL as number, impact: curImpact as number, score: curScore as number, band: curBand || getRiskBand(curScore as number), basis: "current" };
+    pick = { l: curL as number, impact: curImpact as number, score: curScore as number, band: curBand || getRiskBand(curScore as number, bands), basis: "current" };
   }
 
   // Tier 4 — inherent.
@@ -1171,12 +1235,12 @@ export async function suggestResidual(scenarioId: string, orgId: string): Promis
     );
     const oi = weighted.sev || 3;
     const iL = scenario.inherentL || 3;
-    pick = { l: iL, impact: oi, score: iL * oi, band: getRiskBand(iL * oi), basis: "inherent" };
+    pick = { l: iL, impact: oi, score: iL * oi, band: getRiskBand(iL * oi, bands), basis: "inherent" };
   }
 
   // Cap at Current — treatment cannot raise the risk above where it already sits.
   if (curMeaningful && pick.score > (curScore as number)) {
-    pick = { l: curL as number, impact: curImpact as number, score: curScore as number, band: curBand || getRiskBand(curScore as number), basis: "current" };
+    pick = { l: curL as number, impact: curImpact as number, score: curScore as number, band: curBand || getRiskBand(curScore as number, bands), basis: "current" };
   }
 
   return { ...pick, basisText: residualBasisText(pick.basis) };
@@ -1194,7 +1258,7 @@ export async function saveResidual(auth: AuthContext, scenarioId: string, input:
   const l = typeof input.l === "number" ? input.l : typeof input.L === "number" ? (input.L as number) : null;
   const impact = typeof input.impact === "number" ? input.impact : null;
   const score = l != null && impact != null ? l * impact : typeof input.score === "number" ? input.score : 4;
-  const band = getRiskBand(score);
+  const band = getRiskBand(score, await israBandsForOrg(auth.orgId));
   const adequacy = await computeAdequacy(score, auth.orgId);
 
   if (!residual) {
@@ -1244,7 +1308,7 @@ export async function saveProjectedResidual(auth: AuthContext, scenarioId: strin
     throw new BadRequestError("Projected Likelihood and Impact are required", "PROJECTED_LC_REQUIRED");
   }
   const score = l * impact;
-  const band = getRiskBand(score);
+  const band = getRiskBand(score, await israBandsForOrg(auth.orgId));
   const adequacy = await computeAdequacy(score, auth.orgId);
   const rtp = await IsraRtp.findOne({ where: { scenarioId, isCurrent: true } });
 
@@ -1354,7 +1418,7 @@ export async function promoteResidual(auth: AuthContext, scenarioId: string, _ip
   const appetiteLog = await IsraAppetiteLog.findOne({ where: { orgId: auth.orgId }, order: [["version", "DESC"]] });
   const appetiteThreshold = appetiteLog?.threshold ?? 9;
   const promotedScore = residual.score ?? 4;
-  const promotedBand = residual.band ?? getRiskBand(promotedScore);
+  const promotedBand = residual.band ?? getRiskBand(promotedScore, await israBandsForOrg(auth.orgId));
   const promotedL = residual.l ?? 1;
   const promotedImpact = residual.impact ?? 1;
   const within = promotedScore <= appetiteThreshold;
@@ -1423,8 +1487,15 @@ export async function promoteResidual(auth: AuthContext, scenarioId: string, _ip
     : (orgSettings?.reviewPeriodAboveMonths ?? ISRA_REVIEW_PERIOD_DEFAULT.above);
   scenario.reviewDue = israAddMonthsIso(new Date(), reviewMonths);
 
-  // 5. Within appetite: accept + archive the RTP out of "current" + clear added controls.
+  // 5. Within appetite: accept + archive the RTP out of "current".
   //    Above appetite: leave acceptance unset — further treatment is needed.
+  //
+  // R317 — the committed Added controls are NOT cleared here. No baseline path
+  // removes `addedControls` in bulk: the only removal OD has is the single
+  // entry `isra2ApplToggle` filters out when a recommendation is de-selected
+  // (js/core.js:15160), which `syncAddedControl` above already implements.
+  // Wiping the roster on promotion destroyed the record of which controls the
+  // closed cycle actually committed to, which is exactly what SoA reads.
   if (within) {
     if (treatment) {
       treatment.status = "Accepted";
@@ -1434,7 +1505,6 @@ export async function promoteResidual(auth: AuthContext, scenarioId: string, _ip
       rtp.isCurrent = false;
       await rtp.save();
     }
-    await IsraScenarioAddedControl.destroy({ where: { scenarioId } });
   }
 
   await scenario.save();

@@ -168,7 +168,7 @@ export async function renewContract(
   return profile;
 }
 
-/** Convert a fixed-term/probation contract to a new contract type (e.g. Permanent). */
+/** Convert a contract to a new contract type (OD `conversionTarget`, e.g. Permanent). */
 export async function convertContract(
   auth: AuthContext,
   userId: string,
@@ -196,20 +196,20 @@ export async function convertContract(
 /**
  * Confirm a completed probation period.
  *
- * Probation is a property of the CONTRACT, not of employment status — OD keeps
- * it on `contractType`/`probationEnd` and never had a "Probation" employment
- * status (`PERSON_EMP_STATUS`). Someone on probation is employed and Active.
- * So this gates on the contract type and converts the contract to Permanent,
- * rather than moving an employment status that was never the right home for it.
+ * Probation is a period INSIDE a contract, not a contract type and not an
+ * employment status: OD carries it on `contract.probationEnd`
+ * (js/modules.js:4657) and `personConfirmProbation` (js/modules.js:4712) leaves
+ * the contract type untouched. So this gates on the probation end date, and a
+ * Fixed Duration or Internship contract stays what it is once probation is
+ * confirmed. Someone on probation is employed, so the confirm also brings
+ * anyone still mid-onboarding fully on.
  */
 export async function confirmProbation(auth: AuthContext, userId: string, ip: string | null): Promise<PersonnelProfile> {
   const user = await requireManagedUser(auth, userId);
   const profile = await getOrCreateProfile(userId);
-  if (profile.contractType !== "Probation") {
+  if (!profile.probationEndDate) {
     throw new BadRequestError("User is not currently on probation", "NOT_ON_PROBATION");
   }
-  profile.contractType = "Permanent";
-  // Confirming probation also brings anyone still mid-onboarding fully on.
   if (profile.employmentStatus !== "Active") profile.employmentStatus = "Active";
   await profile.save();
   await writeAudit({

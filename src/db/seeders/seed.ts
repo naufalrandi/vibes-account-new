@@ -288,11 +288,19 @@ export async function seed(): Promise<void> {
   //    exercised against real auth + nav. Each persona gets an org-scoped
   //    "Administrator" role (the name the FE nav matrix keys on) with full grants
   //    — data access is still bounded to the org's subtree by request scoping.
+  // OD `idpr5` / `PRT-1005` — PT Parker Industries, the partner that owns OD's
+  // `idtn5` PT Hammer Industries (the demo tenant seeded just below), exactly as
+  // `seedPartners` pairs them (js/core.js:216-220). The org `code` stays `NPART`:
+  // `findOrCreate` keys on it and the container runs `node dist/server.js` with
+  // no migrate/seed step, so renaming the code would seed a SECOND partner org
+  // beside the deployed one rather than rename it. The other four partners
+  // (`PRT-1001`..`PRT-1004`) come from `seedOdPartners` below.
   const [distributor] = await Organization.findOrCreate({
     where: { code: "NPART" },
     defaults: {
-      name: "Nusantara Partners", code: "NPART", type: "Distributor", status: "Active",
-      parentOrgId: so.id, tenantId: null, email: "ops@nusantara.id", phone: null, website: null, country: "ID", address: null,
+      name: "PT Parker Industries", code: "NPART", type: "Distributor", status: "Active",
+      parentOrgId: so.id, tenantId: null, email: "partners@parkerindustries.co.id",
+      phone: "+62 21 5555 9000", website: "parkerindustries.co.id", country: "ID", address: "Jl. Thamrin 5, Jakarta",
     },
   });
   const [distAdminRole] = await Role.findOrCreate({
@@ -304,17 +312,13 @@ export async function seed(): Promise<void> {
 
   // Tenant acquired through the distributor (acquisition = Partner).
   const [tenant] = await Organization.findOrCreate({
-    // OD `idtn5` / `TEN-1005` — the PT Hammer Industries persona this org stands
-    // for. The org `code` stays `GARUDA`: `findOrCreate` keys on it, and the
-    // container runs `node dist/server.js` with no migrate/seed step, so the
-    // deployed database persists across releases. Renaming the code would not
-    // rename the existing row — it would seed a SECOND Damage Control / Garuda
-    // org beside it. Aligning codes to OD's TEN-nnnn is a data migration, not a
-    // seeder edit.
-    // in for throughout the seeds (open-design core.js:6894).
-    where: { code: "GARUDA" },
+    // OD `idtn5` / `TEN-1005` PT Hammer Industries (open-design core.js:6894) —
+    // the demo tenant every other seed hangs off. Name and code are OD's; an
+    // already-deployed database keeps whatever row it has (`findOrCreate` keys on
+    // `code`), so the rename lands on fresh databases and by migration elsewhere.
+    where: { code: "TEN-1005" },
     defaults: {
-      name: "Garuda Manufacturing", code: "GARUDA", type: "Tenant", status: "Active",
+      name: "PT Hammer Industries", code: "TEN-1005", type: "Tenant", status: "Active",
       parentOrgId: distributor.id, tenantId: null, email: "ops@garuda.id", phone: null, website: null, country: "ID", address: null,
     },
   });
@@ -337,7 +341,7 @@ export async function seed(): Promise<void> {
     where: { orgId: distributor.id },
     defaults: {
       orgId: distributor.id,
-      code: "PRT-1001",
+      code: "PRT-1005",
       tier: "Gold",
       status: "Active",
       adminUserId: null,
@@ -355,9 +359,9 @@ export async function seed(): Promise<void> {
     defaults: {
       orgId: distributor.id,
       templateId: null,
-      templateName: "Principal Partner Agreement",
-      number: "AGR-2026-0001",
-      version: "1.0",
+      templateName: "Distributor Agreement",
+      number: "AGR-2026-0024",
+      version: "v1.4",
       status: "Approved",
       effectiveDate: "2026-01-01",
       expirationDate: "2027-12-31",
@@ -450,28 +454,29 @@ export async function seed(): Promise<void> {
     await garudaProfile.save();
   }
   const [siteHq] = await Site.findOrCreate({
-    where: { code: "STE-1001" },
+    where: { code: "STE-1021" },
     defaults: {
-      orgId: tenant.id, code: "STE-1001", name: "Garuda HQ", type: "Head Office",
+      orgId: tenant.id, code: "STE-1021", name: "Head Office", type: "Head Office",
       country: "ID", address: "Jl. Industri Raya No. 1, Bekasi", status: "Active", isPrimary: true,
       description: null, contactPerson: "Tenant Admin", contactEmail: "admin@garuda.id", contactPhone: null,
     },
   });
-  // Two more sites (OD PT Hammer Industries: Head Office/Factory A/Warehouse,
-  // app.html:14987) so the Work Units seed below (`wuSeedIfNeeded`,
+  // Two more sites (OD PT Hammer Industries `idst21`-`idst23`, core.js:6897-6899:
+  // STE-1021 Head Office / STE-1022 Factory A / STE-1023 Warehouse) so the Work
+  // Units seed below (`wuSeedIfNeeded`,
   // 9132-9181) has somewhere to distribute its 3 site indices across.
   const [siteFactory] = await Site.findOrCreate({
-    where: { code: "STE-1002" },
+    where: { code: "STE-1022" },
     defaults: {
-      orgId: tenant.id, code: "STE-1002", name: "Garuda Factory A", type: "Factory",
+      orgId: tenant.id, code: "STE-1022", name: "Factory A", type: "Factory",
       country: "ID", address: "Kawasan Industri MM2100, Bekasi", status: "Active", isPrimary: false,
       description: "Primary production facility — assembly and finishing lines.", contactPerson: "Tenant Admin", contactEmail: "admin@garuda.id", contactPhone: null,
     },
   });
   const [siteWarehouse] = await Site.findOrCreate({
-    where: { code: "STE-1003" },
+    where: { code: "STE-1023" },
     defaults: {
-      orgId: tenant.id, code: "STE-1003", name: "Garuda Warehouse", type: "Warehouse",
+      orgId: tenant.id, code: "STE-1023", name: "Warehouse", type: "Warehouse",
       country: "ID", address: "Jl. Raya Cakung 88, Bekasi", status: "Active", isPrimary: false,
       description: "Finished-goods storage and distribution hub.", contactPerson: "Tenant Admin", contactEmail: "admin@garuda.id", contactPhone: null,
     },
@@ -514,27 +519,82 @@ export async function seed(): Promise<void> {
 
   // 11. Phase 6 — OD's 8 seeded support tickets (`seedTickets`, app.html:26557-
   //     15505), spanning all 5 statuses and 4 priorities across tenant + partner
-  //     scope. OD's four flavor orgs (PT Hammer Industries / PT Parker Industries
-  //     / PT Damage Control / PT Stark Industries) map onto our seeded orgs:
-  //     Hammer/Parker → the existing Garuda/Nusantara pair; Damage Control/Stark
-  //     are a second, independent partner+tenant pair created here solely to
-  //     reproduce OD's cross-partner ticket-isolation scenario (a partner must
-  //     never see another partner's managed-tenant tickets).
-  const [stark] = await Organization.findOrCreate({
-    where: { code: "STARKIND" },
-    defaults: {
-      name: "PT Stark Industries", code: "STARKIND", type: "Distributor", status: "Active",
-      parentOrgId: so.id, tenantId: null, email: "ops@starkindustries.com", phone: null, website: null, country: "US", address: null,
-    },
-  });
+  //     scope. OD's four flavor orgs map 1:1 onto seeded orgs now: PT Parker
+  //     Industries (`PRT-1005`, the `NPART` fixture) with its tenant PT Hammer
+  //     Industries (`TEN-1005`), and PT Stark Industries (`PRT-1001`, seeded by
+  //     `seedOdPartners`) with its tenant PT Damage Control (`TEN-1001`) — the
+  //     two independent partner+tenant pairs OD's cross-partner ticket-isolation
+  //     scenario needs (a partner must never see another partner's managed-tenant
+  //     tickets).
+  const stark = await Organization.findOne({ where: { code: "STARKIND" } });
+  if (!stark) throw new Error("Partner org STARKIND (OD idpr1) missing — seedOdPartners must run first");
   const [damageControl] = await Organization.findOrCreate({
-    // OD `idtn1` / `TEN-1001` (open-design core.js:6870).
-    where: { code: "DMGCTRL" },
+    // OD `idtn1` / `TEN-1001` (open-design core.js:6870), acquired through
+    // `idpr1` PT Stark Industries.
+    where: { code: "TEN-1001" },
     defaults: {
-      name: "PT Damage Control", code: "DMGCTRL", type: "Tenant", status: "Active",
-      parentOrgId: stark.id, tenantId: null, email: "ops@damagecontrol.co.id", phone: null, website: null, country: "ID", address: null,
+      name: "PT Damage Control", code: "TEN-1001", type: "Tenant", status: "Active",
+      parentOrgId: stark.id, tenantId: null, email: "it@damagecontrol.co.id",
+      phone: "+62 21 5550 1000", website: "damagecontrol.co.id", country: "ID", address: "Jl. Gatot Subroto 10, Jakarta",
     },
   });
+  // ...with the tenant profile that puts it on the Tenants list beside OD's
+  // other four (`listTenants` skips an organization that has none).
+  await TenantProfile.findOrCreate({
+    where: { orgId: damageControl.id },
+    defaults: {
+      orgId: damageControl.id, acquisition: "Partner", partnerOrgId: stark.id,
+      billingOwner: stark.name, status: "Active", subscriptionSummary: null, adminUserId: null,
+      billing: { plan: "Growth · Annual", status: "Partner-managed" },
+      audit: [
+        { ts: "2026-05-10T10:00:00.000Z", msg: "Tenant Administrator activated account" },
+        { ts: "2026-05-03T10:00:00.000Z", msg: "Activation email sent" },
+        { ts: "2026-05-02T10:00:00.000Z", msg: 'Primary site "Head Office" created' },
+        { ts: "2026-05-02T10:00:00.000Z", msg: "Tenant organization created (Partner: PT Stark Industries)" },
+      ],
+    },
+  });
+
+  // OD shows PT Damage Control on the partner's Tenants tab as "Growth · Annual"
+  // renewing 2027-03-31 (js/core.js:193); that tab reads the tenant org's own
+  // subscription (`getPartnerTenants`), so the row needs one.
+  await Subscription.findOrCreate({
+    where: { orgId: damageControl.id },
+    defaults: {
+      orgId: damageControl.id, plan: "Growth · Annual", entitlements: {}, status: "Active",
+      startDate: new Date("2026-01-01T00:00:00.000Z"), endDate: new Date("2027-03-31T00:00:00.000Z"),
+    },
+  });
+
+  // OD lists four assigned tenants against `idpr1` (js/core.js:193) — PT Damage
+  // Control above plus three that exist only on the partner record, with the
+  // subscription and renewal date the Partner detail's Tenants tab renders
+  // (`getPartnerTenants` reads the child org + its subscription). They carry no
+  // tenant profile, so they stay off the Tenants register itself, exactly as in
+  // OD where they are not part of `db.tenants`.
+  const starkAssignedTenants = [
+    { code: "TEN-1006", name: "PT Worthington Industries", status: "Active" as const, plan: "Starter · Annual", renewal: "2026-11-30" },
+    { code: "TEN-1007", name: "PT Frost International", status: "Active" as const, plan: "Enterprise · Annual", renewal: "2027-01-15" },
+    { code: "TEN-1008", name: "PT Horizon Labs", status: "Pending Approval" as const, plan: "Growth · Annual", renewal: null },
+  ];
+  for (const t of starkAssignedTenants) {
+    const [org] = await Organization.findOrCreate({
+      where: { code: t.code },
+      defaults: {
+        name: t.name, code: t.code, type: "Tenant", status: t.status,
+        parentOrgId: stark.id, tenantId: null,
+        email: null, phone: null, website: null, country: "ID", address: null,
+      },
+    });
+    await Subscription.findOrCreate({
+      where: { orgId: org.id },
+      defaults: {
+        orgId: org.id, plan: t.plan, entitlements: {},
+        status: t.status === "Active" ? "Active" : "Pending",
+        startDate: new Date("2026-01-01T00:00:00.000Z"), endDate: t.renewal ? new Date(`${t.renewal}T00:00:00.000Z`) : null,
+      },
+    });
+  }
   const TICKET_ORGS: Record<string, string> = { tenant: tenant.id, distributor: distributor.id, damageControl: damageControl.id, stark: stark.id };
   const ticketSeed: {
     code: string; subject: string; description: string; category: string; priority: string; status: string;
@@ -547,7 +607,7 @@ export async function seed(): Promise<void> {
     {
       code: "TKT-2026-0001", subject: "Cannot Activate Tenant Administrator", description: "The activation link for our administrator account returns an error when clicked. Please advise.",
       category: "Technical Support", priority: "High", status: "In Progress",
-      scope: "tenant", orgTag: "tenant", managedBy: "Nusantara Partners",
+      scope: "tenant", orgTag: "tenant", managedBy: "PT Parker Industries",
       createdBy: { name: "Jennifer Susan Walters", email: "nicole@hammerind.co.id" }, assignedTo: "Nicholas Joseph Fury",
       messages: [{ author: { name: "Jennifer Susan Walters", kind: "user" }, text: "Hi, our admin can’t activate — the link errors out. Screenshot attached.", ts: "2026-06-02T09:00:00.000Z" }, { author: { name: "Nicholas Joseph Fury", kind: "support" }, text: "Thanks Maria, we’re looking into it. Could you confirm the email address the link was sent to?", ts: "2026-06-02T14:00:00.000Z" }, { author: { name: "Jennifer Susan Walters", kind: "user" }, text: "It was sent to maria@hammerind.co.id.", ts: "2026-06-02T16:00:00.000Z" }],
       activity: [{ event: "Ticket created", ts: "2026-06-02T09:00:00.000Z" }, { event: "Assigned to Raka Pratama", ts: "2026-06-02T12:00:00.000Z" }, { event: "Status changed to In Progress", ts: "2026-06-02T12:00:00.000Z" }],
@@ -556,7 +616,7 @@ export async function seed(): Promise<void> {
     {
       code: "TKT-2026-0002", subject: "Invoice Status Incorrect", description: "INV-2026-0007 shows as unpaid but we have completed the bank transfer.",
       category: "Billing", priority: "Medium", status: "Waiting for Customer",
-      scope: "tenant", orgTag: "tenant", managedBy: "Nusantara Partners",
+      scope: "tenant", orgTag: "tenant", managedBy: "PT Parker Industries",
       createdBy: { name: "Jennifer Susan Walters", email: "nicole@hammerind.co.id" }, assignedTo: "Natalia Alianovna Romanova",
       messages: [{ author: { name: "Jennifer Susan Walters", kind: "user" }, text: "Our May invoice still shows unpaid after payment.", ts: "2026-06-05T10:00:00.000Z" }, { author: { name: "Natalia Alianovna Romanova", kind: "support" }, text: "Could you share the transfer reference number so we can match it?", ts: "2026-06-05T18:00:00.000Z" }],
       activity: [{ event: "Ticket created", ts: "2026-06-05T10:00:00.000Z" }, { event: "Assigned to Dewi Lestari", ts: "2026-06-05T18:00:00.000Z" }, { event: "Status changed to Waiting for Customer", ts: "2026-06-05T18:00:00.000Z" }],
@@ -574,7 +634,7 @@ export async function seed(): Promise<void> {
     {
       code: "TKT-2026-0004", subject: "Document Upload Error", description: "Uploading a PDF over 5MB fails silently.",
       category: "Bug Report", priority: "High", status: "Resolved",
-      scope: "tenant", orgTag: "tenant", managedBy: "Nusantara Partners",
+      scope: "tenant", orgTag: "tenant", managedBy: "PT Parker Industries",
       createdBy: { name: "Jennifer Susan Walters", email: "nicole@hammerind.co.id" }, assignedTo: "Nicholas Joseph Fury",
       messages: [{ author: { name: "Jennifer Susan Walters", kind: "user" }, text: "Large PDF uploads fail with no message.", ts: "2026-06-01T08:00:00.000Z" }, { author: { name: "Nicholas Joseph Fury", kind: "support" }, text: "Fixed in the latest release — please retry and confirm.", ts: "2026-06-01T20:00:00.000Z" }, { author: { name: "Jennifer Susan Walters", kind: "user" }, text: "Working now, thank you!", ts: "2026-06-02T09:00:00.000Z" }],
       activity: [{ event: "Ticket created", ts: "2026-06-01T08:00:00.000Z" }, { event: "Status changed to In Progress", ts: "2026-06-01T20:00:00.000Z" }, { event: "Ticket resolved", ts: "2026-06-02T09:00:00.000Z" }],
@@ -592,7 +652,7 @@ export async function seed(): Promise<void> {
     {
       code: "TKT-2026-0006", subject: "Need Help Assigning Framework", description: "How do we map ISO 9001 to a specific site?",
       category: "General Inquiry", priority: "Medium", status: "Closed",
-      scope: "tenant", orgTag: "tenant", managedBy: "Nusantara Partners",
+      scope: "tenant", orgTag: "tenant", managedBy: "PT Parker Industries",
       createdBy: { name: "Jennifer Susan Walters", email: "nicole@hammerind.co.id" }, assignedTo: "Matthew Michael Murdock",
       messages: [{ author: { name: "Jennifer Susan Walters", kind: "user" }, text: "Where do I assign a framework to our factory site?", ts: "2026-06-01T09:00:00.000Z" }, { author: { name: "Matthew Michael Murdock", kind: "support" }, text: "Frameworks are assigned per site — this is coming soon to your workspace.", ts: "2026-06-01T13:00:00.000Z" }],
       activity: [{ event: "Ticket created", ts: "2026-06-01T09:00:00.000Z" }, { event: "Ticket resolved", ts: "2026-06-01T18:00:00.000Z" }, { event: "Ticket closed", ts: "2026-06-02T12:00:00.000Z" }],
@@ -696,9 +756,8 @@ export async function seed(): Promise<void> {
   //        `odPartners.ts` seeds partner staff.
   //
   //        One deliberate omission: OD's per-tenant `sites[]`. OD's `site()`
-  //        helper (core.js:6868) derives `STE-1003`..`STE-1008` for them and
-  //        `Site.code` is globally unique here — `STE-1003` is already the
-  //        Garuda Warehouse seeded above. Site parity is its own slice.
+  //        helper (core.js:6868) derives `STE-1001`..`STE-1008` for them and
+  //        `Site.code` is globally unique here. Site parity is its own slice.
   const OD_TENANTS = [
     {
       odId: "idtn2", code: "TEN-1002", name: "PT Alchemax", acquisition: "Direct" as const,
@@ -795,8 +854,8 @@ export async function seed(): Promise<void> {
   // 12e. SOF-389 (data parity) — the 5 OD `db.*` collections that map 1:1 to
   //      an existing model but had zero seeded rows: saasSubs/saasWorkspaces/
   //      saasPipeline (see src/db/seeders/dataParity.ts), siteRequests, and
-  //      tenantRoles. Reuses the tenant/distributor (Hammer persona) and
-  //      damageControl/stark (Damage Control persona) orgs from steps 7 & 11,
+  //      tenantRoles. Reuses the tenant/distributor (Hammer/Parker pair) and
+  //      damageControl/stark (Damage Control/Stark pair) orgs from steps 7, 8b & 11,
   //      plus OD's TEN-1002/1003/1004 tenants from step 12d-2.
   const dataParityOrgIds = {
     hammerTenantId: tenant.id, hammerPartnerId: distributor.id,
@@ -843,7 +902,7 @@ export async function seed(): Promise<void> {
   //     Internal Audit answered "mature" (score 5, no gap); Risk Assessment
   //     answered "ad hoc" (score 0 → High gap → Risk Management module).
   //     maturity = (5 + 0) / 2 = 2.5.
-  const tenantSite = await Site.findOne({ where: { code: "STE-1001" } });
+  const tenantSite = await Site.findOne({ where: { code: "STE-1021" } });
   // Framework assignment so the tenant can start a new assessment from the UI.
   if (tenantSite) {
     await FrameworkAssignment.findOrCreate({
@@ -1990,6 +2049,19 @@ export async function seed(): Promise<void> {
         { name: "External documents current", cat: "Documented information (§7.5)", src: "External Documents", unit: "%", dir: "up", target: "90", val: "84", status: "amber" },
         { name: "Approved suppliers", cat: "External providers (§8.4)", src: "Suppliers", unit: "%", dir: "up", target: "80", val: "75", status: "amber" },
       ],
+      // The five tenant objectives frozen at the same moment as the indicators —
+      // OD `perfSeedBaseline` (core.js:7950) snapshots `objTenantList()` as
+      // `{id,title,owner,unit,dir,target,val,status}` with the actual nudged the
+      // same way (`dir:'down'` +1, otherwise −4), so the objective row reads a
+      // little better than its indicator. `id` carries the objective's OD code,
+      // which is what this repo seeds as the `objectives` record `code`.
+      objectives: [
+        { id: "OBJ-0001", title: "Achieve ≥ 92% training completion across the workforce", owner: "Bobbi Morse", unit: "%", dir: "up", target: "92", val: "86", status: "amber" },
+        { id: "OBJ-0002", title: "Raise awareness acknowledgment to ≥ 97%", owner: "Maria Rambeau", unit: "%", dir: "up", target: "97", val: "82", status: "red" },
+        { id: "OBJ-0003", title: "Close ≥ 90% of internal audit findings on time", owner: "Daniel Rand", unit: "%", dir: "up", target: "90", val: "74", status: "red" },
+        { id: "OBJ-0004", title: "Maintain zero open High / Critical risks", owner: "Scott Edward Harris Lang", unit: "#", dir: "down", target: "0", val: "0", status: "green" },
+        { id: "OBJ-0005", title: "Reach a customer satisfaction score of ≥ 90%", owner: "Gwendolyne Maxine Stacy", unit: "%", dir: "up", target: "90", val: "84", status: "amber" },
+      ],
       createdBy: "Jennifer Susan Walters", lastUpdatedBy: "Jennifer Susan Walters",
     });
   }
@@ -2153,7 +2225,7 @@ export async function seed(): Promise<void> {
     await Notification.bulkCreate([
       { orgId: tenant.id, userId: null, type: "ticket", text: "Ticket TKT-2026-0001 needs attention", link: "/tickets", read: false },
       { orgId: tenant.id, userId: null, type: "assessment", text: "Assessment ASM-1001 finalized with 1 gap", link: "/gap-assessment", read: false },
-      { orgId: tenant.id, userId: null, type: "info", text: "Framework ISO/IEC 27001 assigned to Garuda HQ", link: "/my-frameworks", read: true },
+      { orgId: tenant.id, userId: null, type: "info", text: "Framework ISO/IEC 27001 assigned to Head Office", link: "/my-frameworks", read: true },
     ]);
   }
 
@@ -2162,7 +2234,7 @@ export async function seed(): Promise<void> {
     [
       "Seed complete.",
       "  Org: AXIA (ServiceOwner)",
-      "  Orgs: AXIA (ServiceOwner) → Nusantara Partners (Distributor) → Garuda Manufacturing (Tenant)",
+      "  Orgs: AXIA (ServiceOwner) → PT Parker Industries (Distributor) → PT Hammer Industries (Tenant)",
       "  Orgs: AXIA (ServiceOwner) → PT Stark Industries (Distributor) → PT Damage Control (Tenant) [ticket cross-partner isolation pair]",
       "  Roles: Super Admin (bypass), Administrator (full CRUD grants), User (read-only), Billing Manager, Technical Support",
       `  Logins (password ${DEFAULT_PASSWORD}): soadmin / admin / user / partner / tenant`,

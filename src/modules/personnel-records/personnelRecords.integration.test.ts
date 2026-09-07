@@ -151,15 +151,34 @@ describe("personnel records", () => {
 
     const created = await request(app).post(`/v1/users/${targetUserId}/performance-records`).set(bearer).send({
       reviewPeriod: "2026 H1",
-      rating: "Exceeds Expectations",
+      rating: "Exceeds",
+      // OD's own seed reviews are signed by a body, not a user: `reviewer:'Board'`.
+      reviewer: "Board",
     });
     expect(created.status).toBe(201);
+    expect(created.body.data.reviewer).toBe("Board");
 
     const list = await request(app).get(`/v1/users/${targetUserId}/performance-records`).set(bearer);
     expect(list.body.data.length).toBe(1);
 
     const del = await request(app).delete(`/v1/users/${targetUserId}/performance-records/${created.body.data.id}`).set(bearer);
     expect(del.status).toBe(200);
+  });
+
+  it("rejects a rating outside the OD Exceeds/Meets/Below picklist", async () => {
+    const { token, targetUserId } = await seedAdminAndTargetUser();
+    const res = await request(app).post(`/v1/users/${targetUserId}/performance-records`).set("authorization", `Bearer ${token}`)
+      .send({ reviewPeriod: "2026 H1", rating: "Exceeds Expectations" });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("INVALID_RATING");
+  });
+
+  it("rejects a severity outside the OD Low/Medium/High picklist", async () => {
+    const { token, targetUserId } = await seedAdminAndTargetUser();
+    const res = await request(app).post(`/v1/users/${targetUserId}/disciplinary-records`).set("authorization", `Bearer ${token}`)
+      .send({ disciplineType: "Verbal Warning", incidentDate: "2026-07-01", description: "Late attendance", severity: "Critical" });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("INVALID_SEVERITY");
   });
 
   it("forbids a Distributor actor from reading/creating personnel records on an out-of-scope user", async () => {

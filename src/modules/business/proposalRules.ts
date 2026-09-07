@@ -15,12 +15,25 @@
 import { BadRequestError } from "../../lib/errors";
 import { cabCertManDays, cabComplexityAdj, CAB_RATE_DEFAULT, type CabComplexityLevel } from "./cabPricing";
 
+/**
+ * OD's own line-item shape — `propFormSave` (js/modules.js:2488) writes
+ * `{id, courseId, courseCode, desc, qty, unit}` and `certProposalStart`'s `mk()`
+ * (:2220) writes `{id, desc, qty, unit}`. All nine seeded proposals
+ * (`src/db/seeders/data/businessRecords/proposals.json`) carry it, so
+ * normalising to anything else dropped their `id`/`courseCode` on the first save
+ * and rejected them outright on the second.
+ *
+ * `courseLink` is this codebase's own addition (the FE's catalog deep-link), kept
+ * alongside OD's keys.
+ */
 export interface ProposalItem {
-  description: string;
-  qty: number;
-  unitPrice: number;
+  id?: string;
   courseId?: string;
+  courseCode?: string;
   courseLink?: string;
+  desc: string;
+  qty: number;
+  unit: number;
 }
 
 /** OD `propCalc` (js/modules.js:2452) names the discount key `disc` and returns the
@@ -34,28 +47,38 @@ export interface ProposalTotals {
   total: number;
 }
 
-/** Mirrors OD's `propCalc` (modules.js ~L2447) verbatim: sub = Σ qty*unitPrice, afterDisc floors
+/** Mirrors OD's `propCalc` (modules.js ~L2447) verbatim: sub = Σ qty*unit, afterDisc floors
  *  at 0, tax = afterDisc * taxPct/100, total = afterDisc + tax. */
 export function computeProposalTotals(items: ProposalItem[], discount: number, taxPct: number): ProposalTotals {
-  const sub = items.reduce((a, i) => a + (Number(i.qty) || 0) * (Number(i.unitPrice) || 0), 0);
+  const sub = items.reduce((a, i) => a + (Number(i.qty) || 0) * (Number(i.unit) || 0), 0);
   const disc = Number(discount) || 0;
   const afterDisc = Math.max(0, sub - disc);
   const tax = afterDisc * ((Number(taxPct) || 0) / 100);
   return { sub, disc, tax, total: afterDisc + tax };
 }
 
+/**
+ * Normalises each line to OD's `{id, courseId, courseCode, desc, qty, unit}`.
+ * `description`/`unitPrice` — the spellings this port used before it was aligned
+ * to OD — are still accepted on input so a record saved under the old shape can
+ * still be edited; only OD's keys are ever written back.
+ */
 function assertValidItems(itemsRaw: unknown): ProposalItem[] {
   if (!Array.isArray(itemsRaw)) throw new BadRequestError("Proposal items must be an array", "INVALID_ITEMS");
   return itemsRaw.map((raw, idx) => {
     const item = (raw ?? {}) as Record<string, unknown>;
-    const description = String(item.description ?? "").trim();
-    if (!description) throw new BadRequestError(`Item ${idx + 1}: description is required`, "INVALID_ITEM");
+    const desc = String(item.desc ?? item.description ?? "").trim();
+    if (!desc) throw new BadRequestError(`Item ${idx + 1}: description is required`, "INVALID_ITEM");
     const qty = Number(item.qty);
     if (!Number.isFinite(qty) || qty <= 0) throw new BadRequestError(`Item ${idx + 1}: qty must be greater than 0`, "INVALID_ITEM");
-    const unitPrice = Number(item.unitPrice);
-    if (!Number.isFinite(unitPrice) || unitPrice < 0) throw new BadRequestError(`Item ${idx + 1}: unitPrice must be >= 0`, "INVALID_ITEM");
-    const out: ProposalItem = { description, qty, unitPrice };
+    const unit = Number(item.unit ?? item.unitPrice);
+    if (!Number.isFinite(unit) || unit < 0) throw new BadRequestError(`Item ${idx + 1}: unit price must be >= 0`, "INVALID_ITEM");
+    const out: ProposalItem = { desc, qty, unit };
+    // OD mints `id: rUid('pi')` per line and snapshots the linked course's code
+    // beside its id; both are carried through so an edit does not destroy them.
+    if (item.id !== undefined && item.id !== "") out.id = String(item.id);
     if (item.courseId !== undefined && item.courseId !== "") out.courseId = String(item.courseId);
+    if (item.courseCode !== undefined && item.courseCode !== "") out.courseCode = String(item.courseCode);
     if (item.courseLink !== undefined && item.courseLink !== "") out.courseLink = String(item.courseLink);
     return out;
   });
@@ -108,9 +131,9 @@ function certPricedItems(cert: ProposalCertInput): ProposalItem[] {
     : cabComplexityAdj(cert.standards, cert.complexity || {});
   const { ia, sa } = cabCertManDays(cert.personnel, cert.standards, adj);
   return [
-    { description: "Initial certification audit (Stage 1 + Stage 2)", qty: ia, unitPrice: rate },
-    { description: "Surveillance audit 1", qty: sa, unitPrice: rate },
-    { description: "Surveillance audit 2", qty: sa, unitPrice: rate },
+    { desc: "Initial certification audit (Stage 1 + Stage 2)", qty: ia, unit: rate },
+    { desc: "Surveillance audit 1", qty: sa, unit: rate },
+    { desc: "Surveillance audit 2", qty: sa, unit: rate },
   ];
 }
 

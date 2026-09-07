@@ -173,7 +173,9 @@ IsraScenarioResidual.init(
  * audit columns, not OD fields. */
 export class IsraScenarioClosure extends Model<InferAttributes<IsraScenarioClosure>, InferCreationAttributes<IsraScenarioClosure>> {
   declare scenarioId: string;
-  declare status: CreationOptional<string>;
+  /** `closure.status` — js/core.js:14851 tests only `=== 'Closed'`; OD never
+   * writes an open-state literal, so this stays null until a scenario closes. */
+  declare status: CreationOptional<string | null>;
   /** `closure.nextReview` — js/core.js:14762. */
   declare nextReview: string | null;
   declare closedAt: Date | null;
@@ -185,7 +187,7 @@ export class IsraScenarioClosure extends Model<InferAttributes<IsraScenarioClosu
 IsraScenarioClosure.init(
   {
     scenarioId: { type: DataTypes.UUID, primaryKey: true, field: "scenario_id" },
-    status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Open" },
+    status: { type: DataTypes.STRING, allowNull: true },
     nextReview: { type: DataTypes.DATEONLY, allowNull: true, field: "next_review" },
     closedAt: { type: DataTypes.DATE, allowNull: true, field: "closed_at" },
     closedBy: { type: DataTypes.STRING, allowNull: true, field: "closed_by" },

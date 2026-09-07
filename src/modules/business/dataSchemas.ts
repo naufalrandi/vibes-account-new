@@ -228,7 +228,11 @@ const entProposalsDataSchema = z
     sentAt: z.string().nullish(),
     decidedAt: z.string().nullish(),
     projectId: z.string().nullish(),
-    terms: unknownArray.optional(),
+    /** OD `proposalStart` (js/modules.js:2502) stores clause ids in `termIds` and has no
+     *  `terms` key at all; this port's proposal form additionally posts the prose
+     *  payment-milestone text here (`propDefaultTerms`). Accepts both — same union as
+     *  `ent-svc-contracts.terms` below — instead of 400ing every proposal save. */
+    terms: z.union([z.string(), z.array(z.string())]).optional(),
     // Server-computed by `assertValidProposalData` (proposalRules.ts) after
     // this schema runs — round-tripped back on the next save.
     totals: unknownObject.optional(),

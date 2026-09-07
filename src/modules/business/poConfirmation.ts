@@ -90,6 +90,31 @@ const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v)
  * Kept identical to the FE mock's `mockPoConfirmation`, so the screen renders
  * the same against either client.
  */
+/**
+ * OD `poPaymentTermsText` / `poAnchorPhrase` (js/modules.js:4132-4139). The
+ * PO stores the net days plus an anchor and optional advance/retention
+ * percentages (`entPoDataSchema`); the supplier's copy has to spell all four
+ * out, exactly as the FE's own `poPaymentTermsText` does.
+ */
+const PO_ANCHOR_PHRASES: Record<string, string> = {
+  invoice: "from invoice date",
+  delivery: "after delivery",
+  acceptance: "after acceptance",
+};
+
+function poAnchorPhrase(a: unknown): string {
+  return PO_ANCHOR_PHRASES[str(a)] ?? PO_ANCHOR_PHRASES.invoice;
+}
+
+function poPaymentTermsText(d: Record<string, unknown>): string {
+  const days = str(d.terms) || "30";
+  const adv = Number(d.payAdvance) || 0;
+  const ret = Number(d.payRetention) || 0;
+  const base = `Net ${days} business days ${poAnchorPhrase(d.payAnchor)}`;
+  const txt = adv > 0 ? `${adv}% advance on PO issue; ${100 - adv}% ${base}` : base;
+  return ret > 0 ? `${txt}. ${ret}% retention released after the warranty period` : txt;
+}
+
 /** The PR's own line, falling back to the PO total when the PR is unavailable. */
 function prLineItem(pr: BusinessRecord | null | undefined, title: string, amount: number): PoConfirmationLineItem {
   const p = (pr?.data ?? {}) as Record<string, unknown>;
@@ -129,7 +154,7 @@ function toView(r: BusinessRecord, pr?: BusinessRecord | null): PoConfirmationVi
     subtotal: amount,
     tax: 0,
     total: amount,
-    terms: `Net ${str(d.terms) || "30"} business days from invoice date`,
+    terms: poPaymentTermsText(d),
     ack,
   };
 }

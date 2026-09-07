@@ -1,23 +1,26 @@
 import { Organization, PartnerAgreement, PartnerProfile, Role, User } from "../models";
+import type { OrgStatus } from "../models/organization.model";
 import type { PartnerAgreementStatus } from "../models/partnerAgreement.model";
 import type { PartnerStatus, PartnerTier } from "../models/partnerProfile.model";
 import type { UserStatus } from "../models/user.model";
 
 /**
- * OD `seedPartners()` (js/core.js) — the five-partner commercial demo set.
+ * OD `seedPartners()` (js/core.js:187-221) — the five-partner commercial demo set.
  *
- * Only `PRT-1001` was seeded before this (the `seed.ts` fixture, still named
- * Nusantara Partners there —
- * `seed.ts`), so against a real API the Partners list held a single Active Gold
- * row: no Draft, no Pending Approval, no Suspended partner, no Silver or Bronze
- * tier, and no Terminated agreement. The FE mock client has carried all five
- * since it was written (`lib/api/mockClient.ts` `PARTNERS`), which is the worse
- * shape of the gap — the screen looks complete in mock and near-empty for real.
+ * Only one partner was seeded before this (the `seed.ts` fixture org), so against
+ * a real API the Partners list held a single Active Gold row: no Draft, no
+ * Pending Approval, no Suspended partner, no Silver or Bronze tier, and no
+ * Terminated agreement. The FE mock client has carried all five since it was
+ * written (`lib/api/mockClient.ts` `PARTNERS`), which is the worse shape of the
+ * gap — the screen looks complete in mock and near-empty for real.
  *
- * Names follow this codebase's existing partner branding (the FE mock's), not
- * OD's Marvel company names, which were deliberately renamed here; the OD codes,
- * statuses, tiers, countries, agreement numbers and audit trails are verbatim.
- * Partner *people* keep their OD names, as the rest of this codebase's seeds do.
+ * Names, emails, phones, websites, countries, addresses, codes, statuses, tiers,
+ * agreement numbers and audit trails are all OD-verbatim.
+ *
+ * `idpr5` / `PRT-1005` (PT Parker Industries) is the one partner NOT restated
+ * here: it is the `seed.ts` fixture org, which owns OD's `idtn5` PT Hammer
+ * Industries tenant — the demo tenant every other seed hangs off — exactly as OD
+ * pairs them. Seeding it again would collide on the unique partner code.
  */
 
 /** OD `PARTNER_AG_HISTORY` — the agreement timeline, sliced by partner status. */
@@ -44,6 +47,13 @@ export function agreementHistoryFor(status: PartnerStatus): typeof PARTNER_AG_HI
   return PARTNER_AG_HISTORY.slice();
 }
 
+/**
+ * The four statuses OD seeds — each spelled identically on `PartnerStatus` and
+ * `OrgStatus`, which is what lets the organization row carry the partner's own
+ * status instead of a coarser Active/Suspended split.
+ */
+type SeededPartnerStatus = Extract<PartnerStatus, OrgStatus>;
+
 interface OdPartner {
   odId: string;
   code: string;
@@ -54,7 +64,7 @@ interface OdPartner {
   website: string;
   country: string;
   address: string;
-  status: PartnerStatus;
+  status: SeededPartnerStatus;
   tier: PartnerTier;
   createdAt: string;
   updatedAt: string;
@@ -69,12 +79,29 @@ interface OdPartner {
   audit: { ts: string; msg: string }[];
 }
 
-/**
- * OD `idpr2`-`idpr5`. `idpr1` is the Nusantara Partners fixture `seed.ts`
- * already creates (it carries OD's `PRT-1001` Active/Gold slot), so it is not
- * restated here — seeding it again would collide on the unique partner code.
- */
+/** OD `idpr1`-`idpr4` (`idpr5` is the `seed.ts` fixture — see the header note). */
 export const OD_PARTNERS: readonly OdPartner[] = [
+  {
+    odId: "idpr1", code: "PRT-1001", name: "PT Stark Industries", orgCode: "STARKIND",
+    email: "partners@starkindustries.com", phone: "+62 21 5555 1200", website: "starkindustries.com",
+    country: "ID", address: "Jl. Sudirman Kav. 52, Jakarta",
+    status: "Active", tier: "Gold",
+    createdAt: "2026-04-02T10:00:00.000Z", updatedAt: "2026-04-12T10:00:00.000Z",
+    admin: { fullName: "Anthony Edward Stark", username: "leonardo.admin", email: "leonardo@starkindustries.com", status: "Active" },
+    team: [{ fullName: "Wanda Maximoff", email: "natalie@starkindustries.com", roleGroup: "Billing Manager", status: "Active" }],
+    agreement: {
+      templateName: "Distributor Agreement", number: "AGR-2026-0001", version: "v1.4",
+      status: "Approved", effectiveDate: "2026-04-01", expirationDate: "2028-03-31",
+      currency: "IDR", governingLaw: "Indonesia", jurisdiction: "Jakarta", partnerSignatory: "Anthony Edward Stark",
+    },
+    audit: [
+      { ts: "2026-04-12T10:00:00.000Z", msg: "Partner Administrator activated account" },
+      { ts: "2026-04-10T10:00:00.000Z", msg: "Activation email sent to andi@starkindustries.com" },
+      { ts: "2026-04-09T10:00:00.000Z", msg: "Partnership agreement approved" },
+      { ts: "2026-04-05T10:00:00.000Z", msg: "Partnership agreement AGR-2026-0001 generated & sent" },
+      { ts: "2026-04-02T10:00:00.000Z", msg: "Partner organization created" },
+    ],
+  },
   {
     odId: "idpr2", code: "PRT-1002", name: "Oscorp Industries Pte Ltd", orgCode: "OSCORP",
     email: "hello@oscorp.com", phone: "+65 6555 8800", website: "oscorp.com",
@@ -129,40 +156,17 @@ export const OD_PARTNERS: readonly OdPartner[] = [
       { ts: "2026-04-04T10:00:00.000Z", msg: "Partner organization created" },
     ],
   },
-  {
-    odId: "idpr5", code: "PRT-1005", name: "PT Parker Industries", orgCode: "PARKIND",
-    email: "partners@parkerindustries.co.id", phone: "+62 21 5555 9000", website: "parkerindustries.co.id",
-    country: "ID", address: "Jl. Thamrin 5, Jakarta",
-    status: "Active", tier: "Gold",
-    createdAt: "2026-04-01T10:00:00.000Z", updatedAt: "2026-04-15T10:00:00.000Z",
-    admin: { fullName: "Peter Benjamin Parker", username: "zinedine.admin", email: "zinedine@parkerindustries.co.id", status: "Active" },
-    team: [{ fullName: "Kamala Khan", email: "anne@parkerindustries.co.id", roleGroup: "Billing Manager", status: "Active" }],
-    agreement: {
-      templateName: "Distributor Agreement", number: "AGR-2026-0024", version: "v1.4",
-      status: "Approved", effectiveDate: "2026-01-01", expirationDate: "2027-12-31",
-      currency: "IDR", governingLaw: "Indonesia", jurisdiction: "Jakarta", partnerSignatory: "Peter Benjamin Parker",
-    },
-    audit: [
-      { ts: "2026-04-15T10:00:00.000Z", msg: 'Tenant "PT Hammer Industries" provisioned' },
-      { ts: "2026-04-02T10:00:00.000Z", msg: "Partner Administrator activated account" },
-      { ts: "2026-04-01T10:00:00.000Z", msg: "Partner organization created" },
-    ],
-  },
 ];
 
 /**
  * Seeds OD's remaining partners under the Service Owner. Idempotent on the
  * organization code / partner code / email natural keys.
  *
- * No child Tenant organizations are created here, but `idpr4`'s is no longer
- * missing: OD gives `idpr4` and `idpr5` one tenant each, and `seed.ts` step
- * 12d-2 now seeds `idpr4`'s (`TEN-1004` PT Cross Technological Enterprises)
- * under this partner's org, so its `tenantCount` reads 1 as OD's does.
- * `idpr5`'s tenant is OD `idtn5` PT Hammer Industries, which this backend
- * already provisions as `TEN-1005` (Garuda Manufacturing) under the Nusantara
- * Partners fixture — re-parenting it here would break the revenue-share and
- * cross-partner ticket-isolation seeds built on that pairing, so `PRT-1005`
- * still reads 0.
+ * No child Tenant organizations are created here — `seed.ts` owns those, and
+ * seeds them against OD's own pairing: `idpr1`'s four (`TEN-1001` PT Damage
+ * Control plus the three assigned-tenant rows OD lists only on the partner
+ * record), `idpr4`'s `TEN-1004` PT Cross Technological Enterprises, and
+ * `idpr5`'s `TEN-1005` PT Hammer Industries.
  */
 export async function seedOdPartners(soOrgId: string): Promise<void> {
   for (const p of OD_PARTNERS) {
@@ -170,9 +174,12 @@ export async function seedOdPartners(soOrgId: string): Promise<void> {
       where: { code: p.orgCode },
       defaults: {
         name: p.name, code: p.orgCode, type: "Distributor",
-        // A Suspended partner's organization is suspended with it; the others
-        // stay Active regardless of where their agreement has got to.
-        status: p.status === "Suspended" ? "Suspended" : "Active",
+        // OD carries exactly one status per partner record (js/core.js:190/196/
+        // 203/210/217), so the organization row takes the profile's own status
+        // rather than a coarser Active/Suspended split — otherwise a Pending
+        // Approval or Draft partner reads "Active" wherever a screen happens to
+        // read the org instead of the profile. `OrgStatus` carries both literals.
+        status: p.status,
         parentOrgId: soOrgId, tenantId: null,
         email: p.email, phone: p.phone, website: p.website, country: p.country, address: p.address,
         createdAt: new Date(p.createdAt), updatedAt: new Date(p.updatedAt),

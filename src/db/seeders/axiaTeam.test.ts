@@ -93,9 +93,14 @@ describe("seedAxiaTeam", () => {
 
     const roleNames = (u: User) => ((u.get("Roles") as Role[] | undefined) ?? []).map((r) => r.name);
     const owner = users.find((u) => u.fullName === "Matthew Michael Murdock")!;
-    // OD's superAdmin flag, expressed the way this backend expresses it — the
-    // Super Admin role is what `user.service` reads to lock the account.
-    expect(roleNames(owner)).toEqual(["Super Admin"]);
+    // OD's superAdmin is a per-user boolean (core.js:151) that EXTENDS the role
+    // group; the platform owner stays an Administrator rather than being moved
+    // to a role name `ROLE_GROUPS` has no member for.
+    expect(roleNames(owner)).toEqual(["Administrator"]);
+    expect(owner.superAdmin).toBe(true);
+    expect(users.filter((u) => u.superAdmin)).toHaveLength(1);
+    // OD `db.users[].id` — the short id the "User ID" column shows.
+    expect(owner.code).toBe("axia1");
     expect(roleNames(users.find((u) => u.fullName === "Nicholas Joseph Fury")!)).toEqual(["Technical Support"]);
     expect(roleNames(users.find((u) => u.fullName === "Kurt Wagner")!)).toEqual([]);
 
@@ -116,7 +121,7 @@ describe("seedAxiaTeam", () => {
 
     expect(await User.count({ where: { orgId: o.id } })).toBe(14);
     const owner = await User.findOne({ where: { email: "matthew.murdock@axia.io" } });
-    expect(owner).toMatchObject({ username: "superadmin", department: "Executive", provisioned: true });
+    expect(owner).toMatchObject({ username: "superadmin", department: "Executive", provisioned: true, code: "axia1", superAdmin: true });
     expect(owner!.permissions).toEqual([...SP_MODULES]);
   });
 });

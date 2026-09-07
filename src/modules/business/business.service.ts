@@ -124,11 +124,11 @@ const BIZ_CODE_CONFIG: Record<string, BizCodeConfig> = {
   // "still lack a BIZ_CODE_CONFIG entry"). `ex-cab`/`mb-vehicle`/`mb-booking`/
   // `mb-support` carry OD's own real numbering (`cabNextId` core.js:3950,
   // `ipPad(db.mbVehicles/mbBookings/mbTickets,...)` motoran.js:14/23/30). The
-  // rest (`ent-comp`, `ent-payroll`, `ent-minwage`, `ent-db-courses`,
-  // `ent-ctypes`/`ent-svc-ctypes`/`ent-sup-ctypes`, `ent-ss`) had no
-  // sequential OD scheme to preserve (OD minted them with `rUid`/fixed
-  // seeds), so these prefixes are new, chosen to read like the rest of this
-  // table rather than invent a numbering OD never had.
+  // rest (`ent-comp`, `ent-minwage`, `ent-ctypes`/`ent-svc-ctypes`/
+  // `ent-sup-ctypes`, `ent-ss`) had no sequential OD scheme to preserve (OD
+  // minted them with `rUid`/fixed seeds), so these prefixes are new, chosen to
+  // read like the rest of this table rather than invent a numbering OD never
+  // had. (`ent-payroll` and `ent-db-courses` do have one — see their entries.)
   // `prNextId` modules.js:2927 mints PR-3001 up; `poNextId` modules.js:3758 mints PO-5001 up.
   "ent-pr": { prefix: "PR", base: 3000, pad: 0 },
   "ent-po": { prefix: "PO", base: 5000, pad: 0 },
@@ -142,12 +142,20 @@ const BIZ_CODE_CONFIG: Record<string, BizCodeConfig> = {
   "ent-comp": { prefix: "COMP", base: 0, pad: 4 },
   // The design is self-contradictory here and neither shape fits prefix/base/pad:
   // `payrollSeedIfNeeded` (js/modules.js:2885) mints `PY-<fy>-01`..`PY-<fy>-12`
-  // while `payrollNextId` (:2884) returns `PY-N<n>`. The 12 seeded cycles — the
-  // ids actually on screen — keep their dump values (`PY-2026-01`..`PY-2026-12`)
-  // via seedRow's design-id path; only cycles minted later fall back to this.
+  // while `payrollNextId` (:2884) returns `PY-N<n+1>` off the max TRAILING number
+  // of any existing id. The 12 seeded cycles — the ids actually on screen — keep
+  // their dump values (`PY-2026-01`..`PY-2026-12`) via seedRow's design-id path;
+  // cycles minted later take the `PY-N` form, which `nextCode` special-cases
+  // below because prefix/base/pad cannot express it.
   "ent-payroll": { prefix: "PY", base: 0, pad: 0 },
   "ent-minwage": { prefix: "MW", base: 0, pad: 4 },
-  "ent-db-courses": { prefix: "CRS", base: 0, pad: 4 },
+  // `courseEdit`'s autoCode (js/modules.js:1995) is a bare 4-digit catalog number:
+  // `max(parseInt(code))` over the catalog starting at 7000, +1. The seeded band
+  // codes (7001 foundation, 71xx awareness, 72xx/73xx/74xx requirements/
+  // implementation/audit — `courseCatSeedIfNeeded` :1877-1882) are preserved by
+  // seedRow's design-code path, so a new course continues at 7404. Empty prefix
+  // means `nextCode` emits the number with no stem, exactly as OD does.
+  "ent-db-courses": { prefix: "", base: 7000, pad: 0 },
   "ent-ctypes": { prefix: "CT", base: 0, pad: 3 },
   "ent-svc-ctypes": { prefix: "SCT", base: 0, pad: 3 },
   "ent-sup-ctypes": { prefix: "PCT", base: 0, pad: 3 },
@@ -225,12 +233,23 @@ export async function nextCode(orgId: string, area: BusinessArea, module: string
   const base = cfg ? cfg.base : 0;
   const pad = cfg ? cfg.pad : 4;
   const rows = await BusinessRecord.findAll({ where: { orgId, area, module }, attributes: ["code"] });
+  // `payrollNextId` js/modules.js:2884 — the max trailing number of any existing
+  // cycle id (`PY-2026-12` -> 12), rendered as `PY-N<n+1>`.
+  if (module === "ent-payroll") {
+    let n = 0;
+    for (const r of rows) {
+      const m = /(\d+)$/.exec(r.code || "");
+      if (m) n = Math.max(n, Number(m[1]));
+    }
+    return `PY-N${n + 1}`;
+  }
   let max = base;
   for (const r of rows) {
     const n = Number.parseInt(r.code.replace(new RegExp(`^${prefix}-`), ""), 10);
     if (Number.isFinite(n) && n > max) max = n;
   }
-  return `${prefix}-${String(max + 1).padStart(pad, "0")}`;
+  const seq = String(max + 1).padStart(pad, "0");
+  return prefix ? `${prefix}-${seq}` : seq;
 }
 
 interface LeadIdentity {

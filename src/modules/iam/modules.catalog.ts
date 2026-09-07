@@ -109,3 +109,102 @@ const SP_KEY_SET = new Set(SP_ALL_KEYS);
 export function isSpMenuKey(key: string): boolean {
   return SP_KEY_SET.has(key);
 }
+
+/**
+ * OD `acPreset` (js/core.js:4997-5002) — the menu-key set a role group is fixed
+ * to. Only 'Administrator' is operator-configurable; every other group's grant
+ * is derived from the group alone. Note `org-profile`: it is a grantable menu
+ * key that `acSections()` does not list, so it is a legal `navPerms` member
+ * without being an `acAllKeys()` member.
+ */
+export function acPreset(roleGroup: string): string[] {
+  if (roleGroup === "Administrator") return [...SP_ALL_KEYS];
+  if (roleGroup === "Billing Manager") return ["org-profile", "sp-billing", "sp-subs"];
+  if (roleGroup === "Technical Support") return ["org-profile", "sp-tickets", "kb"];
+  return ["org-profile"]; /* Basic User — profile only */
+}
+
+const NAV_PERM_KEY_SET = new Set([...SP_ALL_KEYS, "org-profile"]);
+
+/**
+ * True when `key` may be persisted in `navPerms`. Wider than `isSpMenuKey` by
+ * exactly one member — `acPreset` writes 'org-profile' for every group but
+ * Administrator, and `acSave` (js/core.js:5225) persists that set verbatim.
+ */
+export function isNavPermKey(key: string): boolean {
+  return NAV_PERM_KEY_SET.has(key);
+}
+
+/** OD `acNavToModules` (js/core.js:5003-5006) — menu keys → the coarse module ids. */
+const NAV_TO_MODULE: Record<string, string> = {
+  team: "team", partners: "partner", "sp-agreements": "partner", "sp-treq": "tenant",
+  "sp-tenants": "tenant", "sp-subs": "tenant", elements: "framework", frameworks: "framework",
+  "req-library": "framework", "sp-scopedata": "framework", xref: "framework", rcmap: "framework",
+  "sp-billing": "billing", "sp-tickets": "ticket", kb: "ticket",
+};
+
+export function acNavToModules(keys: readonly string[]): string[] {
+  const set: Record<string, 1> = {};
+  for (const k of keys) {
+    const m = NAV_TO_MODULE[k];
+    if (m) set[m] = 1;
+  }
+  return Object.keys(set);
+}
+
+/* =========================================================================
+ * Enterprise (system of record) and AXIA operating-unit catalogs. Both are
+ * grant axes independent of the Service Provider menu map above, and both are
+ * closed sets in OD — `acSave` only ever writes members of them.
+ * ========================================================================= */
+
+/** OD `acEntAllKeys()` (js/core.js:5020) over `ENT_TREE` (js/core.js:2793-2803), in tree order. */
+export const ENT_ALL_KEYS: string[] = [
+  "ent-tasks", "ent-myreq",
+  "ent-org-profile", "ent-team",
+  "ent-leads", "ent-inq", "ent-proposals", "ent-mkt", "ent-svc-ctypes", "ent-svc-clauses",
+  "ent-orgstructure", "ent-emplevels", "ent-recruitment", "ent-personnel", "ent-roles",
+  "ent-ctypes", "ent-clauses", "ent-complib", "ent-instruments", "ent-assess",
+  "ent-comp", "ent-payroll", "ent-ss", "ent-minwage", "ent-disc",
+  "ent-suppliers", "ent-pr", "ent-po", "ent-doa", "ent-sup-ctypes", "ent-sup-clauses", "ent-assets",
+  "ent-accounting",
+  "ent-conformance", "ent-compliance", "ent-audits",
+  "kb", "ent-tickets",
+  "ent-db-countries", "ent-banks", "ent-holidays", "ent-fiscal", "ent-db-edu",
+  "ent-db-sectors", "ent-db-frameworks", "ent-bpcatalog", "ent-db-courses", "ent-db-edufields",
+];
+
+const ENT_KEY_SET = new Set(ENT_ALL_KEYS);
+
+/** True when `key` is a grantable Enterprise menu key (`acEntAllKeys()` member). */
+export function isEntKey(key: string): boolean {
+  return ENT_KEY_SET.has(key);
+}
+
+export interface AcUnit {
+  key: string;
+  /** OD `AC_UNITS[].items` keys — `acUnitKeys(unit)` (js/core.js:5052). */
+  items: string[];
+}
+
+/** OD `AC_UNITS` (js/core.js:5041-5048) — keys and item keys verbatim, in order. */
+export const AC_UNITS: AcUnit[] = [
+  { key: "lims", items: ["lims-samples", "lims-tests", "lims-methods", "lims-results", "lims-reports"] },
+  { key: "atr", items: ["atr-courses", "atr-schedule", "atr-learners", "atr-certs"] },
+  { key: "acert", items: ["acert-schemes", "acert-candidates", "acert-exams", "acert-decisions"] },
+  { key: "abizc", items: ["abizc-clients", "abizc-engage", "abizc-assess", "abizc-reports"] },
+  { key: "datana", items: ["dn-pentest", "dn-software", "dn-clients"] },
+  { key: "motoran", items: ["mb-vehicle", "mb-fleet", "mb-booking", "mb-rental", "mb-support"] },
+];
+
+const UNIT_BY_KEY = new Map(AC_UNITS.map((u) => [u.key, u]));
+
+/** True when `key` is one of the six AXIA operating units. */
+export function isUnitKey(key: string): boolean {
+  return UNIT_BY_KEY.has(key);
+}
+
+/** OD `acUnitKeys(key)` (js/core.js:5052) — one unit's own item keys; [] for an unknown unit. */
+export function acUnitKeys(unitKey: string): string[] {
+  return UNIT_BY_KEY.get(unitKey)?.items ?? [];
+}

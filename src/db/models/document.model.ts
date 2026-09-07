@@ -32,19 +32,21 @@ DocumentFolder.init(
 export type DocumentKind = "internal" | "external";
 /**
  * OD `CD_STATUS` verbatim, in OD's order (js/core.js:19529) — the controlled
- * internal-document lifecycle. Was Draft/Published/Archived only.
+ * internal-document lifecycle (`kind: "internal"`).
  * `documents.status` is a plain STRING column (migration 0078), so widening
  * needs no migration.
- *
- * NOTE: external documents run a different OD vocabulary, `CD_EXT_STATUS`
- * (js/core.js:19530: Active / Under Review / Updated Version Available /
- * Superseded / Obsolete / Archived), and this port shares one `status`
- * column across both `kind`s. Adding those two extra members is a separate
- * change and is not made here.
  */
 export type DocumentStatus =
   | "Draft" | "Under Review" | "Revision Requested" | "Approved" | "Published"
   | "Review Due" | "Superseded" | "Obsolete" | "Archived" | "Rejected";
+
+/**
+ * OD `CD_EXT_STATUS` verbatim, in OD's order (js/core.js:19530) — the
+ * external-document lifecycle (`kind: "external"`).
+ */
+export type DocumentExtStatus =
+  | "Active" | "Under Review" | "Updated Version Available"
+  | "Superseded" | "Obsolete" | "Archived";
 
 export interface DocumentBlock {
   id: string;
@@ -62,12 +64,13 @@ export class Document extends Model<InferAttributes<Document>, InferCreationAttr
   declare kind: DocumentKind;
   declare title: string;
   declare docType: string | null;
-  // ponytail: flat status field only — the OD `CD_STATUS` vocabulary is now
-  // complete, but the transitions between its members are unenforced and OD's
-  // signoff chain, ack tracking and version lineage are still out of scope.
+  // ponytail: one `status` column shared by both kinds, holding the union of
+  // OD's two vocabularies — which member set is legal is decided by `kind`,
+  // unenforced here, as are the transitions between members; OD's signoff
+  // chain, ack tracking and version lineage are still out of scope.
   // Upgrade path: a DocumentApproval sub-table mirroring approval.models.ts
   // (ApprovalScheme/ApprovalRecord) once a review workflow is actually needed.
-  declare status: CreationOptional<DocumentStatus>;
+  declare status: CreationOptional<DocumentStatus | DocumentExtStatus>;
   declare version: CreationOptional<string>;
   declare content: DocumentBlock[] | null;
   declare folderId: string | null;
@@ -90,9 +93,12 @@ Document.init(
     title: { type: DataTypes.STRING, allowNull: false },
     docType: { type: DataTypes.STRING, allowNull: true, field: "doc_type" },
     status: {
+      // CD_STATUS (internal, 10) followed by the CD_EXT_STATUS members
+      // (external, 6) it does not already contain.
       type: DataTypes.ENUM(
         "Draft", "Under Review", "Revision Requested", "Approved", "Published",
         "Review Due", "Superseded", "Obsolete", "Archived", "Rejected",
+        "Active", "Updated Version Available",
       ),
       allowNull: false, defaultValue: "Draft",
     },

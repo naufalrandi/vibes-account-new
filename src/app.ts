@@ -7,6 +7,7 @@ import { requestId } from "./middleware/requestId";
 import { errorHandler } from "./middleware/error";
 import { authRoutes } from "./modules/iam/auth.routes";
 import { authenticate } from "./middleware/authenticate";
+import { requireOrgMgmt } from "./middleware/requireAction";
 import { tenantScope } from "./middleware/tenantScope";
 import { rateLimit } from "./middleware/rateLimit";
 import { env } from "./config/env";
@@ -107,7 +108,15 @@ export function createApp() {
   // path: a locked tenant must still be able to read its own lockout state in
   // order to render the lockout card.
   app.use("/v1/saas-access", authenticate, saasAccessRoutes);
-  app.use("/v1/users", authenticate, tenantScope, userRoutes);
+  // OD `canOrgMgmt()` (js/core.js:4242-4247) — Team Members is the one
+  // "Organization Management" (default) tier screen OD guards at the screen
+  // level (js/core.js:21572), so the tier gate is mounted here: SP staff whose
+  // role group is not Administrator / Billing Manager / Technical Support (i.e.
+  // 'Basic User') and non-Administrator tenant users are refused whatever
+  // action grants they hold. Prefix-matching means the two `/v1/users/:userId`
+  // personnel-record mounts below inherit the same gate, which is correct —
+  // OD reaches those records only through the Team Members screen.
+  app.use("/v1/users", authenticate, tenantScope, requireOrgMgmt(), userRoutes);
   // Personnel sub-record logs (resume/leave/disciplinary/performance), nested
   // under a single user (the personnel record) — SOF-53/SOF-48-3.
   app.use("/v1/users/:userId", authenticate, tenantScope, personnelRecordsRoutes);

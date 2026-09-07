@@ -1,13 +1,26 @@
 import { DataTypes, Model, type InferAttributes, type InferCreationAttributes, type CreationOptional } from "sequelize";
 import { sequelize } from "../sequelize";
 
-export type UserStatus = "Pending Activation" | "Active" | "Suspended" | "Inactive" | "Deleted";
+/**
+ * OD user-status vocabulary. `acSave` (js/core.js:5226) tests membership against
+ * exactly ['Pending Activation','Active','Suspended'] and the Team filter offers
+ * the same three (js/core.js:4936); 'Deleted' is the soft-delete marker the list
+ * filters out (js/core.js:4945). There is no 'Inactive' user state.
+ */
+export type UserStatus = "Pending Activation" | "Active" | "Suspended" | "Deleted";
 
 /** Per-user permission mode (Administrators only); null for fixed-module role groups. */
 export type PermissionMode = "Full Access" | "Custom Access";
 
 export class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
   declare id: CreationOptional<string>;
+  /**
+   * OD `db.users[].id` — the short, human-readable identifier the Team
+   * Management "User ID" column shows ('axia1', 'EU-9001', 'idtu13';
+   * js/modules.js:4480 and :5527). The primary key here is a UUID, so the OD
+   * identity is carried alongside it. Null on rows created before it existed.
+   */
+  declare code: CreationOptional<string | null>;
   declare orgId: string;
   declare tenantId: string | null;
   declare fullName: string;
@@ -28,6 +41,13 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   // the permission grid (effective access stays role-grant driven). CreationOptional
   // so existing User.create(...) call sites need not pass them.
   declare system: CreationOptional<boolean>;
+  /**
+   * OD `users[].superAdmin` (js/core.js:151) — a per-USER boolean, not a role.
+   * The role group stays one of the four `ROLE_GROUPS` strings; super-admin is
+   * an extra flag on top of it, so the platform owner is an Administrator who
+   * also carries this, never a member of a fifth role group.
+   */
+  declare superAdmin: CreationOptional<boolean>;
   declare permissionMode: CreationOptional<PermissionMode | null>;
   declare permissions: CreationOptional<string[] | null>;
   // OD tenant-team member fields (migration 0047): site membership, personnel
@@ -84,6 +104,7 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
 User.init(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+    code: { type: DataTypes.STRING, allowNull: true },
     orgId: { type: DataTypes.UUID, allowNull: false, field: "org_id" },
     tenantId: { type: DataTypes.UUID, allowNull: true, field: "tenant_id" },
     fullName: { type: DataTypes.STRING, allowNull: false, field: "full_name" },
@@ -91,7 +112,7 @@ User.init(
     email: { type: DataTypes.STRING, allowNull: false, unique: true },
     passwordHash: { type: DataTypes.STRING, allowNull: true, field: "password_hash" },
     status: {
-      type: DataTypes.ENUM("Pending Activation", "Active", "Suspended", "Inactive", "Deleted"),
+      type: DataTypes.ENUM("Pending Activation", "Active", "Suspended", "Deleted"),
       allowNull: false,
       defaultValue: "Pending Activation",
     },
@@ -104,6 +125,7 @@ User.init(
     resetToken: { type: DataTypes.STRING, allowNull: true, field: "reset_token" },
     resetExpires: { type: DataTypes.DATE, allowNull: true, field: "reset_expires" },
     system: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    superAdmin: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: "super_admin" },
     permissionMode: { type: DataTypes.STRING, allowNull: true, field: "permission_mode" },
     permissions: { type: DataTypes.JSONB, allowNull: true, defaultValue: [] },
     siteId: { type: DataTypes.UUID, allowNull: true, field: "site_id" },

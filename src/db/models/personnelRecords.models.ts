@@ -133,6 +133,10 @@ LeaveRecord.init(
 export const DISCIPLINARY_STATUSES = ["Open", "Resolved", "Appealed"] as const;
 export type DisciplinaryStatus = (typeof DISCIPLINARY_STATUSES)[number];
 
+/** OD `personAddDisc` severity picklist — the `di-sev` select (js/modules.js:5525). */
+export const DISCIPLINARY_SEVERITIES = ["Low", "Medium", "High"] as const;
+export type DisciplinarySeverity = (typeof DISCIPLINARY_SEVERITIES)[number];
+
 export class DisciplinaryRecord extends Model<InferAttributes<DisciplinaryRecord>, InferCreationAttributes<DisciplinaryRecord>> {
   declare id: CreationOptional<string>;
   declare orgId: string;
@@ -144,7 +148,7 @@ export class DisciplinaryRecord extends Model<InferAttributes<DisciplinaryRecord
   declare actionTaken: string | null;
   /** OD `personAddDisc` (js/modules.js:5525) — Low / Medium / High, rendered as
    *  its own tag column at js/modules.js:4929. */
-  declare severity: string | null;
+  declare severity: DisciplinarySeverity | null;
   declare status: CreationOptional<DisciplinaryStatus>;
   declare createdBy: string | null;
   declare createdAt: CreationOptional<Date>;
@@ -177,7 +181,7 @@ export class PerformanceRecord extends Model<InferAttributes<PerformanceRecord>,
   declare orgId: string;
   declare userId: string;
   declare reviewPeriod: string;
-  declare rating: string;
+  declare rating: PerformanceRating;
   /**
    * Reviewer as OD stores it — FREE TEXT, not a person link: `personAddPerf`
    * reads it from `<input id="pf-rev">` (js/modules.js:5526) and the seeded

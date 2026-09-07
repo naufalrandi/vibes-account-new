@@ -98,7 +98,7 @@ describe("personnel profile (personal / emergency / employment)", () => {
         employmentStatus: "Onboarding",
         managerId: manager.id,
         employeeId: "EMP-0001",
-        contractType: "Fixed-Term",
+        contractType: "Fixed Duration",
         contractStartDate: "2026-01-01",
         contractEndDate: "2026-12-31",
         probationEndDate: "2026-04-01",
@@ -156,21 +156,21 @@ describe("personnel profile (personal / emergency / employment)", () => {
     expect(res.body.data.employmentStatus).toBe("Active");
   });
 
-  it("converts a contract type and confirms probation", async () => {
+  it("converts a contract to another OD contract type", async () => {
     const { token, targetUserId } = await seedAdminAndLogin();
     await request(app)
       .patch(`/v1/users/${targetUserId}/personnel-profile/employment`)
       .set("authorization", `Bearer ${token}`)
-      .send({ contractType: "Probation" });
+      .send({ contractType: "Fixed Duration" });
 
     const convertRes = await request(app)
       .post(`/v1/users/${targetUserId}/personnel-profile/employment/convert`)
       .set("authorization", `Bearer ${token}`)
-      .send({ contractType: "Permanent" });
+      .send({ contractType: "Contractor (SOW)" });
     expect(convertRes.status).toBe(200);
-    expect(convertRes.body.data.contractType).toBe("Permanent");
+    expect(convertRes.body.data.contractType).toBe("Contractor (SOW)");
 
-    // Not on probation anymore (convert already flipped status to Active).
+    // No probation period on this contract, so there is nothing to confirm.
     const confirmRes = await request(app)
       .post(`/v1/users/${targetUserId}/personnel-profile/employment/confirm-probation`)
       .set("authorization", `Bearer ${token}`);
@@ -178,20 +178,33 @@ describe("personnel profile (personal / emergency / employment)", () => {
     expect(confirmRes.body.error.code).toBe("NOT_ON_PROBATION");
   });
 
-  // Probation is a contract type in OD, not an employment status, so this
-  // sets `contractType` and expects the confirm to convert it to Permanent.
-  it("confirms probation when the contract is on probation", async () => {
+  // OD `CONTRACT_TYPE_SEED` (js/modules.js:5040-5044) has exactly four names;
+  // "Fixed-Term", "Probation" and "Outsourced" are not contract types in OD.
+  it("rejects contract-type names that are not in OD's seed", async () => {
+    const { token, targetUserId } = await seedAdminAndLogin();
+    for (const contractType of ["Fixed-Term", "Probation", "Outsourced"]) {
+      const res = await request(app)
+        .patch(`/v1/users/${targetUserId}/personnel-profile/employment`)
+        .set("authorization", `Bearer ${token}`)
+        .send({ contractType });
+      expect(res.status).toBe(400);
+    }
+  });
+
+  // Probation is a period inside a contract in OD (`contract.probationEnd`),
+  // not a contract type — confirming it leaves the contract type alone.
+  it("confirms probation from the probation end date, keeping the contract type", async () => {
     const { token, targetUserId } = await seedAdminAndLogin();
     await request(app)
       .patch(`/v1/users/${targetUserId}/personnel-profile/employment`)
       .set("authorization", `Bearer ${token}`)
-      .send({ contractType: "Probation" });
+      .send({ contractType: "Fixed Duration", probationEndDate: "2026-04-01", employmentStatus: "Onboarding" });
 
     const res = await request(app)
       .post(`/v1/users/${targetUserId}/personnel-profile/employment/confirm-probation`)
       .set("authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
-    expect(res.body.data.contractType).toBe("Permanent");
+    expect(res.body.data.contractType).toBe("Fixed Duration");
     expect(res.body.data.employmentStatus).toBe("Active");
   });
 });

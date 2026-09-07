@@ -10,6 +10,7 @@ import {
   IsraRtp,
   IsraRtpAction,
   IsraRtpActionControl,
+  IsraScenarioCycle,
 } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
@@ -117,8 +118,15 @@ export async function getSoa(auth: AuthContext) {
     if (scenId) markRef(er.annexRef, scenId);
   }
 
+  // OD's per-scenario `refs` (js/core.js:13669-13671) is built from the scenario's
+  // own added controls and RTP action controls only — existing-control annexRefs
+  // are added outside it and never suppress the latest-cycle fallback below.
+  const scenariosWithLiveRefs = new Set<string>();
+
   for (const ac of addedControls) {
+    if (!ac.annexRef) continue;
     markRef(ac.annexRef, ac.scenarioId);
+    scenariosWithLiveRefs.add(ac.scenarioId);
   }
 
   const rtpIdByAction = new Map<string, string>();
@@ -127,10 +135,40 @@ export async function getSoa(auth: AuthContext) {
   for (const r of rtps) scenIdByRtp.set(r.id, r.scenarioId);
 
   for (const rc of rtpControlRefs) {
+    if (!rc.annexRef) continue;
     const rtpId = rtpIdByAction.get(rc.rtpActionId);
     if (rtpId) {
       const scenId = scenIdByRtp.get(rtpId);
-      if (scenId) markRef(rc.annexRef, scenId);
+      if (scenId) {
+        markRef(rc.annexRef, scenId);
+        scenariosWithLiveRefs.add(scenId);
+      }
+    }
+  }
+
+  // 3d. Latest-cycle fallback (OD js/core.js:13673): a scenario whose live added
+  // controls and RTP actions contribute no refs still marks the Annex A clauses
+  // recorded in its CURRENT (most recent) cycle snapshot only — OD reads
+  // `s.cycles[0]`, newest-first, and never folds in past cycles.
+  const scenariosWithoutLiveRefs = scenarioIds.filter((id) => !scenariosWithLiveRefs.has(id));
+  const latestCycles = scenariosWithoutLiveRefs.length
+    ? await IsraScenarioCycle.findAll({
+        where: { scenarioId: { [Op.in]: scenariosWithoutLiveRefs } },
+        order: [
+          ["scenarioId", "ASC"],
+          ["cycleNumber", "DESC"],
+        ],
+      })
+    : [];
+  const cycleSeen = new Set<string>();
+  for (const cy of latestCycles) {
+    if (cycleSeen.has(cy.scenarioId)) continue; // first row per scenario is its latest cycle
+    cycleSeen.add(cy.scenarioId);
+    const snapshotAdded = (cy.snapshot as { addedControls?: unknown })?.addedControls;
+    if (!Array.isArray(snapshotAdded)) continue;
+    for (const a of snapshotAdded) {
+      const ref = (a as { annexRef?: unknown })?.annexRef;
+      if (typeof ref === "string" && ref) markRef(ref, cy.scenarioId);
     }
   }
 

@@ -58,7 +58,7 @@ export async function createContractDocument(auth: AuthContext, userId: string, 
 
 const STR_FIELDS = ["title", "docType", "content", "effectiveDate", "expiryDate", "typeId", "country", "templateId"] as const;
 
-/** Edits bump `version`; OD's editor treats each save as a new revision of the same document. */
+/** Edits do not bump `version`; OD's `cdCapture` (js/modules.js:5262) just saves the clause in place. */
 export async function updateContractDocument(auth: AuthContext, userId: string, id: string, input: ContractDocInput) {
   const user = await requireManagedUser(auth, userId);
   const row = await requireDoc(userId, user.orgId, id);
@@ -69,18 +69,18 @@ export async function updateContractDocument(auth: AuthContext, userId: string, 
   if (input.clauses !== undefined) row.clauses = input.clauses;
   if (input.title !== undefined && !String(input.title).trim()) throw new BadRequestError("title cannot be cleared", "TITLE_REQUIRED");
   if (input.status !== undefined) row.status = input.status;
-  row.version += 1;
   row.lastUpdatedBy = await actorName(auth);
   await row.save();
   await logPersonnelActivity(auth, user.orgId, userId, "contract_document.updated", row.title);
   return row.get({ plain: true });
 }
 
-/** OD `Draft` → `Issued` (`modules.js:5251` field contract: `issuedDate` empty until issued). */
+/** OD `cdIssue` (js/modules.js:5390): `Draft` → `Issued`, and the only step that bumps `version`. */
 export async function issueContractDocument(auth: AuthContext, userId: string, id: string) {
   const user = await requireManagedUser(auth, userId);
   const row = await requireDoc(userId, user.orgId, id);
   row.status = "Issued";
+  row.version += 1;
   row.issuedDate = new Date().toISOString().slice(0, 10);
   row.lastUpdatedBy = await actorName(auth);
   await row.save();

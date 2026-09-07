@@ -1,4 +1,4 @@
-import { EMPLOYMENT_STATUSES } from "../../db/models/personnelProfile.model";
+import { CONTRACT_TYPES, EMPLOYMENT_STATUSES } from "../../db/models/personnelProfile.model";
 import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import * as service from "./personnelProfile.service";
@@ -27,7 +27,7 @@ const emergencySchema = z.object({
 });
 
 const employmentStatusSchema = z.enum(EMPLOYMENT_STATUSES);
-const contractTypeSchema = z.enum(["Permanent", "Fixed-Term", "Probation", "Internship", "Outsourced"]);
+const contractTypeSchema = z.enum(CONTRACT_TYPES);
 
 const employmentSchema = z.object({
   personnelType: z.string().nullish(),

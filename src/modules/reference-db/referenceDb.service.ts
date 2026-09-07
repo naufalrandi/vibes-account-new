@@ -463,7 +463,8 @@ export async function listBanks(auth: AuthContext) {
   if (existing === 0) {
     await ReferenceBank.bulkCreate(
       BANK_SEED.map((b) => ({
-        orgId: auth.orgId, name: b.name, country: b.country, countryName: "",
+        orgId: auth.orgId, name: b.name, country: b.country,
+        countryName: COUNTRY_SEED.find((c) => c.code === b.country)?.name ?? "",
         code: b.code, swift: b.swift, type: b.type,
       })),
     );

@@ -7,7 +7,7 @@ import { assertValidProposalData, OD_DEFAULT_TAX_PCT } from "./proposalRules";
  * so any proposal created without an explicit rate was quoted tax-free.
  */
 describe("assertValidProposalData — OD defaults", () => {
-  const items = [{ description: "Consulting", qty: 2, unitPrice: 1_000_000 }];
+  const items = [{ desc: "Consulting", qty: 2, unit: 1_000_000 }];
 
   it("opens a new proposal at OD's 11% tax when none is supplied", () => {
     const out = assertValidProposalData({ currency: "IDR", items }, { isCreate: true });
@@ -38,5 +38,37 @@ describe("assertValidProposalData — OD defaults", () => {
     expect(out.taxPct).toBe(OD_DEFAULT_TAX_PCT);
     // Auto-priced from the man-day engine: three items (IA, SA1, SA2).
     expect(out.items).toHaveLength(3);
+    expect((out.items as Record<string, unknown>[])[0]).toEqual({
+      desc: "Initial certification audit (Stage 1 + Stage 2)", qty: expect.any(Number), unit: expect.any(Number),
+    });
+  });
+});
+
+/**
+ * OD `propFormSave` (js/modules.js:2488) stores `{id, courseId, courseCode, desc,
+ * qty, unit}`, which is what all nine seeded proposals carry. Normalising to
+ * `{description, qty, unitPrice}` rejected them on edit and destroyed the id and
+ * the linked course code on save.
+ */
+describe("assertValidProposalData — OD line-item shape", () => {
+  it("keeps a seeded line item's id, course code and OD keys", () => {
+    const out = assertValidProposalData({
+      currency: "IDR", taxPct: 11, discount: 5_000_000,
+      items: [
+        { id: "pi-1", courseId: "crs-1", courseCode: "7300", desc: "ISO 27001 Lead Implementer — certification (PECB)", qty: 6, unit: 9_500_000 },
+        { id: "pi-2", desc: "Exam & certification fees", qty: 6, unit: 3_500_000 },
+      ],
+    });
+    expect(out.items).toEqual([
+      { desc: "ISO 27001 Lead Implementer — certification (PECB)", qty: 6, unit: 9_500_000, id: "pi-1", courseId: "crs-1", courseCode: "7300" },
+      { desc: "Exam & certification fees", qty: 6, unit: 3_500_000, id: "pi-2" },
+    ]);
+    // (6x9,500,000 + 6x3,500,000 - 5,000,000) x 1.11
+    expect(out.totals).toMatchObject({ sub: 78_000_000, disc: 5_000_000, total: 81_030_000 });
+  });
+
+  it("still accepts the pre-rename description/unitPrice spellings", () => {
+    const out = assertValidProposalData({ currency: "IDR", items: [{ description: "Consulting", qty: 1, unitPrice: 100 }] });
+    expect(out.items).toEqual([{ desc: "Consulting", qty: 1, unit: 100 }]);
   });
 });

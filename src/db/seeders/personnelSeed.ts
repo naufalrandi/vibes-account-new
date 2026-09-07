@@ -29,7 +29,7 @@ import { HAMMER_TEAM, SP_TEAM, ensurePerson } from "./competenceRoles";
  *                        campaign's `data`.
  *   trainingPlans (2) -> ImplementationRecord module "training"
  *   assessments (5)   -> CompetenceAssessment (competence.models.ts)
- *   gaps (1)          -> CompetenceGap (competence.models.ts)
+ *   gaps (5)          -> CompetenceGap (competence.models.ts)
  *
  * FK resolution (assessments/gaps): OD's `assignmentId`/`roleId` values in this dump are from a
  * different OD extraction run than `competenceRoles.ts`'s SHAPE_A dump (different id
@@ -324,7 +324,11 @@ export async function seedCompetenceAssessmentsAndGaps(hammerTenantId: string, s
         due: dateOnly(row.due), training: str(row.training) || null, trainingDone: false, trainingDate: null,
         status: str(row.status) || "Open", resolvedDate: dateOnly(row.resolvedDate), resolvedBy: str(row.resolvedBy) || null,
         createdDate: dateOnly(row.createdDate), trainingPlanId: null, noTraining: false, noTrainingReason: null,
-        reassessResult: null, reviewedBy: null, reviewedDate: null,
+        reassessResult: null,
+        // OD `js/modules.js:350-351` stamps the demo's Reviewed gap with reviewedBy/reviewedDate
+        // and its Waived gap with a waiveReason — carry the dump's own values through.
+        reviewedBy: str(row.reviewedBy) || null, reviewedDate: dateOnly(row.reviewedDate),
+        waiveReason: str(row.waiveReason) || null,
       },
     });
     gapCreated += 1;

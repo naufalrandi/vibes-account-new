@@ -3,7 +3,7 @@ import path from "path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { CMS_PAGES, CMS_POSTS, CMS_MEDIA, CMS_MENU, CMS_SETTINGS } from "./cms.data";
-import { BusinessRecord, Framework, ImplementationRecord, IpParty, IpRequirement, MReview, MsScope } from "../models";
+import { BusinessRecord, Framework, ImplementationRecord, IpParty, IpRequirement, MReview, MsScope, User } from "../models";
 import type { BusinessArea } from "../models/businessRecord.model";
 import { getBusinessDataSchema } from "../../modules/business/dataSchemas";
 import { nextCode } from "../../modules/business/business.service";
@@ -256,6 +256,20 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
   // matrix ships populated: two approval bands per procurement category, so the
   // Procurement Policy screen and every DOA band lookup work out of the box
   // instead of starting empty (and routing every request to no approver).
+  // OD `doaSeedIfNeeded` (js/modules.js:4294-4295) names band 2's approver `dir`:
+  // the `fullName` of the "higher authority" pool (`empLevelOf(u) <= DOA_APPROVER_MAX`,
+  // i.e. Department Manager L8 and above) sorted by level *descending*, so the most
+  // junior member of that pool wins — falling back to the literal "Head of Department"
+  // when the org has no such user. Seeding it empty left the Policy screen's
+  // "Required approver" cell blank on 11 of the 22 bands. Runs after `seedOrgUnits`,
+  // which is what stamps `User.empLevel` (see `doaMatrix.ts`'s same lookup).
+  const DOA_APPROVER_MAX = 8;
+  const doaSeniors = (await User.findAll({ where: { orgId }, attributes: ["fullName", "empLevel"] }))
+    .map((u) => ({ fullName: u.fullName, level: Number(/^L(\d+)$/i.exec(String(u.empLevel ?? ""))?.[1] ?? NaN) }))
+    .filter((u) => Number.isFinite(u.level) && u.level <= DOA_APPROVER_MAX)
+    .sort((a, b) => b.level - a.level || a.fullName.localeCompare(b.fullName));
+  const doaSeniorApprover = doaSeniors[0]?.fullName ?? "Head of Department";
+
   for (const category of PR_ITEM_CATS) {
     const professional = category === "Professional Services";
     await seedRow(orgId, "enterprise", "ent-doa", `${category} — band 1`, "role", null, "axia", {
@@ -271,9 +285,22 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
       type: category,
       max: "",
       currency: "IDR",
-      approver: "",
+      approver: doaSeniorApprover,
       finance: true,
       quotes: !professional,
+    });
+    bump("ent-doa");
+    // OD `doaMethodMap` (js/modules.js:4311) — 'Order' for Professional Services,
+    // 'Direct' for the rest. The policy editor reads the bands and the per-category
+    // sourcing method from the one `ent-doa` register (`data.kind:"method"`, value in
+    // `status`, exactly as `EnterpriseProcurementPolicyPage`'s own toggle writes it),
+    // so seed it here beside the bands instead of only into `doa_methods`, which no
+    // screen reads.
+    const method = professional ? "Order" : "Direct";
+    await seedRow(orgId, "enterprise", "ent-doa", `${category} — sourcing method`, method, null, "axia", {
+      kind: "method",
+      type: category,
+      method,
     });
     bump("ent-doa");
   }
@@ -575,9 +602,11 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
   // Seeding both halves from the one `cms.data.ts` keeps them a single dataset
   // rather than two that drift, without moving the screen off the register it
   // already round-trips through.
+  const cmsPageIdByOdId = new Map<string, string>();
   for (const pg of CMS_PAGES) {
     const { odId, title, status, ...rest } = pg;
-    await seedRow(orgId, "enterprise", "ent-mkt-pages", title, status, null, "axia", rest as Record<string, unknown>, odId);
+    const r = await seedRow(orgId, "enterprise", "ent-mkt-pages", title, status, null, "axia", rest as Record<string, unknown>, odId);
+    cmsPageIdByOdId.set(odId, r.id);
     bump("ent-mkt-pages");
   }
   for (const po of CMS_POSTS) {
@@ -593,7 +622,14 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
   for (const mn of CMS_MENU) {
     const { odId, ...rest } = mn as Record<string, unknown> & { odId: string };
     const label = typeof rest.label === "string" ? rest.label : String(rest.title ?? "");
-    await seedRow(orgId, "enterprise", "ent-mkt-menu", label, "Active", null, "axia", rest, odId);
+    // `cms.data.ts` carries OD's own page ids ("PG-0002") in `target`, but
+    // `NavigationTab.tsx` resolves the "Links to" column against the page
+    // record's own id (`pageById` keyed by `BusinessRecord.id`), so the OD id
+    // has to be rewritten to the row minted just above — the same remap
+    // `cms.ts` does for `CmsMenuItem.pageId`. Without it all five nav rows
+    // render "—".
+    const target = typeof rest.target === "string" ? cmsPageIdByOdId.get(rest.target) ?? rest.target : rest.target;
+    await seedRow(orgId, "enterprise", "ent-mkt-menu", label, "Active", null, "axia", { ...rest, target }, odId);
     bump("ent-mkt-menu");
   }
   await seedRow(orgId, "enterprise", "ent-mkt-settings", String(CMS_SETTINGS.siteName ?? "Settings"), "Active", null, "axia", CMS_SETTINGS as unknown as Record<string, unknown>, "SET-0001");
@@ -692,6 +728,7 @@ export async function seedEnterpriseSuppliers(orgId: string): Promise<void> {
   // Enterprise half of OD's single `db.suppliers` array — the `SUP_ID_CODE` ("84-") namespace
   // of `supNextId` (modules.js:3618-3620). See `seedTenantSuppliers` for the same split.
   const rows = loadDump<Record<string, unknown>>("suppliers").filter((r) => /^84-\d+$/.test(String(r.id ?? "")));
+  const supplierIdByOdId = new Map<string, string>();
   let n = 0;
   for (const row of rows) {
     n += 1;
@@ -704,8 +741,27 @@ export async function seedEnterpriseSuppliers(orgId: string): Promise<void> {
       qualifiedDate: row.qualifiedDate, requalDate: row.requalDate, notes: row.notes,
       evaluations: row.evaluations, activity: row.activity,
     };
-    await seedRow(orgId, "enterprise", "ent-suppliers", str(row, "name"), str(row, "status", "Approved"), null, companyFor("enterprise", row), data, str(row, "id") || undefined);
+    const r = await seedRow(orgId, "enterprise", "ent-suppliers", str(row, "name"), str(row, "status", "Approved"), null, companyFor("enterprise", row), data, str(row, "id") || undefined);
+    supplierIdByOdId.set(String(row.id), r.id);
   }
+
+  // OD's purchase orders reference the supplier by its own id ("84-1", resolved
+  // through `supById`, js/modules.js:3617), but `EnterprisePurchaseOrdersPage`
+  // matches the PO's `data.supplierId` against the `ent-suppliers` record id
+  // (`s.id === selected.data?.supplierId`), which the design id can never equal —
+  // so the PO detail's bank/remittance block never resolved. The supplier rows
+  // only exist once this seeder has run (it is called after `seedBusinessRecords`
+  // wrote the POs), so the rewrite is a fixup pass, same shape as the PR `poId`
+  // one in `seedBusinessRecords`.
+  const poRecords = await BusinessRecord.findAll({ where: { orgId, area: "enterprise", module: "ent-po" } });
+  for (const po of poRecords) {
+    const poData = po.data as Record<string, unknown>;
+    const supplierId = typeof poData.supplierId === "string" ? supplierIdByOdId.get(poData.supplierId) : undefined;
+    if (!supplierId) continue;
+    po.data = { ...poData, supplierId };
+    await po.save();
+  }
+
   // eslint-disable-next-line no-console
   console.log(`  Enterprise suppliers seeded: ${n}`);
 }

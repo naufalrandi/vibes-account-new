@@ -419,7 +419,7 @@ export async function submit(auth: AuthContext, module: string, recordId: string
   }
   const gates = await buildApproval(auth, scheme);
   const empty = gates.find((g) => g.eligible.length === 0);
-  if (empty) throw new BadRequestError(`No ${empty.pool === "mst" ? "MS Team" : "Top Management"} approver is configured for this scheme. Assign one under Approvals.`, "POOL_EMPTY");
+  if (empty) throw new BadRequestError(`No ${empty.pool === "mst" ? "MS Team" : "Top Management"} approver is configured for this scheme. Assign one in Administration → Approvals (or Team Members) before submitting.`, "POOL_EMPTY");
   const existing = await ApprovalRecord.findOne({ where: { orgId: auth.orgId, module, recordId } });
   if (existing && existing.state === "active") throw new ConflictError("Record is already under review", "ALREADY_SUBMITTED");
   const ar = existing ?? ApprovalRecord.build({ orgId: auth.orgId, module, recordId, schemeId: scheme.id, schemeName: scheme.name });

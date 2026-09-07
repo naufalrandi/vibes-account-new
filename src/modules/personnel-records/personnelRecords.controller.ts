@@ -46,7 +46,11 @@ const disciplinarySchema = z.object({
 
 const performanceSchema = z.object({
   reviewPeriod: z.string().min(1),
+  // OD `personAddPerf` (modules.js:5526) — the `pf-rating` Exceeds/Meets/Below select.
   rating: z.string().min(1),
+  // OD reads the reviewer from a free-text `<input id="pf-rev">`; the seeded review
+  // is `reviewer:'Board'` (modules.js:1078), which is a body, not a platform user.
+  reviewer: z.string().nullish(),
   reviewerId: z.string().uuid().nullish(),
   comments: z.string().nullish(),
 });

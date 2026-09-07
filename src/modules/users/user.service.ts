@@ -19,6 +19,8 @@ function assertPasswordPolicy(password: string): void {
 }
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
 import { ROLE_GROUPS, isAllowedRoleForOrgType } from "../iam/role.catalog";
+import { AC_UNITS, acNavToModules, acPreset, acUnitKeys } from "../iam/modules.catalog";
+import { menuActions } from "../iam/actions.catalog";
 
 export interface CreateUserInput {
   orgId: string;
@@ -48,7 +50,7 @@ export interface UpdateUserInput {
   role?: string;
   permissionMode?: PermissionMode | null;
   permissions?: string[] | null;
-  status?: "Pending Activation" | "Active" | "Suspended" | "Inactive";
+  status?: "Pending Activation" | "Active" | "Suspended";
   position?: string | null;
   phone?: string | null;
   photo?: string | null;
@@ -67,6 +69,11 @@ export interface UpdateUserInput {
   units?: string[];
   unitAccess?: Record<string, boolean>;
   unitPerms?: Record<string, string[]>;
+  // OD `acSave` per-action grant maps (js/core.js:5223/5232/5242) — which of the
+  // menu's applicable verbs are granted on each granted key.
+  navActions?: Record<string, string[]>;
+  entActions?: Record<string, string[]>;
+  unitActions?: Record<string, Record<string, string[]>>;
   // OD `acSave` Service Provider axis (js/core.js:5225): the granted MENU key
   // set. `permissions` above is only the module list derived from it.
   navPerms?: string[];
@@ -96,7 +103,6 @@ function assertAccessCoupling(opts: {
   roleGroup: string | null;
   permissionMode: PermissionMode | null;
   navPerms: string[];
-  permissions: string[];
 }): void {
   // js/core.js:5220 — `const mode = role==='Administrator' ? ACX.mode : null;`
   // Every non-Administrator group is persisted with a null permission mode, so
@@ -107,20 +113,85 @@ function assertAccessCoupling(opts: {
       "CUSTOM_ACCESS_REQUIRES_ADMINISTRATOR",
     );
   }
-  // js/core.js:5222 — `if(role==='Administrator'&&mode==='Custom Access'&&!keys.length)`
+  // js/core.js:5221 — `if(role==='Administrator'&&mode==='Custom Access'&&!keys.length)`
   // aborts the save with "Enable at least one Service Provider workspace or
-  // menu". OD gates on `keys` (persisted as navPerms). `permissions` is the
-  // derived module list (`acNavToModules`, js/core.js:5003-5006) and several
-  // menu keys map to no module at all, so an empty `permissions` on its own is
-  // not evidence of an empty grant — the empty state is both being empty.
+  // menu". OD gates on `keys` alone (persisted as navPerms). `permissions` is
+  // only the module list derived FROM those keys (`acNavToModules`,
+  // js/core.js:5003-5006), so it is never independent evidence of a grant.
   if (
     opts.roleGroup === "Administrator" &&
     opts.permissionMode === "Custom Access" &&
-    opts.navPerms.length === 0 &&
-    opts.permissions.length === 0
+    opts.navPerms.length === 0
   ) {
     throw new BadRequestError("Enable at least one Service Provider workspace or menu", "EMPTY_CUSTOM_ACCESS");
   }
+}
+
+/** OD `levelActions` (js/core.js:5064-5069) — the verbs a permission level grants. */
+const LEVEL_ACTIONS: Record<string, string[]> = {
+  View: ["view", "export"],
+  Edit: ["view", "export", "create", "edit"],
+  Approve: ["view", "export", "create", "edit", "approve", "publish"],
+};
+
+function levelActions(level: string, menuKey: string): string[] {
+  const applicable = [...menuActions(menuKey)] as string[];
+  if (level === "Manage") return applicable;
+  const allowed = LEVEL_ACTIONS[level] ?? LEVEL_ACTIONS.View;
+  return applicable.filter((a) => allowed.includes(a));
+}
+
+/** OD `acDefaultLevel` (js/core.js:5070). */
+function defaultLevel(roleGroup: string | null): string {
+  return roleGroup === "Administrator" ? "Manage" : roleGroup === "Basic User" ? "View" : "Edit";
+}
+
+/**
+ * OD `acSave` action-map build (js/core.js:5223/5231/5241): one entry per
+ * GRANTED key — a supplied list narrowed to the verbs that menu actually has,
+ * the role's default level when nothing was supplied, and 'view' forced into
+ * every list because a menu you can reach is a menu you can view.
+ */
+function buildActions(
+  keys: readonly string[],
+  supplied: Record<string, string[]> | undefined,
+  level: string,
+): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const k of keys) {
+    const applicable = menuActions(k) as readonly string[];
+    const stored = supplied?.[k];
+    const arr = Array.isArray(stored) ? stored.filter((a) => applicable.includes(a)) : levelActions(level, k);
+    out[k] = arr.includes("view") ? arr : [...arr, "view"];
+  }
+  return out;
+}
+
+/**
+ * OD `acSave` Service Provider block (js/core.js:5218-5225). Role group,
+ * permission mode, menu-key set and module list are ONE unit: the mode belongs
+ * to Administrators alone, the key set is the operator's selection only in
+ * Custom Access, and `permissions` is always DERIVED from the role group —
+ * never taken from the caller.
+ */
+function resolveSpAxis(roleGroup: string | null, rawMode: PermissionMode | null, navPerms: readonly string[]) {
+  const mode: PermissionMode | null = roleGroup === "Administrator" ? (rawMode ?? "Full Access") : null;
+  const keys = !roleGroup
+    ? []
+    : roleGroup === "Administrator"
+      ? mode === "Full Access"
+        ? acPreset("Administrator")
+        : [...navPerms]
+      : acPreset(roleGroup);
+  const permissions =
+    roleGroup === "Administrator"
+      ? acNavToModules(keys)
+      : roleGroup === "Billing Manager"
+        ? ["billing"]
+        : roleGroup === "Technical Support"
+          ? ["ticket"]
+          : [];
+  return { mode, keys, permissions };
 }
 
 export async function createUser(auth: AuthContext, input: CreateUserInput, ip: string | null): Promise<User> {
@@ -145,13 +216,15 @@ export async function createUser(auth: AuthContext, input: CreateUserInput, ip: 
   if (input.password) assertPasswordPolicy(input.password);
 
   // OD acSave coupling rules apply to the invite path too — a user must not be
-  // created in a state the access screen could never save.
+  // created in a state the access screen could never save. The invite carries no
+  // menu-key selection, so an Administrator invited in Custom Access has an
+  // empty grant and is refused (js/core.js:5221).
   assertAccessCoupling({
     roleGroup: input.role ?? null,
     permissionMode: input.permissionMode ?? null,
     navPerms: [],
-    permissions: input.permissions ?? [],
   });
+  const sp = resolveSpAxis(input.role ?? null, input.permissionMode ?? null, []);
 
   const existing = await User.findOne({ where: { [Op.or]: [{ username: input.username }, { email: input.email }] } });
   if (existing) throw new ConflictError("Username or email already exists", "DUPLICATE_USER");
@@ -177,8 +250,10 @@ export async function createUser(auth: AuthContext, input: CreateUserInput, ip: 
     activationToken,
     resetToken: null,
     resetExpires: null,
-    permissionMode: input.permissionMode ?? null,
-    permissions: input.permissions ?? [],
+    permissionMode: sp.mode,
+    permissions: sp.permissions,
+    navPerms: sp.keys,
+    navActions: buildActions(sp.keys, undefined, defaultLevel(input.role ?? null)),
   });
 
   // Optional role assignment on invite. Best-effort: a role name that does not
@@ -270,14 +345,14 @@ export async function listUsers(auth: AuthContext, filters: UserFilters): Promis
 export async function setUserStatus(
   auth: AuthContext,
   userId: string,
-  status: "Active" | "Suspended" | "Inactive",
+  status: "Active" | "Suspended",
   ip: string | null,
 ): Promise<User> {
   // Same scope (Tenant + Distributor) and protection guards as updateUser: a
   // Super Administrator cannot be deactivated and seeded system users are
   // protected — otherwise a USER_SUSPEND grant could disable privileged accounts.
   const user = await requireManagedUser(auth, userId);
-  const isSuper = ((user.get("Roles") as Role[] | undefined) ?? []).some((r) => r.isSuperAdmin);
+  const isSuper = user.superAdmin || ((user.get("Roles") as Role[] | undefined) ?? []).some((r) => r.isSuperAdmin);
   if (isSuper) throw new ForbiddenError("Super Administrator can't be deactivated");
   if (user.system) throw new ForbiddenError("Protected — system user");
   user.status = status;
@@ -321,7 +396,9 @@ export async function updateUser(
 ): Promise<User> {
   const user = await requireManagedUser(auth, userId);
   const currentRoles = (user.get("Roles") as Role[] | undefined) ?? [];
-  const isSuper = currentRoles.some((r) => r.isSuperAdmin);
+  // OD models super-admin as the per-user boolean `u.superAdmin` (js/core.js:151);
+  // the role relation stays supported for principals seeded the old way.
+  const isSuper = user.superAdmin || currentRoles.some((r) => r.isSuperAdmin);
 
   // OD acSave coupling rules (js/core.js:5220-5222), checked against the state
   // this PATCH would leave behind — the role group, permission mode, menu-key
@@ -329,16 +406,19 @@ export async function updateUser(
   // where present and from the stored row otherwise. Skipped when the request
   // is revoking platform access, which clears all four together (see below).
   const revokingAccess = input.provisioned === false;
+  const roleNames = currentRoles.map((r) => r.name);
+  const currentRoleGroup =
+    roleNames.find((n) => (ROLE_GROUPS as readonly string[]).includes(n)) ?? roleNames[0] ?? null;
+  const spRoleGroup = input.role ?? currentRoleGroup;
+  const spRawMode = input.permissionMode !== undefined ? (input.permissionMode ?? null) : user.permissionMode;
+  // A row that never went through the access screen carries the column default
+  // `[]`. OD tells the two apart: `acInit` (js/core.js:5085) reads an absent
+  // navPerms as `acAllKeys()`, so only an explicit deselection — a request that
+  // sends `navPerms: []` — produces the empty key set :5221 refuses.
+  const storedNavPerms = user.navPerms?.length ? user.navPerms : acPreset("Administrator");
+  const spAxis = resolveSpAxis(spRoleGroup, spRawMode, input.navPerms ?? storedNavPerms);
   if (!revokingAccess) {
-    const roleNames = currentRoles.map((r) => r.name);
-    const currentRoleGroup =
-      roleNames.find((n) => (ROLE_GROUPS as readonly string[]).includes(n)) ?? roleNames[0] ?? null;
-    assertAccessCoupling({
-      roleGroup: input.role ?? currentRoleGroup,
-      permissionMode: input.permissionMode !== undefined ? (input.permissionMode ?? null) : user.permissionMode,
-      navPerms: input.navPerms ?? user.navPerms ?? [],
-      permissions: input.permissions !== undefined ? (input.permissions ?? []) : (user.permissions ?? []),
-    });
+    assertAccessCoupling({ roleGroup: spRoleGroup, permissionMode: spRawMode, navPerms: spAxis.keys });
   }
 
   // Username/email carry global UNIQUE constraints (including soft-deleted rows),
@@ -382,13 +462,32 @@ export async function updateUser(
     if (isSuper) throw new ForbiddenError("Super Administrator can't be deactivated");
     user.status = input.status;
   }
-  if (input.permissionMode !== undefined) {
-    if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
-    user.permissionMode = input.permissionMode;
-  }
-  if (input.permissions !== undefined) {
-    if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
-    user.permissions = input.permissions;
+  // OD `acSave` Service Provider block (js/core.js:5218-5225) is one saved unit,
+  // so any PATCH that touches part of it rewrites all of it from the resolved
+  // role group: `permissionMode` is null for every group but Administrator
+  // (:5219) and `permissions` is derived, never the caller's array (:5222).
+  const touchesSp =
+    input.role !== undefined ||
+    input.permissionMode !== undefined ||
+    input.permissions !== undefined ||
+    input.navPerms !== undefined ||
+    input.navActions !== undefined;
+  if (touchesSp && !revokingAccess) {
+    if (
+      isSuper &&
+      (input.permissionMode !== undefined ||
+        input.permissions !== undefined ||
+        input.navPerms !== undefined ||
+        input.navActions !== undefined)
+    ) {
+      throw new ForbiddenError("Super Administrator permissions are locked");
+    }
+    if (!isSuper) {
+      user.permissionMode = spAxis.mode;
+      user.permissions = spAxis.permissions;
+      user.navPerms = spAxis.keys;
+      user.navActions = buildActions(spAxis.keys, input.navActions ?? user.navActions, defaultLevel(spRoleGroup));
+    }
   }
   // Member-level access axes (SOF-84): independent of permissionMode/permissions
   // above, but locked the same way — a Super Administrator already has every
@@ -398,41 +497,40 @@ export async function updateUser(
   // Four independent assignments let a stale grant survive the revocation —
   // PATCH {entAccess:false} left the previously stored entPerms in place, so
   // re-granting access silently restored permissions nobody re-approved.
-  if (input.entAccess !== undefined) {
+  if (input.entAccess !== undefined || input.entPerms !== undefined || input.entActions !== undefined) {
     if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
-    user.entAccess = input.entAccess;
-    if (!input.entAccess) user.entPerms = [];
-  }
-  if (input.entPerms !== undefined) {
-    if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
-    // A permission list only survives while the domain is granted.
     const granted = input.entAccess !== undefined ? input.entAccess : user.entAccess;
-    user.entPerms = granted ? input.entPerms : [];
+    const keys = granted ? (input.entPerms ?? user.entPerms ?? []) : [];
+    user.entAccess = granted;
+    user.entPerms = keys;
+    user.entActions = buildActions(keys, input.entActions ?? user.entActions, "Manage");
   }
   if (input.units !== undefined) {
     if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
     user.units = input.units;
   }
-  if (input.unitAccess !== undefined) {
+  // R798 / OD js/core.js:5240-5242 — the three unit maps are rebuilt across ALL
+  // six AC_UNITS on every save, each key carrying an explicit boolean, so a
+  // partial payload can never leave `unitAccess[k]` and `unitPerms[k]` disagreeing.
+  if (input.unitAccess !== undefined || input.unitPerms !== undefined || input.unitActions !== undefined) {
     if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
-    user.unitAccess = input.unitAccess;
-    // R796 / OD js/core.js:5241 — same coupling, per business unit.
-    const perms = { ...(input.unitPerms ?? user.unitPerms ?? {}) };
-    for (const [key, granted] of Object.entries(input.unitAccess)) {
-      if (!granted && perms[key]?.length) perms[key] = [];
+    const accessIn = input.unitAccess ?? user.unitAccess ?? {};
+    const permsIn = input.unitPerms ?? user.unitPerms ?? {};
+    const actionsIn = input.unitActions ?? user.unitActions ?? {};
+    const unitAccess: Record<string, boolean> = {};
+    const unitPerms: Record<string, string[]> = {};
+    const unitActions: Record<string, Record<string, string[]>> = {};
+    for (const unit of AC_UNITS) {
+      const granted = !!accessIn[unit.key];
+      const own = acUnitKeys(unit.key);
+      const keys = granted ? (permsIn[unit.key] ?? []).filter((k) => own.includes(k)) : [];
+      unitAccess[unit.key] = granted;
+      unitPerms[unit.key] = keys;
+      unitActions[unit.key] = buildActions(keys, actionsIn[unit.key], "Manage");
     }
-    user.unitPerms = perms;
-  } else if (input.unitPerms !== undefined) {
-    if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
-    const access = user.unitAccess ?? {};
-    const perms = { ...input.unitPerms };
-    for (const key of Object.keys(perms)) if (!access[key]) perms[key] = [];
-    user.unitPerms = perms;
-  }
-  // OD `u.navPerms` (js/core.js:5225) — the granted Service Provider menu keys.
-  if (input.navPerms !== undefined) {
-    if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
-    user.navPerms = input.navPerms;
+    user.unitAccess = unitAccess;
+    user.unitPerms = unitPerms;
+    user.unitActions = unitActions;
   }
   if (input.provisioned === true) {
     if (isSuper) throw new ForbiddenError("Super Administrator permissions are locked");
@@ -453,11 +551,24 @@ export async function updateUser(
     }
     const role = await Role.findOne({ where: { name: input.role, orgId: user.orgId } });
     if (role) {
+      const wasProvisioned = user.provisioned;
       await UserRole.destroy({ where: { userId } });
       await UserRole.findOrCreate({ where: { userId, roleId: role.id } });
       // OD `users[].provisioned` (core.js seed: false only on role-less accounts
       // awaiting admin assignment) — flips true once a role is actually granted.
-      if (!user.provisioned) { user.provisioned = true; await user.save(); }
+      // js/core.js:5226 — the same write resets a previously unprovisioned member
+      // (or one holding a status outside the access vocabulary) to
+      // 'Pending Activation' and mails a fresh activation link: "Access granted ·
+      // activation email sent".
+      const inVocabulary = (["Pending Activation", "Active", "Suspended"] as string[]).includes(user.status);
+      if (!wasProvisioned || !inVocabulary) {
+        user.provisioned = true;
+        user.status = "Pending Activation";
+        const activationToken = randomUUID();
+        user.activationToken = activationToken;
+        await user.save();
+        sendActivationInvite(user.email, activationToken);
+      }
     }
   }
 

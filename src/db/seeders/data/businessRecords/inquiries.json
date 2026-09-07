@@ -250,7 +250,7 @@
   },
   {
    "id": "INQ-3010",
-   "leadId": "LD-3206",
+   "leadId": "LD-3204",
    "service": "comp",
    "variant": "In-house training",
    "status": "Acquired",
@@ -265,7 +265,7 @@
     "language": "Bahasa Indonesia"
    },
    "notes": "Auditor training bundled with the QMS project.",
-   "leadName": "PT Brand Corporation",
+   "leadName": "PT Damage Control",
    "serviceName": "Competence Development",
    "createdAt": "2026-08-31T09:40:42.290Z",
    "activity": [
@@ -712,7 +712,14 @@
    "service": "comp",
    "variant": "Personnel certification",
    "status": "Qualified",
-   "sq": {},
+   "sq": {
+    "timeline": "3–6 months",
+    "topic": "ISO 9001 Lead Implementer",
+    "headcount": "3",
+    "mode": "Virtual",
+    "dates": "Nov 2026",
+    "scheme": "PECB"
+   },
    "leadName": "PT Brand Corporation",
    "serviceName": "Competence Development",
    "notes": "",
@@ -734,10 +741,17 @@
    "service": "impl",
    "variant": "Full Consultancy",
    "status": "Negotiation",
-   "sq": {},
+   "sq": {
+    "timeline": "6–12 months",
+    "frameworks": "ISO 9001:2015, ISO 14001:2015",
+    "sites": "2",
+    "maturity": "Ad-hoc",
+    "targetCert": "2027-06-01",
+    "headcount": "310"
+   },
    "leadName": "PT Cross Technological Enterprises",
    "serviceName": "Framework Implementation",
-   "notes": "",
+   "notes": "Integrated QMS + EMS.",
    "createdAt": "2026-08-31T09:40:42.327Z",
    "activity": [
     {
@@ -778,10 +792,20 @@
    "service": "comp",
    "variant": "In-house training",
    "status": "Acquired",
-   "sq": {},
+   "sq": {
+    "timeline": "ASAP (<1 mo)",
+    "courseId": "crs-fw_m47qbu4-l5",
+    "headcount": "10",
+    "mode": "On-site",
+    "scheme": "",
+    "window": "2026-08",
+    "venue": "Client site",
+    "venueCity": "",
+    "language": "Bahasa Indonesia"
+   },
    "leadName": "PT Hammer Industries",
    "serviceName": "Competence Development",
-   "notes": "",
+   "notes": "Onsite auditor training delivered.",
    "createdAt": "2026-08-31T09:40:42.327Z",
    "activity": [
     {

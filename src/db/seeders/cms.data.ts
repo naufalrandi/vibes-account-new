@@ -36,12 +36,14 @@ export const CMS_POSTS = [
   { odId: "PO-0004", title: "Why we built VIBES on a single data model", slug: "single-data-model", author: AUTHOR, category: "Product", tags: ["Product"], status: "Draft" as const, excerpt: "One framework engine, many standards.", body: "A shared framework cross-reference model lets one control satisfy many requirements...", publishDate: null, updatedAt: d(2), createdAt: d(2) },
 ];
 
+// OD gives every `db.cmsMedia` row an `uploadedBy` (js/core.js:3775-3779,
+// `who = ocActor() || 'System'`) — the actor the Media tab shows as the uploader.
 export const CMS_MEDIA = [
-  { odId: "MD-0001", name: "hero-dashboard.png", type: "Image", size: 284000, alt: "VIBES dashboard hero", uploadedAt: d(30) },
-  { odId: "MD-0002", name: "logo-vibes.svg", type: "Icon", size: 8200, alt: "VIBES logo", uploadedAt: d(60) },
-  { odId: "MD-0003", name: "og-default.png", type: "Image", size: 196000, alt: "Open Graph default card", uploadedAt: d(30) },
-  { odId: "MD-0004", name: "whitepaper-isms.pdf", type: "Document", size: 1650000, alt: "ISMS whitepaper", uploadedAt: d(21) },
-  { odId: "MD-0005", name: "product-tour.mp4", type: "Video", size: 24800000, alt: "2-minute product tour", uploadedAt: d(18) },
+  { odId: "MD-0001", name: "hero-dashboard.png", type: "Image", size: 284000, alt: "VIBES dashboard hero", uploadedBy: AUTHOR, uploadedAt: d(30) },
+  { odId: "MD-0002", name: "logo-vibes.svg", type: "Icon", size: 8200, alt: "VIBES logo", uploadedBy: AUTHOR, uploadedAt: d(60) },
+  { odId: "MD-0003", name: "og-default.png", type: "Image", size: 196000, alt: "Open Graph default card", uploadedBy: AUTHOR, uploadedAt: d(30) },
+  { odId: "MD-0004", name: "whitepaper-isms.pdf", type: "Document", size: 1650000, alt: "ISMS whitepaper", uploadedBy: AUTHOR, uploadedAt: d(21) },
+  { odId: "MD-0005", name: "product-tour.mp4", type: "Video", size: 24800000, alt: "2-minute product tour", uploadedBy: AUTHOR, uploadedAt: d(18) },
 ];
 
 // `target` is the OD page odId the menu item points at (resolved to the

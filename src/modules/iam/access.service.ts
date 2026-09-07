@@ -143,3 +143,11 @@ export function levelActions(level: string, menuKey: string): PermAction[] {
         : ["view", "export", "create", "edit", "approve", "publish"];
   return appl.filter((a) => w.indexOf(a) >= 0);
 }
+
+/**
+ * OD `acDefaultLevel(role)` (js/core.js:5070) — the level a grant falls back to
+ * when no explicit action set was supplied for it.
+ */
+export function acDefaultLevel(role: string | null): PermLevel {
+  return role === "Administrator" ? "Manage" : role === "Basic User" ? "View" : "Edit";
+}

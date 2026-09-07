@@ -251,14 +251,21 @@ export async function seedIsraTenantDemo(orgId: string): Promise<IsraTenantDemoR
     if (snap) {
       snapshotRows.push({
         scenarioId,
-        // `IsraRecommendedControl` is {annexRef, fromVulns}; OD's snapshot item
-        // carries the full vuln objects plus a rendered rationale.
+        // R63 — OD's `recSnapshot` (js/core.js:15113) carries a version stamp,
+        // the vulnerability scope it was taken over, and a needsReview flag;
+        // each item keeps its title and rendered rationale alongside the
+        // isra-spec.md:95 {annexRef, fromVulns} pair.
+        version: num(snap.version) ?? 1,
         controls: arr(snap.items).map((it) => ({
           annexRef: String(it.annexRef ?? ""),
           fromVulns: arr(it.vulns).map((v) => String(v.name ?? "")),
+          title: str(it.title) ?? "",
+          rationale: Array.isArray(it.rationale) ? it.rationale.map(String) : [],
         })),
+        includedVulnIds: Array.isArray(snap.includedVulnIds) ? snap.includedVulnIds.map(String) : [],
         mapVersion: num(snap.mapVersion),
         generatedAt: date(snap.generatedAt) ?? new Date(),
+        needsReview: snap.needsReview === true,
         isCurrent: true,
       });
     }
@@ -273,10 +280,23 @@ export async function seedIsraTenantDemo(orgId: string): Promise<IsraTenantDemoR
     }
 
     for (const ac of s.addedControls ?? []) {
+      // R56 — OD's committed control (`isra2ApplToggle`, js/core.js:15166)
+      // records which snapshot version it came from, which vulnerabilities it
+      // answers, why it was committed, and at what target effectiveness. Only
+      // the annexRef and the vuln names were being carried across.
       addedRows.push({
         scenarioId,
         annexRef: String(ac.annexRef ?? ""),
+        snapshotVersion: num(ac.snapshotVersion),
+        relatedVulnIds: Array.isArray(ac.relatedVulnIds) ? ac.relatedVulnIds.map(String) : [],
         relatedVulnNames: Array.isArray(ac.relatedVulnNames) ? ac.relatedVulnNames : [],
+        rationale: str(ac.rationale),
+        intendedEffect: str(ac.intendedEffect),
+        targetEffectiveness: str(ac.targetEffectiveness),
+        owner: str(ac.owner),
+        status: str(ac.status) ?? "Committed",
+        selectionDate: date(ac.selectionDate),
+        existingControlId: null,
         source: "recommendation",
       });
     }
@@ -284,13 +304,33 @@ export async function seedIsraTenantDemo(orgId: string): Promise<IsraTenantDemoR
     const rtp = obj(s.rtp);
     if (rtp) {
       const rtpId = randomUUID();
+      // R59 — the whole plan, not just its approval stamp: OD's `rtp`
+      // (js/core.js:15246) carries the cycle it belongs to, the option it
+      // implements, its title/description, the Added controls in scope, the
+      // owner and supporting party, resources, dates, expected evidence and
+      // dependencies. All of them were dropped on insert.
       rtpRows.push({
         id: rtpId,
         scenarioId,
+        cycle: num(rtp.cycle) ?? 1,
+        option: str(rtp.option),
+        title: str(rtp.title),
+        description: str(rtp.description),
+        addedControlIds: Array.isArray(rtp.addedControlIds) ? rtp.addedControlIds.map(String) : [],
+        owner: str(rtp.owner),
+        supporting: str(rtp.supporting),
+        resources: str(rtp.resources),
+        startDate: dateOnly(rtp.startDate),
+        targetDate: dateOnly(rtp.targetDate),
+        expectedEvidence: str(rtp.expectedEvidence),
+        dependencies: str(rtp.dependencies),
         version: num(rtp.version) ?? 1,
         status: str(rtp.status) ?? "Draft",
+        createdBy: str(rtp.createdBy),
         approvedBy: str(rtp.approvedBy),
         approvedAt: date(rtp.approvedAt),
+        // `funding` has no counterpart in any baseline artifact — OD never
+        // writes one, so there is nothing to carry across.
         funding: [],
         monitoring: str(rtp.monitoring),
         completionCriteria: str(rtp.completionCriteria),
@@ -302,9 +342,20 @@ export async function seedIsraTenantDemo(orgId: string): Promise<IsraTenantDemoR
           id: actionId,
           rtpId,
           action: String(a.action ?? ""),
-          owners: str(a.owner) ? [String(a.owner)] : [],
+          owners: Array.isArray(a.owners) ? a.owners.map(String) : str(a.owner) ? [String(a.owner)] : [],
+          // R58 — the step's own scope and acceptance criteria
+          // (js/core.js:15292), plus the treatment template it was copied from.
+          relatedVulnIds: Array.isArray(a.relatedVulnIds) ? a.relatedVulnIds.map(String) : [],
+          relatedVulnNames: Array.isArray(a.relatedVulnNames) ? a.relatedVulnNames.map(String) : [],
           targetDate: dateOnly(a.targetDate),
-          status: str(a.status) ?? "Not started",
+          evidenceRequired: str(a.evidenceRequired),
+          completionCriteria: str(a.completionCriteria),
+          templateId: str(a.templateId),
+          templateVer: num(a.templateVer),
+          // R45 — 'Planned' is the port-only value migration 0105 moved away
+          // from; OD's action lifecycle opens at 'Not started'
+          // (`ISRA4_ACT_STATUS`, js/core.js:15409).
+          status: str(a.status) === "Planned" ? "Not started" : str(a.status) ?? "Not started",
           evidence: str(a.evidenceRequired) ? [String(a.evidenceRequired)] : [],
           // OD's implementation/verification lifecycle (js/core.js:16652, :16700).
           // The dump carries all nine on ACT-B1; they were being dropped here.
@@ -318,8 +369,12 @@ export async function seedIsraTenantDemo(orgId: string): Promise<IsraTenantDemoR
           verificationDate: dateOnly(a.verificationDate),
           verificationNotes: str(a.verificationNotes),
         });
-        const ref = str(a.addedControlRef);
-        if (ref) actionControlRows.push({ rtpActionId: actionId, annexRef: ref });
+        // OD carries both `addedControlRefs[]` (js/core.js:15373) and the
+        // legacy single `addedControlRef` (js/core.js:15292).
+        const refs = Array.isArray(a.addedControlRefs) ? a.addedControlRefs.map(String) : [];
+        const legacy = str(a.addedControlRef);
+        if (legacy && !refs.includes(legacy)) refs.push(legacy);
+        for (const ref of refs) actionControlRows.push({ rtpActionId: actionId, annexRef: ref });
       }
     }
 

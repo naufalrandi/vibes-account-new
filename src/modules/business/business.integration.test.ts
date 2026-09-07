@@ -65,9 +65,11 @@ describe("business unit registers", () => {
     expect((await mk("motoran", "mb-booking", "Fleet booking")).body.data.code).toBe("BK-0001");
     expect((await mk("motoran", "mb-support", "Flat tyre")).body.data.code).toBe("TK-0001");
     expect((await mk("enterprise", "ent-comp", "Base salary")).body.data.code).toBe("COMP-0001");
-    expect((await mk("enterprise", "ent-payroll", "August 2026 cycle")).body.data.code).toBe("PY-1");
+    // `payrollNextId` js/modules.js:2884 mints `PY-N<max trailing number + 1>`.
+    expect((await mk("enterprise", "ent-payroll", "August 2026 cycle")).body.data.code).toBe("PY-N1");
     expect((await mk("enterprise", "ent-minwage", "DKI Jakarta 2026")).body.data.code).toBe("MW-0001");
-    expect((await mk("enterprise", "ent-db-courses", "ISO 9001 Lead Auditor")).body.data.code).toBe("CRS-0001");
+    // `courseEdit` autoCode js/modules.js:1995 — a bare catalog number from base 7000.
+    expect((await mk("enterprise", "ent-db-courses", "ISO 9001 Lead Auditor")).body.data.code).toBe("7001");
     expect((await mk("enterprise", "ent-ctypes", "Permanent")).body.data.code).toBe("CT-001");
     expect((await mk("enterprise", "ent-svc-ctypes", "Retainer")).body.data.code).toBe("SCT-001");
     expect((await mk("enterprise", "ent-sup-ctypes", "Framework agreement")).body.data.code).toBe("PCT-001");

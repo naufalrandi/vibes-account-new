@@ -257,23 +257,51 @@ export async function uploadPaymentProof(auth: AuthContext, id: string, proofUrl
 }
 
 /**
+ * R186 / OD `SAAS_PAY_STATES` (js/core.js:2892) — a payment has four states,
+ * not three. 'Rejected' is the outcome of a finance verification that turns
+ * the uploaded proof down; without it the fourth state could not be reached
+ * or represented anywhere in the stack.
+ */
+export const SAAS_PAY_STATES = ["Awaiting Transfer", "Under Verification", "Verified", "Rejected"] as const;
+export type SaasPaymentState = (typeof SAAS_PAY_STATES)[number];
+
+/**
  * OD `pipeVerifyPayment` (app.html:10654). In OD, confirming payment and
  * auto-provisioning happen in one synchronous click; here they are two
  * separate requests, so this sets `payment.state='Verified'` and rests the
  * pipe at the 'Verified' stage — see pipeline.transitions.ts for why that
  * stage is used here where OD never actually persisted it.
+ *
+ * `outcome: "Rejected"` is the other half of the same finance decision
+ * (`SAAS_PAY_STATES`, js/core.js:2892): the proof is turned down, the payment
+ * is stamped 'Rejected' with who rejected it and why, and the pipe drops back
+ * to 'Awaiting Transfer' so a fresh transfer proof can be uploaded.
  */
-export async function verifyPayment(auth: AuthContext, id: string, ip: string | null) {
+export async function verifyPayment(
+  auth: AuthContext,
+  id: string,
+  ip: string | null,
+  outcome: "Verified" | "Rejected" = "Verified",
+  reason?: string | null,
+) {
   requireManage(auth);
   const p = await requirePipelineEntry(id);
   assertPipelineTransition(p.stage, "verifyPayment");
   const verifiedBy = await actorName(auth);
-  p.payment = { ...(p.payment ?? {}), state: "Verified", verifiedBy, verifiedAt: new Date().toISOString() };
-  p.stage = "Verified";
-  pipeLog(p, `Payment verified by ${verifiedBy}`);
+  const at = new Date().toISOString();
+  if (outcome === "Rejected") {
+    p.payment = { ...(p.payment ?? {}), state: "Rejected", verifiedBy, verifiedAt: at, rejectedReason: reason?.trim() || null };
+    p.stage = "Awaiting Transfer";
+    pipeLog(p, `Payment proof rejected by ${verifiedBy}${reason?.trim() ? ` — ${reason.trim()}` : ""}`);
+  } else {
+    p.payment = { ...(p.payment ?? {}), state: "Verified", verifiedBy, verifiedAt: at };
+    p.stage = "Verified";
+    pipeLog(p, `Payment verified by ${verifiedBy}`);
+  }
   await p.save();
   await writeAudit({
-    actorUserId: auth.userId, organizationId: auth.orgId, action: "saas.pipeline.paymentVerified",
+    actorUserId: auth.userId, organizationId: auth.orgId,
+    action: outcome === "Rejected" ? "saas.pipeline.paymentRejected" : "saas.pipeline.paymentVerified",
     entityType: "SaasPipeline", entityId: p.id, sourceIp: ip, result: "Success",
   });
   return pipelineView(p);

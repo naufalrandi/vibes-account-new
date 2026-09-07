@@ -37,38 +37,86 @@ const UNCALLED: Record<string, string> = {
   "/v1/performance-evaluation": "SOF-86: duplicate surface of /implementation/performance, but PerfEval owns the only ISO 9.1 indicator engine (perfIndicators.ts) in the codebase. Restored after a prior pass deleted it outright — kept mounted, unwired, until a follow-up decides whether the FE repoints here or the indicator engine gets ported to the generic path.",
   "/v1/processes": "R823: the BusinessProcess surface (list/create/sync-catalog). The FE's process pickers read the reference-db catalogue at /reference-db/business-processes instead, which is what the old substring check mistook for a call to this prefix. Kept mounted, unwired, pending a follow-up that decides which of the two is the process register.",
   "/v1/cms": "R823: first-class CMS tables (cms_pages/posts/media/menu/settings), but the Website CMS screen posts to the generic ent-mkt-* business records instead — exactly as unwired as /v1/doa-matrix and /v1/org-units above. The bare substring check below used to count realClient's never-called helpers and the unrelated /public/cms/ marketing fetches as a call, so this hid. The ent-mkt-* keys are registered and validated (R822) until a follow-up decides which of the two contracts wins.",
+  "/v1/my-frameworks": "R823: the per-user framework subscription list (GET /, DELETE /:subscriptionId). The My Frameworks screen reads /framework-assignments instead; nothing in the client layer ever builds a /my-frameworks request. Surfaced when the substring check was replaced with call-graph detection — the old one was matching the nav href \"/my-frameworks\", a page URL, not an API path. Kept mounted, unwired, pending a follow-up that decides whether the screen repoints here or the mount goes.",
+  "/v1/accounts": "R823: the linked-account register (list/create/update/delete). realClient has the four helpers and no screen calls any of them — there is no Accounts page; app/(app)/account is the signed-in user's own profile. Surfaced when the substring check was replaced with call-graph detection, which stopped counting those dead helpers as a call. Kept mounted, unwired, pending a follow-up that decides whether a screen gets built or the mount goes.",
 };
 
-function frontendSource(): string {
-  const out: string[] = [];
+/**
+ * Every `.ts/.tsx` the product ships, paired with its path. Tests are excluded:
+ * a client method only a `.test.tsx` mock names is not a call from the product.
+ */
+function frontendFiles(): { file: string; src: string }[] {
+  const out: { file: string; src: string }[] = [];
   const walk = (dir: string) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       if (e.name === "node_modules" || e.name.startsWith(".")) continue;
       const p = path.join(dir, e.name);
       if (e.isDirectory()) walk(p);
-      else if (/\.tsx?$/.test(e.name)) out.push(fs.readFileSync(p, "utf8"));
+      else if (/\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name)) out.push({ file: p, src: fs.readFileSync(p, "utf8") });
     }
   };
-  for (const d of ["lib", "app"]) walk(path.join(FE, d));
-  return out.join("\n");
+  for (const d of ["lib", "app", "components"]) walk(path.join(FE, d));
+  return out;
 }
 
 /**
  * R823 — a bare `fe.includes("/cms")` counted any occurrence of the substring
- * anywhere in the frontend: a never-called helper in realClient, and the
- * unrelated `/public/cms/` marketing fetches. A prefix counts as called only
- * when the frontend builds a request path that STARTS with it — i.e. the
- * segment is followed by `/`, a quote, or a template hole, and is not itself
- * preceded by another path segment.
+ * anywhere in the frontend, and anchoring it to a quote was no better: both
+ * still count two things that are not calls.
+ *
+ *   1. A Next route, not an API path. `router.push(`/processes?...`)` and
+ *      `href="/my-frameworks"` are page URLs; they say nothing about whether
+ *      the backend prefix of the same name is ever requested.
+ *   2. A dead client helper. `realClient.listCmsPages()` builds `/cms/pages`
+ *      perfectly well — nothing calls it. Same for the whole `/accounts` group.
+ *
+ * So reachability is resolved in two hops instead of one: harvest the request
+ * paths the API-client layer actually builds together with the method that
+ * builds each, then require that method to be named by product code outside
+ * that layer. A prefix is called when some method that requests it is reached.
  */
-function isCalled(fe: string, mount: string): boolean {
+const REQUEST_CALL = /\b(?:apiFetch|fetch)\s*(?:<[^(]*>)?\s*\(\s*[`"']/;
+// The path literal of such a call, up to its first interpolation:
+// `apiFetch<X>(`/cms/pages/${id}`)` → `/cms/pages/`, and a leading hole is
+// skipped so `fetch(`${BASE}/public/cms/${orgId}/posts`)` → `/public/cms/`.
+const REQUEST_PATH = /\b(?:apiFetch|fetch)\s*(?:<[^(]*>)?\s*\(\s*[`"'](?:\$\{[^}]*\})?(\/[A-Za-z][^`"'$]*)/;
+// Who owns the call: a member of the client object (two-space indent) or a
+// module-level export. Deliberately not any `const` — an inner `const q = …`
+// inside a method would otherwise be credited with the method's request.
+const OWNER = /^(?:  (?:async )?([A-Za-z_$][\w$]*)\s*[(<]|export (?:async )?(?:function |const )([A-Za-z_$][\w$]*))/;
+
+/** Request paths the frontend builds, each tagged with the function that builds it. */
+function frontendCalls(): { called: (seg: string) => boolean } {
+  const files = frontendFiles();
+  const clients = files.filter((f) => REQUEST_CALL.test(f.src));
+  const calls: { owner: string; path: string }[] = [];
+  for (const { src } of clients) {
+    let owner = "";
+    for (const line of src.split("\n")) {
+      const o = OWNER.exec(line);
+      if (o) owner = o[1] ?? o[2];
+      const p = REQUEST_PATH.exec(line);
+      if (p) calls.push({ owner, path: p[1] });
+    }
+  }
+  // Product code = everything that is neither a path-building client module nor
+  // the interface/mock restatements of one (`client.ts` declares every method
+  // and `mockClient.ts` implements every method — naming one there is not a call).
+  const product = files
+    .filter((f) => !clients.includes(f) && !f.file.includes(`${path.sep}lib${path.sep}api${path.sep}`))
+    .map((f) => f.src)
+    .join("\n");
+  const names = new Set(product.match(/[A-Za-z_$][\w$]*/g) ?? []);
+  return {
+    called: (seg) =>
+      calls.some((c) => (c.path === seg || c.path.startsWith(`${seg}/`)) && names.has(c.owner)),
+  };
+}
+
+function isCalled(fe: { called: (seg: string) => boolean }, mount: string): boolean {
   const seg = mount.replace("/v1", "").split("/:")[0];
   if (!seg || seg === "/") return true;
-  const esc = seg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  // `"/cms/pages"`, `` `/cms/${id}` `` or `"/cms"` — but not `/public/cms/`.
-  // The segment may open a string/template OR follow a template hole, as in
-  // `` `${BASE}/public/cms/${orgId}/posts` ``.
-  return new RegExp(`(?:["'\`]|\\})${esc}(?:["'\`/?]|\\$\\{)`).test(fe);
+  return fe.called(seg);
 }
 
 describe("backend endpoint reachability", () => {
@@ -76,7 +124,7 @@ describe("backend endpoint reachability", () => {
   const mounts = [...new Set([...app.matchAll(/\.use\(\s*["'`](\/v1[^"'`]*)/g)].map((m) => m[1]))];
 
   it("mounts no /v1 prefix the frontend never calls", () => {
-    const fe = frontendSource();
+    const fe = frontendCalls();
     const orphans = mounts.filter((m) => !isCalled(fe, m)).filter((m) => !(m in UNCALLED));
     expect(orphans).toEqual([]);
   });

@@ -5,7 +5,7 @@ import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
 import { actorName } from "../record-events/recordEvent.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
-import type { PerfEvalIndicator } from "../../db/models/evaluation.models";
+import type { PerfEvalIndicator, PerfEvalObjective } from "../../db/models/evaluation.models";
 import { listRecords } from "../implementation/implementation.service";
 import { listRisks } from "../risks/risk.service";
 import { listFindings } from "../internal-audit/internalAudit.service";
@@ -67,6 +67,30 @@ function parseIndicators(input: unknown): PerfEvalIndicator[] {
   });
 }
 
+const OBJECTIVE_KEYS = ["id", "title", "owner", "unit", "dir", "target", "val", "status", "period"] as const;
+
+/**
+ * The objective snapshot frozen alongside the indicators — OD `perfRecord`
+ * (js/core.js:8042) maps `objTenantList()` to `{id,title,owner,unit,dir,target,
+ * val,status,period}`; `perfSeedBaseline` (:7950) writes the same array without
+ * `period`, so that key stays optional. Same loose shaping as `parseIndicators`.
+ */
+function parseObjectives(input: unknown): PerfEvalObjective[] {
+  if (input === undefined || input === null) return [];
+  if (!Array.isArray(input)) throw new BadRequestError("objectives must be an array", "INVALID_OBJECTIVES");
+  return input.map((raw, i) => {
+    if (typeof raw !== "object" || raw === null) throw new BadRequestError(`objectives[${i}] must be an object`, "INVALID_OBJECTIVES");
+    const rec = raw as Record<string, unknown>;
+    const field = (k: (typeof OBJECTIVE_KEYS)[number]) => (typeof rec[k] === "string" ? rec[k] as string : rec[k] == null ? "" : String(rec[k]));
+    const out: PerfEvalObjective = {
+      id: field("id"), title: field("title"), owner: field("owner"), unit: field("unit"),
+      dir: field("dir"), target: field("target"), val: field("val"), status: field("status"),
+    };
+    if (rec.period != null) out.period = field("period");
+    return out;
+  });
+}
+
 export async function listPerfEvals(auth: AuthContext, orgId?: string) {
   const where = await orgWhere(auth, orgId);
   return (await PerfEval.findAll({ where, order: [["date", "DESC"]] })).map((r) => r.get({ plain: true }));
@@ -88,10 +112,11 @@ export async function createPerfEval(auth: AuthContext, input: Record<string, un
   if (!date) throw new BadRequestError("Evaluation date is required", "DATE_REQUIRED");
   if (!owner) throw new BadRequestError("Evaluator (owner) is required", "OWNER_REQUIRED");
   const indicators = parseIndicators(input.indicators);
+  const objectives = parseObjectives(input.objectives);
   const who = await actorName(auth);
   const row = await PerfEval.create({
     orgId: org, code: await nextCode(PerfEval, "PEV"), period, date, owner,
-    summary: str(input.summary), indicators, createdBy: who, lastUpdatedBy: who,
+    summary: str(input.summary), indicators, objectives, createdBy: who, lastUpdatedBy: who,
   });
   await logAudit(auth, org, "perfeval.created", row.id, ip);
   return row.get({ plain: true });
@@ -112,6 +137,7 @@ export async function updatePerfEval(auth: AuthContext, id: string, input: Recor
     }
   }
   if (input.indicators !== undefined) row.indicators = parseIndicators(input.indicators);
+  if (input.objectives !== undefined) row.objectives = parseObjectives(input.objectives);
   const who = await actorName(auth);
   row.lastUpdatedBy = who;
   await row.save();
