@@ -244,22 +244,20 @@ const KNOWN_UNREGISTERED_FE_KEYS = new Set([
 
 /**
  * R822 — fields the frontend really writes that the module's `.strict()`
- * schema does not declare, i.e. a live 400 on that save. Every entry below is
- * the same defect: the inquiry → proposal → contract → project chain stamps a
- * back-reference onto the *upstream* record after each conversion, and no
- * schema was widened for it. Closing them means adding the fields in
- * `dataSchemas.ts` (and to `dataSchemas.test.ts`'s `MODULE_FIELDS`); until
- * then they are tracked here so this gate fails on *new* drift instead of
- * being red for old drift. Shrink this list — never grow it.
+ * schema does not declare, i.e. a live 400 on that save. Tracked here so this
+ * gate fails on *new* drift instead of standing red for old drift. Shrink this
+ * list — never grow it.
+ *
+ * Empty as of R548: the inquiry → proposal → contract → project chain stamps a
+ * back-reference onto the upstream record after each conversion, and every one
+ * of those stamps now lands on `ent-inq`, whose schema declares all six
+ * (`dataSchemas.ts`). The contract keeps no `projectId` of its own —
+ * `EnterpriseServiceContractsPage.createProject` stamps the inquiry, and OD
+ * gates the convert button on `!prjByInq(inqId)` (js/modules.js:2663), a
+ * project raised against the inquiry rather than a field written back onto the
+ * contract.
  */
-const KNOWN_UNVALIDATED_FE_FIELDS: Record<string, string[]> = {
-  // `EnterpriseInquiriesPage` convert-to-proposal, `EnterpriseProposalsPage`
-  // convert-to-contract, `EnterpriseServiceContractsPage` convert-to-project.
-  "ent-inq": ["proposalId", "proposalCode", "contractId", "contractCode", "projectId", "projectCode"],
-  // `EnterpriseServiceContractsPage` stamps the project it produced. The
-  // schema declares `propId` (upstream) but nothing downstream.
-  "ent-svc-contracts": ["projectId"],
-};
+const KNOWN_UNVALIDATED_FE_FIELDS: Record<string, string[]> = {};
 
 const declaredFields = (module: string): Set<string> | null => {
   const schema = BUSINESS_DATA_SCHEMAS[module];

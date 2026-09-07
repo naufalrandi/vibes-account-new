@@ -38,21 +38,26 @@ describe("reference-db master data", () => {
 
   it("banks: full CRUD, name required, org-scoped", async () => {
     const token = await tenant("rdb1", "RDB1");
-    expect((await request(app).get("/v1/reference-db/banks").set(authed(token))).body.data).toEqual([]);
+    // OD `bankSeedIfNeeded` (js/modules.js:1386-1393) seeds 18 banks — 10 ID, 4 US, 4 GB — on
+    // the Banks screen's first render, so a fresh org reads them back rather than an empty list.
+    const seeded = (await request(app).get("/v1/reference-db/banks").set(authed(token))).body.data;
+    expect(seeded).toHaveLength(18);
+    expect(seeded.find((b: { name: string }) => b.name === "Bank Mandiri"))
+      .toMatchObject({ country: "ID", countryName: "Indonesia", code: "008", swift: "BMRIIDJA", type: "State" });
 
     expect((await request(app).post("/v1/reference-db/banks").set(authed(token)).send({ name: "  " })).status).toBe(400);
 
     const made = await request(app).post("/v1/reference-db/banks").set(authed(token))
-      .send({ name: "Bank Mandiri", code: "008", swift: "BMRIIDJA", country: "ID", countryName: "Indonesia", type: "State" });
+      .send({ name: "Bank Neo Commerce", code: "490", swift: "BBYBIDJA", country: "ID", countryName: "Indonesia", type: "Digital" });
     expect(made.status).toBe(201);
-    expect(made.body.data).toMatchObject({ name: "Bank Mandiri", code: "008", type: "State" });
+    expect(made.body.data).toMatchObject({ name: "Bank Neo Commerce", code: "490", type: "Digital" });
 
     const id = made.body.data.id;
-    expect((await request(app).put(`/v1/reference-db/banks/${id}`).set(authed(token)).send({ type: "Digital" })).body.data.type).toBe("Digital");
+    expect((await request(app).put(`/v1/reference-db/banks/${id}`).set(authed(token)).send({ type: "Commercial" })).body.data.type).toBe("Commercial");
     // An unknown type falls back to the current value rather than being stored.
-    expect((await request(app).put(`/v1/reference-db/banks/${id}`).set(authed(token)).send({ type: "Nonsense" })).body.data.type).toBe("Digital");
+    expect((await request(app).put(`/v1/reference-db/banks/${id}`).set(authed(token)).send({ type: "Nonsense" })).body.data.type).toBe("Commercial");
     expect((await request(app).delete(`/v1/reference-db/banks/${id}`).set(authed(token))).status).toBe(200);
-    expect((await request(app).get("/v1/reference-db/banks").set(authed(token))).body.data).toEqual([]);
+    expect((await request(app).get("/v1/reference-db/banks").set(authed(token))).body.data).toHaveLength(18);
   });
 
   it("holidays: requires a name and a date", async () => {

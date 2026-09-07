@@ -158,7 +158,12 @@ describe("public supplier PO confirmation", () => {
     const res = await request(app).get(`/v1/public/purchase-orders/${po.code}/confirmation?t=${encodeURIComponent(po.confirmToken)}`);
     expect(res.status).toBe(200);
     expect(res.body.data.remitTo).toBe("");
-    expect(res.body.data.issuedBy).toBe("");
+    // ISSUED BY still stands: OD `poDocHtml` (js/modules.js:4185) reads the
+    // trail's issuing entry and falls back to `ocActor()`, and `ent-po` is a
+    // transitions-gated module, so `createBusiness`/`updateBusiness` always
+    // author that entry themselves (business.service.ts, `hasActivity`). It
+    // names the buyer-side user who raised the order — never the supplier.
+    expect(res.body.data.issuedBy).toBe("SP User");
   });
 
   it("spells out the structured payment terms OD's poPaymentTermsText builds", async () => {

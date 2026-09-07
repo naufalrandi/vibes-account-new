@@ -985,10 +985,11 @@ async function syncAddedControl(
     }
     return;
   }
-  const scenario = await IsraScenario.findOne({ where: { id: scenarioId } });
-  const vulns = scenario
-    ? await IsraScenarioVuln.findAll({ where: { scenarioId } })
-    : [];
+  // No scenario re-read here: the only caller (`setRecommendationDisposition`)
+  // has already resolved it under `orgId: auth.orgId`, and re-fetching it by
+  // bare id was an unscoped read of an org-scoped model for a mere existence
+  // check the caller had already made.
+  const vulns = await IsraScenarioVuln.findAll({ where: { scenarioId } });
   await IsraScenarioAddedControl.create({
     scenarioId,
     annexRef,

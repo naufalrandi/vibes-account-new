@@ -93,9 +93,9 @@ function orgScopedModels(): Set<string> {
 }
 
 /**
- * Mounts that legitimately reach a handler without `authenticate`. Anything not
- * listed here and not mounted behind `authenticate, tenantScope` fails the
- * mount census below, so a new public route cannot be added silently.
+ * Mounts that legitimately reach a handler without the full `authenticate,
+ * tenantScope` pair. Anything not listed here and not mounted behind that pair
+ * fails the mount census below, so a new public route cannot be added silently.
  */
 const EXEMPT_MOUNTS: Record<string, string> = {
   "/health": "Liveness probe — static payload, touches no model.",
@@ -104,14 +104,24 @@ const EXEMPT_MOUNTS: Record<string, string> = {
     "Public CMS renderer (pages/posts/sitemap/robots) — read-only, Published-status rows only, orgId is a path param validated against a real Organization (404 otherwise), never trusts a token.",
   "/v1/public/purchase-orders":
     "Supplier PO confirmation link — unauthenticated by design (the supplier has no account). Not org-scoped by a token claim; the row is selected by an unguessable server-minted per-PO secret (`poConfirmation.ts`), compared in constant time, and a blank token never matches. Reads and writes exactly the one PO that secret identifies, refuses a voided PO, a PO outside the Sent state, and any second response.",
+  "/v1/saas-access":
+    "Authenticated, but deliberately not behind `tenantScope` \u2014 that middleware refuses every request from a locked tenant (G-75), and this is the one route a locked tenant must still reach: OD renders its lockout treatment from the workspace state it reads here (`saasApplyGrace`, js/core.js:7541, toggling body `ws-readonly`/`ws-locked`), which a route behind the lockout could never answer. Row visibility is unaffected \u2014 it reports only the caller's own tenant, keyed by the verified JWT claim and read through `organizationScopeWhere`.",
   "/uploads":
     "Static file serving for CMS-uploaded media (express.static) — no model access, orgId is baked into the file path by the uploader, not asserted per-request.",
 };
 
-/** `app.use("/v1/x", authenticate, tenantScope, xRoutes)` -> router symbol per prefix. */
+/**
+ * `app.use("/v1/x", authenticate, tenantScope, xRoutes)` -> router symbol per prefix.
+ *
+ * A mount may interpose further guards between `tenantScope` and the router
+ * \u2014 `/v1/users` carries `requireOrgMgmt()` for OD's screen-level
+ * `canOrgMgmt` gate (js/core.js:21572). Those only narrow access, so the mount
+ * is still authenticated and tenant-scoped; the router is the last argument.
+ */
 function authenticatedMounts(): { prefix: string; router: string }[] {
   const text = readFileSync(join(SRC, "app.ts"), "utf8");
-  const re = /app\.use\(\s*"([^"]+)"\s*,\s*authenticate\s*,\s*tenantScope\s*,\s*(\w+)\s*\)/g;
+  const re =
+    /app\.use\(\s*"([^"]+)"\s*,\s*authenticate\s*,\s*tenantScope\s*,(?:\s*\w+\([^)]*\)\s*,)*\s*(\w+)\s*\)/g;
   const out: { prefix: string; router: string }[] = [];
   for (const m of text.matchAll(re)) out.push({ prefix: m[1], router: m[2] });
   return out;

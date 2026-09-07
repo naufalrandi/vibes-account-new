@@ -71,8 +71,8 @@ describe("cms (pages, posts, media, menu, settings)", () => {
 
   it("rejects a duplicate slug within the same org", async () => {
     const { token } = await makeTenant("c2", "CMS2");
-    await request(app).post("/v1/cms/pages").set(authed(token)).send({ title: "Home", slug: "home", template: "Home" });
-    const dup = await request(app).post("/v1/cms/pages").set(authed(token)).send({ title: "Home Again", slug: "home", template: "Home" });
+    await request(app).post("/v1/cms/pages").set(authed(token)).send({ title: "Home", slug: "home", template: "Landing" });
+    const dup = await request(app).post("/v1/cms/pages").set(authed(token)).send({ title: "Home Again", slug: "home", template: "Landing" });
     expect(dup.status).toBe(409);
   });
 
@@ -199,9 +199,12 @@ describe("cms (pages, posts, media, menu, settings)", () => {
   // --- Public renderer -----------------------------------------------------------
 
   describe("public renderer", () => {
+    /** Templates are OD `CMS_TEMPLATES` (js/core.js:3744) — 'Landing', 'Standard',
+     *  'Pricing', 'Contact', 'Blog Index', 'Legal'. There is no 'Home' template: OD's
+     *  home page (PG-0001) is a Landing, so the home layout renders that one. */
     it("renders distinct markup per template for Published pages only", async () => {
       const { token, orgId } = await makeTenant("c9", "CMS9");
-      const home = await request(app).post("/v1/cms/pages").set(authed(token)).send({ title: "Home", slug: "home", template: "Home", body: "<p>hi</p>" });
+      const home = await request(app).post("/v1/cms/pages").set(authed(token)).send({ title: "Home", slug: "home", template: "Landing", body: "<p>hi</p>" });
       const pricing = await request(app).post("/v1/cms/pages").set(authed(token)).send({ title: "Pricing", template: "Pricing", body: "<p>plans</p>" });
       const draft = await request(app).post("/v1/cms/pages").set(authed(token)).send({ title: "Draft Page", template: "Landing" });
 

@@ -293,7 +293,7 @@ describe("ISRA gap-register Wave Q, task S3 — promoteResidual full semantics (
     return scen;
   }
 
-  it("within appetite: promotes L/impact to Current, accepts, archives the RTP, clears added controls and the projected slot", async () => {
+  it("within appetite: promotes L/impact to Current, accepts, archives the RTP and clears the projected slot", async () => {
     const { token } = await makeTenant("s3_prom_ok", "ORG_S3_PROM_OK");
     const scen = await setUpTreatedScenario(token);
 
@@ -320,7 +320,13 @@ describe("ISRA gap-register Wave Q, task S3 — promoteResidual full semantics (
     expect(got.projectedResidual).toBeNull();
     expect(got.treatment.status).toBe("Accepted");
     expect(got.rtp).toBeNull(); // archived out of "current" (isCurrent flipped false)
-    expect(got.addedControls).toHaveLength(0);
+    // R317 / OD: promotion clears the residual slot, the projected slot and
+    // (within appetite) the RTP — never the committed Added-control roster.
+    // OD's only removal is the single de-selected ref `isra2ApplToggle`
+    // filters out (js/core.js:15160), and `soaApplicabilityMap`
+    // (js/core.js:13665) reads that live roster as the "current-cycle added
+    // controls" behind SoA applicability.
+    expect(got.addedControls).toHaveLength(1);
     expect(got.reviewDue).not.toBe(beforeReviewDue);
     expect(got.cycles).toHaveLength(1);
     expect(got.cycles[0].cycleNumber).toBe(1);
@@ -344,7 +350,11 @@ describe("ISRA gap-register Wave Q, task S3 — promoteResidual full semantics (
     expect(got.current.confirmedScore).toBe(16);
     expect(got.residual).toBeNull();
     expect(got.projectedResidual).toBeNull(); // projected always clears, regardless of appetite
-    expect(got.treatment.status).toBe("Active"); // NOT flipped to Accepted
+    // OD `isra2TreatForm` (js/core.js:15152) derives the decision's own status
+    // from the option — `opt==='Retain'?'Accepted':'Planning'`; the baseline has
+    // no "Active" decision status. Modify therefore stays Planning: NOT
+    // flipped to Accepted.
+    expect(got.treatment.status).toBe("Planning");
     expect(got.rtp).not.toBeNull(); // stays current — further treatment needed
     expect(got.addedControls).toHaveLength(1); // NOT cleared
   });

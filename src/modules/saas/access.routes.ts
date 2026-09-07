@@ -2,6 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { Organization } from "../../db/models";
 import { sendOk } from "../../lib/apiResponse";
 import { UnauthorizedError } from "../../lib/errors";
+import { organizationScopeWhere } from "../../lib/scope";
 import { getTenantAccess } from "./lifecycle.service";
 
 /**
@@ -27,7 +28,13 @@ saasAccessRoutes.get("/", async (req: Request, res: Response, next: NextFunction
       return;
     }
     const { access, wsState, subState } = await getTenantAccess(req.auth.tenantId);
-    const org = await Organization.findByPk(req.auth.tenantId);
+    // Read through the actor's own organization scope rather than by raw
+    // primary key: for the Tenant caller this branch is reached by,
+    // `organizationScopeWhere` is `{ id: auth.orgId }`, and a tenant org's
+    // `tenantId` is its own id (saas.service.ts `org.tenantId = org.id`), so
+    // this is the same row — but a token whose tenant claim named another
+    // tenant now reads nothing instead of that tenant's name.
+    const org = await Organization.findOne({ where: organizationScopeWhere(req.auth) });
     sendOk(res, { access, wsState, subState, tenantName: org?.name ?? null });
   } catch (e) {
     next(e);

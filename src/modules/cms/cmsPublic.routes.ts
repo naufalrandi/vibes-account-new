@@ -23,14 +23,8 @@ async function requireOrg(orgId: string): Promise<Organization> {
 }
 
 async function findPublishedPage(orgId: string, slug: string): Promise<CmsPage | null> {
-  const normalized = slug === "" || slug === "home" ? null : slug;
-  if (normalized === null) {
-    // Home: a page explicitly slugged "home", else the org's Home-template page.
-    return (
-      (await CmsPage.findOne({ where: { orgId, status: "Published", slug: "home" } })) ??
-      (await CmsPage.findOne({ where: { orgId, status: "Published", template: "Home" } }))
-    );
-  }
+  // Home is the page slugged "home" (OD's PG-0001); "" maps to it too.
+  const normalized = slug === "" ? "home" : slug;
   return CmsPage.findOne({ where: { orgId, status: "Published", slug: normalized } });
 }
 

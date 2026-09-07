@@ -226,8 +226,10 @@ describe("Reference datasets", () => {
     expect(notes.body.data.i).toContain("transformation");
     // "programming" alone also matches NACE 60 ("Programming and broadcasting
     // activities"), which sorts first — use the unambiguous label to target 62.
+    // NACE's cross-reference is OD's ISIC *node id*, not the bare code:
+    // js/nace.js:4 ships {"code":"62",...,"isic":"isic-62"}.
     const nace = await request(app).get("/v1/reference/nace?search=computer%20programming").set(authed(token));
-    expect(nace.body.data[0].isic).toBe("62");
+    expect(nace.body.data[0].isic).toBe("isic-62");
   });
 
   it("fuzzy-matches role suggestions and serves the exam bank", async () => {
@@ -235,10 +237,11 @@ describe("Reference datasets", () => {
     const roles = await request(app).get("/v1/reference/role-suggestions?q=QA%20Manager").set(authed(token));
     expect(roles.body.data.roles[0].name).toBe("Quality Manager");
     // /v1/reference/iscedf serves the full flat ISCED-F volume (116 rows, all
-    // levels) by design — see reference.integration.test.ts. Count the 11
-    // broad fields (parent === null) rather than the endpoint's total length.
+    // levels) by design — see reference.integration.test.ts. Count the 11 broad
+    // fields rather than the endpoint's total length; OD spells the ISCED-F root
+    // parent as "" (js/iscedf.js:3), not null.
     const iscedf = await request(app).get("/v1/reference/iscedf").set(authed(token));
-    expect(iscedf.body.data.filter((d: { parent: string | null }) => d.parent === null)).toHaveLength(11);
+    expect(iscedf.body.data.filter((d: { parent: string | null }) => d.parent === "")).toHaveLength(11);
     const exam = await request(app).get("/v1/reference/exam-bank?skill=Internal%20Auditing&level=L1").set(authed(token));
     expect(exam.body.data[0].questions.length).toBeGreaterThan(0);
     // Reference responses are cacheable.

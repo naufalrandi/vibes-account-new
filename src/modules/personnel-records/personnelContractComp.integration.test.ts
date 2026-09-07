@@ -80,8 +80,8 @@ describe("personnel contract documents / activity / onboarding / compensation", 
     });
     expect(created.status).toBe(201);
     expect(created.body.data.status).toBe("Draft");
-    // OD `cdDraftContract` (js/modules.js:5257) drafts at version 0; only an edit
-    // or `cdIssue` produces v1. Migration 0101 moved the column default to match.
+    // OD `cdDraftContract` (js/modules.js:5262) drafts at `version:0`.
+    // Migration 0101 moved the column default to match.
     expect(created.body.data.version).toBe(0);
 
     const updated = await request(app)
@@ -89,7 +89,14 @@ describe("personnel contract documents / activity / onboarding / compensation", 
       .set(bearer)
       .send({ content: "Terms..." });
     expect(updated.status).toBe(200);
-    expect(updated.body.data.version).toBe(1);
+    // OD `cdSaveDraft`/`cdCapture` (js/modules.js:5389) save clause edits in place;
+    // `cdIssue` (js/modules.js:5390) is the only step that does `d.version=(d.version||0)+1`.
+    expect(updated.body.data.version).toBe(0);
+
+    const issued = await request(app).post(`/v1/users/${targetUserId}/contract-documents/${created.body.data.id}/issue`).set(bearer);
+    expect(issued.status).toBe(200);
+    expect(issued.body.data.status).toBe("Issued");
+    expect(issued.body.data.version).toBe(1);
 
     const signed = await request(app).post(`/v1/users/${targetUserId}/contract-documents/${created.body.data.id}/sign`).set(bearer);
     expect(signed.status).toBe(200);

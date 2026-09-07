@@ -112,7 +112,7 @@ describe("Awareness acknowledgment/evaluation stack", () => {
   it("launches a campaign: resolves the whole team and materialises one ACK + AEV row per recipient", async () => {
     const { token, orgId } = await makeTenant("aw1", "AWT1");
     await addMember(orgId, "Jennifer Susan Walters", "jwalters");
-    await addMember(orgId, "Gone Person", "gone", "Inactive"); // not Active → excluded
+    await addMember(orgId, "Gone Person", "gone", "Suspended"); // not Active → excluded (OD user vocabulary: js/core.js:5226)
     const topic = await makeTopic(token);
     const camp = await makeCampaign(token, {
       topics: [topic.id], dueDate: "2099-06-30",
@@ -125,7 +125,7 @@ describe("Awareness acknowledgment/evaluation stack", () => {
     expect(launched.body.data.status).toBe("Active");
     const acks = launched.body.data.data.acks as AckRow[];
     const evals = launched.body.data.data.evals as EvalRow[];
-    expect(acks).toHaveLength(2); // admin + Jennifer, not the Inactive user
+    expect(acks).toHaveLength(2); // admin + Jennifer, not the Suspended user
     expect(acks.map((a) => a.id).sort()).toEqual(["ACK-0001", "ACK-0002"]);
     expect(acks[0]).toMatchObject({ status: "Pending", due: "2099-06-30", ackDate: "" });
     expect(acks[0].statement).toMatch(/^I acknowledge that I have read/);

@@ -232,9 +232,13 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 async function requestOf(r: BusinessRecord): Promise<BusinessRecord | null> {
   const prId = str((r.data as Record<string, unknown> | null)?.prId);
   if (!prId) return null;
+  // Tenant-scoped for the same reason as `supplierOf` below: `code` is only
+  // unique per operating company, so an unscoped code match reaches another
+  // org's purchase requests. The PR belongs to the PO's own org.
+  const scope = { orgId: r.orgId, area: PO_AREA, module: "ent-pr" };
   const where = UUID_RE.test(prId)
-    ? { area: PO_AREA, module: "ent-pr", id: prId }
-    : { area: PO_AREA, module: "ent-pr", code: prId };
+    ? { ...scope, id: prId }
+    : { ...scope, code: prId };
   try {
     return await BusinessRecord.findOne({ where });
   } catch {
