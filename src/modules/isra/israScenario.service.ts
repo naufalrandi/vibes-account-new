@@ -858,18 +858,73 @@ export async function setRecommendationDisposition(
   // than storing a third state the reader would have to interpret.
   if (disposition === "Not assessed") {
     if (existing) await existing.destroy();
+    await syncAddedControl(scenarioId, annexRef, false, null);
     return { scenarioId, annexRef, disposition, rationale: null };
   }
   if (existing) {
     existing.disposition = disposition;
     if (input.rationale !== undefined) existing.rationale = input.rationale ?? null;
     await existing.save();
+    await syncAddedControl(scenarioId, annexRef, disposition === "Selected", existing.rationale);
     return existing.get({ plain: true });
   }
   const row = await IsraScenarioRecommendationDisposition.create({
     scenarioId, annexRef, disposition, rationale: input.rationale ?? null, existingControlId: null,
   });
+  await syncAddedControl(scenarioId, annexRef, disposition === "Selected", row.rationale);
   return row.get({ plain: true });
+}
+
+/**
+ * R56 / OD `isra2ApplToggle` (js/core.js:15165) — selecting a recommended
+ * control COMMITS it: the scenario carries an `addedControls` row recording
+ * what was committed and why, which the treatment plan then implements.
+ * Deselecting withdraws that commitment again. Without this the Applicability
+ * ruling was a label with nothing behind it — the RTP had no record of which
+ * controls the scenario had actually taken on.
+ */
+async function syncAddedControl(
+  scenarioId: string,
+  annexRef: string,
+  selected: boolean,
+  rationale: string | null,
+): Promise<void> {
+  const existing = await IsraScenarioAddedControl.findOne({ where: { scenarioId, annexRef } });
+  if (!selected) {
+    if (existing) await existing.destroy();
+    return;
+  }
+  // OD's own defaults on selection: a control is committed to reduce both
+  // axes, at Strong target effectiveness, on today's date.
+  const defaults = {
+    rationale: rationale || "Selected for implementation.",
+    intendedEffect: "both",
+    targetEffectiveness: "Strong",
+    status: "Committed",
+    selectionDate: new Date(),
+  };
+  if (existing) {
+    // A re-selection keeps the row's own history; only the rationale can move.
+    if (rationale && existing.rationale !== rationale) {
+      existing.rationale = rationale;
+      await existing.save();
+    }
+    return;
+  }
+  const scenario = await IsraScenario.findOne({ where: { id: scenarioId } });
+  const vulns = scenario
+    ? await IsraScenarioVuln.findAll({ where: { scenarioId } })
+    : [];
+  await IsraScenarioAddedControl.create({
+    scenarioId,
+    annexRef,
+    snapshotVersion: null,
+    relatedVulnIds: vulns.map((v) => v.vulnId),
+    relatedVulnNames: [],
+    owner: null,
+    source: "recommendation",
+    ...defaults,
+  });
 }
 
 export async function generateRecommendations(auth: AuthContext, scenarioId: string) {
