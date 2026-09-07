@@ -16,6 +16,7 @@ import {
   IsraScenarioActualResidual,
   IsraScenarioResidual,
   IsraScenarioProjectedResidual,
+  IsraScenarioClosure,
   IsraScenarioCycle,
   IsraAnnexAControl,
   IsraOrgControl,
@@ -502,7 +503,20 @@ export async function getScenarioById(auth: AuthContext, id: string) {
   const rtpActions = rtp ? await IsraRtpAction.findAll({ where: { rtpId: rtp.id } }) : [];
   const residual = await IsraScenarioResidual.findOne({ where: { scenarioId: id } });
   const projectedResidual = await IsraScenarioProjectedResidual.findOne({ where: { scenarioId: id } });
+  const actualResidual = await IsraScenarioActualResidual.findOne({ where: { scenarioId: id } });
+  const closure = await IsraScenarioClosure.findOne({ where: { scenarioId: id } });
   const cycles = await IsraScenarioCycle.findAll({ where: { scenarioId: id }, order: [["cycleNumber", "ASC"]] });
+  // R339 / OD `sc.treatmentHistory` (js/core.js:15149) and `sc.rtpHistory`
+  // (js/core.js:15246) — the superseded rows, newest first, so the detail
+  // screen can show its "Decision history" / "Version history" collapsibles.
+  const treatmentHistory = await IsraScenarioTreatmentDecision.findAll({
+    where: { scenarioId: id, isCurrent: false },
+    order: [["version", "DESC"], ["createdAt", "DESC"]],
+  });
+  const rtpHistory = await IsraRtp.findAll({
+    where: { scenarioId: id, isCurrent: false },
+    order: [["version", "DESC"], ["createdAt", "DESC"]],
+  });
 
   const plain = scenario.get({ plain: true }) as any;
   plain.includedVulns = vulns.map((v) => v.vulnId);
@@ -528,6 +542,10 @@ export async function getScenarioById(auth: AuthContext, id: string) {
   plain.rtp = rtp ? { ...rtp.get({ plain: true }), actions: rtpActions.map((a) => a.get({ plain: true })) } : null;
   plain.residual = residual ? residual.get({ plain: true }) : null;
   plain.projectedResidual = projectedResidual ? projectedResidual.get({ plain: true }) : null;
+  plain.actualResidual = actualResidual ? actualResidual.get({ plain: true }) : null;
+  plain.closure = closure ? closure.get({ plain: true }) : null;
+  plain.treatmentHistory = treatmentHistory.map((t) => t.get({ plain: true }));
+  plain.rtpHistory = rtpHistory.map((r) => r.get({ plain: true }));
   plain.cycles = cycles.map((c) => c.get({ plain: true }));
 
   const weighted = calculateWeightedSeverity(plain.potentialImpacts, plain.impactOverride);
@@ -848,13 +866,28 @@ export async function saveTreatmentDecision(auth: AuthContext, scenarioId: strin
     throw new BadRequestError("Decision rationale is required", "TREATMENT_RATIONALE_REQUIRED");
   }
 
+  /**
+   * R339 / OD `isra2TreatForm` (js/core.js:15149) — only a CHANGE OF OPTION makes
+   * history. The superseded decision is kept (isCurrent=false) and the new one
+   * opens at version+1 in the same cycle; because the plan and the projected
+   * residual were both built for the old option, both are flagged for review.
+   * A save that keeps the option is an amendment: same version, no history row.
+   */
+  const prev = await IsraScenarioTreatmentDecision.findOne({ where: { scenarioId, isCurrent: true } });
+  const optionChanged = !!prev && prev.option !== option;
+
   // Mark previous current as not current
   await IsraScenarioTreatmentDecision.update({ isCurrent: false }, { where: { scenarioId, isCurrent: true } });
 
+  if (optionChanged) {
+    await IsraRtp.update({ needsReview: true }, { where: { scenarioId, isCurrent: true } });
+    await IsraScenarioProjectedResidual.update({ needsReview: true }, { where: { scenarioId } });
+  }
+
   const row = await IsraScenarioTreatmentDecision.create({
     scenarioId,
-    cycle: scenario.evalCycle || 1,
-    version: 1,
+    cycle: prev?.cycle ?? scenario.evalCycle ?? 1,
+    version: optionChanged ? (prev!.version || 1) + 1 : prev?.version || 1,
     option,
     rationale,
     decidedBy: auth.userId,
@@ -864,6 +897,7 @@ export async function saveTreatmentDecision(auth: AuthContext, scenarioId: strin
     // R49 / OD `isra2TreatForm` (js/core.js:15152): the decision's own status is
     // derived from the option, never entered — `opt==='Retain'?'Accepted':'Planning'`.
     status: option === "Retain" ? "Accepted" : "Planning",
+    needsReview: false,
     isCurrent: true,
   });
 
@@ -1133,6 +1167,10 @@ export async function saveRtp(auth: AuthContext, scenarioId: string, input: Reco
       }
     }
   }
+
+  // R339 / OD `isra2RtpSave` (js/core.js:15247) — EVERY plan save invalidates the
+  // projected residual: the forecast was taken against the plan as it stood.
+  await IsraScenarioProjectedResidual.update({ needsReview: true }, { where: { scenarioId } });
 
   return rtp.get({ plain: true });
 }

@@ -109,6 +109,16 @@ export interface ProposalCertInput {
    */
   complexity?: CabOverallComplexity | Record<string, CabComplexityLevel>;
   ratePerMd?: number;
+  /**
+   * R98 / OD `certProposalStart` (js/modules.js:2221) prices from `a.mdIA`/`a.mdSA`/`a.mdTotal`
+   * — the man-days the Application Review recorded at review time (`cabInqReview`,
+   * js/modules.js:2215) — not from the proposal request. `business.service.ts` reads them off
+   * the approved AR and stamps them here; recomputing locally is only the fallback for a record
+   * saved before they were carried.
+   */
+  mdIA?: number;
+  mdSA?: number;
+  mdTotal?: number;
 }
 
 /**
@@ -121,15 +131,28 @@ export interface ProposalCertInput {
  * flowing through untouched, same conditional-by-shape posture `datanaRules.ts` documents for
  * its own five modules.
  */
-function certPricedItems(cert: ProposalCertInput): ProposalItem[] {
-  // R93 — the rate is resolved server-side from the org's stored setting before
-  // this runs (`business.service.ts` `resolveCabRate`); `CAB_RATE_DEFAULT` is
-  // OD's own fallback for an org that has never set one.
-  const rate = Number(cert.ratePerMd) > 0 ? Number(cert.ratePerMd) : CAB_RATE_DEFAULT;
+/**
+ * R93 — the rate is resolved server-side from the org's stored setting before
+ * this runs (`business.service.ts` `resolveCabRate`); `CAB_RATE_DEFAULT` is
+ * OD's own fallback for an org that has never set one.
+ */
+function certRate(cert: ProposalCertInput): number {
+  return Number(cert.ratePerMd) > 0 ? Number(cert.ratePerMd) : CAB_RATE_DEFAULT;
+}
+
+/** R98 — the approved Application Review's own man-days win; the funnel recompute is the fallback. */
+function certManDays(cert: ProposalCertInput): { ia: number; sa: number; total: number } {
+  const [ia, sa, total] = [cert.mdIA, cert.mdSA, cert.mdTotal].map(Number);
+  if ([ia, sa, total].every((n) => Number.isFinite(n) && n > 0)) return { ia, sa, total };
   const adj = typeof cert.complexity === "string"
     ? (CAB_PROPOSAL_COMPLEXITY_ADJ[cert.complexity] ?? 0)
     : cabComplexityAdj(cert.standards, cert.complexity || {});
-  const { ia, sa } = cabCertManDays(cert.personnel, cert.standards, adj);
+  return cabCertManDays(cert.personnel, cert.standards, adj);
+}
+
+function certPricedItems(cert: ProposalCertInput): ProposalItem[] {
+  const rate = certRate(cert);
+  const { ia, sa } = certManDays(cert);
   return [
     { desc: "Initial certification audit (Stage 1 + Stage 2)", qty: ia, unit: rate },
     { desc: "Surveillance audit 1", qty: sa, unit: rate },
@@ -155,9 +178,10 @@ const CERT_PROPOSAL_TERM_IDS = [
   "cl-svc-scope", "cl-svc-fees", "cl-svc-term", "cl-svc-liab", "cl-common-conf", "cl-common-law",
 ] as const;
 
-/** OD `ssMoney` — a plain thousands-grouped figure for the notes line. */
+/** OD `ssMoney` (js/modules.js:4747) — `Math.round(n||0).toLocaleString('en-US')`, so the
+ *  note reads `IDR 8,000,000/md` (comma groups), not id-ID's `8.000.000`. */
 function ssMoney(n: number): string {
-  return new Intl.NumberFormat("id-ID").format(Math.round(n));
+  return new Intl.NumberFormat("en-US").format(Math.round(n) || 0);
 }
 
 /**
@@ -165,12 +189,8 @@ function ssMoney(n: number): string {
  * quote carries.
  */
 function certNotes(cert: ProposalCertInput): string {
-  const rate = Number(cert.ratePerMd) > 0 ? Number(cert.ratePerMd) : CAB_RATE_DEFAULT;
-  const adj = typeof cert.complexity === "string"
-    ? (CAB_PROPOSAL_COMPLEXITY_ADJ[cert.complexity] ?? 0)
-    : cabComplexityAdj(cert.standards, cert.complexity || {});
-  const { ia, sa } = cabCertManDays(cert.personnel, cert.standards, adj);
-  return `Audit time: IA ${ia} + SA ${sa}\u00d72 = ${ia + sa * 2} md @ IDR ${ssMoney(rate)}/md (MD5/27006-1).`;
+  const { ia, sa, total } = certManDays(cert);
+  return `Audit time: IA ${ia} + SA ${sa}\u00d72 = ${total} md @ IDR ${ssMoney(certRate(cert))}/md (MD5/27006-1).`;
 }
 
 function assertValidCertInput(raw: unknown): ProposalCertInput {
@@ -186,6 +206,9 @@ function assertValidCertInput(raw: unknown): ProposalCertInput {
     sites: c.sites !== undefined ? Number(c.sites) : undefined,
     complexity: c.complexity as ProposalCertInput["complexity"],
     ratePerMd: c.ratePerMd !== undefined ? Number(c.ratePerMd) : undefined,
+    mdIA: c.mdIA !== undefined ? Number(c.mdIA) : undefined,
+    mdSA: c.mdSA !== undefined ? Number(c.mdSA) : undefined,
+    mdTotal: c.mdTotal !== undefined ? Number(c.mdTotal) : undefined,
   };
 }
 

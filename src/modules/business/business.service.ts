@@ -21,8 +21,8 @@ import {
   isDatanaModule,
 } from "./datanaRules";
 import {
-  cabAuditDays, cabCertManDays, cabComplexityAdj, cabInitialDays, cabSampleSize, canIssueCertificate,
-  CAB_RATE_DEFAULT, type CabAuditType, type CabComplexityLevel, type CabNcGrade,
+  cabAuditDays, cabComplexityAdj, cabInitialDays, cabSampleSize, canIssueCertificate,
+  CAB_RATE_DEFAULT, type CabAuditType, type CabComplexityLevel, type CabFactorRating, type CabNcGrade,
 } from "./cabPricing";
 import { BadRequestError, ConflictError, NotFoundError } from "../../lib/errors";
 
@@ -299,11 +299,8 @@ function leadIdentityOf(data: Record<string, unknown> | undefined, title: string
  */
 async function assertCertProposalApproved(
   auth: AuthContext,
-  data: Record<string, unknown> | undefined,
-): Promise<void> {
-  const d = data ?? {};
-  if (d.cert === undefined) return;
-
+  d: Record<string, unknown>,
+): Promise<CertArManDays> {
   const inqId = typeof d.inqId === "string" ? d.inqId.trim() : "";
   if (!inqId) {
     throw new BadRequestError(
@@ -315,13 +312,25 @@ async function assertCertProposalApproved(
   const inquiry = await BusinessRecord.findOne({
     where: { orgId: auth.orgId, area: "enterprise", module: "ent-inq", id: inqId },
   });
-  const ar = (inquiry?.data as { ar?: { status?: unknown } } | undefined)?.ar;
+  const ar = (inquiry?.data as { ar?: Record<string, unknown> } | undefined)?.ar;
   if (!inquiry || !ar || String(ar.status ?? "") !== "Approved") {
     throw new BadRequestError(
       "The inquiry's Application Review must be Approved before a certification proposal can be auto-priced",
       "CERT_PROPOSAL_AR_NOT_APPROVED",
     );
   }
+  // OD `certProposalStart` prices off `a.mdIA`/`a.mdSA`/`a.mdTotal` — the man-days
+  // `cabInqReview` (js/modules.js:2215) wrote onto the review — never off the request.
+  // `|| undefined` so a review saved before man-days were recorded leaves the keys off
+  // entirely (never NaN) and `proposalRules` falls back to the funnel recompute.
+  return { mdIA: Number(ar.mdIA) || undefined, mdSA: Number(ar.mdSA) || undefined, mdTotal: Number(ar.mdTotal) || undefined };
+}
+
+/** The man-days an approved Application Review recorded (OD `q.ar.mdIA/mdSA/mdTotal`). */
+interface CertArManDays {
+  mdIA?: number;
+  mdSA?: number;
+  mdTotal?: number;
 }
 
 /**
@@ -354,10 +363,20 @@ export async function setCabRate(auth: AuthContext, ratePerMd: number, ip: strin
   return { ratePerMd };
 }
 
-/** Stamps the server-owned rate onto a certification proposal's `cert` block. */
-async function applyCabRate<T extends Record<string, unknown> | undefined>(auth: AuthContext, data: T): Promise<T> {
+/**
+ * Gates a certification proposal on its inquiry's approved Application Review and stamps the
+ * server-owned figures onto its `cert` block: the org's man-day rate and the AR's own recorded
+ * man-days. Runs on create AND update — a PATCH that adds `data.cert` to an existing proposal
+ * is the same auto-pricing action and passes the same gate.
+ */
+async function applyCertGate<T extends Record<string, unknown> | undefined>(auth: AuthContext, data: T): Promise<T> {
   if (!data || data.cert === undefined) return data;
-  const cert = { ...((data.cert ?? {}) as Record<string, unknown>), ratePerMd: await resolveCabRate(auth) };
+  const md = await assertCertProposalApproved(auth, data);
+  const cert = {
+    ...((data.cert ?? {}) as Record<string, unknown>),
+    ratePerMd: await resolveCabRate(auth),
+    ...md,
+  };
   return { ...data, cert } as T;
 }
 
@@ -473,8 +492,7 @@ export async function createBusiness(auth: AuthContext, area: string, module: st
     assertValidInquiryData(data);
   }
   if (area === "enterprise" && module === "ent-proposals") {
-    await assertCertProposalApproved(auth, data);
-    data = await applyCabRate(auth, data);
+    data = await applyCertGate(auth, data);
     data = assertValidProposalData(data, { isCreate: true });
   }
   if (area === "datana" && isDatanaModule(module)) {
@@ -560,7 +578,7 @@ export async function updateBusiness(auth: AuthContext, area: string, module: st
     assertValidInquiryData(r.data as Record<string, unknown> | undefined);
   }
   if (area === "enterprise" && module === "ent-proposals") {
-    r.data = assertValidProposalData(await applyCabRate(auth, r.data as Record<string, unknown> | undefined));
+    r.data = assertValidProposalData(await applyCertGate(auth, r.data as Record<string, unknown> | undefined));
   }
   if (area === "datana" && isDatanaModule(module)) {
     r.data = assertValidDatanaData(module, r.data as Record<string, unknown> | undefined);
@@ -741,12 +759,17 @@ export async function priceCabClient(
   const personnel = Number(data.personnel) || 1;
   const sites = Number(data.sites) || 1;
   const complexity = (data.complexity || {}) as Record<string, CabComplexityLevel>;
+  // R714 — OD's `cabEdit` save writes `factorScores` (core.js:4177) and `cabFactorRating`
+  // (core.js:3984) reads it ahead of the coarse level, so the per-factor scores must reach
+  // the adjustment or they price nothing.
+  const factorScores = (data.factorScores || undefined) as Record<string, CabFactorRating[]> | undefined;
   const type: CabAuditType = auditType || "Stage 1";
 
-  const adj = cabComplexityAdj(standards, complexity);
-  const days = type === "Stage 1" || type === "Stage 2"
-    ? cabAuditDays(type, personnel, standards, adj)
-    : cabCertManDays(personnel, standards, adj).total; // Surveillance/Recert priced on the same funnel total as a proposal.
+  const adj = cabComplexityAdj(standards, complexity, factorScores);
+  // R713 / OD `cabCycleDays` (core.js:4058) — every audit type is an MD1 fraction of the MD5
+  // initial (Surveillance = init/3, Recertification = init×2/3); the commercial funnel total
+  // (ia + 2×sa) prices a *proposal*, never a single audit.
+  const days = cabAuditDays(type, personnel, standards, adj);
   const initialAuditDays = cabInitialDays(personnel, standards, adj);
   const sample = cabSampleSize(sites, type);
 
@@ -760,6 +783,14 @@ export async function priceCabClient(
   await r.save();
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "business.exelera.ex-cab.priced", entityType: "BusinessRecord", entityId: r.id, sourceIp: ip, result: "Success" });
   return view(r);
+}
+
+/** OD `cabAddMonths` (core.js:4013) — calendar-month offset on an ISO date, `YYYY-MM-DD` out. */
+function cabAddMonths(iso: string, months: number): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
 }
 
 /**
@@ -779,11 +810,16 @@ export async function issueCabCertificate(auth: AuthContext, id: string, ip: str
     throw new ConflictError("Cannot issue a certificate while a Major nonconformity is open", "OPEN_MAJOR_NC");
   }
   const num = r.code.replace(/^[A-Z]+-/, "").replace(/^0+(?=\d)/, "");
-  const year = new Date().getFullYear();
-  const certNo = `EXL-${num}-${year}`;
-  const today = new Date().toISOString().slice(0, 10);
-  const validTo = new Date(); validTo.setMonth(validTo.getMonth() + 36);
-  r.data = { ...data, certNo, validFrom: today, validTo: validTo.toISOString().slice(0, 10) };
+  // OD `cabIssueCert` (core.js:4017): `var yr=(new Date(c.cycleStart||nowISO())).getFullYear();`
+  // and `c.validFrom=cabAddMonths((c.cycleStart||nowISO()).slice(0,10),1); c.validTo=
+  // cabAddMonths(c.validFrom,36);` — the year and the whole validity window come off the
+  // client's own cycle start, not the day the button was pressed.
+  const cycleStart = (typeof data.cycleStart === "string" && data.cycleStart.trim())
+    || new Date().toISOString();
+  const certNo = `EXL-${num}-${new Date(cycleStart).getFullYear()}`;
+  const validFrom = cabAddMonths(cycleStart.slice(0, 10), 1);
+  const validTo = cabAddMonths(validFrom, 36);
+  r.data = { ...data, certNo, validFrom, validTo };
   r.status = "Certified";
   await r.save();
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "business.exelera.ex-cab.certificate_issued", entityType: "BusinessRecord", entityId: r.id, sourceIp: ip, result: "Success" });

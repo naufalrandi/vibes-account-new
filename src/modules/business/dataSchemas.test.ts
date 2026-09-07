@@ -26,6 +26,13 @@ describe("business data schemas reject unknown keys", () => {
  * module and which field. Each list's source is documented per schema in
  * `dataSchemas.ts` — the `parity/backend.md` field table for the module's
  * design collection, widened by what this port's own bespoke pages write.
+ *
+ * R822 — this list is a frozen mirror of the schemas, not a reading of the
+ * frontend, so on its own it cannot tell that a field the frontend really
+ * posts is missing from a `.strict()` schema (a 400 on a save that looks
+ * finished). That direction is gated in `moduleKeyDrift.test.ts`, which
+ * derives both the module keys and the posted field names from the frontend
+ * checkout itself.
  */
 const MODULE_FIELDS: Record<string, string[]> = {
   "dn-backlog": [

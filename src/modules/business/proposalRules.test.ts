@@ -42,6 +42,24 @@ describe("assertValidProposalData — OD defaults", () => {
       desc: "Initial certification audit (Stage 1 + Stage 2)", qty: expect.any(Number), unit: expect.any(Number),
     });
   });
+
+  /**
+   * R98/R99 — OD `certProposalStart` (js/modules.js:2221) prices the three lines off the
+   * Application Review's own `a.mdIA`/`a.mdSA`/`a.mdTotal`, and `ssMoney` (js/modules.js:4747)
+   * is `toLocaleString('en-US')`, so the note groups with commas, not id-ID's dots.
+   */
+  it("prices a certification proposal from the AR's man-days and quotes OD's en-US note", () => {
+    const out = assertValidProposalData(
+      { cert: { standards: ["ISO 9001:2015"], personnel: 40, mdIA: 6, mdSA: 2, mdTotal: 10, ratePerMd: 8_000_000 } },
+      { isCreate: true },
+    );
+    expect(out.items).toEqual([
+      { desc: "Initial certification audit (Stage 1 + Stage 2)", qty: 6, unit: 8_000_000 },
+      { desc: "Surveillance audit 1", qty: 2, unit: 8_000_000 },
+      { desc: "Surveillance audit 2", qty: 2, unit: 8_000_000 },
+    ]);
+    expect(out.notes).toBe("Audit time: IA 6 + SA 2\u00d72 = 10 md @ IDR 8,000,000/md (MD5/27006-1).");
+  });
 });
 
 /**
