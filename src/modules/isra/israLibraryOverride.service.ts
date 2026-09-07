@@ -1,6 +1,7 @@
 import {
   IsraLibraryOverride, IsraLibraryItem, IsraLibraryArchive, IsraLibraryAudit,
   IsraPrimaryAssetLibrary, IsraSecondaryAssetLibrary, IsraThreatLibrary, IsraVulnLibrary, User,
+  IsraAssetMap, IsraAssetMapUsage, IsraAssetMapSecondary, IsraAssetMapThreat, IsraAssetMapVuln,
 } from "../../db/models";
 import { ISRA_LIB_TYPES, type IsraLibType, type IsraLibHistoryEntry } from "../../db/models/israLibraryOverride.models";
 import type { AuthContext } from "../../lib/scope";
@@ -307,6 +308,66 @@ export async function updateLibraryItem(auth: AuthContext, libType: string, tena
   await row.save();
   await logLtAudit(auth, org, "edit-tenant-item", libType, libKey("tenant", org, tenantItemId), { fields: Object.keys(input) });
   return row.get({ plain: true });
+}
+
+/**
+ * OD's cascade for a deleted library record: every mapping node that referenced
+ * it goes with it. `israMapThreatDeleteRecord` (`core.js:14245`) filters the
+ * record out of every `s.threats` ("Deleting the record removes those mappings
+ * and their vulnerability links"); `israMapVulnDeleteRecord` (`core.js:14288`)
+ * filters it out of every `th.vulns`. Scoped to the org's own asset maps, which
+ * OD's single untenanted `db.israAssetMap` has no notion of.
+ * Returns how many mapping rows were removed.
+ */
+async function stripAssetMapRefs(org: string, libType: "threat" | "vuln", itemId: string): Promise<number> {
+  const maps = await IsraAssetMap.findAll({ where: { orgId: org }, attributes: ["id"] });
+  const usages = await IsraAssetMapUsage.findAll({ where: { assetMapId: maps.map((m) => m.id) }, attributes: ["id"] });
+  const secondaries = await IsraAssetMapSecondary.findAll({ where: { usageId: usages.map((u) => u.id) }, attributes: ["id"] });
+  const threatRows = await IsraAssetMapThreat.findAll({ where: { secondaryId: secondaries.map((s) => s.id) }, attributes: ["id", "threatId"] });
+  if (libType === "vuln") {
+    return IsraAssetMapVuln.destroy({ where: { threatRowId: threatRows.map((t) => t.id), vulnId: itemId } });
+  }
+  const doomed = threatRows.filter((t) => t.threatId === itemId).map((t) => t.id);
+  await IsraAssetMapVuln.destroy({ where: { threatRowId: doomed } });
+  return IsraAssetMapThreat.destroy({ where: { id: doomed } });
+}
+
+/**
+ * R342 / OD `israMapThreatDeleteRecord` (`core.js:14245`) and
+ * `israMapVulnDeleteRecord` (`core.js:14288`) — the `Delete record` entry OD's
+ * threat and vulnerability mapping menus carry whenever `ISRA_TV_LOCKED` is
+ * false (`core.js:14238`, `14282`), which the shipped literal is
+ * (`var ISRA_TV_LOCKED=false;`, `core.js:15525`). OD strips every mapping that
+ * referenced the record, then splices the record itself out of the catalogue
+ * (`db.israThreats.splice(i,1)` / `db.israVulns.splice(i,1)`).
+ *
+ * Only an org's OWN `IsraLibraryItem` is hard-deletable here. OD's prototype
+ * holds one untenanted `db.israThreats`, so it cannot tell a platform master
+ * from a tenant record; this port can, and a tenant hard-deleting a platform
+ * master would destroy every other org's library. For a platform row the port's
+ * OD-equivalent is `archiveLibraryItem` (OD `israLtArchive`) — "suppress for
+ * this org", which already exists above.
+ */
+export async function deleteLibraryItem(auth: AuthContext, libType: string, tenantItemId: string, orgId: string | undefined, _ip: string | null) {
+  assertLibType(libType);
+  // ponytail: OD also ships `israMapSecDeleteRecord` (core.js:14210) for
+  // secondary assets and no delete-record at all for primary. Only the two
+  // types F-342 scopes are wired — adding `secondary` means adding its
+  // `IsraAssetMapSecondary` cascade to `stripAssetMapRefs`, not relaxing this.
+  if (libType !== "threat" && libType !== "vuln") {
+    throw new BadRequestError(`Library type "${libType}" has no delete-record path`, "DELETE_NOT_SUPPORTED");
+  }
+  const org = await targetOrg(auth, orgId);
+  const row = await IsraLibraryItem.findOne({ where: { orgId: org, libType, tenantItemId } });
+  if (!row) throw new NotFoundError("Custom library item not found", "ITEM_NOT_FOUND");
+  const name = row.name;
+  const key = libKey("tenant", org, tenantItemId);
+  const mappingsRemoved = await stripAssetMapRefs(org, libType, tenantItemId);
+  // The archive row is keyed on the item that no longer exists.
+  await IsraLibraryArchive.destroy({ where: { orgId: org, libType, itemKey: key } });
+  await row.destroy();
+  await logLtAudit(auth, org, "delete-tenant-item", libType, key, { name, mappingsRemoved });
+  return { deleted: true, mappingsRemoved };
 }
 
 // ============================== Archive =====================================

@@ -21,6 +21,12 @@ israLibraryOverrideRoutes.delete("/:libType/overrides/:platformItemId", manage, 
 israLibraryOverrideRoutes.post("/:libType/items", manage, c.createItem);
 israLibraryOverrideRoutes.post("/:libType/items/copy", manage, c.copyItem);
 israLibraryOverrideRoutes.put("/:libType/items/:tenantItemId", manage, c.updateItem);
+// R342 / OD `israMapThreatDeleteRecord` (core.js:14245) and
+// `israMapVulnDeleteRecord` (core.js:14288) — the `Delete record` entry the
+// threat/vulnerability mapping menus carry at the shipped `ISRA_TV_LOCKED=false`
+// (core.js:15525). Org-owned items only; a platform master is archived, never
+// hard-deleted.
+israLibraryOverrideRoutes.delete("/:libType/items/:tenantItemId", manage, c.deleteItem);
 
 israLibraryOverrideRoutes.get("/:libType/archive", read, c.listArchived);
 israLibraryOverrideRoutes.post("/:libType/archive", manage, c.archiveItem);

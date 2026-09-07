@@ -260,6 +260,10 @@ describe("users", () => {
       .send({ roleId: goodRole.id });
     expect(res.status).toBe(201);
     expect(res.body.data.assigned).toBe(true);
+    // OD `acSave` (js/core.js:5225) saves the role group and `provisioned` as one
+    // grant, and `getEffectiveAccess` now clamps an unprovisioned member to no
+    // access — an assignment that left the flag false would grant nothing.
+    expect((await User.findByPk(userId))?.provisioned).toBe(true);
   });
 
   it("soft-deletes a user: status becomes Deleted, excluded from default list, visible via status filter", async () => {

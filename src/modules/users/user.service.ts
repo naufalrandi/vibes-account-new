@@ -673,6 +673,15 @@ export async function assignRole(auth: AuthContext, userId: string, roleId: stri
   }
 
   await UserRole.findOrCreate({ where: { userId, roleId } });
+  // OD `acSave` (js/core.js:5225) writes the role group and `provisioned` as ONE
+  // grant: there is no OD state in which a member holds a roleGroup while
+  // `tmProvisioned` (js/core.js:4913-4917) still reads "No access". Now that
+  // `getEffectiveAccess` honours that flag, leaving it false here would make this
+  // endpoint a silent no-op for a member whose platform access was revoked.
+  if (!user.provisioned) {
+    user.provisioned = true;
+    await user.save();
+  }
   await writeAudit({
     actorUserId: auth.userId,
     organizationId: user.orgId,

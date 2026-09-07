@@ -8,13 +8,41 @@ export interface EffectiveAccess {
   roleNames: string[];
 }
 
-/** Resolve a user's effective access = union of grants across all their roles. */
+/**
+ * Resolve a user's effective access = union of grants across all their roles,
+ * clamped by the two per-user access axes OD itself evaluates at run time.
+ *
+ * OD carries no Role/Menu/Action/Grant entity and no request-time authorization
+ * (js/core.js:4239 "Access gate (prototype-stage; full permission matrix is a
+ * later sweep)"), so the role-grant stack below is an addition this port makes
+ * and keeps: it is the only default-deny boundary the API has. What OD *does*
+ * decide per user, it decides here — `u.superAdmin` and `u.provisioned` are read
+ * on every request instead of being write-only columns of the Access
+ * Configuration screen.
+ */
 export async function getEffectiveAccess(userId: string): Promise<EffectiveAccess> {
   const user = await User.findByPk(userId, { include: [Role] });
   const roles = (user?.get("Roles") as Role[]) ?? [];
-  const isSuperAdmin = roles.some((r) => r.isSuperAdmin);
+  // OD models super-admin as the per-USER boolean `u.superAdmin` (js/core.js:151),
+  // read by `acInit` as `const sa=!!u.superAdmin` (js/core.js:5081) and expanded by
+  // `acSave`'s `sa` branch (js/core.js:5233-5237) into every menu key and every
+  // action. `user.service.ts` already resolves `isSuper` from that column
+  // (user.service.ts:401) — authorization has to agree with the screen that locks it.
+  const isSuperAdmin = !!user?.superAdmin || roles.some((r) => r.isSuperAdmin);
   const roleIds = roles.map((r) => r.id);
   const roleNames = roles.map((r) => r.name);
+  // OD `tmProvisioned` (js/core.js:4913-4917): `u.provisioned===false` is decided
+  // first and unconditionally — the member reads "No access" (`tmAccessStatus`,
+  // js/core.js:4918) and `acInit` grants nothing (`granted = sa||tmProvisioned(u)`,
+  // js/core.js:5084). The column is NOT NULL here, so the two later branches
+  // (`permissions.length`, `roleGroup`) are unreachable: they only run when
+  // `provisioned` is undefined. Revoking Service Provider platform access
+  // (js/core.js:5216) must therefore take effect at request time and not merely
+  // through the UserRole rows `updateUser` clears alongside it — `assignRole`
+  // re-attaches a role directly.
+  if (!isSuperAdmin && user && !user.provisioned) {
+    return { isSuperAdmin: false, actionKeys: [], menuIds: [], roleNames };
+  }
   if (roleIds.length === 0) return { isSuperAdmin, actionKeys: [], menuIds: [], roleNames };
 
   const actionGrants = await RoleActionGrant.findAll({
@@ -36,7 +64,9 @@ export async function getUserRoleNames(userId: string): Promise<string[]> {
 
 export async function isUserSuperAdmin(userId: string): Promise<boolean> {
   const user = await User.findByPk(userId, { include: [Role] });
-  return ((user?.get("Roles") as Role[]) ?? []).some((r) => r.isSuperAdmin);
+  // Same two sources as `getEffectiveAccess`: OD's per-user `u.superAdmin`
+  // (js/core.js:151) first, the role relation for principals seeded the old way.
+  return !!user?.superAdmin || ((user?.get("Roles") as Role[]) ?? []).some((r) => r.isSuperAdmin);
 }
 
 export interface MenuNode {

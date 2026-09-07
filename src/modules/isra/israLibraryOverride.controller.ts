@@ -37,6 +37,8 @@ export const copyItem = wrap(async (req, res) =>
   ok(res, await service.copyLibraryItem(guard(req), req.params.libType as string, sourceKeySchema.parse(req.body).sourceKey, orgOf(req), ip(req)), 201));
 export const updateItem = wrap(async (req, res) =>
   ok(res, await service.updateLibraryItem(guard(req), req.params.libType as string, req.params.tenantItemId as string, fieldsSchema.parse(req.body), orgOf(req), ip(req))));
+export const deleteItem = wrap(async (req, res) =>
+  ok(res, await service.deleteLibraryItem(guard(req), req.params.libType as string, req.params.tenantItemId as string, orgOf(req), ip(req))));
 
 export const listArchived = wrap(async (req, res) =>
   ok(res, await service.listArchivedItems(guard(req), req.params.libType as string, orgOf(req))));

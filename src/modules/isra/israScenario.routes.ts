@@ -36,3 +36,8 @@ israScenarioRoutes.post("/:id/rtp/approve", manage, controller.approveRtp);
 israScenarioRoutes.post("/:id/residual", manage, controller.saveResidual);
 israScenarioRoutes.post("/:id/residual/promote", manage, controller.promoteResidual);
 israScenarioRoutes.post("/:id/projected-residual", manage, controller.saveProjectedResidual);
+
+// Evaluation cycle — F-302 / OD `isra2StartNextCycle` (js/core.js:14664),
+// `isra2AcceptRisk` (js/core.js:14657).
+israScenarioRoutes.post("/:id/cycle/next", manage, controller.startNextCycle);
+israScenarioRoutes.post("/:id/accept", manage, controller.acceptRisk);

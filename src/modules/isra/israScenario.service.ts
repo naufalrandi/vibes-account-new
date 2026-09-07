@@ -33,6 +33,7 @@ import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError, NotFoundError, ConflictError } from "../../lib/errors";
 import { ISRA_RESIDUAL_BASIS, type IsraResidualBasis } from "../../db/models/israResidualCycle.models";
+import { logActivity, actorName } from "../record-events/recordEvent.service";
 
 const str = (v: unknown): string | null =>
   typeof v === "string" && v.trim() ? v.trim() : v === "" ? "" : v == null ? null : String(v);
@@ -1587,4 +1588,158 @@ export async function promoteResidual(auth: AuthContext, scenarioId: string, _ip
   });
 
   return { promoted: true, cycle: scenario.evalCycle, reviewDue: scenario.reviewDue, within };
+}
+
+/**
+ * F-302 / OD `isra2StartNextCycle(id)` (js/core.js:14664) — the Cycle-1 exit,
+ * fired by the Risk Evaluation action button "Confirm Current Controls"
+ * (js/core.js:14650).
+ *
+ * OD's cycle-render matrix (js/core.js:15064) shows Cycle 1 as Scenario
+ * Definition + Inherent Risk + Risk Evaluation and nothing else — Current
+ * Controls, Current Risk and Risk Treatment belong to Cycle 2+. Confirming the
+ * controls you already operate snapshots the inherent baseline into the cycle
+ * history and opens the next cycle, which is where those three sections appear.
+ *
+ * OD's function reads `sc.evalCycle` generically, but its only call site is the
+ * Cycle-1, above-appetite branch of `isra2RiskEvalBody`; every later cycle
+ * advances through `promoteResidual` (which requires a confirmed residual). The
+ * cycle-1 guard mirrors that reachability so this route cannot walk `evalCycle`
+ * past a cycle that still owes a residual.
+ */
+export async function startNextCycle(auth: AuthContext, scenarioId: string, ip: string | null) {
+  const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId: auth.orgId } });
+  if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
+
+  const currentCycle = scenario.evalCycle || 1;
+  if (currentCycle !== 1) {
+    throw new BadRequestError(
+      "Only Cycle 1 opens the next cycle this way — promote the confirmed residual instead",
+      "NOT_FIRST_CYCLE",
+    );
+  }
+
+  // OD snapshots the inherent baseline itself (`iL * isra2OverallImpact(sc).sev`).
+  const impacts = await IsraScenarioPotentialImpact.findAll({ where: { scenarioId } });
+  const weighted = calculateWeightedSeverity(
+    impacts.map((i) => ({ area: i.area, severity: i.severity })),
+    scenario.impactOverride,
+  );
+  const iL = scenario.inherentL || 0;
+  const iImpact = weighted.sev;
+  const iScore = iL > 0 && iImpact > 0 ? iL * iImpact : 0;
+  const band = iScore > 0 ? getRiskBand(iScore, await israBandsForOrg(auth.orgId)) : "";
+  const appetiteLog = await IsraAppetiteLog.findOne({ where: { orgId: auth.orgId }, order: [["version", "DESC"]] });
+  const within = iScore <= (appetiteLog?.threshold ?? 9);
+
+  // OD `if(!sc.cycles.some(x=>x.cycle===cyc))` — re-confirming never doubles the snapshot.
+  const already = await IsraScenarioCycle.findOne({ where: { scenarioId, cycleNumber: currentCycle } });
+  if (!already) {
+    await IsraScenarioCycle.create({
+      scenarioId,
+      cycleNumber: currentCycle,
+      // Same snapshot key set `promoteResidual` writes, so cycle history reads
+      // one shape; Cycle 1 simply has no treatment/RTP/residual to carry.
+      snapshot: {
+        cycle: currentCycle,
+        risk: { l: iL, impact: iImpact, score: iScore, band },
+        within,
+        currentRisk: null,
+        treatmentDecision: null,
+        rtp: null,
+        actualResidual: null,
+        projectedResidual: null,
+        residual: null,
+        dueDate: scenario.reviewDue || "",
+        completedAt: new Date().toISOString(),
+        completedBy: auth.userId,
+      },
+      archivedAt: new Date(),
+    });
+  }
+
+  scenario.evalCycle = currentCycle + 1;
+  // OD `isra2AddMonthsISO(isra2ReviewPeriodMonths(false))` — the button is only
+  // offered above appetite, so the shorter "above" review period applies.
+  const orgSettings = await IsraOrgSettings.findOne({ where: { orgId: auth.orgId } });
+  scenario.reviewDue = israAddMonthsIso(
+    new Date(),
+    orgSettings?.reviewPeriodAboveMonths ?? ISRA_REVIEW_PERIOD_DEFAULT.above,
+  );
+  await scenario.save();
+
+  // OD `ocLogAdd(sc,'evaluation cycle opened', …)`.
+  await logActivity(
+    auth,
+    auth.orgId,
+    "isra",
+    scenarioId,
+    `evaluation cycle opened — Cycle ${scenario.evalCycle}: crediting controls against the inherent risk`,
+  );
+  await writeAudit({
+    actorUserId: auth.userId,
+    organizationId: auth.orgId,
+    action: "isra.cycle.opened",
+    entityType: "IsraScenario",
+    entityId: scenarioId,
+    sourceIp: ip,
+    result: "Success",
+  });
+
+  return { cycle: scenario.evalCycle, reviewDue: scenario.reviewDue, within };
+}
+
+/**
+ * F-302 / OD `isra2AcceptRisk(id)` (js/core.js:14657) — the within-appetite
+ * branch of the Risk Evaluation action button ("Accept risk", js/core.js:14646).
+ * No treatment is taken: the acceptance is stamped on the scenario and the next
+ * re-evaluation is scheduled a "within" review period out.
+ *
+ * The score stamped is this cycle's own — the confirmed Current Risk once one
+ * exists, otherwise the inherent risk (OD's `(sc.current&&sc.current.confirmedAt)
+ * ?ec.score:isra2InherentScore(sc)`).
+ */
+export async function acceptRisk(auth: AuthContext, scenarioId: string, ip: string | null) {
+  const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId: auth.orgId } });
+  if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
+
+  const current = await IsraScenarioCurrentRisk.findOne({ where: { scenarioId } });
+  let score = current?.confirmedAt ? (current.confirmedScore ?? 0) : 0;
+  if (!current?.confirmedAt) {
+    const impacts = await IsraScenarioPotentialImpact.findAll({ where: { scenarioId } });
+    const weighted = calculateWeightedSeverity(
+      impacts.map((i) => ({ area: i.area, severity: i.severity })),
+      scenario.impactOverride,
+    );
+    const iL = scenario.inherentL || 0;
+    score = iL > 0 && weighted.sev > 0 ? iL * weighted.sev : 0;
+  }
+
+  scenario.accepted = { at: new Date().toISOString(), by: (await actorName(auth)) ?? auth.userId, score };
+  const orgSettings = await IsraOrgSettings.findOne({ where: { orgId: auth.orgId } });
+  scenario.reviewDue = israAddMonthsIso(
+    new Date(),
+    orgSettings?.reviewPeriodWithinMonths ?? ISRA_REVIEW_PERIOD_DEFAULT.within,
+  );
+  await scenario.save();
+
+  // OD `ocLogAdd(sc,'risk accepted (within appetite)', …)`.
+  await logActivity(
+    auth,
+    auth.orgId,
+    "isra",
+    scenarioId,
+    `risk accepted (within appetite) — Cycle ${scenario.evalCycle || 1}: accepted at score ${score}; re-evaluate next period`,
+  );
+  await writeAudit({
+    actorUserId: auth.userId,
+    organizationId: auth.orgId,
+    action: "isra.risk.accepted",
+    entityType: "IsraScenario",
+    entityId: scenarioId,
+    sourceIp: ip,
+    result: "Success",
+  });
+
+  return { accepted: scenario.accepted, reviewDue: scenario.reviewDue };
 }

@@ -45,4 +45,8 @@ export const approveRtp = wrap(async (req, res) => ok(res, await service.approve
 
 export const saveResidual = wrap(async (req, res) => ok(res, await service.saveResidual(guard(req), req.params.id as string, req.body, req.ip || null)));
 export const promoteResidual = wrap(async (req, res) => ok(res, await service.promoteResidual(guard(req), req.params.id as string, req.ip || null)));
+// F-302 / OD `isra2StartNextCycle` (js/core.js:14664) and `isra2AcceptRisk`
+// (js/core.js:14657) — the two Risk Evaluation actions that move a cycle on.
+export const startNextCycle = wrap(async (req, res) => ok(res, await service.startNextCycle(guard(req), req.params.id as string, req.ip || null)));
+export const acceptRisk = wrap(async (req, res) => ok(res, await service.acceptRisk(guard(req), req.params.id as string, req.ip || null)));
 export const saveProjectedResidual = wrap(async (req, res) => ok(res, await service.saveProjectedResidual(guard(req), req.params.id as string, req.body, req.ip || null)));
