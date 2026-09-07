@@ -54,10 +54,16 @@ const LEGACY_STATUS_MAP: Partial<Record<string, Record<string, string>>> = {
 };
 
 /**
- * R176 — the org's own risk-level scheme, read once per request. `null` means the
- * caller does not need it (no risks in play), and banding falls back to the default.
+ * R176 — the org's own risk-level scheme, read once per request.
+ *
+ * The ownership assertion travels WITH the lookup rather than being left to the
+ * caller: `tenantIsolation`'s scanner accepts a primary-key read only when the
+ * enclosing function asserts ownership, and it is right to — a helper that reads
+ * an arbitrary org by id is one careless call site away from serving another
+ * tenant's configuration.
  */
-async function orgRiskBands(orgId: string): Promise<{ max: number; level: string }[]> {
+async function orgRiskBands(auth: AuthContext, orgId: string): Promise<{ max: number; level: string }[]> {
+  await assertCanSeeOrg(auth, orgId);
   const org = await Organization.findByPk(orgId);
   return riskBandsFor(org?.riskLevels);
 }
@@ -181,7 +187,7 @@ export async function listRecords(auth: AuthContext, module: string, filters: { 
   // (awarenessControl.decorateCampaignView); training items get OD's derived
   // Overdue status the same way (decorateTrainingView) — stored status is
   // only the mutation-time snapshot for both.
-  const scheme = module === "risks" ? await orgRiskBands(filters.orgId ?? auth.orgId) : undefined;
+  const scheme = module === "risks" ? await orgRiskBands(auth, filters.orgId ?? auth.orgId) : undefined;
   const decorated = rows.map((r) => decorateForModule(module, view(r, scheme)));
   // Controlled documents: OD cd-vscope per-unit/per-user view-access scoping,
   // enforced here since this is the only read path for the module (no
@@ -220,7 +226,7 @@ export async function createRecord(auth: AuthContext, module: string, input: Rec
     assertReviewSchedule(inputData);
     inputData = await assignReviewTopicIds(targetOrg, inputData);
   }
-  let data = enrichData(module, inputData, module === "risks" ? await orgRiskBands(targetOrg) : undefined);
+  let data = enrichData(module, inputData, module === "risks" ? await orgRiskBands(auth, targetOrg) : undefined);
   // OD `conForm`/`conSave`: a concern's reporter is the actor who submitted
   // it (`ocActor()`), stamped automatically rather than typed — surfaced on
   // the register as "Reported by".
@@ -280,7 +286,7 @@ export async function createRecord(auth: AuthContext, module: string, input: Rec
   if (module === "training" && data.source === "Competence Gap" && typeof data.gapId === "string" && data.gapId) {
     await bindTrainingRecordToGap(auth, data.gapId, r.code, ip);
   }
-  return decorateForModule(module, view(r, module === "risks" ? await orgRiskBands(targetOrg) : undefined));
+  return decorateForModule(module, view(r, module === "risks" ? await orgRiskBands(auth, targetOrg) : undefined));
 }
 
 /** Bump a dotted document version the way OD does: 1.0 → 1.1, blank → 1.0. */
@@ -357,7 +363,7 @@ async function forkPublishedRecord(
     title: input.title?.trim() ?? r.title,
     status: "Draft",
     owner: input.owner !== undefined ? input.owner : r.owner,
-    data: enrichData(r.module, data, r.module === "risks" ? await orgRiskBands(r.orgId) : undefined),
+    data: enrichData(r.module, data, r.module === "risks" ? await orgRiskBands(auth, r.orgId) : undefined),
     elementId: input.elementId !== undefined ? input.elementId : r.elementId,
     frameworks: input.frameworks ?? r.frameworks,
   });
@@ -369,7 +375,7 @@ async function forkPublishedRecord(
   });
   await logActivity(auth, r.orgId, r.module, r.id, spec.sourceActivity(draft.code, String(data.version)));
   await logActivity(auth, r.orgId, r.module, draft.id, spec.draftActivity(String(data.version), r.code));
-  return view(draft, r.module === "risks" ? await orgRiskBands(r.orgId) : undefined);
+  return view(draft, r.module === "risks" ? await orgRiskBands(auth, r.orgId) : undefined);
 }
 
 /** OD `EFF_RESULT` values that do not clear the effectiveness gate. */
@@ -716,7 +722,7 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
     r.data = enrichData(module, {
       ...(input.data ?? r.data ?? {}), ...(archiveStamp ?? {}), ...(reviewStamp ?? {}),
       ...(provisionApproveStamp ?? {}), ...(supplierQualifyStamp ?? {}),
-    }, module === "risks" ? await orgRiskBands(r.orgId) : undefined);
+    }, module === "risks" ? await orgRiskBands(auth, r.orgId) : undefined);
   }
   if (input.elementId !== undefined) r.elementId = input.elementId;
   if (input.frameworks !== undefined) r.frameworks = input.frameworks;
@@ -744,7 +750,7 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
   // while already Completed would re-stamp the gap's resolution dates to today
   // and duplicate its audit trail on any unrelated field edit.
   if (module === "training" && statusChanged && r.status === "Completed") await closeLinkedGap(auth, r, ip);
-  return decorateForModule(module, view(r, module === "risks" ? await orgRiskBands(r.orgId) : undefined));
+  return decorateForModule(module, view(r, module === "risks" ? await orgRiskBands(auth, r.orgId) : undefined));
 }
 
 export async function deleteRecord(auth: AuthContext, module: string, id: string, ip: string | null): Promise<void> {
