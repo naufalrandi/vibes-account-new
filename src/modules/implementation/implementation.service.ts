@@ -1,10 +1,10 @@
 import { Op, type WhereOptions } from "sequelize";
-import { CompetenceGap, FrameworkElement, ImplementationRecord } from "../../db/models";
+import { CompetenceGap, FrameworkElement, ImplementationRecord, Organization } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
-import { MS_MODULES, isMsModule, enrichData } from "./registry";
+import { MS_MODULES, isMsModule, enrichData, riskBandsFor } from "./registry";
 import {
   assertReviewCreateStatus, assertReviewSchedule, assertReviewTransition,
   assignReviewTopicIds, reviewTransitionStamp,
@@ -52,14 +52,23 @@ const LEGACY_STATUS_MAP: Partial<Record<string, Record<string, string>>> = {
   compliance: { Completed: "Archived", "On Hold": "Under Review", Waived: "Archived" },
 };
 
-function view(r: ImplementationRecord): RecordView {
+/**
+ * R176 — the org's own risk-level scheme, read once per request. `null` means the
+ * caller does not need it (no risks in play), and banding falls back to the default.
+ */
+async function orgRiskBands(orgId: string): Promise<{ max: number; level: string }[]> {
+  const org = await Organization.findByPk(orgId);
+  return riskBandsFor(org?.riskLevels);
+}
+
+function view(r: ImplementationRecord, scheme?: { max: number; level: string }[]): RecordView {
   const legacyStatus = LEGACY_STATUS_MAP[r.module]?.[r.status];
   return {
     id: r.id, orgId: r.orgId, module: r.module, code: r.code, title: r.title,
     // Derived display fields (riskScore, reviews' scheduled/topicsCount/open
     // counts) are recomputed on read so rows written before an enrichment
     // existed still render it (the mock client enriches on read the same way).
-    status: legacyStatus ?? r.status, owner: r.owner, data: enrichData(r.module, r.data ?? {}), elementId: r.elementId,
+    status: legacyStatus ?? r.status, owner: r.owner, data: enrichData(r.module, r.data ?? {}, scheme), elementId: r.elementId,
     frameworks: r.frameworks ?? [], createdAt: r.createdAt, updatedAt: r.updatedAt,
   };
 }
@@ -171,7 +180,8 @@ export async function listRecords(auth: AuthContext, module: string, filters: { 
   // (awarenessControl.decorateCampaignView); training items get OD's derived
   // Overdue status the same way (decorateTrainingView) — stored status is
   // only the mutation-time snapshot for both.
-  const decorated = rows.map((r) => decorateForModule(module, view(r)));
+  const scheme = module === "risks" ? await orgRiskBands(filters.orgId ?? auth.orgId) : undefined;
+  const decorated = rows.map((r) => decorateForModule(module, view(r, scheme)));
   // Controlled documents: OD cd-vscope per-unit/per-user view-access scoping,
   // enforced here since this is the only read path for the module (no
   // single-record GET route — the FE finds a record in this list by id).
@@ -209,7 +219,7 @@ export async function createRecord(auth: AuthContext, module: string, input: Rec
     assertReviewSchedule(inputData);
     inputData = await assignReviewTopicIds(targetOrg, inputData);
   }
-  let data = enrichData(module, inputData);
+  let data = enrichData(module, inputData, module === "risks" ? await orgRiskBands(targetOrg) : undefined);
   // OD `conForm`/`conSave`: a concern's reporter is the actor who submitted
   // it (`ocActor()`), stamped automatically rather than typed — surfaced on
   // the register as "Reported by".
@@ -269,7 +279,7 @@ export async function createRecord(auth: AuthContext, module: string, input: Rec
   if (module === "training" && data.source === "Competence Gap" && typeof data.gapId === "string" && data.gapId) {
     await bindTrainingRecordToGap(auth, data.gapId, r.code, ip);
   }
-  return decorateForModule(module, view(r));
+  return decorateForModule(module, view(r, module === "risks" ? await orgRiskBands(targetOrg) : undefined));
 }
 
 /** Bump a dotted document version the way OD does: 1.0 → 1.1, blank → 1.0. */
@@ -346,7 +356,7 @@ async function forkPublishedRecord(
     title: input.title?.trim() ?? r.title,
     status: "Draft",
     owner: input.owner !== undefined ? input.owner : r.owner,
-    data: enrichData(r.module, data),
+    data: enrichData(r.module, data, r.module === "risks" ? await orgRiskBands(r.orgId) : undefined),
     elementId: input.elementId !== undefined ? input.elementId : r.elementId,
     frameworks: input.frameworks ?? r.frameworks,
   });
@@ -358,7 +368,7 @@ async function forkPublishedRecord(
   });
   await logActivity(auth, r.orgId, r.module, r.id, spec.sourceActivity(draft.code, String(data.version)));
   await logActivity(auth, r.orgId, r.module, draft.id, spec.draftActivity(String(data.version), r.code));
-  return view(draft);
+  return view(draft, r.module === "risks" ? await orgRiskBands(r.orgId) : undefined);
 }
 
 /** OD `EFF_RESULT` values that do not clear the effectiveness gate. */
@@ -700,7 +710,7 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
     r.data = enrichData(module, {
       ...(input.data ?? r.data ?? {}), ...(archiveStamp ?? {}), ...(reviewStamp ?? {}),
       ...(provisionApproveStamp ?? {}), ...(supplierQualifyStamp ?? {}),
-    });
+    }, module === "risks" ? await orgRiskBands(r.orgId) : undefined);
   }
   if (input.elementId !== undefined) r.elementId = input.elementId;
   if (input.frameworks !== undefined) r.frameworks = input.frameworks;
@@ -728,7 +738,7 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
   // while already Completed would re-stamp the gap's resolution dates to today
   // and duplicate its audit trail on any unrelated field edit.
   if (module === "training" && statusChanged && r.status === "Completed") await closeLinkedGap(auth, r, ip);
-  return decorateForModule(module, view(r));
+  return decorateForModule(module, view(r, module === "risks" ? await orgRiskBands(r.orgId) : undefined));
 }
 
 export async function deleteRecord(auth: AuthContext, module: string, id: string, ip: string | null): Promise<void> {

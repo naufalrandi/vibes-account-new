@@ -352,14 +352,38 @@ export function riskBand(level: number, scheme = RISK_BANDS_DEFAULT): string {
   return scheme[scheme.length - 1]?.level ?? "Critical";
 }
 
+/**
+ * R176 — the tenant's own risk-level scheme, in `riskBand`'s shape. The org stores
+ * `riskLevels` as names + upper bounds (`organization.model.ts`), which is what the
+ * risks module already bands against (`risk.service.ts` `computeRiskBand`); this
+ * registry banded every record against the fixed default instead, so a tenant that
+ * had renamed or re-bounded its levels saw one set of names on the Risks screen and
+ * another on every implementation register.
+ */
+export function riskBandsFor(levels: { names: string[]; bounds: number[] } | null | undefined): { max: number; level: string }[] {
+  if (!levels || !Array.isArray(levels.names) || !Array.isArray(levels.bounds) || levels.names.length === 0) {
+    return RISK_BANDS_DEFAULT;
+  }
+  const { names, bounds } = levels;
+  return names.map((level, idx) => ({
+    // The last band has no upper bound — everything above the final cut falls into it.
+    max: idx < bounds.length ? Number(bounds[idx]) : Number.POSITIVE_INFINITY,
+    level,
+  }));
+}
+
 /** Module-specific derived fields (mirrors the frontend's `enrichImpl`). */
-export function enrichData(module: string, data: Record<string, unknown>): Record<string, unknown> {
+export function enrichData(
+  module: string,
+  data: Record<string, unknown>,
+  scheme: { max: number; level: string }[] = RISK_BANDS_DEFAULT,
+): Record<string, unknown> {
   if (module === "reviews") return enrichReviewData(data);
   if (module !== "risks") return data;
   const l = Number(data.likelihood) || 0;
   const i = Number(data.impact) || 0;
   const rawLevel = l * i;
-  const band = riskBand(rawLevel);
+  const band = riskBand(rawLevel, scheme);
   return { ...data, level: rawLevel || null, band: band || "", riskScore: rawLevel, riskLevel: band };
 }
 
