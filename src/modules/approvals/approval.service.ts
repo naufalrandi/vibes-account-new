@@ -692,7 +692,7 @@ export async function escalateReview(auth: AuthContext, recordId: string, ip: st
  * and its next review is rescheduled from today. ("Revise" is the existing
  * edit-published fork, not this.)
  */
-export async function reconfirmPeriodicReview(auth: AuthContext, recordId: string, ip: string | null) {
+export async function reconfirmPeriodicReview(auth: AuthContext, recordId: string, comments: string | null, ip: string | null) {
   const rec = await governedRecord(auth, "documents", recordId);
   if (rec.status !== "Published" && rec.status !== "Review Due") {
     throw new ConflictError("Only a Published or Review Due document can be reconfirmed", "NOT_DUE");
@@ -700,11 +700,14 @@ export async function reconfirmPeriodicReview(auth: AuthContext, recordId: strin
   const data = (rec.data ?? {}) as Record<string, unknown>;
   const now = new Date().toISOString();
   const nextReview = cdNextReview(now, data.reviewFreq);
+  // OD `cdPeriodicReviewSave` (core.js:19779): `if(com)x.reviewComments=com`,
+  // and the comment is appended to the activity entry.
+  const com = (comments ?? "").trim();
   rec.status = "Published";
-  rec.data = { ...data, nextReview };
+  rec.data = { ...data, nextReview, ...(com ? { reviewComments: com } : {}) };
   await rec.save();
   await audit(auth, "approval.document.periodicReviewed", "ImplementationRecord", rec.id, ip);
-  await logActivity(auth, rec.orgId, "documents", rec.id, "Periodic review — reconfirmed as current");
+  await logActivity(auth, rec.orgId, "documents", rec.id, `Periodic review — reconfirmed as current${com ? ` · ${com}` : ""}`);
   return { status: rec.status, nextReview };
 }
 

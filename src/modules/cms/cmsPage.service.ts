@@ -1,5 +1,5 @@
 import { Op, type WhereOptions } from "sequelize";
-import { CmsPage } from "../../db/models";
+import { CmsMenuItem, CmsPage } from "../../db/models";
 import type { CmsPageStatus, CmsPageTemplate } from "../../db/models/cms.model";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
@@ -101,6 +101,18 @@ export async function setStatus(auth: AuthContext, id: string, status: CmsPageSt
   await p.save();
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: `cms.page.${status.toLowerCase()}`, entityType: "CmsPage", entityId: p.id, sourceIp: ip, result: "Success" });
   return p;
+}
+
+/**
+ * R173 — the Website CMS screen deletes pages (OD `cmsPageDel`, app.html:6942),
+ * and cascades to the menu items that pointed at the deleted page, exactly as OD
+ * does (`db.cmsMenu=db.cmsMenu.filter(m=>m.target!==id)`).
+ */
+export async function deletePage(auth: AuthContext, id: string, ip: string | null): Promise<void> {
+  const p = await requirePage(auth, id);
+  await CmsMenuItem.destroy({ where: { pageId: p.id } });
+  await p.destroy();
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "cms.page.deleted", entityType: "CmsPage", entityId: id, sourceIp: ip, result: "Success" });
 }
 
 export const publishPage = (auth: AuthContext, id: string, ip: string | null): Promise<CmsPage> => setStatus(auth, id, "Published", ip);

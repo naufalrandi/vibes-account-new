@@ -1,8 +1,7 @@
 import { describe, expect, it, beforeAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { initModels, Organization, BusinessRecord, User } from "../models";
-import { seedBusinessRecords, seedEnterpriseSuppliers } from "./businessRecordsSeed";
-import { PR_ITEM_CATS } from "./doaMatrix";
+import { seedBusinessRecords, seedEnterpriseSuppliers, PR_ITEM_CATS } from "./businessRecordsSeed";
 
 /**
  * R496 / M-152 / M-155 — the Procurement Policy screen (`ent-doa`) and the

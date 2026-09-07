@@ -6,7 +6,9 @@ import {
 
 function filterHier(rows: HierNode[], parent?: string, search?: string): HierNode[] {
   let out = rows;
-  if (parent !== undefined) out = out.filter((r) => (parent === "" ? r.parent === null : r.parent === parent));
+  // OD writes the root parent as null in ISIC (js/isic-rev4.js) and "" in the
+  // other three trees, so `?parent=` has to match both spellings.
+  if (parent !== undefined) out = out.filter((r) => (r.parent ?? "") === parent);
   if (search) {
     const s = search.toLowerCase();
     out = out.filter((r) => r.code.toLowerCase().includes(s) || r.label.toLowerCase().includes(s));

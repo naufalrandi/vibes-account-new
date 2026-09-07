@@ -8,7 +8,7 @@ import {
   ReferenceSectorFramework, ReferenceIndustrySector, ReferenceEducationField, ReferenceEducationLevel, ReferenceCountry,
   ReferenceBank, ReferenceHoliday, ReferenceBpProcess, ReferenceFiscalConfig, type FiscalPeriodRow,
 } from "../../db/models/referenceDb.models";
-import { ISIC, NACE, KBLI, ISCEDF, type HierNode } from "../reference/reference.data";
+import { ISIC, NACE, KBLI, ISCEDF, type HierNode, type IsicLevel } from "../reference/reference.data";
 import { COUNTRY_SEED } from "./data/countrySeed";
 import { COUNTRY_REGION_SEED } from "./data/countryRegionSeed";
 import { EDUCATION_LEVEL_SEED } from "./data/educationLevelSeed";
@@ -30,25 +30,28 @@ const EU_MEMBERS = ["AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", 
  *
  * `lv` is OD's ZERO-based depth (a Section is `lv:0`, js/nace.js), and the FE's
  * own editor derives it that way (`deriveNodeLvParent` returns 0 for a bare
- * letter). Emitting the raw 1-based `HierNode.level` here put every seeded node
- * one tier deeper than a hand-added one.
+ * letter), so the source node's `lv` passes straight through.
  *
- * `isic` is OD's ISIC NODE ID, not the bare code: the FE's "Maps to ISIC" picker
- * lists `<option value={sector.id}>`, so a bare "A" never matched an option and
- * the mapping read as unset on every seeded node. This port's sector ids are
- * generated rows, so the code is resolved through `isicIdByCode`.
+ * `isic` is OD's ISIC NODE ID ("isic-A"), but this port's sector ids are
+ * generated rows, so the bare code is recovered from it and resolved through
+ * `isicIdByCode` — the FE's "Maps to ISIC" picker lists `<option value={sector.id}>`,
+ * and a raw "isic-A" would never match an option.
  *
- * Knowing divergence: OD writes `parent:''` at the top level; `null` is kept
- * here because the FE's tree builder treats null as "root" and an empty string
- * would orphan every Section.
+ * Knowing divergence: OD writes `parent:''` at the top level; it is normalised
+ * to `null` here because the FE's tree builder treats null as "root" and an
+ * empty string would orphan every Section.
  */
+const ISIC_LEVELS: readonly IsicLevel[] = ["section", "division", "group", "class"];
+/** OD's 0-based depth: `lv` in NACE/KBLI/ISCED-F, the `level` string enum in ISIC. */
+const nodeDepth = (n: HierNode): number => n.lv ?? Math.max(0, ISIC_LEVELS.indexOf(n.level as IsicLevel));
+
 function nodeToFrameworkLevel(isicIdByCode: Map<string, string>) {
   return (n: HierNode) => ({
     code: n.code,
     label: n.label,
-    lv: Math.max(0, n.level - 1),
-    parent: n.parent,
-    isic: n.isic ? isicIdByCode.get(n.isic) ?? null : null,
+    lv: nodeDepth(n),
+    parent: n.parent || null,
+    isic: n.isic ? isicIdByCode.get(n.isic.replace(/^isic-/, "")) ?? null : null,
   });
 }
 
@@ -65,7 +68,7 @@ function withResolvedParents(orgId: string, nodes: HierNode[]): { id: string; or
   const rows = nodes.map((n) => {
     const id = randomUUID();
     codeToId.set(n.code, id);
-    return { id, orgId, code: n.code, label: n.label, level: n.level, parentId: null as string | null };
+    return { id, orgId, code: n.code, label: n.label, level: nodeDepth(n) + 1, parentId: null as string | null };
   });
   nodes.forEach((n, i) => { if (n.parent) rows[i].parentId = codeToId.get(n.parent) ?? null; });
   return rows;

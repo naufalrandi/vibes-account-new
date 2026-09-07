@@ -130,13 +130,21 @@ describe("personnel records", () => {
     const { token, targetUserId } = await seedAdminAndTargetUser();
     const bearer = { authorization: `Bearer ${token}` } as const;
 
+    // OD `personAddDisc` (modules.js:5525) writes exactly {date, type, severity, action, note}.
     const created = await request(app).post(`/v1/users/${targetUserId}/disciplinary-records`).set(bearer).send({
-      disciplineType: "Verbal Warning",
-      incidentDate: "2026-07-01",
-      description: "Late attendance",
+      date: "2026-07-01",
+      type: "Verbal Warning",
+      severity: "Medium",
+      action: "Verbal warning issued",
+      note: "Late attendance",
     });
     expect(created.status).toBe(201);
-    expect(created.body.data.status).toBe("Open");
+    expect(created.body.data).toMatchObject({
+      date: "2026-07-01", type: "Verbal Warning", severity: "Medium",
+      action: "Verbal warning issued", note: "Late attendance",
+    });
+    // OD has no disciplinary status — neither the add modal nor the list card (modules.js:4929).
+    expect(created.body.data.status).toBeUndefined();
 
     const list = await request(app).get(`/v1/users/${targetUserId}/disciplinary-records`).set(bearer);
     expect(list.body.data.length).toBe(1);
@@ -149,14 +157,18 @@ describe("personnel records", () => {
     const { token, targetUserId } = await seedAdminAndTargetUser();
     const bearer = { authorization: `Bearer ${token}` } as const;
 
+    // OD `personAddPerf` (modules.js:5526) writes exactly {period, rating, reviewer, note}.
     const created = await request(app).post(`/v1/users/${targetUserId}/performance-records`).set(bearer).send({
-      reviewPeriod: "2026 H1",
+      period: "2026 H1",
       rating: "Exceeds",
       // OD's own seed reviews are signed by a body, not a user: `reviewer:'Board'`.
       reviewer: "Board",
+      note: "Strong platform delivery.",
     });
     expect(created.status).toBe(201);
-    expect(created.body.data.reviewer).toBe("Board");
+    expect(created.body.data).toMatchObject({
+      period: "2026 H1", rating: "Exceeds", reviewer: "Board", note: "Strong platform delivery.",
+    });
 
     const list = await request(app).get(`/v1/users/${targetUserId}/performance-records`).set(bearer);
     expect(list.body.data.length).toBe(1);
@@ -168,7 +180,7 @@ describe("personnel records", () => {
   it("rejects a rating outside the OD Exceeds/Meets/Below picklist", async () => {
     const { token, targetUserId } = await seedAdminAndTargetUser();
     const res = await request(app).post(`/v1/users/${targetUserId}/performance-records`).set("authorization", `Bearer ${token}`)
-      .send({ reviewPeriod: "2026 H1", rating: "Exceeds Expectations" });
+      .send({ period: "2026 H1", rating: "Exceeds Expectations" });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("INVALID_RATING");
   });
@@ -176,7 +188,7 @@ describe("personnel records", () => {
   it("rejects a severity outside the OD Low/Medium/High picklist", async () => {
     const { token, targetUserId } = await seedAdminAndTargetUser();
     const res = await request(app).post(`/v1/users/${targetUserId}/disciplinary-records`).set("authorization", `Bearer ${token}`)
-      .send({ disciplineType: "Verbal Warning", incidentDate: "2026-07-01", description: "Late attendance", severity: "Critical" });
+      .send({ date: "2026-07-01", type: "Verbal Warning", severity: "Critical", note: "Late attendance" });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("INVALID_SEVERITY");
   });

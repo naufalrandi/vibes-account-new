@@ -13,6 +13,7 @@ cmsRoutes.get("/pages/:id", requireAction(ACTIONS.CMS_READ), c.getPage);
 cmsRoutes.patch("/pages/:id", requireAction(ACTIONS.CMS_MANAGE), c.updatePage);
 cmsRoutes.post("/pages/:id/publish", requireAction(ACTIONS.CMS_MANAGE), c.publishPage);
 cmsRoutes.post("/pages/:id/archive", requireAction(ACTIONS.CMS_MANAGE), c.archivePage);
+cmsRoutes.delete("/pages/:id", requireAction(ACTIONS.CMS_MANAGE), c.removePage);
 
 // Posts
 cmsRoutes.get("/posts", requireAction(ACTIONS.CMS_READ), c.listPosts);
@@ -21,6 +22,7 @@ cmsRoutes.get("/posts/:id", requireAction(ACTIONS.CMS_READ), c.getPost);
 cmsRoutes.patch("/posts/:id", requireAction(ACTIONS.CMS_MANAGE), c.updatePost);
 cmsRoutes.post("/posts/:id/publish", requireAction(ACTIONS.CMS_MANAGE), c.publishPost);
 cmsRoutes.post("/posts/:id/archive", requireAction(ACTIONS.CMS_MANAGE), c.archivePost);
+cmsRoutes.delete("/posts/:id", requireAction(ACTIONS.CMS_MANAGE), c.removePost);
 
 // Media — `/media/reorder`-style literals aren't needed here, but `/media/:id` still comes after `/media`.
 cmsRoutes.get("/media", requireAction(ACTIONS.CMS_READ), c.listMedia);

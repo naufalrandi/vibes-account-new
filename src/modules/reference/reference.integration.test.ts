@@ -39,6 +39,13 @@ describe("reference datasets (full OD volume)", () => {
     // Divisions under section C (Manufacturing).
     const underC = (await request(app).get("/v1/reference/isic?parent=C").set(authed(token))).body.data as unknown[];
     expect(underC.length).toBeGreaterThan(0);
+    // NACE/KBLI/ISCED-F spell the root parent as "" (js/nace.js), not null, so
+    // `?parent=` has to match that spelling too.
+    for (const set of ["nace", "kbli"]) {
+      const roots = (await request(app).get(`/v1/reference/${set}?parent=`).set(authed(token))).body.data as { parent: string }[];
+      expect(roots).toHaveLength(21);
+      expect(roots.every((r) => r.parent === "")).toBe(true);
+    }
     // Search.
     const found = (await request(app).get("/v1/reference/isic?search=manufacturing").set(authed(token))).body.data as { label: string }[];
     expect(found.length).toBeGreaterThan(0);

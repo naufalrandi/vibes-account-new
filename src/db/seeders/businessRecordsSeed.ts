@@ -8,7 +8,18 @@ import type { BusinessArea } from "../models/businessRecord.model";
 import { getBusinessDataSchema } from "../../modules/business/dataSchemas";
 import { nextCode } from "../../modules/business/business.service";
 import { DN_BACKLOG, DN_CLIENTS, DN_ENGAGEMENTS, DN_FINDINGS, DN_PROJECTS } from "../../modules/business/datanaRules";
-import { PR_ITEM_CATS } from "./doaMatrix";
+
+/**
+ * OD `PR_ITEM_CATS`, js/modules.js:2932 — copied verbatim (see the frontend's
+ * `lib/procurement/suppliers.ts` for the same list). Lived in the deleted
+ * `doaMatrix.ts` seeder until the `doa_matrix_entries` home went away; the
+ * `ent-doa` business records below are now its only backend consumer.
+ */
+export const PR_ITEM_CATS = [
+  "Vehicle", "Electronics - Endpoint Devices", "Electronics - Network and Infrastructure",
+  "Electronics - Other Devices", "Non-Electronics", "Software", "Professional Services",
+  "Land", "Buildings", "Machinery", "Furniture and Fixtures",
+] as const;
 
 /**
  * SOF-38 — seeds the 39 OD collections that `business_records` (the generic Business Unit
@@ -262,7 +273,7 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
   // junior member of that pool wins — falling back to the literal "Head of Department"
   // when the org has no such user. Seeding it empty left the Policy screen's
   // "Required approver" cell blank on 11 of the 22 bands. Runs after `seedOrgUnits`,
-  // which is what stamps `User.empLevel` (see `doaMatrix.ts`'s same lookup).
+  // which is what stamps `User.empLevel`.
   const DOA_APPROVER_MAX = 8;
   const doaSeniors = (await User.findAll({ where: { orgId }, attributes: ["fullName", "empLevel"] }))
     .map((u) => ({ fullName: u.fullName, level: Number(/^L(\d+)$/i.exec(String(u.empLevel ?? ""))?.[1] ?? NaN) }))
@@ -293,9 +304,8 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
     // OD `doaMethodMap` (js/modules.js:4311) — 'Order' for Professional Services,
     // 'Direct' for the rest. The policy editor reads the bands and the per-category
     // sourcing method from the one `ent-doa` register (`data.kind:"method"`, value in
-    // `status`, exactly as `EnterpriseProcurementPolicyPage`'s own toggle writes it),
-    // so seed it here beside the bands instead of only into `doa_methods`, which no
-    // screen reads.
+    // `status`, exactly as `EnterpriseProcurementPolicyPage`'s own toggle writes it) —
+    // the single backend home for both, matching OD's one policy editor.
     const method = professional ? "Order" : "Direct";
     await seedRow(orgId, "enterprise", "ent-doa", `${category} — sourcing method`, method, null, "axia", {
       kind: "method",

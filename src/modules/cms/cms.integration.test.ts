@@ -49,6 +49,26 @@ describe("cms (pages, posts, media, menu, settings)", () => {
     expect(archived.body.data.status).toBe("Archived");
   });
 
+  /** R173 — the Website CMS screen deletes pages (OD `cmsPageDel`, app.html:6942),
+   *  which also strips the menu items that pointed at the deleted page. */
+  it("deletes a page and cascades to the menu items that pointed at it", async () => {
+    const { token } = await makeTenant("c1d", "CMS1D");
+    const page = await request(app).post("/v1/cms/pages").set(authed(token)).send({ title: "Careers", template: "Standard" });
+    const pageId = page.body.data.id;
+    const item = await request(app).post("/v1/cms/menu").set(authed(token)).send({ label: "Careers", pageId });
+    expect(item.status).toBe(201);
+    const external = await request(app).post("/v1/cms/menu").set(authed(token)).send({ label: "Docs", url: "https://docs.example.com" });
+    expect(external.status).toBe(201);
+
+    const removed = await request(app).delete(`/v1/cms/pages/${pageId}`).set(authed(token));
+    expect(removed.status).toBe(200);
+
+    const pages = await request(app).get("/v1/cms/pages").set(authed(token));
+    expect(pages.body.data).toEqual([]);
+    const menu = await request(app).get("/v1/cms/menu").set(authed(token));
+    expect(menu.body.data.map((m: { label: string }) => m.label)).toEqual(["Docs"]);
+  });
+
   it("rejects a duplicate slug within the same org", async () => {
     const { token } = await makeTenant("c2", "CMS2");
     await request(app).post("/v1/cms/pages").set(authed(token)).send({ title: "Home", slug: "home", template: "Home" });
@@ -99,6 +119,16 @@ describe("cms (pages, posts, media, menu, settings)", () => {
     expect((await request(app).post(`/v1/cms/pages/${pageId}/publish`).set(authed(b.token))).status).toBe(403);
 
     expect((await request(app).get(`/v1/cms/pages/${pageId}`).set(authed(a.token))).status).toBe(200);
+  });
+
+  /** R173 — OD `cmsPostDel` (app.html:6968). */
+  it("deletes a post", async () => {
+    const { token } = await makeTenant("c2d", "CMS2D");
+    const post = await request(app).post("/v1/cms/posts").set(authed(token)).send({ title: "Launch" });
+    const removed = await request(app).delete(`/v1/cms/posts/${post.body.data.id}`).set(authed(token));
+    expect(removed.status).toBe(200);
+    const list = await request(app).get("/v1/cms/posts").set(authed(token));
+    expect(list.body.data).toEqual([]);
   });
 
   // --- Media -------------------------------------------------------------------

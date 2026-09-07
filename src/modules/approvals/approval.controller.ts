@@ -72,7 +72,9 @@ export const escalateReview = wrap(async (req, res) => {
 });
 export const periodicReview = wrap(async (req, res) => {
   documentsOnly(req);
-  sendOk(res, await service.reconfirmPeriodicReview(guard(req), rec(req).recordId, ip(req)));
+  // OD `cd-prc` (core.js:19775) — the review comment travels with the reconfirm.
+  const b = z.object({ comments: z.string().max(4000).nullish() }).parse(req.body ?? {});
+  sendOk(res, await service.reconfirmPeriodicReview(guard(req), rec(req).recordId, b.comments ?? null, ip(req)));
 });
 
 export const publish = wrap(async (req, res) => {

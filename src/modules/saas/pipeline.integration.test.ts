@@ -12,7 +12,8 @@ import { ACTIONS } from "../iam/actions.catalog";
 /**
  * Covers the pipeline write-side stage machine added on top of G-73's
  * read-only listing/quote-creation/renewal (saas.integration.test.ts):
- * accept -> registration -> upload proof -> verify payment -> provision.
+ * accept -> registration -> upload proof -> verify payment (which chains
+ * provisioning, as OD's verify click does) plus the 'Retry' provision route.
  * See pipeline.transitions.ts for the stage/action legality table this
  * suite is proving — the point of a stage machine is what it refuses, so
  * most of this file is illegal-transition and provisioning-failure cases,
@@ -49,18 +50,21 @@ async function createQuote(token: string): Promise<string> {
   return res.body.data.id as string;
 }
 
-/** Walks a fresh quote through accept -> registration -> proof -> verify, landing on 'Verified'. */
-async function walkToVerified(token: string): Promise<string> {
+/**
+ * Walks a fresh quote through accept -> registration -> proof, landing on
+ * 'Under Verification' — the last stage before the verify click, which both
+ * verifies AND provisions (OD `pipeVerifyPayment`, app.html:10654).
+ */
+async function walkToUnderVerification(token: string): Promise<string> {
   const id = await createQuote(token);
   await request(app).post(`/v1/saas/pipeline/${id}/accept`).set(authed(token)).expect(200);
   const reg = await request(app).post(`/v1/saas/pipeline/${id}/registration`).set(authed(token)).send({
     legalName: "PT Roxxon Energy Legal", adminName: "Dario Agger", adminEmail: "dario@roxxon.co.id", termsAccepted: true,
   });
   expect(reg.status).toBe(200);
-  await request(app).post(`/v1/saas/pipeline/${id}/proof`).set(authed(token)).send({ proofUrl: "BCA-transfer.pdf" }).expect(200);
-  const verify = await request(app).post(`/v1/saas/pipeline/${id}/verify`).set(authed(token));
-  expect(verify.status).toBe(200);
-  expect(verify.body.data.stage).toBe("Verified");
+  const proof = await request(app).post(`/v1/saas/pipeline/${id}/proof`).set(authed(token)).send({ proofUrl: "BCA-transfer.pdf" });
+  expect(proof.status).toBe(200);
+  expect(proof.body.data.stage).toBe("Under Verification");
   return id;
 }
 
@@ -68,7 +72,7 @@ describe("saas pipeline stage transitions (G-73 write side)", () => {
   beforeAll(() => initModels());
   afterEach(() => resetDb());
 
-  it("walks the full funnel quote -> accept -> registration -> proof -> verify -> provision", async () => {
+  it("walks the full funnel quote -> accept -> registration -> proof -> verify (which provisions in the same call)", async () => {
     const { token } = await seedServiceOwner([ACTIONS.SAAS_READ, ACTIONS.SAAS_MANAGE]);
     const id = await createQuote(token);
 
@@ -92,20 +96,20 @@ describe("saas pipeline stage transitions (G-73 write side)", () => {
     expect(proof.body.data.stage).toBe("Under Verification");
     expect(proof.body.data.payment.proofUrl).toBe("BCA-2026-07.pdf");
 
+    // OD `pipeVerifyPayment` (app.html:10654) stamps payment.state='Verified'
+    // and calls `saasProvisionPipeline` in the very same synchronous click, so
+    // this one request lands on 'Completed'. Nothing ever rests at 'Verified',
+    // which is why pipeRowActions offers no action there.
     const verify = await request(app).post(`/v1/saas/pipeline/${id}/verify`).set(authed(token));
     expect(verify.status).toBe(200);
-    expect(verify.body.data.stage).toBe("Verified");
     expect(verify.body.data.payment.state).toBe("Verified");
     expect(verify.body.data.payment.verifiedBy).toBe("SO Admin");
+    expect(verify.body.data.stage).toBe("Completed");
+    expect(verify.body.data.tenantId).toBeTruthy();
+    expect(verify.body.data.subId).toBeTruthy();
+    expect(verify.body.data.audit[0].msg).toBe("Provisioned — 1 workspace(s) activated");
 
-    const provision = await request(app).post(`/v1/saas/pipeline/${id}/provision`).set(authed(token));
-    expect(provision.status).toBe(200);
-    expect(provision.body.data.stage).toBe("Completed");
-    expect(provision.body.data.tenantId).toBeTruthy();
-    expect(provision.body.data.subId).toBeTruthy();
-    expect(provision.body.data.audit[0].msg).toBe("Provisioned — 1 workspace(s) activated");
-
-    const tenantId = provision.body.data.tenantId as string;
+    const tenantId = verify.body.data.tenantId as string;
     const org = await Organization.findByPk(tenantId);
     expect(org?.type).toBe("Tenant");
     expect(org?.name).toBe("PT Roxxon Energy Legal");
@@ -115,7 +119,7 @@ describe("saas pipeline stage transitions (G-73 write side)", () => {
     expect(admin?.username).toBe("dario.agger");
     expect(admin?.email).toBe("dario@roxxon.co.id");
 
-    const sub = await SaasSubscription.findByPk(provision.body.data.subId as string);
+    const sub = await SaasSubscription.findByPk(verify.body.data.subId as string);
     expect(sub?.tenantId).toBe(tenantId);
     expect(sub?.pipelineId).toBe(id);
     expect(sub?.products).toEqual(["ms"]);
@@ -163,13 +167,14 @@ describe("saas pipeline stage transitions (G-73 write side)", () => {
 
   it("refuses to provision when the stage allows it but payment was never actually verified (ported OD guard)", async () => {
     const { token } = await seedServiceOwner([ACTIONS.SAAS_READ, ACTIONS.SAAS_MANAGE]);
-    // Seeded directly at 'Verified' with an inconsistent payment state — the
-    // only way to reach this combination is a direct data edit, but the
-    // service must still refuse it rather than trust the stage alone.
+    // Seeded directly at 'Provisioning Failed' — the one stage 'provision' is
+    // legal from — with an inconsistent payment state. The only way to reach
+    // this combination is a direct data edit, but the service must still
+    // refuse it rather than trust the stage alone.
     const row = await SaasPipeline.create({
       code: "PIPE-9001", tenantId: null, tenantName: "Inconsistent Co", partnerId: null, industry: null,
       country: "ID", contactPerson: "Someone", contactEmail: "someone@example.com", contactPhone: null,
-      type: "New Tenant / SaaS", stage: "Verified", items: [{ product: "ms" }], amount: 36000000, currency: "IDR",
+      type: "New Tenant / SaaS", stage: "Provisioning Failed", items: [{ product: "ms" }], amount: 36000000, currency: "IDR",
       registrationComplete: true, registration: { legalName: "Inconsistent Co", adminName: "Someone", adminEmail: "someone@example.com" },
       payment: { method: "Bank Transfer", state: "Awaiting Transfer", invoiceNo: "INV-9001" },
       subId: null, audit: [],
@@ -180,13 +185,37 @@ describe("saas pipeline stage transitions (G-73 write side)", () => {
     expect(res.body.error.code).toBe("SAAS_PAYMENT_NOT_VERIFIED");
 
     const reloaded = await SaasPipeline.findByPk(row.id);
-    expect(reloaded?.stage).toBe("Verified"); // rejected before any provisioning attempt — not marked Failed
+    expect(reloaded?.stage).toBe("Provisioning Failed"); // rejected before any provisioning attempt
+    expect(await Organization.count({ where: { type: "Tenant" } })).toBe(0);
+  });
+
+  it("refuses every write action at 'Verified' — OD's verify click provisions, so nothing ever rests there", async () => {
+    const { token } = await seedServiceOwner([ACTIONS.SAAS_READ, ACTIONS.SAAS_MANAGE]);
+    // Only reachable by a direct data edit: `verifyPayment` never persists it.
+    // OD's `pipeRowActions` (app.html:10693) falls through to View only at
+    // this stage, so the transition table must offer nothing here either.
+    const row = await SaasPipeline.create({
+      code: "PIPE-9002", tenantId: null, tenantName: "Resting Co", partnerId: null, industry: null,
+      country: "ID", contactPerson: "Someone", contactEmail: "someone@example.com", contactPhone: null,
+      type: "New Tenant / SaaS", stage: "Verified", items: [{ product: "ms" }], amount: 36000000, currency: "IDR",
+      registrationComplete: true, registration: { legalName: "Resting Co", adminName: "Someone", adminEmail: "someone@example.com" },
+      payment: { method: "Bank Transfer", state: "Verified", invoiceNo: "INV-9002", verifiedBy: "SO Admin" },
+      subId: null, audit: [],
+    });
+
+    // ("registration" is omitted only because its body schema rejects an empty
+    // payload with a 400 before the stage check is ever reached.)
+    for (const action of ["accept", "decline", "proof", "verify", "provision"]) {
+      const res = await request(app).post(`/v1/saas/pipeline/${row.id}/${action}`).set(authed(token)).send({});
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe("SAAS_PIPELINE_ILLEGAL_TRANSITION");
+    }
     expect(await Organization.count({ where: { type: "Tenant" } })).toBe(0);
   });
 
   it("rolls back the whole provisioning attempt atomically and marks the entry 'Provisioning Failed' on a mid-way DB error", async () => {
     const { token, org: soOrg } = await seedServiceOwner([ACTIONS.SAAS_READ, ACTIONS.SAAS_MANAGE]);
-    const id = await walkToVerified(token);
+    const id = await walkToUnderVerification(token);
 
     // Force a real, deterministic failure partway through provisioning: the
     // primary-site code is derived from a raw Site.count() (mirrors
@@ -203,7 +232,9 @@ describe("saas pipeline stage transitions (G-73 write side)", () => {
       status: "Active", isPrimary: false, description: null, contactPerson: null, contactEmail: null, contactPhone: null,
     });
 
-    const res = await request(app).post(`/v1/saas/pipeline/${id}/provision`).set(authed(token));
+    // Provisioning is chained out of the verify click, so this is where the
+    // collision bites — the payment is still stamped 'Verified' on the way in.
+    const res = await request(app).post(`/v1/saas/pipeline/${id}/verify`).set(authed(token));
     expect(res.status).toBe(500);
 
     // Nothing from the failed attempt survived — including the tenant that
@@ -216,6 +247,7 @@ describe("saas pipeline stage transitions (G-73 write side)", () => {
 
     const reloaded = await SaasPipeline.findByPk(id);
     expect(reloaded?.stage).toBe("Provisioning Failed");
+    expect(reloaded?.payment.state).toBe("Verified"); // the verification itself committed before provisioning ran
     expect(reloaded?.tenantId).toBeNull();
     expect(reloaded?.subId).toBeNull();
     expect(reloaded?.audit[0].msg).toMatch(/^Provisioning failed —/);

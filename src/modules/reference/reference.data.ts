@@ -24,7 +24,15 @@ import {
   type BaseSkillSeed, type TrainingCourseSeed, type SkillTopic,
 } from "./data/skillLibrary";
 
-export interface HierNode { code: string; label: string; level: number; parent: string | null; isic?: string }
+/** OD's ISIC level enum (js/isic-rev4.js) — ISIC alone encodes depth as a string. */
+export type IsicLevel = (typeof ISIC_RAW)[number]["level"];
+/**
+ * A node of any of the four OD classification trees, in OD's own encoding:
+ * ISIC carries `level` (the string enum), NACE/KBLI/ISCED-F carry `lv` (OD's
+ * 0-based depth), top-level `parent` is null in ISIC and "" in the other three,
+ * and NACE/KBLI's `isic` is OD's ISIC *node id* ("isic-A"), not the bare code.
+ */
+export interface HierNode { code: string; label: string; level?: IsicLevel; lv?: number; parent: string | null; isic?: string }
 export interface Note { i?: string; e?: string } // includes / excludes (either may be absent)
 
 // Full OD reference datasets generated from the legacy js/ sources into ./data/*

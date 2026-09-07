@@ -1331,7 +1331,7 @@ export async function saveResidual(auth: AuthContext, scenarioId: string, input:
       impact,
       score,
       band,
-      basis: str(input.basis) || "verified",
+      rationale: str(input.rationale),
       assessmentDate: new Date().toISOString().slice(0, 10),
       assessedBy: auth.userId,
       notes: str(input.notes),
@@ -1342,7 +1342,7 @@ export async function saveResidual(auth: AuthContext, scenarioId: string, input:
     residual.impact = impact ?? residual.impact;
     residual.score = score;
     residual.band = band;
-    residual.basis = str(input.basis) || residual.basis;
+    residual.rationale = str(input.rationale) ?? residual.rationale;
     residual.assessmentDate = new Date().toISOString().slice(0, 10);
     residual.assessedBy = auth.userId;
     residual.notes = str(input.notes);

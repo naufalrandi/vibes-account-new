@@ -51,7 +51,6 @@ import { seedSaasLifecycle, seedSiteRequests, seedTenantRoles } from "./dataPari
 import { seedCompetenceRolesAndAssignments } from "./competenceRoles";
 import { seedAwareness, seedCompetenceAssessmentsAndGaps, seedTrainingPlans } from "./personnelSeed";
 import { seedOrgUnits } from "./orgUnits";
-import { seedDoaMatrix } from "./doaMatrix";
 import type { AgreementBlock, AgreementTemplateStatus } from "../models/agreementTemplate.model";
 import { generateStatementForPartner } from "../../modules/billing/billing.service";
 import { hashPassword } from "../../lib/password";
@@ -891,12 +890,14 @@ export async function seed(): Promise<void> {
   await seedAwareness(tenant.id, so.id);
 
   // 12g. SOF-407 (design: SOF-386) — Enterprise org structure (32 `OrgUnit`
-  //      rows + synthetic lead roster) and the Delegation-of-Authority spend
-  //      matrix (22 `DoaMatrixEntry` rows). Demo tenant org only (not `so`,
-  //      the AXIA ServiceOwner org). seedOrgUnits must run first — doaMatrix's
-  //      Finance band looks up the tier-A/L1 CEO user it creates.
+  //      rows + synthetic lead roster). Demo tenant org only (not `so`, the
+  //      AXIA ServiceOwner org). The Delegation-of-Authority spend matrix was
+  //      seeded here too, into its own `doa_matrix_entries` table; OD keeps one
+  //      home per collection, so bands and sourcing methods now live only in the
+  //      `ent-doa` business records the Procurement Policy screen reads
+  //      (`businessRecordsSeed`, which runs after this for the same reason —
+  //      band 2's approver is the L8 manager `seedOrgUnits` creates).
   await seedOrgUnits(tenant.id);
-  await seedDoaMatrix(tenant.id);
 
   // 13. Phase 8 — a finalized demo assessment for the tenant against ISO 27001.
   //     Internal Audit answered "mature" (score 5, no gap); Risk Assessment

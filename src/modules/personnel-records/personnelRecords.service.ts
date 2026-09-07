@@ -2,7 +2,7 @@ import { User, Organization, ResumeRecord, LeaveRecord, DisciplinaryRecord, Perf
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
-import { RESUME_RECORD_TYPES, LEAVE_TYPES, LEAVE_STATUSES, DISCIPLINARY_STATUSES, DISCIPLINARY_SEVERITIES, PERFORMANCE_RATINGS, type ResumeRecordType, type LeaveStatus, type DisciplinaryStatus, type DisciplinarySeverity, type PerformanceRating } from "../../db/models/personnelRecords.models";
+import { RESUME_RECORD_TYPES, LEAVE_TYPES, LEAVE_STATUSES, DISCIPLINARY_SEVERITIES, PERFORMANCE_RATINGS, type ResumeRecordType, type LeaveStatus, type DisciplinarySeverity, type PerformanceRating } from "../../db/models/personnelRecords.models";
 
 /**
  * Resolve the target personnel record's owning User, enforcing the same
@@ -193,13 +193,13 @@ export async function deleteLeaveRecord(auth: AuthContext, userId: string, id: s
 
 // --- Disciplinary records ---------------------------------------------------
 
+/** OD `personAddDisc` (modules.js:5525) writes `{date, type, severity, action, note}`. */
 export interface CreateDisciplinaryRecordInput {
-  disciplineType: string;
-  incidentDate: string;
-  description: string;
-  actionTaken?: string | null;
+  date: string;
+  type: string;
   severity?: string | null;
-  status?: string;
+  action?: string | null;
+  note?: string | null;
 }
 
 export async function listDisciplinaryRecords(auth: AuthContext, userId: string): Promise<DisciplinaryRecord[]> {
@@ -214,10 +214,6 @@ export async function createDisciplinaryRecord(
   ip: string | null,
 ): Promise<DisciplinaryRecord> {
   const user = await requireManagedUser(auth, userId);
-  const status = input.status ?? "Open";
-  if (!DISCIPLINARY_STATUSES.includes(status as DisciplinaryStatus)) {
-    throw new BadRequestError(`status must be one of ${DISCIPLINARY_STATUSES.join(", ")}`, "INVALID_STATUS");
-  }
   // OD `personAddDisc` (modules.js:5525) writes the `di-sev` Low/Medium/High select.
   const severity = input.severity ?? null;
   if (severity !== null && !DISCIPLINARY_SEVERITIES.includes(severity as DisciplinarySeverity)) {
@@ -226,12 +222,11 @@ export async function createDisciplinaryRecord(
   const record = await DisciplinaryRecord.create({
     orgId: user.orgId,
     userId: user.id,
-    disciplineType: input.disciplineType,
-    incidentDate: input.incidentDate,
-    description: input.description,
-    actionTaken: input.actionTaken ?? null,
+    date: input.date,
+    type: input.type,
     severity: severity as DisciplinarySeverity | null,
-    status: status as DisciplinaryStatus,
+    action: input.action ?? null,
+    note: input.note ?? null,
     createdBy: auth.userId,
   });
   await writeAudit({
@@ -266,13 +261,14 @@ export async function deleteDisciplinaryRecord(auth: AuthContext, userId: string
 
 // --- Performance records -----------------------------------------------------
 
+/** OD `personAddPerf` (modules.js:5526) writes `{period, rating, reviewer, note}`. */
 export interface CreatePerformanceRecordInput {
-  reviewPeriod: string;
+  period: string;
   rating: string;
   /** Free text, as OD stores it — `<input id="pf-rev">` (modules.js:5526), seeded 'Board'. */
   reviewer?: string | null;
   reviewerId?: string | null;
-  comments?: string | null;
+  note?: string | null;
 }
 
 export async function listPerformanceRecords(auth: AuthContext, userId: string): Promise<PerformanceRecord[]> {
@@ -294,11 +290,11 @@ export async function createPerformanceRecord(
   const record = await PerformanceRecord.create({
     orgId: user.orgId,
     userId: user.id,
-    reviewPeriod: input.reviewPeriod,
+    period: input.period,
     rating: input.rating as PerformanceRating,
     reviewer: input.reviewer ?? null,
     reviewerId: input.reviewerId ?? null,
-    comments: input.comments ?? null,
+    note: input.note ?? null,
     createdBy: auth.userId,
   });
   await writeAudit({

@@ -113,6 +113,54 @@ describe("public supplier PO confirmation", () => {
     ]);
   });
 
+  // R473 / OD `poDocHtml` (js/modules.js:4185, 4225) — the terms strip's last
+  // two cells. `activity` is prepended here, so the issuer is the trail's LAST
+  // entry, and REMIT TO comes off the supplier's own `ent-suppliers` row.
+  it("carries ISSUED BY and REMIT TO onto the supplier's copy", async () => {
+    const a = await actor();
+    const sup = await request(app).post("/v1/business/enterprise/ent-suppliers").set(authed(a.token))
+      .send({
+        title: "Stark Industries Supply", status: "Approved",
+        data: { bankName: "Bank Central Asia (BCA)", bankAccount: "527-088-1120" },
+      });
+    const supplierId = sup.body.data.id as string;
+    const data = {
+      supplierName: "Stark Industries Supply", supplierId,
+      issuedDate: "2026-08-01", deliveryBy: "2026-09-01", currency: "IDR", terms: "30", amount: 1000,
+      activity: [
+        { ts: "2026-08-01T01:00:00.000Z", user: "Cindy Moon", action: "sent PO to supplier", summary: "" },
+        { ts: "2026-08-01T00:00:00.000Z", user: "Cindy Moon", action: "issued", summary: "" },
+      ],
+    };
+    const created = await request(app).post("/v1/business/enterprise/ent-po").set(authed(a.token))
+      .send({ title: "Stark Industries Supply", status: "Issued", data });
+    const sent = await request(app).put(`/v1/business/enterprise/ent-po/${created.body.data.id as string}`).set(authed(a.token))
+      .send({ title: "Stark Industries Supply", status: "Sent", data: { ...data, sentAt: "2026-08-01T00:00:00.000Z", sentCount: 1 } });
+    const code = sent.body.data.code as string;
+    const tok = sent.body.data.data.confirmToken as string;
+
+    const res = await request(app).get(`/v1/public/purchase-orders/${code}/confirmation?t=${encodeURIComponent(tok)}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ issuedBy: "Cindy Moon", remitTo: "Bank Central Asia (BCA) · 527-088-1120" });
+
+    // The acknowledgement is prepended to the same trail; ISSUED BY must still
+    // name the buyer's issuer, not the supplier who just answered.
+    const ack = await request(app).post(`/v1/public/purchase-orders/${code}/confirmation?t=${encodeURIComponent(tok)}`)
+      .send({ state: "Acknowledged" });
+    expect(ack.status).toBe(200);
+    expect(ack.body.data.issuedBy).toBe("Cindy Moon");
+  });
+
+  // OD omits the whole REMIT TO cell when the supplier has no bank record.
+  it("omits REMIT TO when the supplier carries no bank details", async () => {
+    const a = await actor();
+    const po = await sentPo(a.token);
+    const res = await request(app).get(`/v1/public/purchase-orders/${po.code}/confirmation?t=${encodeURIComponent(po.confirmToken)}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.remitTo).toBe("");
+    expect(res.body.data.issuedBy).toBe("");
+  });
+
   it("spells out the structured payment terms OD's poPaymentTermsText builds", async () => {
     const a = await actor();
     const data = {

@@ -40,12 +40,12 @@ export interface UploadedFile {
   filename: string;
 }
 
-/** Persists a DB row for an already-saved multer file. Size/type come from the server-verified `file`, never the client body. */
-export async function recordUpload(auth: AuthContext, file: UploadedFile, alt: string | null, ip: string | null): Promise<CmsMedia> {
+/** Persists a DB row for an already-saved multer file. Size/type come from the server-verified `file`, never the client body; `name` is the author's label (OD `cms-m-name`) and falls back to the file's own name. */
+export async function recordUpload(auth: AuthContext, file: UploadedFile, alt: string | null, ip: string | null, name?: string | null): Promise<CmsMedia> {
   const relUrl = `/uploads/cms/${auth.orgId}/${file.filename}`;
   const m = await CmsMedia.create({
     orgId: auth.orgId,
-    name: file.originalname,
+    name: name || file.originalname,
     type: file.mimetype,
     alt,
     size: file.size,

@@ -266,11 +266,13 @@ export const SAAS_PAY_STATES = ["Awaiting Transfer", "Under Verification", "Veri
 export type SaasPaymentState = (typeof SAAS_PAY_STATES)[number];
 
 /**
- * OD `pipeVerifyPayment` (app.html:10654). In OD, confirming payment and
- * auto-provisioning happen in one synchronous click; here they are two
- * separate requests, so this sets `payment.state='Verified'` and rests the
- * pipe at the 'Verified' stage — see pipeline.transitions.ts for why that
- * stage is used here where OD never actually persisted it.
+ * OD `pipeVerifyPayment` (app.html:10654). Confirming payment and provisioning
+ * are one action, exactly as in OD: the onOk stamps `payment.state='Verified'`
+ * and calls `saasProvisionPipeline` in the very same synchronous click, so the
+ * stage never rests at 'Verified' — it goes straight from 'Under Verification'
+ * to 'Completed' (or 'Provisioning Failed' if the attempt blows up, which
+ * OD's `saasRetryProvision` can then retry). This chains `runProvisioning`
+ * for the same reason; see pipeline.transitions.ts.
  *
  * `outcome: "Rejected"` is the other half of the same finance decision
  * (`SAAS_PAY_STATES`, js/core.js:2892): the proof is turned down, the payment
@@ -294,8 +296,9 @@ export async function verifyPayment(
     p.stage = "Awaiting Transfer";
     pipeLog(p, `Payment proof rejected by ${verifiedBy}${reason?.trim() ? ` — ${reason.trim()}` : ""}`);
   } else {
+    // Deliberately leaves `p.stage` at 'Under Verification': OD writes no
+    // stage here at all, provisioning below moves it to its next resting value.
     p.payment = { ...(p.payment ?? {}), state: "Verified", verifiedBy, verifiedAt: at };
-    p.stage = "Verified";
     pipeLog(p, `Payment verified by ${verifiedBy}`);
   }
   await p.save();
@@ -304,6 +307,7 @@ export async function verifyPayment(
     action: outcome === "Rejected" ? "saas.pipeline.paymentRejected" : "saas.pipeline.paymentVerified",
     entityType: "SaasPipeline", entityId: p.id, sourceIp: ip, result: "Success",
   });
+  if (outcome === "Verified") return runProvisioning(auth, p.id, ip);
   return pipelineView(p);
 }
 
@@ -450,12 +454,26 @@ async function recordProvisioningFailure(id: string, err: unknown, auth: AuthCon
 }
 
 /**
- * OD `saasProvisionPipeline` (app.html:10813). Refuses to provision unless
- * `payment.state === 'Verified'` (the guard at app.html:10814) — checked
- * twice, once structurally (the transition table only allows this action
- * from 'Verified'/'Provisioning Failed') and once explicitly, matching OD's
- * own inline check, so a row that reaches an inconsistent state (e.g. a
- * direct DB edit) is still refused rather than silently provisioned.
+ * OD `saasRetryProvision` (app.html:10822) — the Retry offered at
+ * 'Provisioning Failed', the only stage from which the transition table allows
+ * this action. The happy path never comes through here: `verifyPayment` chains
+ * `runProvisioning` directly, exactly as OD's verify click does.
+ */
+export async function provisionPipeline(auth: AuthContext, id: string, ip: string | null) {
+  requireManage(auth);
+  const entry = await requirePipelineEntry(id);
+  assertPipelineTransition(entry.stage, "provision");
+  return runProvisioning(auth, id, ip);
+}
+
+/**
+ * The provisioning engine itself, shared by the `provision` route above (OD's
+ * `saasRetryProvision`) and by `verifyPayment`, which chains straight into it
+ * the way OD's `pipeVerifyPayment` chains into `saasProvisionPipeline`. It
+ * does not re-check the stage transition — both callers have already settled
+ * that provisioning is what happens next — but it does keep OD's own inline
+ * payment guard (app.html:10814), so a row in an inconsistent state (e.g. a
+ * direct DB edit) is refused rather than silently provisioned.
  *
  * Creates the tenant if it does not exist, creates the subscription bundle
  * and one workspace per pipeline item, links tenantId/subId back onto the
@@ -468,10 +486,8 @@ async function recordProvisioningFailure(id: string, err: unknown, auth: AuthCon
  * describing why, so the failure is visible and retryable rather than
  * thrown away.
  */
-export async function provisionPipeline(auth: AuthContext, id: string, ip: string | null) {
-  requireManage(auth);
+async function runProvisioning(auth: AuthContext, id: string, ip: string | null) {
   const entry = await requirePipelineEntry(id);
-  assertPipelineTransition(entry.stage, "provision");
   const payment = (entry.payment ?? {}) as { state?: string };
   if (payment.state !== "Verified") {
     throw new ConflictError("Payment must be verified before provisioning", "SAAS_PAYMENT_NOT_VERIFIED");

@@ -43,6 +43,14 @@ const uploadProofSchema = z.object({
   proofUrl: z.string().nullish(),
 });
 
+/** R186 / OD `SAAS_PAY_STATES` (js/core.js:2892) — finance verification has two
+ *  outcomes, so 'Rejected' has to be reachable over HTTP too. Absent body =
+ *  'Verified', the historical behaviour of this route. */
+const verifyPaymentSchema = z.object({
+  outcome: z.enum(["Verified", "Rejected"]).optional(),
+  reason: z.string().nullish(),
+});
+
 function listHandler<T>(fn: () => Promise<T[]>) {
   return async (_req: Request, res: Response, next: NextFunction) => {
     try {
@@ -136,7 +144,8 @@ export async function uploadPaymentProof(req: Request, res: Response, next: Next
 
 export async function verifyPayment(req: Request, res: Response, next: NextFunction) {
   try {
-    sendOk(res, await service.verifyPayment(guard(req), req.params.id as string, req.ip ?? null));
+    const { outcome, reason } = verifyPaymentSchema.parse(req.body ?? {});
+    sendOk(res, await service.verifyPayment(guard(req), req.params.id as string, req.ip ?? null, outcome, reason));
   } catch (e) {
     next(e);
   }

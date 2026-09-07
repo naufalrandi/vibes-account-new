@@ -248,7 +248,7 @@ describe("ISRA gap-register Wave Q, task S3 — residual suggestion engine (isra
     const saveRes = await request(app)
       .post(`/v1/isra/scenarios/${scen.id}/residual`)
       .set(authed(token))
-      .send({ l: 2, impact: 3, basis: "verified", notes: "L x C now travels with the residual" });
+      .send({ l: 2, impact: 3, rationale: "L x C now travels with the residual" });
     expect(saveRes.status).toBe(200);
     expect(saveRes.body.data.l).toBe(2);
     expect(saveRes.body.data.impact).toBe(3);
@@ -302,7 +302,7 @@ describe("ISRA gap-register Wave Q, task S3 — promoteResidual full semantics (
     const saveRes = await request(app)
       .post(`/v1/isra/scenarios/${scen.id}/residual`)
       .set(authed(token))
-      .send({ l: 1, impact: 2, basis: "verified" }); // score 2 <= default appetite 9
+      .send({ l: 1, impact: 2, rationale: "verified after treatment" }); // score 2 <= default appetite 9
     expect(saveRes.status).toBe(200);
 
     const promoteRes = await request(app).post(`/v1/isra/scenarios/${scen.id}/residual/promote`).set(authed(token));
@@ -333,7 +333,7 @@ describe("ISRA gap-register Wave Q, task S3 — promoteResidual full semantics (
     const saveRes = await request(app)
       .post(`/v1/isra/scenarios/${scen.id}/residual`)
       .set(authed(token))
-      .send({ l: 4, impact: 4, basis: "current" }); // score 16 > default appetite 9
+      .send({ l: 4, impact: 4, rationale: "still above appetite" }); // score 16 > default appetite 9
     expect(saveRes.status).toBe(200);
 
     const promoteRes = await request(app).post(`/v1/isra/scenarios/${scen.id}/residual/promote`).set(authed(token));

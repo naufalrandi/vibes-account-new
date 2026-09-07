@@ -191,15 +191,17 @@ describe("users", () => {
 
   it("invites a user with a role and filters the list by that role", async () => {
     const { token, tenantOrgId } = await seedAdminAndLogin();
-    // Seed a role whose name we can invite into and filter by. "Team Member" is a
-    // canonical assignable role for Tenant orgs (see role.catalog).
-    const memberRole = await Role.create({ name: "Team Member", tierScope: "Tenant", orgId: tenantOrgId, isSuperAdmin: false, status: true });
+    // Seed a role whose name we can invite into and filter by. OD has exactly one
+    // role-group enum (js/core.js:111) and no per-tier variant, so every org type
+    // draws from the same four groups; "Basic User" is one of them (see
+    // role.catalog) and is distinct from the "Administrator" case below.
+    const memberRole = await Role.create({ name: "Basic User", tierScope: "Tenant", orgId: tenantOrgId, isSuperAdmin: false, status: true });
 
     const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
-      .send({ orgId: tenantOrgId, fullName: "Carol", username: "carol", email: "carol@acme.com", role: "Team Member" });
+      .send({ orgId: tenantOrgId, fullName: "Carol", username: "carol", email: "carol@acme.com", role: "Basic User" });
     expect(created.status).toBe(201);
 
-    const filtered = await request(app).get("/v1/users?role=Team%20Member").set("authorization", `Bearer ${token}`);
+    const filtered = await request(app).get("/v1/users?role=Basic%20User").set("authorization", `Bearer ${token}`);
     expect(filtered.status).toBe(200);
     expect(filtered.body.data.length).toBe(1);
     expect(filtered.body.data[0].username).toBe("carol");
@@ -208,6 +210,8 @@ describe("users", () => {
 
   it("rejects user creation with a role not valid for the org type (Team Member into ServiceOwner)", async () => {
     const { token } = await seedAdminAndLogin();
+    // "Team Member" is not in OD's role-group enum (js/core.js:111) for any org
+    // type, so the catalog check rejects it wherever it is offered.
     // The actor's own ServiceOwner org id, reused as a valid existing org.
     const me = await request(app).get("/v1/users?username=soadmin").set("authorization", `Bearer ${token}`);
     const soOrgId = me.body.data[0].orgId as string;

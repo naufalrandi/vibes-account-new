@@ -75,7 +75,15 @@ export interface PoConfirmationView {
   issuedDate: string; deliveryDate: string; currency: string;
   items: PoConfirmationLineItem[];
   subtotal: number; tax: number; total: number;
-  terms: string; notes?: string;
+  terms: string;
+  /**
+   * R473 / OD `poDocHtml` (js/modules.js:4185, 4225) — the terms strip's last
+   * two cells. `issuedBy` is the buyer-side user who raised the order;
+   * `remitTo` is the supplier's OWN bank line, which OD omits entirely when the
+   * supplier record carries no bank name, so it is "" and not "\u2014" in that case.
+   */
+  issuedBy: string; remitTo: string;
+  notes?: string;
   ack?: { state: "Acknowledged" | "Declined"; at: string; note?: string };
 }
 
@@ -126,7 +134,40 @@ function prLineItem(pr: BusinessRecord | null | undefined, title: string, amount
   return { desc, qty, unit, price: unitValue, total: qty * unitValue };
 }
 
-function toView(r: BusinessRecord, pr?: BusinessRecord | null): PoConfirmationView {
+/**
+ * R473 / OD `poDocHtml` (js/modules.js:4185) — "ISSUED BY" is whoever raised
+ * the order: the CHRONOLOGICALLY FIRST entry in the PO's activity trail. OD
+ * appends (`po.activity.push`), so that is its entry 0; this repo prepends
+ * (`appendPoActivity`, fe-vibes-new/lib/procurement/purchaseOrders.ts, and
+ * `respondPoConfirmation` below), so it is the LAST element. Reading entry 0
+ * here would relabel ISSUED BY with the supplier's own name the moment they
+ * accept, since the acknowledgement is prepended to this same trail.
+ *
+ * OD falls back to `ocActor()` — the signed-in user. There is none on a public
+ * link, so an empty trail yields "" and the page prints an em dash.
+ */
+function poIssuedBy(d: Record<string, unknown>): string {
+  const trail = Array.isArray(d.activity) ? d.activity : [];
+  const issued = trail[trail.length - 1] as Record<string, unknown> | undefined;
+  return str(issued?.user);
+}
+
+/**
+ * R473 / OD `poDocHtml` (js/modules.js:4225) — "REMIT TO" is the supplier's own
+ * bank name, with the account number after a middot when one is recorded. OD
+ * omits the whole cell when the supplier carries no bank name; "" says so.
+ * These are the supplier's own remittance details on their own order, so the
+ * token-scoped projection may carry them.
+ */
+function poRemitTo(sup: BusinessRecord | null | undefined): string {
+  const s = (sup?.data ?? {}) as Record<string, unknown>;
+  const bankName = str(s.bankName);
+  if (!bankName) return "";
+  const account = str(s.bankAccount);
+  return account ? `${bankName} · ${account}` : bankName;
+}
+
+function toView(r: BusinessRecord, pr?: BusinessRecord | null, sup?: BusinessRecord | null): PoConfirmationView {
   const d = (r.data ?? {}) as Record<string, unknown>;
   const amount = num(d.amount) || Number(d.amount) || 0;
   const buyer = r.company === "exelera" ? "PT Exelera Sertifikasi Nusantara" : "PT AXIA Global Indonesia";
@@ -155,6 +196,8 @@ function toView(r: BusinessRecord, pr?: BusinessRecord | null): PoConfirmationVi
     tax: 0,
     total: amount,
     terms: poPaymentTermsText(d),
+    issuedBy: poIssuedBy(d),
+    remitTo: poRemitTo(sup),
     ack,
   };
 }
@@ -201,9 +244,38 @@ async function requestOf(r: BusinessRecord): Promise<BusinessRecord | null> {
   }
 }
 
+/**
+ * The approved-vendor record this PO names, for the REMIT TO cell. OD resolves
+ * `po.supplierId` through `supById` and falls back to a name match when the PO
+ * carries no id (js/modules.js:4173); `supplierId` is the `ent-suppliers` row's
+ * UUID once `seedEnterpriseSuppliers` has rewritten OD's own "84-n" ids, so a
+ * non-UUID takes the name fallback rather than throwing on a UUID column.
+ */
+async function supplierOf(r: BusinessRecord): Promise<BusinessRecord | null> {
+  const d = (r.data ?? {}) as Record<string, unknown>;
+  const supplierId = str(d.supplierId);
+  const supplierName = str(d.supplierName);
+  // Tenant-scoped: the name fallback matches on a free-text title, so it must
+  // not be allowed to reach another org's vendor register.
+  const scope = { orgId: r.orgId, area: PO_AREA, module: "ent-suppliers" };
+  const where = UUID_RE.test(supplierId)
+    ? { ...scope, id: supplierId }
+    : supplierName
+      ? { ...scope, title: supplierName }
+      : null;
+  if (!where) return null;
+  try {
+    return await BusinessRecord.findOne({ where });
+  } catch {
+    // Same as `requestOf`: a broken reference must not take the page down — the
+    // REMIT TO cell is simply omitted, exactly as OD omits it with no bank row.
+    return null;
+  }
+}
+
 export async function getPoConfirmation(code: string, token: string): Promise<PoConfirmationView | null> {
   const r = await findPoByToken(code, token);
-  return r ? toView(r, await requestOf(r)) : null;
+  return r ? toView(r, await requestOf(r), await supplierOf(r)) : null;
 }
 
 export type PoRespondResult =
@@ -248,5 +320,5 @@ export async function respondPoConfirmation(
     activity: [{ ts: at, user: by, action, summary: trimmed || r.code }, ...activity],
   };
   await r.save();
-  return { ok: true, view: toView(r, await requestOf(r)) };
+  return { ok: true, view: toView(r, await requestOf(r), await supplierOf(r)) };
 }

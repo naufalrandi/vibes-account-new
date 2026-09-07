@@ -32,6 +32,7 @@ export type SaasPipelineAction =
  *                                                       to pipeRowActions.]
  *   Awaiting Transfer   -> Upload Proof
  *   Under Verification  -> Verify Payment
+ *   Verified            -> (nothing — never a resting stage, see below)
  *   Provisioning Failed -> Retry (= provision again)
  *   Completed           -> (view / open tenant only — no pipeline action)
  *   Declined            -> (terminal — no action)
@@ -41,11 +42,11 @@ export type SaasPipelineAction =
  * `payment.state='Verified'` and then calls `saasProvisionPipeline` in the
  * very same synchronous click, which jumps the pipe stage straight from
  * 'Under Verification' to 'Completed' without ever writing `stage='Verified'`
- * in between. This backend instead exposes "verify payment" and "provision"
- * as two separate HTTP requests (per the task's action list), so it puts
- * 'Verified' to real use as the resting stage between them — a deliberate,
- * documented adaptation of an OD stage that exists in the model but was
- * previously unreachable in the UI's synchronous flow.
+ * in between, and pipeRowActions therefore falls through to View only at that
+ * stage. `verifyPayment` here chains provisioning in the same request for
+ * exactly that reason, so nothing rests at 'Verified' and no write action is
+ * legal there. `provision` stays exposed as its own route solely for OD's
+ * `saasRetryProvision` — the Retry offered at 'Provisioning Failed'.
  */
 export const SAAS_PIPE_TRANSITIONS: Partial<Record<SaasPipelineStage, SaasPipelineAction[]>> = {
   "Quote Sent": ["accept", "decline"],
@@ -53,7 +54,6 @@ export const SAAS_PIPE_TRANSITIONS: Partial<Record<SaasPipelineStage, SaasPipeli
   Registration: ["saveRegistration"],
   "Awaiting Transfer": ["uploadProof"],
   "Under Verification": ["verifyPayment"],
-  Verified: ["provision"],
   "Provisioning Failed": ["provision"],
 };
 

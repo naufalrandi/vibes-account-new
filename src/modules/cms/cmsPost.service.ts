@@ -103,6 +103,13 @@ export async function setStatus(auth: AuthContext, id: string, status: CmsPostSt
   return p;
 }
 
+/** R173 — OD `cmsPostDel` (app.html:6968) deletes a post outright. */
+export async function deletePost(auth: AuthContext, id: string, ip: string | null): Promise<void> {
+  const p = await requirePost(auth, id);
+  await p.destroy();
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "cms.post.deleted", entityType: "CmsPost", entityId: id, sourceIp: ip, result: "Success" });
+}
+
 export const publishPost = (auth: AuthContext, id: string, ip: string | null): Promise<CmsPost> => setStatus(auth, id, "Published", ip);
 export const archivePost = (auth: AuthContext, id: string, ip: string | null): Promise<CmsPost> => setStatus(auth, id, "Archived", ip);
 

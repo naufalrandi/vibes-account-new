@@ -130,26 +130,31 @@ LeaveRecord.init(
   { sequelize, tableName: "leave_records", underscored: true },
 );
 
-export const DISCIPLINARY_STATUSES = ["Open", "Resolved", "Appealed"] as const;
-export type DisciplinaryStatus = (typeof DISCIPLINARY_STATUSES)[number];
-
 /** OD `personAddDisc` severity picklist — the `di-sev` select (js/modules.js:5525). */
 export const DISCIPLINARY_SEVERITIES = ["Low", "Medium", "High"] as const;
 export type DisciplinarySeverity = (typeof DISCIPLINARY_SEVERITIES)[number];
 
+/**
+ * OD `personAddDisc` (js/modules.js:5525) writes exactly `{date, type,
+ * severity, action, note}`, and `personTabDisc` (js/modules.js:4929) renders
+ * date / type / severity / action. The field names below are OD's own; the
+ * HR-convention names migration 0082 guessed (discipline_type, incident_date,
+ * description, action_taken) were renamed in migration 0118.
+ *
+ * There is no `status`: neither the add modal nor the list card has one, so
+ * the invented `DISCIPLINARY_STATUSES` vocabulary and the `status` column
+ * defaulting to 'Open' were dropped in the same migration.
+ */
 export class DisciplinaryRecord extends Model<InferAttributes<DisciplinaryRecord>, InferCreationAttributes<DisciplinaryRecord>> {
   declare id: CreationOptional<string>;
   declare orgId: string;
   declare userId: string;
-  declare disciplineType: string;
-  declare incidentDate: string;
-  /** OD's optional `note` (js/modules.js:5525); the design imposes no required text. */
-  declare description: string | null;
-  declare actionTaken: string | null;
-  /** OD `personAddDisc` (js/modules.js:5525) — Low / Medium / High, rendered as
-   *  its own tag column at js/modules.js:4929. */
+  declare date: string;
+  declare type: string;
   declare severity: DisciplinarySeverity | null;
-  declare status: CreationOptional<DisciplinaryStatus>;
+  declare action: string | null;
+  /** OD's optional `note` (the `di-note` textarea); the design imposes no required text. */
+  declare note: string | null;
   declare createdBy: string | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -159,12 +164,11 @@ DisciplinaryRecord.init(
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     orgId: { type: DataTypes.UUID, allowNull: false, field: "org_id" },
     userId: { type: DataTypes.UUID, allowNull: false, field: "user_id" },
-    disciplineType: { type: DataTypes.STRING, allowNull: false, field: "discipline_type" },
-    incidentDate: { type: DataTypes.DATEONLY, allowNull: false, field: "incident_date" },
-    description: { type: DataTypes.TEXT, allowNull: true },
-    actionTaken: { type: DataTypes.TEXT, allowNull: true, field: "action_taken" },
+    date: { type: DataTypes.DATEONLY, allowNull: false },
+    type: { type: DataTypes.STRING, allowNull: false },
     severity: { type: DataTypes.STRING, allowNull: true },
-    status: { type: DataTypes.STRING, allowNull: false, defaultValue: "Open" },
+    action: { type: DataTypes.TEXT, allowNull: true },
+    note: { type: DataTypes.TEXT, allowNull: true },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
@@ -176,22 +180,28 @@ DisciplinaryRecord.init(
 export const PERFORMANCE_RATINGS = ["Exceeds", "Meets", "Below"] as const;
 export type PerformanceRating = (typeof PERFORMANCE_RATINGS)[number];
 
+/**
+ * OD `personAddPerf` (js/modules.js:5526) writes exactly `{period, rating,
+ * reviewer, note}`, and `personTabPerf` (js/modules.js:4931) renders all four.
+ * `review_period` / `comments` were migration 0082's guesses and were renamed
+ * to OD's `period` / `note` in migration 0118.
+ */
 export class PerformanceRecord extends Model<InferAttributes<PerformanceRecord>, InferCreationAttributes<PerformanceRecord>> {
   declare id: CreationOptional<string>;
   declare orgId: string;
   declare userId: string;
-  declare reviewPeriod: string;
+  declare period: string;
   declare rating: PerformanceRating;
   /**
    * Reviewer as OD stores it — FREE TEXT, not a person link: `personAddPerf`
    * reads it from `<input id="pf-rev">` (js/modules.js:5526) and the seeded
-   * axia1 review has `reviewer:'Board'` (js/modules.js:1080), which is a body,
+   * axia1 review has `reviewer:'Board'` (js/modules.js:1078), which is a body,
    * not a user. `reviewerId` stays as the optional structured link for the
    * common case where the reviewer IS a platform user.
    */
   declare reviewer: string | null;
   declare reviewerId: string | null;
-  declare comments: string | null;
+  declare note: string | null;
   declare createdBy: string | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -201,11 +211,11 @@ PerformanceRecord.init(
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     orgId: { type: DataTypes.UUID, allowNull: false, field: "org_id" },
     userId: { type: DataTypes.UUID, allowNull: false, field: "user_id" },
-    reviewPeriod: { type: DataTypes.STRING, allowNull: false, field: "review_period" },
+    period: { type: DataTypes.STRING, allowNull: false },
     rating: { type: DataTypes.STRING, allowNull: false },
     reviewer: { type: DataTypes.STRING, allowNull: true },
     reviewerId: { type: DataTypes.UUID, allowNull: true, field: "reviewer_id" },
-    comments: { type: DataTypes.TEXT, allowNull: true },
+    note: { type: DataTypes.TEXT, allowNull: true },
     createdBy: { type: DataTypes.STRING, allowNull: true, field: "created_by" },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,

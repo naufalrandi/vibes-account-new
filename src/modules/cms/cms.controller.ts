@@ -116,6 +116,16 @@ export async function archivePage(req: Request, res: Response, next: NextFunctio
   }
 }
 
+export async function removePage(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    await pageService.deletePage(req.auth, req.params.id as string, req.ip ?? null);
+    sendOk(res, { id: req.params.id });
+  } catch (e) {
+    next(e);
+  }
+}
+
 // --- Posts ------------------------------------------------------------------
 
 export async function listPosts(req: Request, res: Response, next: NextFunction) {
@@ -176,6 +186,16 @@ export async function archivePost(req: Request, res: Response, next: NextFunctio
   }
 }
 
+export async function removePost(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    await postService.deletePost(req.auth, req.params.id as string, req.ip ?? null);
+    sendOk(res, { id: req.params.id });
+  } catch (e) {
+    next(e);
+  }
+}
+
 // --- Media -------------------------------------------------------------------
 
 export async function listMedia(req: Request, res: Response, next: NextFunction) {
@@ -193,7 +213,10 @@ export async function uploadMedia(req: Request, res: Response, next: NextFunctio
     if (!req.auth) throw new UnauthorizedError();
     if (!req.file) throw new BadRequestError("A file is required", "FILE_REQUIRED");
     const alt = typeof req.body?.alt === "string" ? req.body.alt : null;
-    sendOk(res, await mediaService.recordUpload(req.auth, req.file, alt, req.ip ?? null), 201);
+    // R173 / OD `cms-m-name` — the author names the asset; type and size stay
+    // server-derived from the uploaded file, never taken from the body.
+    const name = typeof req.body?.name === "string" && req.body.name.trim() ? req.body.name.trim().slice(0, 300) : null;
+    sendOk(res, await mediaService.recordUpload(req.auth, req.file, alt, req.ip ?? null, name), 201);
   } catch (e) {
     next(e);
   }

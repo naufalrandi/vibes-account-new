@@ -34,25 +34,27 @@ const leaveSchema = z.object({
   status: z.string().optional(),
 });
 
+// OD `personAddDisc` (modules.js:5525) writes `{date, type, severity, action, note}`
+// — `di-note` is an optional textarea and there is no status field at all.
 const disciplinarySchema = z.object({
-  disciplineType: z.string().min(1),
-  incidentDate: z.string().min(1),
-  description: z.string().min(1),
-  actionTaken: z.string().nullish(),
-  // OD `personAddDisc` (modules.js:5525) — the `di-sev` Low/Medium/High select.
+  date: z.string().min(1),
+  type: z.string().min(1),
+  // The `di-sev` Low/Medium/High select.
   severity: z.string().nullish(),
-  status: z.string().optional(),
+  action: z.string().nullish(),
+  note: z.string().nullish(),
 });
 
+// OD `personAddPerf` (modules.js:5526) writes `{period, rating, reviewer, note}`.
 const performanceSchema = z.object({
-  reviewPeriod: z.string().min(1),
-  // OD `personAddPerf` (modules.js:5526) — the `pf-rating` Exceeds/Meets/Below select.
+  period: z.string().min(1),
+  // The `pf-rating` Exceeds/Meets/Below select.
   rating: z.string().min(1),
   // OD reads the reviewer from a free-text `<input id="pf-rev">`; the seeded review
   // is `reviewer:'Board'` (modules.js:1078), which is a body, not a platform user.
   reviewer: z.string().nullish(),
   reviewerId: z.string().uuid().nullish(),
-  comments: z.string().nullish(),
+  note: z.string().nullish(),
 });
 
 export async function listResume(req: Request, res: Response, next: NextFunction) {

@@ -5,11 +5,12 @@ import { seedBusinessRecords } from "./businessRecordsSeed";
 import { CMS_PAGES, CMS_POSTS, CMS_MEDIA, CMS_MENU } from "./cms.data";
 
 /**
- * R173 — the Website CMS screen reads the five `ent-mkt-*` Business registers,
- * not the first-class `cms_*` tables the CMS seeder fills. Nothing seeded the
- * registers, so against a live API every tab of the screen was empty while the
- * content sat in tables the screen never queries. This pins that both halves
- * come from the one `cms.data.ts`.
+ * R173 — the Website CMS screen now reads the first-class `cms_*` tables
+ * (`/v1/cms`), which is also what `/v1/public/cms` publishes the live site
+ * from. The five `ent-mkt-*` Business registers are the legacy store it used to
+ * write instead; they are still seeded (and still schema-validated) so existing
+ * rows keep resolving, and this pins that both halves come from the one
+ * `cms.data.ts` rather than drifting apart.
  */
 describe("Website CMS business registers seed", () => {
   beforeAll(() => initModels());

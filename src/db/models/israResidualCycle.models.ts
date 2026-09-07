@@ -138,7 +138,11 @@ export class IsraScenarioResidual extends Model<InferAttributes<IsraScenarioResi
   declare impact: number | null;
   declare score: number | null;
   declare band: string | null;
-  declare basis: string | null;
+  /** R318 / OD `sc.residual.rationale` (js/core.js:16720) — the assessor's free
+   *  prose. Stored in the pre-existing `basis` column (no rename migration);
+   *  it is NOT the four-value `ISRA_RESIDUAL_BASIS` vocabulary, which belongs
+   *  to the *suggested* residual only. */
+  declare rationale: string | null;
   declare assessmentDate: string | null;
   declare assessedBy: string | null;
   declare notes: string | null;
@@ -153,7 +157,7 @@ IsraScenarioResidual.init(
     impact: { type: DataTypes.INTEGER, allowNull: true },
     score: { type: DataTypes.INTEGER, allowNull: true },
     band: { type: DataTypes.STRING, allowNull: true },
-    basis: { type: DataTypes.STRING, allowNull: true },
+    rationale: { type: DataTypes.STRING, allowNull: true, field: "basis" },
     assessmentDate: { type: DataTypes.DATEONLY, allowNull: true, field: "assessment_date" },
     assessedBy: { type: DataTypes.STRING, allowNull: true, field: "assessed_by" },
     notes: { type: DataTypes.TEXT, allowNull: true },

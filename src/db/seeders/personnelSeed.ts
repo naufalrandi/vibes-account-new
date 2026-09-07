@@ -49,12 +49,9 @@ import { HAMMER_TEAM, SP_TEAM, ensurePerson } from "./competenceRoles";
  * `trainingPlans.find(t=>t.id===gap.trainingPlanId)`) is patched to the real training-plan id
  * once the training plan seed runs (chicken/egg: gap -> plan -> gap).
  *
- * Reported gap (no home): OD topic `quiz` rows use `{passMark, questions:[{text, options:[{text,
- * correct}]|answerTrue}]}` — the FE's `topicQuiz()`/`AwarenessQuiz` contract
- * (`lib/implementation/awareness.ts`) expects `{passPercent, questions:[{prompt, options:string[],
- * correctOption}]}`. A verbatim copy silently renders "Not configured" (every question fails
- * `topicQuiz`'s field-presence filter). This seeder reshapes the two affected topics' quizzes
- * into the FE contract (same content, renamed/restructured fields) rather than leaving that gap.
+ * Awareness quizzes are stored verbatim in OD's own contract — `{passMark, questions:[{id, type,
+ * text, points, options:[{id, text, correct}], answerTrue}]}` (core.js `awQuizSave`, 20950) — which
+ * is what the FE's `topicQuiz()`/`AwarenessQuiz` (`lib/implementation/awareness.ts`) reads.
  * OD's per-record `activity[]`/`comments[]` arrays (topics/programs/campaigns/trainingPlans) ride
  * along in `data` for forward compatibility — same convention as `seedTenantSuppliers` — but have
  * no reader in the Awareness or Training Plan workspaces today.
@@ -99,28 +96,6 @@ async function resolvePerson(
 
 // ============================ Awareness ============================
 
-interface RawQuizOption { id: string; text: string; correct?: boolean }
-interface RawQuizQuestion { id: string; type: string; text: string; options?: RawQuizOption[]; answerTrue?: boolean }
-interface RawQuiz { passMark: number; questions: RawQuizQuestion[] }
-
-/** Reshapes OD's quiz dump into the `AwarenessQuiz` contract `topicQuiz()` (lib/implementation/
- * awareness.ts) actually reads — see header note. */
-function transformQuiz(raw: unknown): Record<string, unknown> | undefined {
-  const q = raw as RawQuiz | undefined;
-  if (!q || !Array.isArray(q.questions) || q.questions.length === 0) return undefined;
-  return {
-    passPercent: q.passMark,
-    questions: q.questions.map((question) => {
-      if (question.type === "truefalse") {
-        return { id: question.id, prompt: question.text, options: ["True", "False"], correctOption: question.answerTrue ? 0 : 1 };
-      }
-      const options = question.options ?? [];
-      const correctOption = Math.max(0, options.findIndex((o) => o.correct === true));
-      return { id: question.id, prompt: question.text, options: options.map((o) => o.text), correctOption };
-    }),
-  };
-}
-
 async function seedAwarenessTopics(orgId: string): Promise<Map<string, string>> {
   const rows = loadDump("awTopics");
   const existing = await ImplementationRecord.findAll({ where: { orgId, module: "awareness-topics" } });
@@ -136,7 +111,7 @@ async function seedAwarenessTopics(orgId: string): Promise<Map<string, string>> 
         frameworks: Array.isArray(row.frameworks) ? row.frameworks : [],
         data: {
           category: row.category, description: row.description, materials: row.materials ?? [],
-          quiz: transformQuiz(row.quiz), createdBy: row.createdBy, createdDate: row.createdDate,
+          quiz: row.quiz, createdBy: row.createdBy, createdDate: row.createdDate,
           lastUpdatedBy: row.lastUpdatedBy, activity: row.activity ?? [], comments: row.comments ?? [],
         },
       });

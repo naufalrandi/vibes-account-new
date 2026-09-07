@@ -45,7 +45,6 @@ import { competenceRoutes } from "./modules/competence/competence.routes";
 import { approvalRoutes } from "./modules/approvals/approval.routes";
 import { scopeRoutes } from "./modules/scope/scope.routes";
 import { workUnitRoutes } from "./modules/work-units/workUnit.routes";
-import { doaMatrixRoutes } from "./modules/doa-matrix/doaMatrix.routes";
 import { cmsRoutes } from "./modules/cms/cms.routes";
 import { cmsPublicRoutes } from "./modules/cms/cmsPublic.routes";
 import { mReviewRoutes } from "./modules/management-review/mReview.routes";
@@ -164,7 +163,6 @@ export function createApp() {
   app.use("/v1/approvals", authenticate, tenantScope, approvalRoutes);
   app.use("/v1/scope", authenticate, tenantScope, scopeRoutes);
   app.use("/v1/work-units", authenticate, tenantScope, workUnitRoutes);
-  app.use("/v1/doa-matrix", authenticate, tenantScope, doaMatrixRoutes);
   app.use("/v1/cms", authenticate, tenantScope, cmsRoutes);
   app.use("/v1/management-review", authenticate, tenantScope, mReviewRoutes);
   app.use("/v1/org-units", authenticate, tenantScope, orgUnitRoutes);
