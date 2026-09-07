@@ -189,9 +189,10 @@ export async function deleteTraining(auth: AuthContext, id: string, ip: string |
 // competence read/write here).
 //
 // `defaultReassess` deliberately stores months (a number) rather than OD's
-// `COMP_REVFREQ` string vocabulary — see migration 0048's doc comment. It
-// feeds `competence.assessment.service.ts`'s `assessValidUntil`, which used to
-// hard-code `12`; `12` stays the *default value* of the setting itself.
+// `COMP_REVFREQ` string vocabulary — see migration 0048's doc comment.
+// M-056 — this whole surface is additive: OD hardcodes a 12-month cadence in
+// `blankRole` (js/modules.js:467) and `assessValidUntil` (js/modules.js:740),
+// so the setting is stored and displayed but never substituted for that 12.
 export const COMP_SETTINGS_DEFAULTS = {
   requireMethod: true,
   allowActivateMissing: false,

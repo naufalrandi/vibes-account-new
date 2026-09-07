@@ -83,7 +83,11 @@ describe("competence settings singleton", () => {
     expect((await request(app).put("/v1/competence/settings").set(authed(readOnly.token)).send({ allowOverride: false })).status).toBe(403);
   });
 
-  it("defaultReassess flows into an assessment's computed valid-until date", async () => {
+  // M-056 — the settings surface is EXTRA (OD has no `compSettings`): it may be
+  // stored and displayed, but it must not substitute for OD's hardcoded 12-month
+  // cadence (`blankRole` js/modules.js:467, `assessValidUntil` js/modules.js:740),
+  // which would silently shift every validUntil.
+  it("defaultReassess does not shift an assessment's computed valid-until date", async () => {
     const { token } = await makeOrg("cs7", "CS7", [ACTIONS.COMPETENCE_READ, ACTIONS.COMPETENCE_MANAGE]);
     await request(app).put("/v1/competence/settings").set(authed(token)).send({ defaultReassess: 6 });
 
@@ -97,7 +101,9 @@ describe("competence settings singleton", () => {
     const assessment = await request(app).post("/v1/competence/assessments").set(authed(token))
       .send({ assignmentId: assign.body.data.id, date: "2026-01-01", requirements: [] });
     expect(assessment.status).toBe(201);
-    // Role has no explicit reviewFreq, so the org's defaultReassess (6 months) applies.
-    expect(assessment.body.data.validUntil).toBe("2026-07-01");
+    // Role has no explicit reviewFreq, so OD's hardcoded 12 months applies —
+    // NOT the org's defaultReassess of 6.
+    expect(role.body.data.reviewFreq).toBe("12");
+    expect(assessment.body.data.validUntil).toBe("2027-01-01");
   });
 });

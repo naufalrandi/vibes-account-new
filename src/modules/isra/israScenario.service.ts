@@ -1071,6 +1071,38 @@ const planStatusOf = (v: unknown, fallback: string): string => {
   return s && (ISRA_RTP_PLAN_STATUS as readonly string[]).includes(s) ? s : fallback;
 };
 
+/**
+ * R337 / OD `isra2RtpForm`'s onOk (js/core.js:15246) — the plan-level fields the
+ * form writes onto the RTP record. `saveRtp` used to persist only funding,
+ * monitoring and the completion criteria, so the plan title, description,
+ * owner, timeline, evidence, dependencies and the Annex A controls ticked into
+ * scope were dropped on every save.
+ */
+interface RtpPlanFields {
+  title: string | null;
+  description: string | null;
+  addedControlIds: string[];
+  owner: string | null;
+  supporting: string | null;
+  resources: string | null;
+  startDate: string | null;
+  targetDate: string | null;
+  expectedEvidence: string | null;
+  dependencies: string | null;
+}
+
+const rtpPlanFields = (input: Record<string, unknown>, base?: Partial<RtpPlanFields>): Partial<RtpPlanFields> => {
+  const out: Partial<RtpPlanFields> = {};
+  const take = (key: Exclude<keyof RtpPlanFields, "addedControlIds">) => {
+    if (input[key] !== undefined) out[key] = str(input[key]);
+    else if (base && base[key] !== undefined) out[key] = base[key] ?? null;
+  };
+  (["title", "description", "owner", "supporting", "resources", "startDate", "targetDate", "expectedEvidence", "dependencies"] as const).forEach(take);
+  if (Array.isArray(input.addedControlIds)) out.addedControlIds = (input.addedControlIds as unknown[]).map(String);
+  else if (base?.addedControlIds) out.addedControlIds = base.addedControlIds;
+  return out;
+};
+
 export async function saveRtp(auth: AuthContext, scenarioId: string, input: Record<string, unknown>, _ip: string | null) {
   const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId: auth.orgId } });
   if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
@@ -1081,6 +1113,7 @@ export async function saveRtp(auth: AuthContext, scenarioId: string, input: Reco
       scenarioId,
       version: 1,
       status: planStatusOf(input.status, "Draft"),
+      ...rtpPlanFields(input),
       funding: (input.funding as any) || [],
       monitoring: str(input.monitoring) || "",
       completionCriteria: str(input.completionCriteria) || "",
@@ -1102,16 +1135,7 @@ export async function saveRtp(auth: AuthContext, scenarioId: string, input: Reco
       scenarioId,
       cycle: approved.cycle,
       option: approved.option,
-      title: approved.title,
-      description: approved.description,
-      addedControlIds: approved.addedControlIds,
-      owner: approved.owner,
-      supporting: approved.supporting,
-      resources: approved.resources,
-      startDate: approved.startDate,
-      targetDate: approved.targetDate,
-      expectedEvidence: approved.expectedEvidence,
-      dependencies: approved.dependencies,
+      ...rtpPlanFields(input, approved.get({ plain: true })),
       version: (approved.version || 1) + 1,
       status: "Draft",
       createdBy: auth.userId ?? approved.createdBy,
@@ -1136,6 +1160,7 @@ export async function saveRtp(auth: AuthContext, scenarioId: string, input: Reco
       }
     }
   } else {
+    rtp.set(rtpPlanFields(input));
     rtp.funding = (input.funding as any) || rtp.funding;
     rtp.monitoring = str(input.monitoring) || rtp.monitoring;
     rtp.completionCriteria = str(input.completionCriteria) || rtp.completionCriteria;

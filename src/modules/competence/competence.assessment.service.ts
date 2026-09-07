@@ -13,7 +13,6 @@ import { resolveCompany } from "../business/business.service";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
 import { assertMayApprove } from "../approvals/approval.service";
-import { getCompSettings } from "./competence.service";
 import { ISIC } from "../reference/data/isic";
 import { BadRequestError, ForbiddenError, NotFoundError, ConflictError } from "../../lib/errors";
 
@@ -90,14 +89,12 @@ export async function createRole(auth: AuthContext, input: Record<string, unknow
   const org = isSp ? null : await targetOrg(auth);
   const name = str(input.name);
   if (!name) throw new BadRequestError("Role name is required", "NAME_REQUIRED");
-  // Falls back to the org's `compSettings.defaultReassess` (OD `compSettings()`,
-  // index.html:13378) rather than a bare `12` — unchanged for orgs that never
-  // touch the setting (its own default is `12`), but now configurable.
-  // SP-global roles (org === null) have no per-org settings row, so `12` applies.
-  const defaultReassess = org ? (await getCompSettings(org)).defaultReassess : 12;
   const row = await CompetenceRole.create({
+    // M-056 — OD `blankRole` (js/modules.js:467) hardcodes a 12-month review
+    // cadence. The competence-settings surface is additive only; it must not
+    // substitute for OD's default here.
     orgId: org, company: resolveCompany(str(input.company) ?? undefined), name, description: str(input.description), status: optionalRoleStatus(input) ?? "Draft",
-    reviewFreq: str(input.reviewFreq) || String(defaultReassess), eduMinLevelId: str(input.eduMinLevelId), eduCountry: str(input.eduCountry),
+    reviewFreq: str(input.reviewFreq) || "12", eduMinLevelId: str(input.eduMinLevelId), eduCountry: str(input.eduCountry),
     eduFields: arr(input.eduFields) as string[], expReqs: arr(input.expReqs) as never, responsibilities: arr(input.responsibilities) as never, authorities: arr(input.authorities) as never,
   });
   await audit(auth, org ?? auth.orgId, "competence.role.created", "CompetenceRole", row.id, ip);
@@ -165,8 +162,12 @@ async function requireAssignment(auth: AuthContext, id: string): Promise<Compete
   await targetOrg(auth, row.orgId);
   return row;
 }
+/** M-054 — the picker's own vocabulary (fe `COMP_ASSIGN_STATUS`, lib/api/types.ts).
+ *  Whitelisting only Active/Archived made Draft and Inactive unsavable: every
+ *  offered status has to persist. */
+const ASSIGN_STATUS: readonly string[] = ["Draft", "Active", "Inactive", "Archived"];
 export async function setAssignmentStatus(auth: AuthContext, id: string, status: string, ip: string | null) {
-  if (status !== "Active" && status !== "Archived") throw new BadRequestError("Invalid assignment status", "INVALID_STATUS");
+  if (!ASSIGN_STATUS.includes(status)) throw new BadRequestError("Invalid assignment status", "INVALID_STATUS");
   const row = await requireAssignment(auth, id);
   row.status = status;
   await row.save();
@@ -351,21 +352,21 @@ function addMonths(dateStr: string, months: number): string {
   d.setUTCMonth(d.getUTCMonth() + months);
   return d.toISOString().slice(0, 10);
 }
-/**
- * `defaultMonths` is the org's `compSettings.defaultReassess` (OD
- * `compSettings()`, index.html:13378) — falls back to `12` (the setting's own
- * default value) so existing callers/tests that don't thread it through keep
- * working unchanged.
- */
-export function assessValidUntil(dateStr: string, role: CompetenceRole, requirements: AssessReqResult[], defaultMonths = 12): string {
-  let months = num(role.reviewFreq) || defaultMonths;
+/** M-056 — OD (js/modules.js:740) hardcodes `parseInt(role.reviewFreq,10)||12`;
+ *  the org competence-settings row is additive and must not shift validUntil. */
+export function assessValidUntil(dateStr: string, role: CompetenceRole, requirements: AssessReqResult[]): string {
+  let months = num(role.reviewFreq) || 12;
   for (const r of requirements) { if (r.reviewFreq) months = Math.min(months, num(r.reviewFreq) || months); }
   return addMonths(dateStr, months);
 }
 
 // ============================ ASSESSMENTS ============================
 export async function listAssessments(auth: AuthContext, scope?: "enterprise") {
-  return (await CompetenceAssessment.findAll({ where: await orgWhere(auth, scope), order: [["createdAt", "DESC"]] })).map((r) => r.get({ plain: true }));
+  const rows = (await CompetenceAssessment.findAll({ where: await orgWhere(auth, scope), order: [["createdAt", "DESC"]] })).map((r) => r.get({ plain: true }));
+  // M-060 / OD js/modules.js:769 — ordered by the assessment `date` descending,
+  // not by row insert time. Undated rows sort last (OD's `(b.date||'')`);
+  // same-date rows keep the newest-inserted-first order from the query.
+  return rows.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 }
 export async function getAssessment(auth: AuthContext, id: string) {
   const row = await CompetenceAssessment.findByPk(id);
@@ -403,8 +404,7 @@ export async function createAssessment(auth: AuthContext, input: Record<string, 
   });
 
   const { status, score, openGaps } = assessCompute(merged);
-  const { defaultReassess } = await getCompSettings(org);
-  const validUntil = assessValidUntil(date, role, merged, defaultReassess);
+  const validUntil = assessValidUntil(date, role, merged);
   const row = await CompetenceAssessment.create({
     orgId: org, code: await nextCode(CompetenceAssessment, "CA"), assignmentId: asg.id, personId: asg.personId, roleId: asg.roleId,
     assessor: str(input.assessor) ?? who, date, notes: str(input.notes), requirements: merged,
@@ -512,8 +512,15 @@ function withDisposition<T extends { status: string; noTraining: boolean; traini
   return { ...gap, disposition: computeGapDisposition(gap) };
 }
 
+/** M-059 / OD js/modules.js:977 — `{Open:0, Planned:1, Resolved:2}`. A status
+ *  outside the map (Reviewed/Waived) has no rank and falls through to the date
+ *  comparison, exactly as OD's NaN subtraction does. */
+const GAP_RANK: Record<string, number> = { Open: 0, Planned: 1, Resolved: 2 };
 export async function listGaps(auth: AuthContext, scope?: "enterprise") {
   const rows = (await CompetenceGap.findAll({ where: await orgWhere(auth, scope), order: [["createdAt", "DESC"]] })).map((r) => r.get({ plain: true }));
+  // Open gaps pin above Planned above Resolved; within a rank the query's
+  // newest-createdAt-first order survives (stable sort).
+  rows.sort((a, b) => (GAP_RANK[a.status] - GAP_RANK[b.status]) || 0);
   return rows.map(withDisposition);
 }
 export async function updateGap(auth: AuthContext, id: string, input: Record<string, unknown>, ip: string | null) {
