@@ -88,8 +88,9 @@ const MODULE_FIELDS: Record<string, string[]> = {
    "co", "country", "date", "dayOff", "name", "type",
   ],
   "ent-inq": [
-   "activity", "ar", "co", "contactEmail", "contactName", "contactPhone", "leadId", "leadName",
-   "lifecycle", "notes", "service", "serviceName", "source", "sq", "variant",
+   "activity", "ar", "co", "contactEmail", "contactName", "contactPhone", "contractCode",
+   "contractId", "leadId", "leadName", "lifecycle", "notes", "projectCode", "projectId",
+   "proposalCode", "proposalId", "service", "serviceName", "source", "sq", "variant",
   ],
   "ent-leads": [
    "activity", "city", "co", "company", "contact", "contacts", "country", "email", "industry",
@@ -136,6 +137,12 @@ const MODULE_FIELDS: Record<string, string[]> = {
   ],
   "ent-po-terms": [
    "co", "order", "text",
+  ],
+  "ent-suppliers": [
+   "activity", "addressLine", "bankAccount", "bankCode", "bankName", "category", "city",
+   "contactName", "country", "email", "entityName", "evaluations", "notes", "payAdvance",
+   "payAnchor", "payRetention", "phone", "postal", "qualifiedDate", "requalDate", "state",
+   "taxNumber", "terms", "type", "website",
   ],
   "ent-pr": [
    "activity", "category", "co", "currency", "department", "description", "duration", "estCost",

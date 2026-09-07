@@ -235,7 +235,6 @@ const KNOWN_UNREGISTERED_FE_KEYS = new Set([
   "dn-pentest",
   "dn-software",
   "ent-orgstructure",
-  "ent-suppliers",
   // R822 — surfaced the moment the key list stopped being hand-maintained.
   // Both are read-only from the frontend today (`listBusiness` only), so
   // nothing writes an unvalidated payload to them yet.

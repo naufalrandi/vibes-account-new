@@ -89,6 +89,11 @@ describe("Project lifecycle (enterprise/ent-projects) — proposal conversion + 
       variant: "Full Consultancy",
       currency: "IDR",
       totalValue: proposal.data.totals.total,
+      // M-075 / OD `projectConvert` (js/modules.js:2669) — the project record carries the
+      // client name, the service display name and the per-service delivery track.
+      client: "Nusa Prima Foods",
+      serviceName: "impl",
+      deliver: "Framework Implementation delivery",
     });
 
     // stamps the proposal with the new project's id
@@ -106,6 +111,36 @@ describe("Project lifecycle (enterprise/ent-projects) — proposal conversion + 
     expect(res.body.data.data.service).toBe("impl");
     expect(res.body.data.data.currency).toBe("IDR");
     expect(res.body.data.data.totalValue).toBe(proposal.data.totals.total);
+  });
+
+  it("refuses to convert while the proposal's service contract is unsigned", async () => {
+    const a = await actor("SP", "sp1", ALL);
+    const proposal = await acceptedProposal(a.token);
+    await request(app).post("/v1/business/enterprise/ent-svc-contracts").set(authed(a.token)).send({
+      title: "Nusa Prima Foods — service contract",
+      data: { propId: proposal.id, leadName: "Nusa Prima Foods", value: 11100000, startDate: "2026-07-15", endDate: "2026-12-15" },
+    });
+    const res = await convert(a.token, proposal.id);
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("CONTRACT_NOT_SIGNED");
+  });
+
+  it("stamps a signed service contract's id, value and term dates onto the project", async () => {
+    const a = await actor("SP", "sp1", ALL);
+    const proposal = await acceptedProposal(a.token);
+    const scData = { propId: proposal.id, leadName: "Nusa Prima Foods", value: 11100000, startDate: "2026-07-15", endDate: "2026-12-15" };
+    const sc = await request(app).post("/v1/business/enterprise/ent-svc-contracts").set(authed(a.token)).send({ title: "Nusa Prima Foods — service contract", data: scData });
+    await request(app).put(`/v1/business/enterprise/ent-svc-contracts/${sc.body.data.id}`).set(authed(a.token)).send({ title: sc.body.data.title, status: "Issued", data: scData });
+    await request(app).put(`/v1/business/enterprise/ent-svc-contracts/${sc.body.data.id}`).set(authed(a.token)).send({ title: sc.body.data.title, status: "Signed", data: scData });
+
+    const res = await convert(a.token, proposal.id);
+    expect(res.status).toBe(201);
+    expect(res.body.data.data).toMatchObject({
+      contractId: sc.body.data.id,
+      value: 11100000,
+      startDate: "2026-07-15",
+      endDate: "2026-12-15",
+    });
   });
 
   it("rejects a second conversion of the same proposal", async () => {

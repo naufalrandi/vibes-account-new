@@ -665,6 +665,17 @@ async function assertDeletable(auth: AuthContext, area: BusinessArea, module: st
 }
 
 /**
+ * OD `PRJ_DELIVERY` (js/modules.js:2644) — the per-service delivery track stamped onto a
+ * project as `data.deliver` when a signed service contract is converted.
+ */
+const PRJ_DELIVERY: Record<string, string> = {
+  impl: "Framework Implementation delivery",
+  audit: "Audit engagement",
+  assess: "Maturity Assessment (assessment engine)",
+  comp: "Training & certification delivery",
+};
+
+/**
  * AXI-44: server-enforced Proposal → Project conversion (`enterprise/ent-projects`), mirroring
  * OD's `projectConvert`/`propCardHtml`'s "Convert to project" affordance (modules.js ~L2519,
  * ~L2664) but — unlike OD's client-only `sc.status==='Signed'` gate — actually enforced here so a
@@ -694,6 +705,17 @@ export async function createProjectFromProposal(
     throw new ConflictError(`A project already exists for ${proposal.code}`, "PROJECT_ALREADY_EXISTS");
   }
 
+  // M-075 / OD `projectConvert` (js/modules.js:2669) converts a SIGNED SERVICE CONTRACT,
+  // not the accepted proposal directly, and stamps that contract's commercial fields onto
+  // the project. A proposal with no contract issued against it still converts (this port's
+  // own straight-from-proposal path), but one that HAS a contract must have it signed.
+  const contracts = await BusinessRecord.findAll({ where: { orgId: auth.orgId, area: "enterprise", module: "ent-svc-contracts", company: co } });
+  const contract = contracts.find((c) => (c.data as Record<string, unknown> | null)?.propId === proposal.id);
+  if (contract && contract.status !== "Signed") {
+    throw new BadRequestError("Sign the service contract before converting it into a project", "CONTRACT_NOT_SIGNED");
+  }
+  const cData = (contract?.data || {}) as Record<string, unknown>;
+
   const totals = (pData.totals || {}) as Record<string, unknown>;
   const data: Record<string, unknown> = {
     ...(input.data ?? {}),
@@ -705,6 +727,20 @@ export async function createProjectFromProposal(
     variant: pData.variant ?? null,
     currency: pData.currency ?? null,
     totalValue: Number(totals.total ?? 0),
+    // OD `projectConvert`'s own record fields: the client name, the service display
+    // name and the delivery track, plus the contract's id/value/term dates.
+    client: String(pData.leadName ?? ""),
+    serviceName: String(pData.serviceName ?? pData.service ?? ""),
+    deliver: PRJ_DELIVERY[String(pData.service ?? "")] ?? "Delivery",
+    ...(cData.inqId ?? pData.inqId ? { inqId: String(cData.inqId ?? pData.inqId) } : {}),
+    ...(contract
+      ? {
+          contractId: contract.id,
+          value: Number(cData.value ?? totals.total ?? 0),
+          startDate: String(cData.startDate ?? ""),
+          endDate: String(cData.endDate ?? ""),
+        }
+      : {}),
   };
   const title = input.title?.trim() || `Project · ${String(pData.leadName ?? proposal.title)}`;
 

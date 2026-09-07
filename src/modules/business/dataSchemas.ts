@@ -117,6 +117,16 @@ const entInqDataSchema = z
     contactName: z.string().optional(),
     contactEmail: z.string().optional(),
     contactPhone: z.string().optional(),
+    // R548 — OD `inqChainHtml` (js/modules.js:2365) draws the inquiry chain from
+    // the downstream records stamped back onto the inquiry: a Proposal, a Service
+    // contract and a Delivery project. `.strict()` rejected every one of those
+    // stamps, so the chain could never light past its first node.
+    proposalId: z.string().optional(),
+    proposalCode: z.string().optional(),
+    contractId: z.string().optional(),
+    contractCode: z.string().optional(),
+    projectId: z.string().optional(),
+    projectCode: z.string().optional(),
   })
   .strict();
 
@@ -574,6 +584,47 @@ const entPoDataSchema = z
 const entPoTermsDataSchema = z.object({ text: str, order: numeric, co }).strict();
 
 /**
+ * M-122 — the approved-vendor register (`ent-suppliers`). `EnterpriseSuppliersPage`
+ * has posted to this key since SOF-42 with no registered schema, so
+ * `business.controller.ts`'s `parseInput` waved its whole `data` blob through
+ * unvalidated. Fields are `SupplierData`
+ * (`fe-vibes-new/lib/procurement/suppliers.ts`), which is itself OD's supplier
+ * object (`supEditModal`/`supSeedIfNeeded`, app.html:31462, 31495).
+ * `type`/`terms`/`payAnchor`/`qualifiedDate`/`requalDate` are nullable: a
+ * supplier still onboarding carries null in all five (`suppliers.json`, and
+ * `seedEnterpriseSuppliers` writes them straight through).
+ */
+const entSuppliersDataSchema = z
+  .object({
+    entityName: str,
+    taxNumber: str,
+    type: z.string().nullable().optional(),
+    website: str,
+    category: strArray,
+    contactName: str,
+    email: str,
+    phone: str,
+    addressLine: str,
+    country: str,
+    state: str,
+    city: str,
+    postal: str,
+    terms: numeric,
+    payAnchor: z.string().nullable().optional(),
+    payAdvance: numeric,
+    payRetention: numeric,
+    bankName: str,
+    bankAccount: str,
+    bankCode: str,
+    qualifiedDate: z.string().nullable().optional(),
+    requalDate: z.string().nullable().optional(),
+    notes: str,
+    evaluations: arr,
+    activity: arr,
+  })
+  .strict();
+
+/**
  * R496 — the Delegation of Authority matrix (`ent-doa`). One module holds two
  * record shapes: an approval BAND (`max`/`currency`/`approver`/`finance`/
  * `quotes`, with the approver kind carried in `status`) and a per-category
@@ -777,6 +828,7 @@ export const BUSINESS_DATA_SCHEMAS: Record<string, z.ZodTypeAny> = {
   "ent-mkt-posts": entMktPostsDataSchema,
   "ent-mkt-settings": entMktSettingsDataSchema,
   "ent-po-terms": entPoTermsDataSchema,
+  "ent-suppliers": entSuppliersDataSchema,
   "ent-pr": entPrDataSchema,
   "ent-recruitment": entRecruitmentDataSchema,
   "ent-ss": entSsDataSchema,
