@@ -416,16 +416,20 @@ describe("ISRA gap-register Wave Q, task Q3 fixes", () => {
     const withinRes = await request(app)
       .post(`/v1/isra/scenarios/${scen.id}/residual`)
       .set(authed(token))
-      .send({ score: 6, basis: "verified", notes: "Within appetite" });
+      .send({ score: 6, rationale: "Within appetite" });
     expect(withinRes.status).toBe(200);
     expect(withinRes.body.data.adequacy).toBeTruthy();
     expect(withinRes.body.data.adequacy.threshold).toBe(9);
     expect(withinRes.body.data.adequacy.result).toBe("Within acceptance criteria");
+    // F-318 — `notes` is gone (OD's residual has no such member) and
+    // `needsReview` is a real column now, so it comes back false, not undefined.
+    expect(withinRes.body.data.notes).toBeUndefined();
+    expect(withinRes.body.data.needsReview).toBe(false);
 
     const aboveRes = await request(app)
       .post(`/v1/isra/scenarios/${scen.id}/residual`)
       .set(authed(token))
-      .send({ score: 12, basis: "verified", notes: "Above appetite" });
+      .send({ score: 12, rationale: "Above appetite" });
     expect(aboveRes.status).toBe(200);
     expect(aboveRes.body.data.adequacy.result).toBe("Above acceptance criteria");
   });

@@ -68,15 +68,4 @@ describe("Procurement policy / purchase-order references seed", () => {
       expect(supplierIds.has((po.data as Record<string, unknown>).supplierId as string)).toBe(true);
     }
   });
-
-  it("points every nav item at the seeded page record", async () => {
-    const menu = await BusinessRecord.findAll({ where: { orgId, module: "ent-mkt-menu" } });
-    const pageIds = new Set(
-      (await BusinessRecord.findAll({ where: { orgId, module: "ent-mkt-pages" } })).map((p) => p.id),
-    );
-    expect(menu.length).toBeGreaterThan(0);
-    for (const m of menu) {
-      expect(pageIds.has((m.data as Record<string, unknown>).target as string)).toBe(true);
-    }
-  });
 });

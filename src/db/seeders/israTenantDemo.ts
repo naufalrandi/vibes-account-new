@@ -398,10 +398,14 @@ export async function seedIsraTenantDemo(orgId: string): Promise<IsraTenantDemoR
       residualRows.push({
         scenarioId,
         l: num(res.L), impact: num(res.impact), score: num(res.score), band: str(res.band),
-        basis: str(res.basis),
+        // F-318 — OD's residual prose is `rationale`; the port keeps it in the
+        // `rationale` attribute (pre-existing `basis` column). This row used to
+        // set a `basis` key Sequelize does not know and dump the rationale into
+        // the now-dropped `notes`, so seeded residuals rendered no rationale.
+        rationale: str(res.rationale),
         assessmentDate: dateOnly(res.assessmentDate),
         assessedBy: str(res.assessedBy),
-        notes: str(res.rationale),
+        needsReview: res.needsReview === true,
         adequacy: obj(res.adequacy),
       });
     }

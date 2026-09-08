@@ -2,7 +2,6 @@ import fs from "fs";
 import path from "path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { CMS_PAGES, CMS_POSTS, CMS_MEDIA, CMS_MENU, CMS_SETTINGS } from "./cms.data";
 import { BusinessRecord, Framework, ImplementationRecord, IpParty, IpRequirement, MReview, MsScope, User } from "../models";
 import type { BusinessArea } from "../models/businessRecord.model";
 import { getBusinessDataSchema } from "../../modules/business/dataSchemas";
@@ -599,51 +598,6 @@ export async function seedBusinessRecords(orgId: string): Promise<void> {
     record.data = { ...(record.data as Record<string, unknown>), poId: newPoId };
     await record.save();
   }
-
-  // ---- Website CMS (R173) ---------------------------------------------------
-  //
-  // The backend seeds OD's CMS content into the first-class `cms_*` tables
-  // (`cms.data.ts` + `cms.ts`), but the Website CMS screen does not read those:
-  // it posts and reads the five `ent-mkt-*` Business registers, whose schemas
-  // this repo registers (dataSchemas.ts:770) and whose keys the FE/BE key gate
-  // pins (R822). Nothing seeded them, so against a live API every CMS tab was
-  // empty while the content sat in tables the screen never queries.
-  //
-  // Seeding both halves from the one `cms.data.ts` keeps them a single dataset
-  // rather than two that drift, without moving the screen off the register it
-  // already round-trips through.
-  const cmsPageIdByOdId = new Map<string, string>();
-  for (const pg of CMS_PAGES) {
-    const { odId, title, status, ...rest } = pg;
-    const r = await seedRow(orgId, "enterprise", "ent-mkt-pages", title, status, null, "axia", rest as Record<string, unknown>, odId);
-    cmsPageIdByOdId.set(odId, r.id);
-    bump("ent-mkt-pages");
-  }
-  for (const po of CMS_POSTS) {
-    const { odId, title, status, ...rest } = po;
-    await seedRow(orgId, "enterprise", "ent-mkt-posts", title, status, null, "axia", rest as Record<string, unknown>, odId);
-    bump("ent-mkt-posts");
-  }
-  for (const md of CMS_MEDIA) {
-    const { odId, name, ...rest } = md;
-    await seedRow(orgId, "enterprise", "ent-mkt-media", name, "Active", null, "axia", rest as Record<string, unknown>, odId);
-    bump("ent-mkt-media");
-  }
-  for (const mn of CMS_MENU) {
-    const { odId, ...rest } = mn as Record<string, unknown> & { odId: string };
-    const label = typeof rest.label === "string" ? rest.label : String(rest.title ?? "");
-    // `cms.data.ts` carries OD's own page ids ("PG-0002") in `target`, but
-    // `NavigationTab.tsx` resolves the "Links to" column against the page
-    // record's own id (`pageById` keyed by `BusinessRecord.id`), so the OD id
-    // has to be rewritten to the row minted just above — the same remap
-    // `cms.ts` does for `CmsMenuItem.pageId`. Without it all five nav rows
-    // render "—".
-    const target = typeof rest.target === "string" ? cmsPageIdByOdId.get(rest.target) ?? rest.target : rest.target;
-    await seedRow(orgId, "enterprise", "ent-mkt-menu", label, "Active", null, "axia", { ...rest, target }, odId);
-    bump("ent-mkt-menu");
-  }
-  await seedRow(orgId, "enterprise", "ent-mkt-settings", String(CMS_SETTINGS.siteName ?? "Settings"), "Active", null, "axia", CMS_SETTINGS as unknown as Record<string, unknown>, "SET-0001");
-  bump("ent-mkt-settings");
 
   // eslint-disable-next-line no-console
   console.log("  Business records seeded per module:");

@@ -12,8 +12,8 @@ import { BUSINESS_DATA_SCHEMAS } from "./dataSchemas";
  * R822 — this gate used to take both halves on trust. Its input was a
  * hand-maintained mirror of the frontend's `const MODULE = "..."` literals, so
  * it only knew what someone last remembered to copy across (it missed all five
- * `ent-mkt-*` keys the Website CMS posts to, and seven more besides), and it
- * compared key sets only, never the field names inside `data` — which is what
+ * `ent-mkt-*` keys the Website CMS posted to then, and seven more besides),
+ * and it compared key sets only, never the field names inside `data` — which is what
  * the `.strict()` schemas in `dataSchemas.ts` actually reject with a 400
  * (`business.controller.ts` `parseInput`). Both inputs are now read out of the
  * frontend checkout itself, the same way `__endpointReachability.test.ts`

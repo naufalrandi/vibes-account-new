@@ -1336,7 +1336,7 @@ export async function saveResidual(auth: AuthContext, scenarioId: string, input:
       rationale: str(input.rationale),
       assessmentDate: new Date().toISOString().slice(0, 10),
       assessedBy: auth.userId,
-      notes: str(input.notes),
+      needsReview: false,
       adequacy,
     });
   } else {
@@ -1347,7 +1347,9 @@ export async function saveResidual(auth: AuthContext, scenarioId: string, input:
     residual.rationale = str(input.rationale) ?? residual.rationale;
     residual.assessmentDate = new Date().toISOString().slice(0, 10);
     residual.assessedBy = auth.userId;
-    residual.notes = str(input.notes);
+    // OD replaces `sc.residual` wholesale on every save, so a re-assessment
+    // lands with `needsReview:false` (F-318).
+    residual.needsReview = false;
     residual.adequacy = adequacy;
     await residual.save();
   }

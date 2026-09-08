@@ -145,7 +145,13 @@ export class IsraScenarioResidual extends Model<InferAttributes<IsraScenarioResi
   declare rationale: string | null;
   declare assessmentDate: string | null;
   declare assessedBy: string | null;
-  declare notes: string | null;
+  /** F-318 / OD `sc.residual.needsReview` — part of every OD residual literal,
+   *  added by migration 0121 (the frontend's "Requires review" chip already
+   *  read it). Only ever `false`: `isra2MarkTreatReview` (js/core.js:15110)
+   *  raises the flag on recSnapshot/treatment/projected/actual, not residual.
+   *  0121 also drops the dead `notes` column — OD's residual has no such
+   *  member; the rename to `rationale` left it behind and nothing read it. */
+  declare needsReview: CreationOptional<boolean>;
   declare adequacy: IsraAdequacy | null;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -160,7 +166,7 @@ IsraScenarioResidual.init(
     rationale: { type: DataTypes.STRING, allowNull: true, field: "basis" },
     assessmentDate: { type: DataTypes.DATEONLY, allowNull: true, field: "assessment_date" },
     assessedBy: { type: DataTypes.STRING, allowNull: true, field: "assessed_by" },
-    notes: { type: DataTypes.TEXT, allowNull: true },
+    needsReview: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: "needs_review" },
     adequacy: { type: DataTypes.JSONB, allowNull: true },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
