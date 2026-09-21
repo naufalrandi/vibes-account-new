@@ -22,9 +22,15 @@ import type { Migration } from "../migrate";
  *    `isra2MarkTreatReview` (js/core.js:15110) raises the flag on
  *    recSnapshot/treatment/projected/actual, never on residual.
  */
+// Guarded: a pre-rename draft of this file already ran on the deployed DB as
+// `0120-isra-residual-notes-and-needs-review`, so the unguarded DROP COLUMN
+// crash-looped the API on boot. Each step checks the live column set first.
 export const up: Migration = async ({ context: q }) => {
-  await q.removeColumn("isra_scenario_residual", "notes");
-  await q.addColumn("isra_scenario_residual", "needs_review", { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+  const cols = await q.describeTable("isra_scenario_residual");
+  if ("notes" in cols) await q.removeColumn("isra_scenario_residual", "notes");
+  if (!("needs_review" in cols)) {
+    await q.addColumn("isra_scenario_residual", "needs_review", { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+  }
 };
 
 export const down: Migration = async ({ context: q }) => {
