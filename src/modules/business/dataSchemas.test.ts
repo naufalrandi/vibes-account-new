@@ -42,10 +42,10 @@ const MODULE_FIELDS: Record<string, string[]> = {
    "contact", "country", "industry", "name",
   ],
   "dn-engagements": [
-   "clientId", "end", "name", "scope", "start", "testType", "value",
+   "clientId", "end", "executiveSummary", "name", "scope", "start", "testType", "value",
   ],
   "dn-findings": [
-   "asset", "category", "cvss", "engagementId", "severity", "status",
+   "asset", "category", "cvss", "description", "engagementId", "impact", "recommendation", "references", "reproductionSteps", "severity", "status",
   ],
   "dn-projects": [
    "clientId", "name", "progress", "stack", "start", "target", "type",
@@ -76,7 +76,8 @@ const MODULE_FIELDS: Record<string, string[]> = {
    "active", "audience", "category", "co", "code", "cpdHours", "credential", "currency",
    "delivery", "disciplineId", "durationUnit", "durationVal", "elearnMedia", "elearnSupport",
    "examFee", "format", "frameworkId", "fxRate", "language", "level", "materialsFee", "maxPax",
-   "objectives", "outline", "prereqIds", "prereqText", "price", "scheme", "standard", "summary",
+   "objectives", "outline", "prereqIds", "prereqText", "price", "publishToWeb", "scheme", "standard",
+   "summary", "webPublishedAt",
   ],
   "ent-db-disciplines": [
    "co", "name", "order",

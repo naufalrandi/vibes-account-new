@@ -3,6 +3,7 @@ import {
 } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 /**
@@ -23,7 +24,7 @@ function assertServiceOwner(auth: AuthContext, action: string): void {
 }
 
 async function logAudit(auth: AuthContext, action: string, entityType: string, entityId: string, ip: string | null) {
-  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action, entityType, entityId, sourceIp: ip, result: "Success" });
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId), action, entityType, entityId, sourceIp: ip, result: "Success" });
 }
 
 async function nextId(existingIds: string[], prefix: string, pad = 3): Promise<string> {

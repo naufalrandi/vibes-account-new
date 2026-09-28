@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
-import { initModels, Organization, User, Role } from "../../db/models";
+import { ApprovalPoolMember, initModels, Organization, User, Role } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
@@ -110,6 +110,36 @@ describe("approval engine", () => {
     // A returned record can be resubmitted into a fresh run.
     const resub = await request(app).post(`/v1/approvals/records/policies/${p2}/submit`).set(authed(admin.token));
     expect(resub.body.data.record.state).toBe("active");
+  });
+
+  it("applies separation of duties by user id, not display name", async () => {
+    const orgId = await makeOrg();
+    // The author and the only MS Team member share a display name.
+    const author = await makeUser(orgId, "ap-sod-a", "Alex Smith", ADMIN);
+    const namesake = await makeUser(orgId, "ap-sod-b", "Alex Smith", APPROVER);
+    await request(app).put(`/v1/approvals/pools/${namesake.userId}`).set(authed(author.token)).send({ isMST: true });
+    await request(app).put("/v1/approvals/module-map").set(authed(author.token)).send({ moduleKey: "policies", schemeId: "S0" });
+    await request(app).put("/v1/approvals/settings").set(authed(author.token)).send({ selfApprovalAllowed: false });
+    const id = await createPolicy(author.token);
+    await request(app).post(`/v1/approvals/records/policies/${id}/submit`).set(authed(author.token));
+    // Same name, different person: not self-approval.
+    const ok = await request(app).post(`/v1/approvals/records/policies/${id}/approve`).set(authed(namesake.token));
+    expect(ok.body.data).toMatchObject({ result: "final", status: "Published" });
+    // And the author is not eligible just because they share the approver's name.
+    const id2 = await createPolicy(author.token);
+    await request(app).post(`/v1/approvals/records/policies/${id2}/submit`).set(authed(author.token));
+    expect((await request(app).post(`/v1/approvals/records/policies/${id2}/approve`).set(authed(author.token))).status).toBe(403);
+  });
+
+  it("lists the pool without writing, and leaves suspended/deleted users out", async () => {
+    const orgId = await makeOrg();
+    const admin = await makeUser(orgId, "ap-pool-a", "Admin", ADMIN);
+    const gone = await makeUser(orgId, "ap-pool-g", "Gone", APPROVER);
+    await User.update({ status: "Suspended" }, { where: { id: gone.userId } });
+    const res = await request(app).get("/v1/approvals/pools").set(authed(admin.token));
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((m: { userId: string }) => m.userId)).toEqual([admin.userId]);
+    expect(await ApprovalPoolMember.count({ where: { orgId } })).toBe(0);
   });
 
   it("blocks self-approval when disabled, and blocks submit when the pool is empty", async () => {

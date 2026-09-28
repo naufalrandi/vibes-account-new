@@ -4,10 +4,12 @@ import { AwarenessSettings, ImplementationRecord, RoleAssignment, User } from ".
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
 import { createNotification } from "../notifications/notification.service";
 import { logActivity, actorName } from "../record-events/recordEvent.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
-import { MS_MODULES } from "./registry";
+import { MS_MODULES, codeLockKey } from "./registry";
+import { withCodeLock } from "../../lib/codeSeq";
 
 /**
  * Awareness acknowledgment / evaluation stack — the server-side half of OD's
@@ -108,8 +110,8 @@ export const AW_SETTINGS_DEFAULTS = {
 export type AwSettings = typeof AW_SETTINGS_DEFAULTS;
 
 /** Per-org settings with OD's defaults for any missing row/key. */
-export async function getAwSettings(orgId: string): Promise<AwSettings> {
-  const row = await AwarenessSettings.findOne({ where: { orgId } });
+export async function getAwSettings(orgId: string, tx?: Transaction): Promise<AwSettings> {
+  const row = await AwarenessSettings.findOne({ where: { orgId }, transaction: tx });
   return { ...AW_SETTINGS_DEFAULTS, ...(row?.settings ?? {}) };
 }
 
@@ -134,7 +136,7 @@ export async function setAwSettings(auth: AuthContext, input: Record<string, unk
   row.settings = next;
   await row.save();
   await writeAudit({
-    actorUserId: auth.userId, organizationId: auth.orgId,
+    actorUserId: auth.userId, organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId),
     action: "ms.awareness.settingsUpdated", entityType: "AwarenessSettings", entityId: row.id, sourceIp: ip, result: "Success",
   });
   return { ...AW_SETTINGS_DEFAULTS, ...next };
@@ -255,8 +257,8 @@ const pad = (n: number) => String(n).padStart(4, "0");
  *  - Work Units             → members assigned into any listed work unit
  * Unknown/absent type falls back to the whole team, exactly like OD.
  */
-export async function resolveAudience(orgId: string, a: AwAudience | undefined | null): Promise<{ id: string; name: string }[]> {
-  const team = await User.findAll({ where: { orgId, status: "Active" }, order: [["fullName", "ASC"]] });
+export async function resolveAudience(orgId: string, a: AwAudience | undefined | null, tx?: Transaction): Promise<{ id: string; name: string }[]> {
+  const team = await User.findAll({ where: { orgId, status: "Active" }, order: [["fullName", "ASC"]], transaction: tx });
   const toView = (u: User) => ({ id: u.id, name: u.fullName });
   if (!a || a.type === "Specific Team Members") {
     if (!a) return team.map(toView);
@@ -268,7 +270,7 @@ export async function resolveAudience(orgId: string, a: AwAudience | undefined |
       a.type === "Roles"
         ? { orgId, roleId: { [Op.in]: arr<string>(a.roles) } }
         : { orgId, workUnit: { [Op.in]: arr<string>(a.workUnits) } };
-    const assignments = await RoleAssignment.findAll({ where });
+    const assignments = await RoleAssignment.findAll({ where, transaction: tx });
     const ids = new Set(assignments.map((x) => x.memberId));
     return team.filter((u) => ids.has(u.id)).map(toView);
   }
@@ -292,6 +294,8 @@ function view(r: ImplementationRecord): CampaignRecordView {
 }
 
 export async function launchCampaign(auth: AuthContext, id: string, ip: string | null): Promise<CampaignRecordView> {
+  // Resolved up front: everything inside the transaction runs on its connection.
+  const launchedBy = (await actorName(auth)) ?? "";
   const result = await sequelize.transaction(async (tx) => {
     const r = await requireCampaign(auth, id, tx);
     if (!["Draft", "Scheduled"].includes(r.status)) {
@@ -303,7 +307,7 @@ export async function launchCampaign(auth: AuthContext, id: string, ip: string |
     const due = str(data.dueDate) || str(data.due);
     if (!due) throw new BadRequestError("A due date is required to launch a campaign", "DUE_REQUIRED");
 
-    const settings = await getAwSettings(r.orgId);
+    const settings = await getAwSettings(r.orgId, tx);
     const topicRows = await ImplementationRecord.findAll({
       where: { orgId: r.orgId, module: "awareness-topics", id: { [Op.in]: topics } }, transaction: tx,
     });
@@ -321,7 +325,7 @@ export async function launchCampaign(auth: AuthContext, id: string, ip: string |
       }
     }
 
-    const audience = await resolveAudience(r.orgId, data.audience as AwAudience | undefined);
+    const audience = await resolveAudience(r.orgId, data.audience as AwAudience | undefined, tx);
     const now = new Date().toISOString();
     const ackRequired = typeof data.ackRequired === "boolean" ? data.ackRequired : settings.requireAck;
     const evalRequired = typeof data.evalRequired === "boolean" ? data.evalRequired : settings.requireEval;
@@ -357,7 +361,7 @@ export async function launchCampaign(auth: AuthContext, id: string, ip: string |
     data.acks = acks;
     data.evals = evals;
     data.launchedAt = now;
-    data.launchedBy = (await actorName(auth)) ?? "";
+    data.launchedBy = launchedBy;
     r.status = deriveCampaignStatus("Active", data);
     r.data = data;
     await r.save({ transaction: tx });
@@ -365,7 +369,7 @@ export async function launchCampaign(auth: AuthContext, id: string, ip: string |
   });
 
   await writeAudit({
-    actorUserId: auth.userId, organizationId: result.r.orgId,
+    actorUserId: auth.userId, organizationId: result.r.orgId, tenantId: auditTenantId(auth, result.r.orgId),
     action: "ms.awareness-campaigns.launched", entityType: "ImplementationRecord", entityId: result.r.id,
     sourceIp: ip, result: "Success", metadata: { recipients: result.recipients },
   });
@@ -380,8 +384,12 @@ interface MutationOutcome {
   activity: string;
   auditAction: string;
   metadata?: Record<string, unknown>;
-  /** Runs inside the transaction, after the campaign row is saved. */
-  after?: (tx: Transaction, r: ImplementationRecord) => Promise<void>;
+  /**
+   * Side effects that must not run on (or hold) the mutation's transaction —
+   * notifications, extra audit rows. Runs only after the mutation committed.
+   * Writes that belong to the mutation itself go in the mutator, on its `tx`.
+   */
+  afterCommit?: (r: ImplementationRecord) => Promise<void>;
 }
 
 async function mutateCampaign(
@@ -395,15 +403,15 @@ async function mutateCampaign(
     r.status = deriveCampaignStatus(r.status, data);
     r.data = data;
     await r.save({ transaction: tx });
-    if (outcome.after) await outcome.after(tx, r);
     return { r, outcome };
   });
   await writeAudit({
-    actorUserId: auth.userId, organizationId: result.r.orgId,
+    actorUserId: auth.userId, organizationId: result.r.orgId, tenantId: auditTenantId(auth, result.r.orgId),
     action: result.outcome.auditAction, entityType: "ImplementationRecord", entityId: result.r.id,
     sourceIp: ip, result: "Success", metadata: result.outcome.metadata,
   });
   await logActivity(auth, result.r.orgId, "awareness-campaigns", result.r.id, result.outcome.activity);
+  if (result.outcome.afterCommit) await result.outcome.afterCommit(result.r);
   return result;
 }
 
@@ -462,7 +470,7 @@ export async function remindAck(auth: AuthContext, campaignId: string, ackId: st
       activity: `Reminder sent — ${a.memberName}`,
       auditAction: "ms.awareness-campaigns.ackReminded",
       metadata: { ackId },
-      after: async () => {
+      afterCommit: async () => {
         await createNotification({
           orgId: rec.orgId, userId: a.memberId, type: "awareness",
           text: `Awareness reminder: please acknowledge "${rec.title}"${a.due ? ` by ${a.due.slice(0, 10)}` : ""}`,
@@ -597,33 +605,35 @@ export async function evalToTrainingPlan(
     // Training code sequence — same per-org, prefix-driven scheme as the
     // register's own `nextCode` (registry.ts `training.prefix`, "TP").
     const trainingPrefix = MS_MODULES.training.prefix;
-    const rows = await ImplementationRecord.findAll({ where: { module: "training", orgId: rec.orgId }, attributes: ["code"], transaction: tx });
-    let max = 0;
-    for (const row of rows) {
-      const n = Number.parseInt(row.code.replace(new RegExp(`^${trainingPrefix}-`), ""), 10);
-      if (Number.isFinite(n) && n > max) max = n;
-    }
     const title = `Awareness re-training: ${topic?.title ?? rec.title}`;
-    training = await ImplementationRecord.create({
-      orgId: rec.orgId, module: "training", code: `${trainingPrefix}-${pad(max + 1)}`,
-      title, status: "Planned", owner: null, elementId: null, frameworks: rec.frameworks ?? [],
-      data: {
-        source: "Awareness Follow-up", sourceRecordId: evalId,
-        person: e.memberName, course: title,
-        dueDate: (str(data.dueDate) || str(data.due)).slice(0, 10), priority: "Medium",
-        description: `Follow-up training created from a failed awareness evaluation (${evalId}).`,
-        awCampaignId: rec.id, awCampaignCode: rec.code, awTopicId: e.topicId ?? "", awEvalId: evalId,
-      },
-    }, { transaction: tx });
+    // Same sequence lock as the register's own create path, held on this tx.
+    training = await withCodeLock(codeLockKey(rec.orgId, "training"), tx, async () => {
+      const rows = await ImplementationRecord.findAll({ where: { module: "training", orgId: rec.orgId }, attributes: ["code"], transaction: tx });
+      let max = 0;
+      for (const row of rows) {
+        const n = Number.parseInt(row.code.replace(new RegExp(`^${trainingPrefix}-`), ""), 10);
+        if (Number.isFinite(n) && n > max) max = n;
+      }
+      return ImplementationRecord.create({
+        orgId: rec.orgId, module: "training", code: `${trainingPrefix}-${pad(max + 1)}`,
+        title, status: "Planned", owner: null, elementId: null, frameworks: rec.frameworks ?? [],
+        data: {
+          source: "Awareness Follow-up", sourceRecordId: evalId,
+          person: e.memberName, course: title,
+          dueDate: (str(data.dueDate) || str(data.due)).slice(0, 10), priority: "Medium",
+          description: `Follow-up training created from a failed awareness evaluation (${evalId}).`,
+          awCampaignId: rec.id, awCampaignCode: rec.code, awTopicId: e.topicId ?? "", awEvalId: evalId,
+        },
+      }, { transaction: tx });
+    });
     replaceRow(data, "evals", { ...e, followupActionId: training.code, trainingPlanId: training.id, followupRequired: true });
     return {
       activity: `Training plan item created — ${training.code}`,
       auditAction: "ms.awareness-campaigns.trainingRaised",
       metadata: { evalId, trainingId: training.id },
-      after: async (tx2) => {
-        void tx2;
+      afterCommit: async () => {
         await writeAudit({
-          actorUserId: auth.userId, organizationId: rec.orgId,
+          actorUserId: auth.userId, organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
           action: "ms.training.created", entityType: "ImplementationRecord", entityId: training.id,
           sourceIp: ip, result: "Success", metadata: { source: "Awareness Follow-up", awEvalId: evalId },
         });

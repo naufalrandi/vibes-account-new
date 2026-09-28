@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parsePageQuery, paginate } from "./pagination";
+import { parsePageQuery, paginate, parseOffsetPage, offsetPageMeta } from "./pagination";
 
 const rows = Array.from({ length: 25 }, (_, i) => i + 1);
 
@@ -31,5 +31,31 @@ describe("paginate", () => {
   it("handles the trailing partial page", () => {
     const { items } = paginate(rows, { page: "3", limit: "10" });
     expect(items).toEqual([21, 22, 23, 24, 25]);
+  });
+});
+
+describe("parseOffsetPage / offsetPageMeta", () => {
+  it("defaults to the 1000-row cap at offset 0", () => {
+    expect(parseOffsetPage({})).toEqual({ limit: 1000, offset: 0 });
+    expect(parseOffsetPage({ limit: "", offset: "" })).toEqual({ limit: 1000, offset: 0 });
+  });
+
+  it("parses explicit limit/offset", () => {
+    expect(parseOffsetPage({ limit: "50", offset: "100" })).toEqual({ limit: 50, offset: 100 });
+  });
+
+  it("rejects limit > 500, limit < 1, negative or non-integer offset", () => {
+    expect(() => parseOffsetPage({ limit: "501" })).toThrow();
+    expect(() => parseOffsetPage({ limit: "0" })).toThrow();
+    expect(() => parseOffsetPage({ offset: "-1" })).toThrow();
+    expect(() => parseOffsetPage({ limit: "abc" })).toThrow();
+  });
+
+  it("builds meta with legacy fields plus pagination", () => {
+    expect(offsetPageMeta(120, { limit: 50, offset: 50 })).toEqual({
+      page: 2, limit: 50, total: 120,
+      pagination: { limit: 50, offset: 50, total: 120, hasMore: true },
+    });
+    expect(offsetPageMeta(100, { limit: 50, offset: 50 }).pagination.hasMore).toBe(false);
   });
 });

@@ -5,7 +5,7 @@ import type { PartnerStatus, PartnerTier } from "../models/partnerProfile.model"
 import type { UserStatus } from "../models/user.model";
 
 /**
- * OD `seedPartners()` (js/core.js:187-221) — the five-partner commercial demo set.
+ * OD `seedPartners()` (js/core.js:187-221) — the five-partner commercial sample set.
  *
  * Only one partner was seeded before this (the `seed.ts` fixture org), so against
  * a real API the Partners list held a single Active Gold row: no Draft, no
@@ -19,7 +19,7 @@ import type { UserStatus } from "../models/user.model";
  *
  * `idpr5` / `PRT-1005` (PT Parker Industries) is the one partner NOT restated
  * here: it is the `seed.ts` fixture org, which owns OD's `idtn5` PT Hammer
- * Industries tenant — the demo tenant every other seed hangs off — exactly as OD
+ * Industries tenant — the sample tenant every other seed hangs off — exactly as OD
  * pairs them. Seeding it again would collide on the unique partner code.
  */
 

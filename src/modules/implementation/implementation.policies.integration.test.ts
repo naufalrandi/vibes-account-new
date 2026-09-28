@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
-import { initModels, Organization, User, Role } from "../../db/models";
+import { ImplementationRecord, initModels, Organization, User, Role } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
@@ -62,10 +62,8 @@ describe("policies module (PL1/PL2 — framework-coded IDs + versioning-on-edit)
     const created = await request(app).post("/v1/implementation/policies").set(authed(token))
       .send({ title: "Quality Policy", frameworks: ["ISO 9001:2015"], data: { category: "High-Level Policy", statement: "v1 statement", reviewFreq: "Annually" } });
     const id = created.body.data.id as string;
-    // Simulate a legacy published policy via a pure status transition (no data → no fork).
-    const pub = await request(app).put(`/v1/implementation/policies/${id}`).set(authed(token))
-      .send({ status: "Published" });
-    expect(pub.body.data.status).toBe("Published");
+    // Simulate a legacy published policy (a PUT into Published is refused — USE_APPROVAL_WORKFLOW).
+    await ImplementationRecord.update({ status: "Published" }, { where: { id } });
 
     // A content edit while Published must fork, not mutate.
     const fork = await request(app).put(`/v1/implementation/policies/${id}`).set(authed(token))
@@ -101,7 +99,7 @@ describe("policies module (PL1/PL2 — framework-coded IDs + versioning-on-edit)
     const created = await request(app).post("/v1/implementation/policies").set(authed(admin.token))
       .send({ title: "Quality Policy", frameworks: ["ISO 9001:2015"], data: { category: "High-Level Policy", statement: "v1", reviewFreq: "Annually" } });
     const v1 = created.body.data.id as string;
-    await request(app).put(`/v1/implementation/policies/${v1}`).set(authed(admin.token)).send({ status: "Published" });
+    await ImplementationRecord.update({ status: "Published" }, { where: { id: v1 } });
 
     // Fork v2, then run it through the two-gate engine to publish.
     const fork = await request(app).put(`/v1/implementation/policies/${v1}`).set(authed(admin.token))

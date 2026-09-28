@@ -3,7 +3,7 @@ import request from "supertest";
 import { createApp } from "../../app";
 import { initModels, Organization, User, Role, Site, Subscription } from "../../db/models";
 import { hashPassword } from "../../lib/password";
-import { resetDb, grantActions } from "../../../test/helpers";
+import { resetDb, grantActions, lastMailedToken } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
 
 const app = createApp();
@@ -84,6 +84,11 @@ describe("tenants", () => {
     const { token } = await makeSo();
     const res = await request(app).post("/v1/tenants").set(authed(token)).send(provisionBody("activate", "Sendco"));
     expect(res.body.data.status).toBe("Pending Activation");
+    // The admin is emailed the raw token; only its hash is stored.
+    const raw = await lastMailedToken("admin@sendco.io");
+    const admin = await User.findOne({ where: { username: "acme.sendco" } });
+    expect(admin?.activationToken).toBeTruthy();
+    expect(admin?.activationToken).not.toBe(raw);
   });
 
   it("scopes tenants — a Tenant sees only itself", async () => {
@@ -95,7 +100,8 @@ describe("tenants", () => {
 
     // An active tenant user of Alpha.
     const alpha = soList.body.data.find((t: { name: string }) => t.name === "Alpha");
-    const role = await Role.create({ name: "Administrator", tierScope: "Tenant", orgId: alpha.id, isSuperAdmin: false, status: true });
+    // Provisioning already created the org's "Administrator" role (roles are unique per org + name).
+    const [role] = await Role.findOrCreate({ where: { orgId: alpha.id, name: "Administrator" }, defaults: { name: "Administrator", tierScope: "Tenant", orgId: alpha.id, isSuperAdmin: false, status: true } });
     await grantActions(role.id, [ACTIONS.TENANT_READ]);
     const u = await User.create({
       orgId: alpha.id, tenantId: alpha.id, fullName: "Alpha Admin", username: "alpha.active", email: "a@alpha.io",

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { Transaction } from "sequelize";
 import { SaasPipeline, SaasSubscription, SaasWorkspace, Organization, TenantProfile, Site, Role, User } from "../../db/models";
 import type { SaasPipelineStage, SaasPipelineType, SaasPaymentMethod } from "../../db/models/saas.models";
@@ -7,9 +6,11 @@ import type { AuthContext } from "../../lib/scope";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
 import { writeAudit } from "../audit/audit.service";
 import { grantEverythingExceptSpOnly } from "../iam/tenantGrants";
-import { sendActivationInvite } from "../notifications/notification.service";
+import { assertIdentityAvailable } from "../iam/auth.service";
+import { issueActivationToken, sendActivationInvite } from "../notifications/notification.service";
 import { resolveSaasSubState, resolveSaasWsState, resolveSaasAccess } from "./lifecycle.service";
 import { assertPipelineTransition } from "./pipeline.transitions";
+import { maxCodeSeq, withCodeLock } from "../../lib/codeSeq";
 
 /**
  * SaaS lifecycle layer (G-73): sales pipeline, subscriptions, workspaces.
@@ -35,19 +36,6 @@ type WithSetRoles = { setRoles: (roles: Role[], options?: { transaction?: Transa
 const requireManage = (auth: AuthContext) => {
   if (auth.orgType !== "ServiceOwner") throw new ForbiddenError("Only the Service Owner manages SaaS lifecycle records");
 };
-
-/** Next zero-padded `<PREFIX>-NNNN` code given the existing rows' codes (mirrors billing.service.ts nextCode). */
-function nextCode(existing: { code: string }[], prefix: string): string {
-  let max = 0;
-  for (const r of existing) {
-    const m = r.code.match(new RegExp(`${prefix}-(\\d+)$`));
-    if (m) {
-      const v = Number.parseInt(m[1], 10);
-      if (v > max) max = v;
-    }
-  }
-  return `${prefix}-${String(max + 1).padStart(4, "0")}`;
-}
 
 function addMonthsIso(date: Date, months: number): string {
   const d = new Date(date.getTime());
@@ -118,8 +106,8 @@ export interface CreatePipelineInput {
 /** Enters a prospective tenant into the pipeline at 'Quote Sent' (OD app.html:6043 mkPipe). */
 export async function createPipelineQuote(auth: AuthContext, input: CreatePipelineInput, ip: string | null) {
   requireManage(auth);
-  const row = await SaasPipeline.create({
-    code: nextCode(await SaasPipeline.findAll({ attributes: ["code"] }), "PIPE"),
+  const row = await sequelize.transaction(async (tx) => SaasPipeline.create({
+    code: await lockedCode(SaasPipeline, "PIPE", tx),
     tenantId: null,
     tenantName: input.tenantName,
     partnerId: input.partnerId ?? null,
@@ -138,7 +126,7 @@ export async function createPipelineQuote(auth: AuthContext, input: CreatePipeli
     payment: {},
     subId: null,
     audit: [{ ts: new Date().toISOString(), msg: `Quote sent to ${input.tenantName}` }],
-  });
+  }, { transaction: tx }));
   await writeAudit({
     actorUserId: auth.userId, organizationId: auth.orgId, action: "saas.pipeline.quoteCreated",
     entityType: "SaasPipeline", entityId: row.id, sourceIp: ip, result: "Success",
@@ -240,12 +228,12 @@ export async function saveRegistration(auth: AuthContext, id: string, input: Sav
   return pipelineView(p);
 }
 
-/** OD `pipeUploadProof` (app.html:10649). `proofUrl` defaults to 'transfer-receipt.pdf' like OD's file-name input. */
-export async function uploadPaymentProof(auth: AuthContext, id: string, proofUrl: string | null | undefined, ip: string | null) {
+/** OD `pipeUploadProof` (app.html:10649). `proofUrl` is required — no placeholder file name is invented. */
+export async function uploadPaymentProof(auth: AuthContext, id: string, proofUrl: string, ip: string | null) {
   requireManage(auth);
   const p = await requirePipelineEntry(id);
   assertPipelineTransition(p.stage, "uploadProof");
-  p.payment = { ...(p.payment ?? {}), state: "Under Verification", proofUrl: proofUrl?.trim() || "transfer-receipt.pdf" };
+  p.payment = { ...(p.payment ?? {}), state: "Under Verification", proofUrl };
   p.stage = "Under Verification";
   pipeLog(p, "Transfer proof uploaded — awaiting finance verification");
   await p.save();
@@ -287,25 +275,34 @@ export async function verifyPayment(
   reason?: string | null,
 ) {
   requireManage(auth);
-  const p = await requirePipelineEntry(id);
-  assertPipelineTransition(p.stage, "verifyPayment");
   const verifiedBy = await actorName(auth);
   const at = new Date().toISOString();
-  if (outcome === "Rejected") {
-    p.payment = { ...(p.payment ?? {}), state: "Rejected", verifiedBy, verifiedAt: at, rejectedReason: reason?.trim() || null };
-    p.stage = "Awaiting Transfer";
-    pipeLog(p, `Payment proof rejected by ${verifiedBy}${reason?.trim() ? ` — ${reason.trim()}` : ""}`);
-  } else {
-    // Deliberately leaves `p.stage` at 'Under Verification': OD writes no
-    // stage here at all, provisioning below moves it to its next resting value.
-    p.payment = { ...(p.payment ?? {}), state: "Verified", verifiedBy, verifiedAt: at };
-    pipeLog(p, `Payment verified by ${verifiedBy}`);
-  }
-  await p.save();
-  await writeAudit({
-    actorUserId: auth.userId, organizationId: auth.orgId,
-    action: outcome === "Rejected" ? "saas.pipeline.paymentRejected" : "saas.pipeline.paymentVerified",
-    entityType: "SaasPipeline", entityId: p.id, sourceIp: ip, result: "Success",
+  // Lock the row and re-check inside the transaction: two concurrent verifies
+  // must not both pass and chain provisioning twice.
+  const p = await sequelize.transaction(async (tx) => {
+    const p = await SaasPipeline.findByPk(id, { transaction: tx, lock: tx.LOCK.UPDATE });
+    if (!p) throw new NotFoundError("Pipeline entry does not exist", "SAAS_PIPELINE_NOT_FOUND");
+    assertPipelineTransition(p.stage, "verifyPayment");
+    if ((p.payment as { state?: string } | null)?.state === "Verified") {
+      throw new ConflictError("Payment is already verified", "SAAS_PAYMENT_ALREADY_VERIFIED");
+    }
+    if (outcome === "Rejected") {
+      p.payment = { ...(p.payment ?? {}), state: "Rejected", verifiedBy, verifiedAt: at, rejectedReason: reason?.trim() || null };
+      p.stage = "Awaiting Transfer";
+      pipeLog(p, `Payment proof rejected by ${verifiedBy}${reason?.trim() ? ` — ${reason.trim()}` : ""}`);
+    } else {
+      // Deliberately leaves `p.stage` at 'Under Verification': OD writes no
+      // stage here at all, provisioning below moves it to its next resting value.
+      p.payment = { ...(p.payment ?? {}), state: "Verified", verifiedBy, verifiedAt: at };
+      pipeLog(p, `Payment verified by ${verifiedBy}`);
+    }
+    await p.save({ transaction: tx });
+    await writeAudit({
+      actorUserId: auth.userId, organizationId: auth.orgId,
+      action: outcome === "Rejected" ? "saas.pipeline.paymentRejected" : "saas.pipeline.paymentVerified",
+      entityType: "SaasPipeline", entityId: p.id, sourceIp: ip, result: "Success",
+    }, tx);
+    return p;
   });
   if (outcome === "Verified") return runProvisioning(auth, p.id, ip);
   return pipelineView(p);
@@ -326,13 +323,14 @@ function saasProductInfo(code: string): { name: string; standard: string } {
 
 /** `TEN-NNNN` tenant code, same convention as tenant.service.ts's `nextTenantCode` (not exported there). */
 async function nextTenantCode(tx: Transaction): Promise<string> {
-  const rows = await Organization.findAll({ where: { type: "Tenant" }, attributes: ["code"], transaction: tx });
-  let max = 1000;
-  for (const r of rows) {
-    const n = Number.parseInt(r.code.replace(/^TEN-/, ""), 10);
-    if (Number.isFinite(n) && n > max) max = n;
-  }
-  return `TEN-${max + 1}`;
+  return withCodeLock("TEN", tx, async () => `TEN-${Math.max(1000, await maxCodeSeq(Organization, "TEN", tx)) + 1}`);
+}
+async function nextSiteCode(tx: Transaction): Promise<string> {
+  return withCodeLock("STE", tx, async () => `STE-${Math.max(1000, await maxCodeSeq(Site, "STE", tx)) + 1}`);
+}
+/** Locked zero-padded `<PREFIX>-NNNN` for rows inserted inside `tx`. */
+async function lockedCode(model: typeof SaasPipeline | typeof SaasSubscription | typeof SaasWorkspace, prefix: string, tx: Transaction): Promise<string> {
+  return withCodeLock(prefix, tx, async () => `${prefix}-${String((await maxCodeSeq(model, prefix, tx)) + 1).padStart(4, "0")}`);
 }
 
 interface PipelineRegistration {
@@ -402,10 +400,9 @@ async function createTenantFromPipeline(fresh: SaasPipeline, tx: Transaction): P
     { transaction: tx },
   );
 
-  const siteCount = await Site.count({ transaction: tx });
   await Site.create(
     {
-      orgId: org.id, code: `STE-${1001 + siteCount}`, name: "Head Office", type: "Head Office",
+      orgId: org.id, code: await nextSiteCode(tx), name: "Head Office", type: "Head Office",
       country: reg.country || fresh.country || "ID", address: reg.address || null,
       city: null, state: null, postalCode: null, status: "Active", isPrimary: true,
       description: null, contactPerson: null, contactEmail: null, contactPhone: null,
@@ -421,20 +418,21 @@ async function createTenantFromPipeline(fresh: SaasPipeline, tx: Transaction): P
 
   const localPart = adminEmail.split("@")[0]?.replace(/[^a-z0-9]/gi, "").toLowerCase() || "admin";
   const username = reg.adminUser?.trim() || `${localPart}.${fresh.code.toLowerCase()}`;
-  const activationToken = randomUUID();
+  await assertIdentityAvailable(username, adminEmail, tx);
+  const invite = issueActivationToken();
   const admin = await User.create(
     {
       orgId: org.id, tenantId: org.id, fullName: adminName, username, email: adminEmail,
       passwordHash: null, status: "Pending Activation", position: "Administrator", workUnit: null,
-      lastLogin: null, activationToken, resetToken: null, resetExpires: null,
+      lastLogin: null, ...invite.fields, resetToken: null, resetExpires: null,
     },
     { transaction: tx },
   );
   await (admin as unknown as WithSetRoles).setRoles([role], { transaction: tx });
 
-  // Side effect after every row is staged; safe outside the transaction's
-  // atomicity concern the same way registration.service.ts treats it (stub).
-  sendActivationInvite(adminEmail, activationToken);
+  // Only once the tenant is committed — a rolled-back provision must not email a
+  // link to an account that does not exist. A failed send is logged by the mailer.
+  tx.afterCommit(() => void sendActivationInvite(adminEmail, invite.raw, { variant: "saas" }));
   return org.id;
 }
 
@@ -497,12 +495,14 @@ async function runProvisioning(auth: AuthContext, id: string, ip: string | null)
     await sequelize.transaction(async (tx) => {
       const fresh = await SaasPipeline.findByPk(id, { transaction: tx, lock: tx.LOCK.UPDATE });
       if (!fresh) throw new NotFoundError("Pipeline entry does not exist", "SAAS_PIPELINE_NOT_FOUND");
+      // A concurrent verify/retry already provisioned it while we waited on the lock.
+      if (fresh.subId || fresh.stage === "Completed") return;
 
       let tenantId = fresh.tenantId;
       if (!tenantId) tenantId = await createTenantFromPipeline(fresh, tx);
 
       const items = (fresh.items ?? []) as { product: string }[];
-      const subCode = nextCode(await SaasSubscription.findAll({ attributes: ["code"], transaction: tx }), "SUB");
+      const subCode = await lockedCode(SaasSubscription, "SUB", tx);
       const now = new Date();
       const sub = await SaasSubscription.create(
         {
@@ -519,7 +519,7 @@ async function runProvisioning(auth: AuthContext, id: string, ip: string | null)
 
       for (const item of items) {
         const info = saasProductInfo(item.product);
-        const wsCode = nextCode(await SaasWorkspace.findAll({ attributes: ["code"], transaction: tx }), "WS");
+        const wsCode = await lockedCode(SaasWorkspace, "WS", tx);
         await SaasWorkspace.create(
           {
             code: wsCode, tenantId, subId: sub.id, product: item.product, name: info.name, standard: info.standard,

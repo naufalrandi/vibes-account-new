@@ -95,7 +95,7 @@ export const BP_CATALOG: BpCatalogEntry[] = [
   { odId: "BPC-1079", group: "Sales", subgroup: "B2C Sales", name: "Sales Performance Review", desc: "Review individual/customer sales activity and outcomes." },
   { odId: "BPC-1080", group: "Sales", subgroup: "Pre-Sales", name: "Pre-Sales Discovery", desc: "Understand customer needs, pain points, requirements, and expected outcomes." },
   { odId: "BPC-1081", group: "Sales", subgroup: "Pre-Sales", name: "Solution Fit Assessment", desc: "Assess whether available products or services can meet customer requirements." },
-  { odId: "BPC-1082", group: "Sales", subgroup: "Pre-Sales", name: "Demo Preparation", desc: "Prepare demonstration materials, scenarios, and talking points." },
+  { odId: "BPC-1082", group: "Sales", subgroup: "Pre-Sales", name: "Presentation Preparation", desc: "Prepare demonstration materials, scenarios, and talking points." },
   { odId: "BPC-1083", group: "Sales", subgroup: "Pre-Sales", name: "Product Demonstration", desc: "Deliver product or service demonstration to prospects or customers." },
   { odId: "BPC-1084", group: "Sales", subgroup: "Pre-Sales", name: "Pre-Sales Consultation", desc: "Provide advisory input before formal proposal or purchase decision." },
   { odId: "BPC-1085", group: "Sales", subgroup: "Pre-Sales", name: "Requirement Clarification", desc: "Clarify technical, operational, commercial, or compliance requirements." },

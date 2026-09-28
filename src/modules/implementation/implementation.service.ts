@@ -1,10 +1,14 @@
-import { Op, type WhereOptions } from "sequelize";
-import { CompetenceGap, FrameworkElement, ImplementationRecord, Organization } from "../../db/models";
+import { Op, type Transaction, type WhereOptions } from "sequelize";
+import { ApprovalRecord, CompetenceGap, FrameworkElement, ImplementationRecord, Organization, RecordEvent } from "../../db/models";
+import { sequelize } from "../../db/sequelize";
 import type { AuthContext } from "../../lib/scope";
+import { withCodeLock } from "../../lib/codeSeq";
+import { auditTenantId } from "../../lib/auditTenant";
+import { orgToday } from "../../lib/localDate";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
-import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
-import { MS_MODULES, isMsModule, enrichData, riskBandsFor } from "./registry";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { MS_MODULES, isMsModule, enrichData, riskBandsFor, codeLockKey } from "./registry";
 import { assertDesignTransition } from "./designLifecycle";
 import {
   assertReviewCreateStatus, assertReviewSchedule, assertReviewTransition,
@@ -120,11 +124,14 @@ function psrPrefixFor(kind: unknown): string {
   return kind === "template" ? "SPEC" : kind === "record" ? "PSR" : "CAT";
 }
 
-async function nextCode(module: string, orgId: string, kind?: unknown): Promise<string> {
+// Every register code is max+1 over the org's existing rows, so two concurrent
+// creates would read the same max: code generation and the INSERT that uses it
+// run under `withCodeLock(codeLockKey(org, module))`, all on the lock's `tx`.
+async function nextCode(module: string, orgId: string, tx: Transaction, kind?: unknown): Promise<string> {
   const prefix = module === "psr" ? psrPrefixFor(kind) : MS_MODULES[module].prefix;
   // Sequences are per organization (OD numbers per tenant) — without the org
   // filter every tenant on the platform would share one global counter.
-  const rows = await ImplementationRecord.findAll({ where: { module, orgId }, attributes: ["code"] });
+  const rows = await ImplementationRecord.findAll({ where: { module, orgId }, attributes: ["code"], transaction: tx });
   let max = 0;
   for (const r of rows) {
     // Only rows on this prefix count, so `psr`'s three kinds keep three
@@ -150,10 +157,10 @@ function escapeRegExp(s: string): string {
  *
  * Scoped per organization (migration 0069), matching OD's per-tenant `ocNewId`.
  */
-async function contextCode(orgId: string): Promise<string> {
-  const fwe = await FrameworkElement.findOne({ where: { name: "Organizational Context" } });
+async function contextCode(orgId: string, tx: Transaction): Promise<string> {
+  const fwe = await FrameworkElement.findOne({ where: { name: "Organizational Context" }, transaction: tx });
   const prefix = fwe?.code ?? "FWE-001";
-  const rows = await ImplementationRecord.findAll({ where: { module: "context", orgId }, attributes: ["code"] });
+  const rows = await ImplementationRecord.findAll({ where: { module: "context", orgId }, attributes: ["code"], transaction: tx });
   const re = new RegExp(`^${escapeRegExp(prefix)}-(\\d+)$`);
   let max = 0;
   for (const r of rows) {
@@ -215,6 +222,8 @@ export async function createRecord(auth: AuthContext, module: string, input: Rec
   // parity-test ordering); otherwise it's `statuses[0]`, unchanged.
   const status = input.status ?? def.createStatuses?.[0] ?? def.statuses[0];
   assertStatus(module, status);
+  // Born straight into e.g. Published would skip every approver, same as a PATCH into it.
+  assertNotApprovalControlled(module, null, status);
   // The awareness-topic material gate holds on create too (OD `awTopicSave`
   // refuses to create straight at Active without a material).
   await assertActivatable(module, targetOrg, {}, status, input);
@@ -235,10 +244,7 @@ export async function createRecord(auth: AuthContext, module: string, input: Rec
   }
   // OD `tpSave`: source/type/delivery must come from the Training Plan vocabulary.
   if (module === "training") assertTrainingVocab(data);
-  let code: string;
-  if (module === "context") {
-    code = await contextCode(targetOrg);
-  } else if (module === "documents") {
+  if (module === "documents") {
     // OD `cdSave`: the org's document-control settings gate every content save,
     // the ID follows `TYPECODE[-FWCODE]-NNNN` (`cdNewId`), a new document starts
     // at v0.1, and `nextReview` is derived from effective date + frequency.
@@ -247,34 +253,36 @@ export async function createRecord(auth: AuthContext, module: string, input: Rec
     });
     data = deriveDocumentData(data);
     if (!data.version) data.version = "0.1";
-    code = await documentCode(targetOrg, data.type, input.frameworks);
   } else if (module === "policies") {
     // OD `polNewId` (10110): `POL-<FWCODE>-NNNN` for a High-Level policy with a
     // coded framework, `POL-NNNN` otherwise; versions are integers starting at
     // "1"; `nextReview` is derived from effective date + review frequency.
     data = derivePolicyData(data);
     if (!data.version) data.version = "1";
-    code = await policyCode(targetOrg, data.category, input.frameworks);
-  } else if (module === "records") {
+  }
+  const makeCode = (tx: Transaction): Promise<string> => {
+    if (module === "context") return contextCode(targetOrg, tx);
+    if (module === "documents") return documentCode(targetOrg, data.type, input.frameworks, tx);
+    if (module === "policies") return policyCode(targetOrg, data.category, input.frameworks, tx);
     // OD `edDocNewId` (13023): `EXT-<CAT_CODE>-NNNN` from the document's
     // category, one number sequence per tenant across all external documents.
-    code = await extDocCode(targetOrg, data.category);
-  } else {
-    code = await nextCode(module, targetOrg, (data as Record<string, unknown>).kind);
-  }
-  const r = await ImplementationRecord.create({
+    if (module === "records") return extDocCode(targetOrg, data.category, tx);
+    return nextCode(module, targetOrg, tx, (data as Record<string, unknown>).kind);
+  };
+  const title = input.title.trim();
+  const r = await withCodeLock(codeLockKey(targetOrg, module), null, async (tx) => ImplementationRecord.create({
     orgId: targetOrg,
     module,
-    code,
-    title: input.title.trim(),
+    code: await makeCode(tx),
+    title,
     status,
     owner: input.owner ?? null,
     data,
     elementId: input.elementId ?? null,
     frameworks: input.frameworks ?? [],
-  });
+  }, { transaction: tx }));
   await writeAudit({
-    actorUserId: auth.userId, organizationId: targetOrg,
+    actorUserId: auth.userId, organizationId: targetOrg, tenantId: auditTenantId(auth, targetOrg),
     action: `ms.${module}.created`, entityType: "ImplementationRecord", entityId: r.id, sourceIp: ip, result: "Success",
   });
   await logActivity(auth, targetOrg, module, r.id, "Record created");
@@ -304,7 +312,7 @@ function nextVersion(current: unknown): string {
 interface PublishedForkSpec {
   nextVersion: (current: unknown) => string;
   deriveData: (data: Record<string, unknown>) => Record<string, unknown>;
-  makeCode: (orgId: string, data: Record<string, unknown>, frameworks: string[] | undefined) => Promise<string>;
+  makeCode: (orgId: string, data: Record<string, unknown>, frameworks: string[] | undefined, tx: Transaction) => Promise<string>;
   /** Approval/publish stamps the fresh draft must NOT inherit (OD clears them on fork). */
   clearedStamps: string[];
   draftActivity: (version: string, sourceCode: string) => string;
@@ -314,7 +322,7 @@ interface PublishedForkSpec {
 const DOCUMENT_FORK: PublishedForkSpec = {
   nextVersion,
   deriveData: deriveDocumentData,
-  makeCode: (orgId, data, fws) => documentCode(orgId, data.type, fws),
+  makeCode: (orgId, data, fws, tx) => documentCode(orgId, data.type, fws, tx),
   clearedStamps: ["submittedBy", "submittedDate", "approvedBy", "approvedDate", "publishedBy", "publishedDate"],
   draftActivity: (v, src) => `New draft v${v} from ${src}`,
   sourceActivity: (code, v) => `Revision started — new draft ${code} (v${v})`,
@@ -323,7 +331,7 @@ const DOCUMENT_FORK: PublishedForkSpec = {
 const POLICY_FORK: PublishedForkSpec = {
   nextVersion: polNextVersion,
   deriveData: derivePolicyData,
-  makeCode: (orgId, data, fws) => policyCode(orgId, data.category, fws),
+  makeCode: (orgId, data, fws, tx) => policyCode(orgId, data.category, fws, tx),
   clearedStamps: ["approvedBy", "approvedDate", "publishedBy", "publishedDate"],
   // OD `polSave` (10847): the fork's creation entry reads
   // "New draft version vN from POL-…".
@@ -356,20 +364,21 @@ async function forkPublishedRecord(
   delete data.supersedes;
   delete data.supersededBy;
 
-  const draft = await ImplementationRecord.create({
+  const draftData = enrichData(r.module, data, r.module === "risks" ? await orgRiskBands(auth, r.orgId) : undefined);
+  const draft = await withCodeLock(codeLockKey(r.orgId, r.module), null, async (tx) => ImplementationRecord.create({
     orgId: r.orgId,
     module: r.module,
-    code: await spec.makeCode(r.orgId, data, input.frameworks ?? r.frameworks ?? []),
+    code: await spec.makeCode(r.orgId, data, input.frameworks ?? r.frameworks ?? [], tx),
     title: input.title?.trim() ?? r.title,
     status: "Draft",
     owner: input.owner !== undefined ? input.owner : r.owner,
-    data: enrichData(r.module, data, r.module === "risks" ? await orgRiskBands(auth, r.orgId) : undefined),
+    data: draftData,
     elementId: input.elementId !== undefined ? input.elementId : r.elementId,
     frameworks: input.frameworks ?? r.frameworks,
-  });
+  }, { transaction: tx }));
 
   await writeAudit({
-    actorUserId: auth.userId, organizationId: r.orgId,
+    actorUserId: auth.userId, organizationId: r.orgId, tenantId: auditTenantId(auth, r.orgId),
     action: `ms.${r.module}.revised`, entityType: "ImplementationRecord", entityId: draft.id, sourceIp: ip, result: "Success",
     metadata: { prevVersionId: r.id, lineageId: lineage, version: data.version },
   });
@@ -423,8 +432,8 @@ function deriveNcStatusFromCap(implementationStatus: string): string {
 }
 
 /** OD `ipPadCAP`: CAP ids are their own per-org sequence, independent of NC codes. */
-async function nextCapCode(orgId: string): Promise<string> {
-  const rows = await ImplementationRecord.findAll({ where: { module: "nonconformities", orgId } });
+async function nextCapCode(orgId: string, tx: Transaction): Promise<string> {
+  const rows = await ImplementationRecord.findAll({ where: { module: "nonconformities", orgId }, attributes: ["data"], transaction: tx });
   let max = 0;
   for (const row of rows) {
     const cap = (row.data as Record<string, unknown> | null)?.cap as Record<string, unknown> | undefined;
@@ -446,7 +455,7 @@ async function nextCapCode(orgId: string): Promise<string> {
  * an explicit manual choice, while a genuine CAP status edit — from any
  * client — can never leave the two lifecycles in contradiction.
  */
-async function applyCapSideEffects(module: string, orgId: string, r: ImplementationRecord, input: RecordInput): Promise<void> {
+async function applyCapSideEffects(module: string, r: ImplementationRecord, input: RecordInput): Promise<void> {
   if (module !== "nonconformities" || input.data === undefined) return;
   const data = input.data as Record<string, unknown>;
   const cap = data.cap as Record<string, unknown> | null | undefined;
@@ -454,7 +463,8 @@ async function applyCapSideEffects(module: string, orgId: string, r: Implementat
   const existingCap = ((r.data ?? {}) as Record<string, unknown>).cap as Record<string, unknown> | undefined | null;
 
   const nextCap: Record<string, unknown> = { ...cap };
-  if (!nextCap.id) nextCap.id = existingCap?.id ?? (await nextCapCode(orgId));
+  // A brand-new CAP's id is minted at save time, under the code lock — see saveRecord.
+  if (!nextCap.id && existingCap?.id) nextCap.id = existingCap.id;
   data.cap = nextCap;
 
   const prevImpl = existingCap?.implementationStatus as string | undefined;
@@ -480,7 +490,7 @@ async function closeLinkedGap(auth: AuthContext, r: ImplementationRecord, ip: st
   const gap = await CompetenceGap.findByPk(data.gapId);
   if (!gap || gap.orgId !== r.orgId) return;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = await orgToday(r.orgId);
   gap.trainingDone = true;
   gap.trainingDate = today;
   gap.status = "Resolved";
@@ -488,7 +498,7 @@ async function closeLinkedGap(auth: AuthContext, r: ImplementationRecord, ip: st
   await gap.save();
 
   await writeAudit({
-    actorUserId: auth.userId, organizationId: r.orgId,
+    actorUserId: auth.userId, organizationId: r.orgId, tenantId: auditTenantId(auth, r.orgId),
     action: "competence.gap.closedByTraining", entityType: "CompetenceGap", entityId: gap.id,
     sourceIp: ip, result: "Success", metadata: { trainingRecordId: r.id },
   });
@@ -588,11 +598,62 @@ function assertRiskArchivable(module: string, r: ImplementationRecord, nextStatu
   }
 }
 
+/**
+ * States only the approval workflow may put a record into (approval.service:
+ * the policy gate engine, the controlled-document submit/review/publish flow,
+ * and lineage supersede). A plain PATCH into one of them would skip every
+ * approver, so it is refused and the client is pointed at the workflow.
+ * `context` is deliberately absent: OD's direct Open → Monitored transition
+ * (`ocSetStatus`) is a normal register action there.
+ */
+const APPROVAL_CONTROLLED_STATUSES: Partial<Record<string, ReadonlySet<string>>> = {
+  documents: new Set(["Under Review", "Revision Requested", "Approved", "Rejected", "Published", "Superseded"]),
+  policies: new Set(["Under Review", "Pending Final Approval", "Approved", "Needs Revision", "Published", "Superseded"]),
+};
+
+function assertNotApprovalControlled(module: string, currentStatus: string | null, nextStatus: string | undefined): void {
+  if (nextStatus === undefined || nextStatus === currentStatus) return;
+  if (APPROVAL_CONTROLLED_STATUSES[module]?.has(nextStatus)) {
+    throw new ConflictError(`"${nextStatus}" is set by the approval workflow, not by editing the record`, "USE_APPROVAL_WORKFLOW");
+  }
+}
+
+/**
+ * Editing a Published document/policy forks a new Draft instead of changing it
+ * (see `forkPublishedRecord`). That has to hold whatever `status` rides along:
+ * the same status (or none) is just the edit; a different status would let a
+ * content change land on the live record on its way out (e.g. → Review Due,
+ * then reconfirmed as Published without any approval), so it is refused.
+ */
+function assertEditOnlyForFork(r: ImplementationRecord, input: RecordInput): void {
+  if (input.status !== undefined && input.status !== r.status) {
+    throw new ConflictError(
+      "Change the status and edit the content of a published record in separate requests",
+      "STATUS_WITH_PUBLISHED_EDIT",
+    );
+  }
+}
+
+/**
+ * Saves `r`; a nonconformity whose CAP has no id yet gets the next CAP id here,
+ * minted and written under the org's CAP code lock (CAP ids are max+1 over the
+ * org's nonconformities).
+ */
+async function saveRecord(r: ImplementationRecord): Promise<void> {
+  const cap = ((r.data ?? {}) as Record<string, unknown>).cap as Record<string, unknown> | null | undefined;
+  if (r.module !== "nonconformities" || !cap || cap.id) {
+    await r.save();
+    return;
+  }
+  await withCodeLock(codeLockKey(r.orgId, "cap"), null, async (tx) => {
+    r.data = { ...(r.data ?? {}), cap: { ...cap, id: await nextCapCode(r.orgId, tx) } };
+    await r.save({ transaction: tx });
+  });
+}
+
 export async function updateRecord(auth: AuthContext, module: string, id: string, input: RecordInput, ip: string | null): Promise<RecordView> {
   const r = await requireRecord(auth, module, id);
-  // OD `bpForm`/`bpArchive` (app.html:24565,24570): a Seeded business process
-  // is system-provided and can never be edited or archived — the register
-  // list even swaps its Edit/Archive controls for a plain "System" label.
+  assertNotApprovalControlled(module, r.status, input.status);
   // OD `bpForm`/`bpArchive` (app.html:24565,24570): a Seeded business process
   // is system-provided and can never be edited or archived — the register
   // list even swaps its Edit/Archive controls for a plain "System" label.
@@ -614,7 +675,7 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
   // `input.status = "Closed"` (e.g. the CAP's own implementation status is set
   // to Closed), and that derived close must pass the same effectiveness gate
   // as an explicit one — see `applyCapSideEffects`.
-  await applyCapSideEffects(module, r.orgId, r, input);
+  await applyCapSideEffects(module, r, input);
   assertClosable(module, r, input.status, input);
   await assertActivatable(module, r.orgId, (r.data ?? {}) as Record<string, unknown>, input.status, input);
   assertRiskArchivable(module, r, input.status);
@@ -641,7 +702,8 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
       changeSummary: mergedData.changeSummary,
     });
     if (input.data !== undefined) input = { ...input, data: deriveDocumentData(input.data) };
-    if (r.status === "Published" && input.status === undefined && !settings.allowEditPublished) {
+    if (r.status === "Published" && !settings.allowEditPublished) {
+      assertEditOnlyForFork(r, input);
       return forkPublishedRecord(auth, r, input, ip, DOCUMENT_FORK);
     }
   }
@@ -652,7 +714,8 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
   // publishes (supersede happens in `publishWithLineage`). A pure status
   // transition (Published → Archived) is not an edit and passes through.
   if (module === "policies" && input.data !== undefined) {
-    if (r.status === "Published" && input.status === undefined) {
+    if (r.status === "Published") {
+      assertEditOnlyForFork(r, input);
       return forkPublishedRecord(auth, r, input, ip, POLICY_FORK);
     }
     input = { ...input, data: derivePolicyData(input.data) };
@@ -696,13 +759,11 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
   // `requalDate` (today + 1 year), date-only — never typed form fields.
   let supplierQualifyStamp: Record<string, unknown> | undefined;
   if (module === "suppliers" && input.status === "Approved" && r.status !== "Approved") {
-    const today = new Date();
-    const requal = new Date(today);
-    requal.setFullYear(requal.getFullYear() + 1);
-    supplierQualifyStamp = {
-      qualifiedDate: today.toISOString().slice(0, 10),
-      requalDate: requal.toISOString().slice(0, 10),
-    };
+    const today = await orgToday(r.orgId);
+    // Calendar arithmetic on the date string's own y/m/d, not a UTC instant.
+    const requal = new Date(`${today}T00:00:00Z`);
+    requal.setUTCFullYear(requal.getUTCFullYear() + 1);
+    supplierQualifyStamp = { qualifiedDate: today, requalDate: requal.toISOString().slice(0, 10) };
   }
 
   const statusChanged = input.status !== undefined && input.status !== r.status;
@@ -726,9 +787,9 @@ export async function updateRecord(auth: AuthContext, module: string, id: string
   }
   if (input.elementId !== undefined) r.elementId = input.elementId;
   if (input.frameworks !== undefined) r.frameworks = input.frameworks;
-  await r.save();
+  await saveRecord(r);
   await writeAudit({
-    actorUserId: auth.userId, organizationId: r.orgId,
+    actorUserId: auth.userId, organizationId: r.orgId, tenantId: auditTenantId(auth, r.orgId),
     action: `ms.${module}.updated`, entityType: "ImplementationRecord", entityId: r.id, sourceIp: ip, result: "Success",
   });
   // Surface the justification straight in the activity feed — the generic
@@ -784,9 +845,14 @@ export async function deleteRecord(auth: AuthContext, module: string, id: string
     }
   }
   const orgId = r.orgId;
-  await r.destroy();
+  // The record's activity feed and approval run go with it, atomically.
+  await sequelize.transaction(async (transaction) => {
+    await RecordEvent.destroy({ where: { orgId, module, recordId: id }, transaction });
+    await ApprovalRecord.destroy({ where: { orgId, module, recordId: id }, transaction });
+    await r.destroy({ transaction });
+  });
   await writeAudit({
-    actorUserId: auth.userId, organizationId: orgId,
+    actorUserId: auth.userId, organizationId: orgId, tenantId: auditTenantId(auth, orgId),
     action: `ms.${module}.deleted`, entityType: "ImplementationRecord", entityId: id, sourceIp: ip, result: "Success",
   });
 }
@@ -849,10 +915,10 @@ export async function routeConcern(
   const target = ROUTE_TARGET[cl];
 
   if (target) {
-    created = await ImplementationRecord.create({
+    created = await withCodeLock(codeLockKey(c.orgId, target), null, async (tx) => ImplementationRecord.create({
       orgId: c.orgId,
       module: target,
-      code: await nextCode(target, c.orgId),
+      code: await nextCode(target, c.orgId, tx),
       title: c.title,
       status: "Open",
       owner: c.owner,
@@ -874,7 +940,7 @@ export async function routeConcern(
         // editor supplies PIC/Due once a corrective action plan exists.
         ...(target === "nonconformities" ? { category: "Process Nonconformity", pic: "", due: "", cap: null } : {}),
       }),
-    });
+    }, { transaction: tx }));
     c.status = "Routed";
     c.data = { ...src, reviewer, reviewDate: now, reviewNotes, routingNotes,
       classification: cl, routedTo: target, routedRecordId: created.id, routedRecordCode: created.code };
@@ -894,7 +960,7 @@ export async function routeConcern(
   await c.save();
 
   await writeAudit({
-    actorUserId: auth.userId, organizationId: c.orgId,
+    actorUserId: auth.userId, organizationId: c.orgId, tenantId: auditTenantId(auth, c.orgId),
     action: "ms.concerns.routed", entityType: "ImplementationRecord", entityId: c.id,
     sourceIp: ip, result: "Success", metadata: { classification: cl, createdId: created?.id ?? null },
   });

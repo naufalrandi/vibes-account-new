@@ -1,4 +1,4 @@
-import { Op, Model, type ModelStatic } from "sequelize";
+import { Op, Model, type ModelStatic, type Transaction } from "sequelize";
 import { IpParty, IpRequirement, ImplementationRecord, ApprovalRecord, User } from "../../db/models";
 import { IP_CATEGORIES, IP_REQ_TYPES, IP_REQ_STATUS } from "../../db/models/interestedParty.models";
 import type { AuthContext } from "../../lib/scope";
@@ -7,6 +7,7 @@ import { writeAudit } from "../audit/audit.service";
 import { createRecord } from "../implementation/implementation.service";
 import { listSchemes, resolveSchemeId } from "../approvals/approval.service";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { maxCodeSeq, withCodeLock } from "../../lib/codeSeq";
 
 const nowIso = () => new Date().toISOString();
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : v == null || v === "" ? null : String(v));
@@ -26,11 +27,9 @@ async function orgWhere(auth: AuthContext): Promise<Record<string, unknown>> {
   const ids = await visibleTenantOrgIds(auth);
   return ids === null ? {} : { orgId: { [Op.in]: ids } };
 }
-async function nextCode(model: ModelStatic<Model>, prefix: string): Promise<string> {
-  const rows = await model.findAll({ attributes: ["code"], where: { code: { [Op.like]: `${prefix}-%` } } });
-  let max = 0;
-  for (const r of rows) { const n = Number.parseInt(String(r.get("code")).slice(prefix.length + 1), 10); if (Number.isFinite(n) && n > max) max = n; }
-  return `${prefix}-${String(max + 1).padStart(4, "0")}`;
+/** Call inside `withCodeLock(prefix, …)` and insert with the same `tx`. */
+async function nextCode(model: ModelStatic<Model>, prefix: string, tx: Transaction): Promise<string> {
+  return `${prefix}-${String((await maxCodeSeq(model, prefix, tx)) + 1).padStart(4, "0")}`;
 }
 async function audit(auth: AuthContext, action: string, entityType: string, id: string, ip: string | null) {
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action, entityType, entityId: id, sourceIp: ip, result: "Success" });
@@ -70,11 +69,11 @@ export async function createParty(auth: AuthContext, input: Record<string, unkno
   if (!name) throw new BadRequestError("Name is required", "NAME_REQUIRED");
   if (!category || !IP_CATEGORIES.includes(category as never)) throw new BadRequestError("A valid category is required", "CATEGORY_REQUIRED");
   const who = await actorName(auth);
-  const row = await IpParty.create({
-    orgId: org, code: await nextCode(IpParty, "IP"), name, category, description: str(input.description),
+  const row = await withCodeLock("IP", null, async (tx) => IpParty.create({
+    orgId: org, code: await nextCode(IpParty, "IP", tx), name, category, description: str(input.description),
     frameworks: arr(input.frameworks), status: "Active", createdBy: who, lastUpdatedBy: who,
     activity: [{ ts: nowIso(), user: who, action: "created", summary: "Interested party created" }],
-  });
+  }, { transaction: tx }));
   await audit(auth, "ip.party.created", "IpParty", row.id, ip);
   return row.get({ plain: true });
 }
@@ -136,11 +135,11 @@ export async function createRequirement(auth: AuthContext, input: Record<string,
   const linked = arr(input.linkedObligations);
   if (input.relatedCO === true && linked.length === 0) throw new BadRequestError("Select at least one obligation when related to a compliance obligation", "OBLIGATION_REQUIRED");
   const who = await actorName(auth);
-  const row = await IpRequirement.create({
-    orgId: org, code: await nextCode(IpRequirement, "IP-REQ"), partyId, topic, description: str(input.description), type,
+  const row = await withCodeLock("IP-REQ", null, async (tx) => IpRequirement.create({
+    orgId: org, code: await nextCode(IpRequirement, "IP-REQ", tx), partyId, topic, description: str(input.description), type,
     frameworks: arr(input.frameworks), relatedCO: linked.length > 0, linkedObligations: linked, status: "Open",
     createdBy: who, lastUpdatedBy: who, activity: [{ ts: nowIso(), user: who, action: "created", summary: "Requirement added" }],
-  });
+  }, { transaction: tx }));
   await audit(auth, "ip.requirement.created", "IpRequirement", row.id, ip);
   return { ...row.get({ plain: true }), linkedRiskCount: 0 };
 }

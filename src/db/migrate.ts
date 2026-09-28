@@ -47,6 +47,19 @@ export const migrator = createMigrator();
 
 export type Migration = typeof migrator._types.migration;
 
+/**
+ * Boot-time `up`, serialised across instances: a transaction holds
+ * `pg_advisory_xact_lock` while the migrations run (on other pool connections —
+ * hence DB_POOL_MAX ≥ 2), so replicas starting together can't race the same
+ * migration. The lock is released when the transaction ends.
+ */
+export async function migrateUpLocked(): Promise<void> {
+  await sequelize.transaction(async (tx) => {
+    await sequelize.query("SELECT pg_advisory_xact_lock(hashtext('omnitenant:migrations'))", { transaction: tx });
+    await migrator.up();
+  });
+}
+
 if (require.main === module) {
   const cmd = process.argv[2] ?? "up";
   migrator

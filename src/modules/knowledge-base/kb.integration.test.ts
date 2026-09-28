@@ -56,6 +56,31 @@ describe("Knowledge Base", () => {
     expect(filtered.body.data).toHaveLength(1);
   });
 
+  it("scopes articles by operating company: ?company=axia includes legacy NULL rows, exelera only its own", async () => {
+    const { token } = await makeUser("so", "AXIA", "ServiceOwner", [ACTIONS.KB_READ, ACTIONS.KB_MANAGE]);
+    const post = (body: Record<string, unknown>) => request(app).post("/v1/kb-articles").set(authed(token)).send({ category: "platform", ...body });
+    const legacy = await post({ title: "Legacy" });
+    expect(legacy.body.data.company).toBe("axia");
+    const ax = await post({ title: "Axia doc", company: "axia" });
+    const ex = await post({ title: "Exelera doc", company: "Exelera" });
+    expect(ex.status).toBe(201);
+    expect(ex.body.data.company).toBe("exelera");
+    expect((await post({ title: "Bad", company: "nope" })).status).toBe(400);
+
+    const titles = async (q: string) =>
+      ((await request(app).get(`/v1/kb-articles${q}`).set(authed(token))).body.data as { title: string }[]).map((a) => a.title).sort();
+    expect(await titles("")).toEqual(["Axia doc", "Exelera doc", "Legacy"]);
+    expect(await titles("?company=axia")).toEqual(["Axia doc", "Legacy"]);
+    expect(await titles("?company=exelera")).toEqual(["Exelera doc"]);
+    expect(await titles("?company=exelera&search=doc")).toEqual(["Exelera doc"]);
+    expect((await request(app).get("/v1/kb-articles?company=nope").set(authed(token))).status).toBe(400);
+
+    // Moving an article between companies on update.
+    const moved = await request(app).put(`/v1/kb-articles/${ax.body.data.id}`).set(authed(token)).send({ company: "exelera" });
+    expect(moved.body.data.company).toBe("exelera");
+    expect(await titles("?company=exelera")).toEqual(["Axia doc", "Exelera doc"]);
+  });
+
   it("a tenant sees published global articles but not SO drafts", async () => {
     const so = await makeUser("so", "AXIA", "ServiceOwner", [ACTIONS.KB_READ, ACTIONS.KB_MANAGE]);
     await request(app).post("/v1/kb-articles").set(authed(so.token)).send({ title: "Draft doc", category: "platform", status: "Draft" });
@@ -209,6 +234,24 @@ describe("Notifications", () => {
     expect(marked.body.data.updated).toBe(2);
     const after = await request(app).get("/v1/notifications").set(authed(u.token));
     expect(after.body.data.every((n: { read: boolean }) => n.read)).toBe(true);
+  });
+
+  it("marks only the given ids read, and only the caller's own", async () => {
+    const u = await makeUser("t", "TEN", "Tenant", []);
+    const other = await makeUser("t2", "TEN2", "Tenant", []);
+    const [mine, alsoMine, theirs] = await Notification.bulkCreate([
+      { orgId: u.orgId, userId: u.userId, type: "info", text: "A", link: null, read: false },
+      { orgId: u.orgId, userId: u.userId, type: "info", text: "B", link: null, read: false },
+      { orgId: other.orgId, userId: other.userId, type: "info", text: "C", link: null, read: false },
+    ]);
+    const marked = await request(app).post("/v1/notifications/read").set(authed(u.token)).send({ ids: [mine.id, theirs.id] });
+    expect(marked.status).toBe(200);
+    expect(marked.body.data.updated).toBe(1);
+    const reads = Object.fromEntries((await Notification.findAll({ where: { id: [mine.id, alsoMine.id, theirs.id] } })).map((n) => [n.id, n.read]));
+    expect(reads).toEqual({ [mine.id]: true, [alsoMine.id]: false, [theirs.id]: false });
+
+    const bad = await request(app).post("/v1/notifications/read").set(authed(u.token)).send({ ids: ["not-a-uuid"] });
+    expect(bad.status).toBe(400);
   });
 });
 

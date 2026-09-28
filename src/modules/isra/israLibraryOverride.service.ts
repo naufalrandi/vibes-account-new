@@ -5,6 +5,8 @@ import {
 } from "../../db/models";
 import { ISRA_LIB_TYPES, type IsraLibType, type IsraLibHistoryEntry } from "../../db/models/israLibraryOverride.models";
 import type { AuthContext } from "../../lib/scope";
+import { auditTenantId } from "../../lib/auditTenant";
+import { writeAudit } from "../audit/audit.service";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
@@ -89,8 +91,14 @@ function libKey(source: "platform" | "tenant", ownerOrgId: string | null, id: st
   return `${source}:${ownerOrgId ?? "platform"}:${id}`;
 }
 
+/** Every tenant-library change: OD's own library audit trail, plus the platform audit log (with the tenant). */
 async function logLtAudit(auth: AuthContext, orgId: string, action: string, libType: string, key: string, detail: Record<string, unknown> | null) {
   await IsraLibraryAudit.create({ orgId, actor: await actorName(auth), action, libType, key, detail });
+  await writeAudit({
+    actorUserId: auth.userId, organizationId: orgId, tenantId: auditTenantId(auth, orgId),
+    action: `isra.library.${action}`, entityType: "IsraLibrary", entityId: null, sourceIp: null, result: "Success",
+    metadata: { libType, key, ...(detail ?? {}) },
+  });
 }
 
 export interface EffectiveLibraryRow {

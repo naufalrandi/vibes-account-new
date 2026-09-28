@@ -43,15 +43,22 @@ export interface UploadedFile {
 /** Persists a DB row for an already-saved multer file. Size/type come from the server-verified `file`, never the client body; `name` is the author's label (OD `cms-m-name`) and falls back to the file's own name. */
 export async function recordUpload(auth: AuthContext, file: UploadedFile, alt: string | null, ip: string | null, name?: string | null): Promise<CmsMedia> {
   const relUrl = `/uploads/cms/${auth.orgId}/${file.filename}`;
-  const m = await CmsMedia.create({
-    orgId: auth.orgId,
-    name: name || file.originalname,
-    type: file.mimetype,
-    alt,
-    size: file.size,
-    url: relUrl,
-    createdBy: auth.userId,
-  });
+  let m: CmsMedia;
+  try {
+    m = await CmsMedia.create({
+      orgId: auth.orgId,
+      name: name || file.originalname,
+      type: file.mimetype,
+      alt,
+      size: file.size,
+      url: relUrl,
+      createdBy: auth.userId,
+    });
+  } catch (e) {
+    // No row → nothing references the file; don't leave it orphaned on disk.
+    await fs.promises.unlink(file.path).catch(() => undefined);
+    throw e;
+  }
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "cms.media.uploaded", entityType: "CmsMedia", entityId: m.id, sourceIp: ip, result: "Success" });
   return m;
 }

@@ -4,6 +4,7 @@ import { Organization, User } from "../../db/models";
 import { sendOk } from "../../lib/apiResponse";
 import { userScopeWhere } from "../../lib/scope";
 import { UnauthorizedError } from "../../lib/errors";
+import { companyColumnWhere } from "../business/business.service";
 
 /**
  * OD `tmProvisioned` (js/core.js:4913) — staff who are on the roster but hold
@@ -22,17 +23,23 @@ import { UnauthorizedError } from "../../lib/errors";
  * granted, matching OD's seed semantics), so this reads the same rows the team
  * list reads and reshapes them.
  */
-const querySchema = z.object({ orgId: z.string().uuid().optional() });
+const querySchema = z.object({ orgId: z.string().uuid().optional(), company: z.string().max(40).optional() });
 
 export async function list(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { orgId } = querySchema.parse(req.query);
+    const { orgId, company } = querySchema.parse(req.query);
     if (!req.auth) throw new UnauthorizedError();
     // Scoped the same way the team list is: `orgId` narrows within the caller's
     // visibility, it does not grant it. Without this a Distributor admin could
     // list every unprovisioned person on the platform.
     const rows = await User.findAll({
-      where: { ...userScopeWhere(req.auth), provisioned: false, ...(orgId ? { orgId } : {}) },
+      where: {
+        ...userScopeWhere(req.auth),
+        provisioned: false,
+        ...(orgId ? { orgId } : {}),
+        // 'axia' also matches NULL (the default company), as on the team list.
+        ...(company ? { company: companyColumnWhere(company) } : {}),
+      },
       // The Distributor scope clause resolves `$Organization.parent_org_id$`, so
       // the association has to be joined or the query is invalid SQL.
       include: [{ model: Organization, attributes: [], required: true }],
@@ -48,6 +55,7 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
         role: u.position ?? undefined,
         workUnit: u.workUnit ?? undefined,
         siteId: u.siteId ?? null,
+        company: u.company ?? null,
         provisioned: false,
         // The person already has a User row; `userId` points at it so the
         // frontend can link the directory entry to the account it becomes.

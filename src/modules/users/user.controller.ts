@@ -45,8 +45,14 @@ const unitPermsSchema = z
 const actionMapSchema = z.record(z.string(), z.array(z.string()));
 const unitActionMapSchema = z.record(z.string(), actionMapSchema);
 
+// Operating company, same values as the business API's `company` ('axia' |
+// 'exelera'); `co` is accepted as OD's field-name alias. Validated in the service.
+const companySchema = z.string().max(40).nullish();
+
 const createSchema = z.object({
   orgId: z.string().uuid(),
+  company: companySchema,
+  co: companySchema,
   fullName: z.string().min(1),
   username: z.string().min(1),
   email: z.string().email(),
@@ -58,7 +64,7 @@ const createSchema = z.object({
   permissions: permissionsSchema.nullish(),
   position: z.string().nullish(),
   phone: z.string().nullish(),
-  photo: z.string().nullish(),
+  photo: z.string().max(2_000_000).nullish(),
   workUnit: z.string().nullish(),
   department: z.string().nullish(),
 });
@@ -75,7 +81,7 @@ const updateSchema = z.object({
   status: z.enum(["Pending Activation", "Active", "Suspended"]).optional(),
   position: z.string().nullish(),
   phone: z.string().nullish(),
-  photo: z.string().nullish(),
+  photo: z.string().max(2_000_000).nullish(),
   workUnit: z.string().nullish(),
   // OD tenant-team member fields (migration 0047).
   siteId: z.string().uuid().nullish(),
@@ -95,15 +101,22 @@ const updateSchema = z.object({
   navPerms: navPermsSchema.optional(),
   navActions: actionMapSchema.optional(),
   provisioned: z.boolean().optional(),
+  company: companySchema,
+  co: companySchema,
 });
 
 const statusSchema = z.object({ status: z.enum(["Active", "Suspended"]) });
+const roleIdSchema = z.string().uuid();
 
 export async function create(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    const { roleGroup, ...rest } = createSchema.parse(req.body);
-    const user = await userService.createUser(req.auth, { ...rest, role: roleGroup ?? rest.role }, req.ip ?? null);
+    const { roleGroup, co, ...rest } = createSchema.parse(req.body);
+    const user = await userService.createUser(
+      req.auth,
+      { ...rest, role: roleGroup ?? rest.role, company: rest.company !== undefined ? rest.company : co },
+      req.ip ?? null,
+    );
     sendOk(res, user, 201);
   } catch (e) {
     next(e);
@@ -113,11 +126,11 @@ export async function create(req: Request, res: Response, next: NextFunction) {
 export async function update(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    const { roleGroup, ...rest } = updateSchema.parse(req.body);
+    const { roleGroup, co, ...rest } = updateSchema.parse(req.body);
     const user = await userService.updateUser(
       req.auth,
       req.params.id as string,
-      { ...rest, role: roleGroup ?? rest.role },
+      { ...rest, role: roleGroup ?? rest.role, company: rest.company !== undefined ? rest.company : co },
       req.ip ?? null,
     );
     sendOk(res, user);
@@ -157,9 +170,19 @@ export async function list(req: Request, res: Response, next: NextFunction) {
       email: req.query.email as string | undefined,
       username: req.query.username as string | undefined,
       search: req.query.search as string | undefined,
+      company: typeof req.query.company === "string" ? req.query.company : undefined,
     });
     const { items, meta } = paginate(users, req.query);
     sendOk(res, items, 200, meta);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function get(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    sendOk(res, await userService.getUser(req.auth, req.params.id as string));
   } catch (e) {
     next(e);
   }
@@ -189,7 +212,8 @@ export async function remove(req: Request, res: Response, next: NextFunction) {
 export async function assignRole(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    await userService.assignRole(req.auth, req.params.id as string, req.body.roleId, req.ip ?? null);
+    const { roleId } = z.object({ roleId: roleIdSchema }).parse(req.body);
+    await userService.assignRole(req.auth, req.params.id as string, roleId, req.ip ?? null);
     sendOk(res, { assigned: true }, 201);
   } catch (e) {
     next(e);
@@ -199,7 +223,8 @@ export async function assignRole(req: Request, res: Response, next: NextFunction
 export async function removeRole(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();
-    await userService.removeRole(req.auth, req.params.id as string, req.params.roleId as string, req.ip ?? null);
+    const roleId = roleIdSchema.parse(req.params.roleId);
+    await userService.removeRole(req.auth, req.params.id as string, roleId, req.ip ?? null);
     sendOk(res, { removed: true });
   } catch (e) {
     next(e);

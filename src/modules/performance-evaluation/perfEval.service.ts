@@ -1,10 +1,11 @@
-import { Op, Model, type ModelStatic } from "sequelize";
+import { Op, Model, type ModelStatic, type Transaction } from "sequelize";
 import { PerfEval } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
 import { actorName } from "../record-events/recordEvent.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { maxCodeSeq, withCodeLock } from "../../lib/codeSeq";
 import type { PerfEvalIndicator, PerfEvalObjective } from "../../db/models/evaluation.models";
 import { listRecords } from "../implementation/implementation.service";
 import { listRisks } from "../risks/risk.service";
@@ -34,14 +35,9 @@ async function orgWhere(auth: AuthContext, orgId?: string): Promise<Record<strin
   return {};
 }
 
-async function nextCode(model: ModelStatic<Model>, prefix: string): Promise<string> {
-  const rows = await model.findAll({ attributes: ["code"], where: { code: { [Op.like]: `${prefix}-%` } } });
-  let max = 0;
-  for (const r of rows) {
-    const n = Number.parseInt(String(r.get("code")).slice(prefix.length + 1), 10);
-    if (Number.isFinite(n) && n > max) max = n;
-  }
-  return `${prefix}-${String(max + 1).padStart(4, "0")}`;
+/** Call inside `withCodeLock(prefix, …)` and insert with the same `tx`. */
+async function nextCode(model: ModelStatic<Model>, prefix: string, tx: Transaction): Promise<string> {
+  return `${prefix}-${String((await maxCodeSeq(model, prefix, tx)) + 1).padStart(4, "0")}`;
 }
 
 async function logAudit(auth: AuthContext, orgId: string, action: string, entityId: string, ip: string | null) {
@@ -114,10 +110,10 @@ export async function createPerfEval(auth: AuthContext, input: Record<string, un
   const indicators = parseIndicators(input.indicators);
   const objectives = parseObjectives(input.objectives);
   const who = await actorName(auth);
-  const row = await PerfEval.create({
-    orgId: org, code: await nextCode(PerfEval, "PEV"), period, date, owner,
+  const row = await withCodeLock("PEV", null, async (tx) => PerfEval.create({
+    orgId: org, code: await nextCode(PerfEval, "PEV", tx), period, date, owner,
     summary: str(input.summary), indicators, objectives, createdBy: who, lastUpdatedBy: who,
-  });
+  }, { transaction: tx }));
   await logAudit(auth, org, "perfeval.created", row.id, ip);
   return row.get({ plain: true });
 }

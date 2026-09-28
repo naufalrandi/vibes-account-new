@@ -2,7 +2,7 @@ import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { randomUUID } from "node:crypto";
 import { createApp } from "../../app";
-import { CompetenceAssignment, CompetenceGap, CompetenceRole, initModels, Organization, User, Role } from "../../db/models";
+import { CompetenceAssignment, CompetenceGap, CompetenceRole, ImplementationRecord, initModels, Organization, RecordEvent, User, Role } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
@@ -10,9 +10,11 @@ import { MS_MODULES } from "./registry";
 
 const app = createApp();
 const authed = (t: string) => ({ Authorization: `Bearer ${t}` });
+/** Put a record straight into the approval workflow's end state (a PUT can no longer). */
+const markPublished = (id: string) => ImplementationRecord.update({ status: "Published" }, { where: { id } });
 const MS = [ACTIONS.MS_READ, ACTIONS.MS_MANAGE];
 
-async function makeTenant(username: string, code: string, actions = MS): Promise<{ token: string; orgId: string }> {
+async function makeTenant(username: string, code: string, actions: string[] = MS): Promise<{ token: string; orgId: string }> {
   const org = await Organization.create({ name: code, code, type: "Tenant", status: "Active", parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null });
   const user = await User.create({ orgId: org.id, tenantId: null, fullName: "T", username, email: `${username}@x.io`, passwordHash: await hashPassword("ChangeMe123"), status: "Active", position: null, workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null });
   const role = await Role.create({ name: `R-${username}`, tierScope: "Tenant", orgId: org.id, isSuperAdmin: false, status: true });
@@ -26,7 +28,7 @@ async function makeTenant(username: string, code: string, actions = MS): Promise
 /** A gap needs a real role + assignment behind it (both are FK-constrained). */
 async function seedGap(orgId: string, code: string) {
   const role = await CompetenceRole.create({
-    orgId, code: `ROL-${code}`, name: "Internal Auditor", description: null,
+    orgId, name: "Internal Auditor", description: null,
     eduMinLevelId: null, eduFields: [], eduCountry: null, expReqs: [],
     responsibilities: [], authorities: [], reviewFreq: "12", status: "Active",
   });
@@ -289,7 +291,7 @@ describe("ISO clause registers (implementation)", () => {
     const bad = await request(app).post("/v1/implementation/policies").set(authed(token)).send({ title: "P", status: "Bogus" });
     expect(bad.status).toBe(400);
     // A valid deep-module status is accepted.
-    const ok = await request(app).post("/v1/implementation/policies").set(authed(token)).send({ title: "Security Policy", status: "Published" });
+    const ok = await request(app).post("/v1/implementation/policies").set(authed(token)).send({ title: "Security Policy", status: "Draft" });
     expect(ok.status).toBe(201);
   });
 
@@ -330,8 +332,8 @@ describe("ISO clause registers (implementation)", () => {
       .send({ title: "Access Control Policy", status: "Draft", owner: "IT Lead", data: cdData({ version: "1.0", content: "v1 text" }) });
     const id = created.body.data.id;
 
-    // Publish it, then edit the published text.
-    await request(app).put(`/v1/implementation/documents/${id}`).set(authed(token)).send({ status: "Published" });
+    // Publish it (the approval workflow's end state), then edit the published text.
+    await markPublished(id);
     const edited = await request(app).put(`/v1/implementation/documents/${id}`).set(authed(token))
       .send({ data: cdData({ content: "v2 text", changeSummary: "Clarify scope" }) });
 
@@ -367,18 +369,73 @@ describe("ISO clause registers (implementation)", () => {
     expect(draftEdit.body.data.id).toBe(id);
 
     // Archiving a published doc is a status transition, not an edit.
-    await request(app).put(`/v1/implementation/documents/${id}`).set(authed(token)).send({ status: "Published" });
+    await markPublished(id);
     const archived = await request(app).put(`/v1/implementation/documents/${id}`).set(authed(token)).send({ status: "Archived" });
     expect(archived.body.data.id).toBe(id);
     expect(archived.body.data.status).toBe("Archived");
 
     // With allowEditPublished on (OD cdSettings), a published doc edits in place.
-    await request(app).put(`/v1/implementation/documents/${id}`).set(authed(token)).send({ status: "Published" });
+    await markPublished(id);
     await request(app).put("/v1/implementation/documents/settings").set(authed(token)).send({ allowEditPublished: true });
     const inPlace = await request(app).put(`/v1/implementation/documents/${id}`).set(authed(token))
       .send({ data: cdData({ version: "1.0", content: "edited in place" }) });
     expect(inPlace.body.data.id).toBe(id);
     expect(inPlace.body.data.data.content).toBe("edited in place");
+  });
+
+  it("refuses a PATCH into an approval-controlled status (USE_APPROVAL_WORKFLOW)", async () => {
+    const { token } = await makeTenant("t1", "TEN1");
+    const doc = await request(app).post("/v1/implementation/documents").set(authed(token))
+      .send({ title: "Doc", status: "Draft", owner: "IT Lead", data: cdData({ version: "1.0" }) });
+    for (const status of ["Under Review", "Approved", "Published"]) {
+      const res = await request(app).put(`/v1/implementation/documents/${doc.body.data.id}`).set(authed(token)).send({ status });
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe("USE_APPROVAL_WORKFLOW");
+    }
+    const pol = await request(app).post("/v1/implementation/policies").set(authed(token)).send({ title: "Policy" });
+    const res = await request(app).put(`/v1/implementation/policies/${pol.body.data.id}`).set(authed(token)).send({ status: "Published" });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe("USE_APPROVAL_WORKFLOW");
+    // Nor can a record be born in one.
+    for (const [module, status] of [["documents", "Published"], ["documents", "Under Review"], ["policies", "Approved"], ["policies", "Published"]]) {
+      const created = await request(app).post(`/v1/implementation/${module}`).set(authed(token))
+        .send({ title: "Born published", status, owner: "IT Lead", ...(module === "documents" ? { data: cdData({ version: "1.0" }) } : {}) });
+      expect(created.status).toBe(409);
+      expect(created.body.error.code).toBe("USE_APPROVAL_WORKFLOW");
+    }
+    // Non-approval transitions still go through.
+    const archived = await request(app).put(`/v1/implementation/documents/${doc.body.data.id}`).set(authed(token)).send({ status: "Archived" });
+    expect(archived.body.data.status).toBe("Archived");
+  });
+
+  it("still forks a published document when the edit also sends its status", async () => {
+    const { token } = await makeTenant("t1", "TEN1");
+    const created = await request(app).post("/v1/implementation/documents").set(authed(token))
+      .send({ title: "Doc", status: "Draft", owner: "IT Lead", data: cdData({ version: "1.0", content: "v1" }) });
+    const id = created.body.data.id;
+    await markPublished(id);
+
+    const same = await request(app).put(`/v1/implementation/documents/${id}`).set(authed(token))
+      .send({ status: "Published", data: cdData({ content: "v2", changeSummary: "x" }) });
+    expect(same.body.data.id).not.toBe(id);
+    expect(same.body.data.status).toBe("Draft");
+
+    const away = await request(app).put(`/v1/implementation/documents/${id}`).set(authed(token))
+      .send({ status: "Review Due", data: cdData({ content: "sneaky", changeSummary: "x" }) });
+    expect(away.status).toBe(409);
+    const orig = await ImplementationRecord.findByPk(id);
+    expect(orig?.status).toBe("Published");
+    expect((orig?.data as Record<string, unknown>).content).toBe("v1");
+  });
+
+  it("deletes a record together with its activity events", async () => {
+    const { token } = await makeTenant("t1", "TEN1");
+    const created = await request(app).post("/v1/implementation/risks").set(authed(token)).send({ title: "R", data: { likelihood: 2, impact: 2 } });
+    const id = created.body.data.id as string;
+    expect(await RecordEvent.count({ where: { recordId: id } })).toBeGreaterThan(0);
+    const del = await request(app).delete(`/v1/implementation/risks/${id}`).set(authed(token));
+    expect(del.status).toBeLessThan(300);
+    expect(await RecordEvent.count({ where: { recordId: id } })).toBe(0);
   });
 
   // OD `cdNewId` (12730): TYPECODE[-FWCODE]-NNNN with one per-tenant number

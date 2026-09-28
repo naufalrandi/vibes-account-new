@@ -1,14 +1,17 @@
-import { Op } from "sequelize";
+import { Op, type Transaction } from "sequelize";
 import {
   ApprovalScheme, ApprovalModuleMap, ApprovalPoolMember, ApprovalRecord, ApprovalSettings,
   User, ImplementationRecord, IpRequirement,
 } from "../../db/models";
 import { AP_POOLS, type SchemeGate, type RuntimeGate } from "../../db/models/approval.models";
+import { sequelize } from "../../db/sequelize";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
 import { logActivity } from "../record-events/recordEvent.service";
 import { CD_FREQ_MO, getDocSettings, cdNextReview } from "../implementation/documentControl";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { orgToday } from "../../lib/localDate";
 
 const nowIso = () => new Date().toISOString();
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : v == null || v === "" ? null : String(v));
@@ -64,7 +67,7 @@ export const AP_DEFAULT_MAP: Record<string, string> = {
  * — a first-generation record is the root of its own lineage.
  */
 async function publishWithLineage(
-  _auth: AuthContext, rec: ImplementationRecord, who: string,
+  _auth: AuthContext, rec: ImplementationRecord, who: string, tx?: Transaction,
 ): Promise<void> {
   const data = (rec.data ?? {}) as Record<string, unknown>;
   const lineage = (data.lineageId as string) ?? rec.id;
@@ -72,6 +75,7 @@ async function publishWithLineage(
 
   const siblings = await ImplementationRecord.findAll({
     where: { orgId: rec.orgId, module: rec.module, status: "Published" },
+    transaction: tx,
   });
   const prior = siblings.find(
     (x) => x.id !== rec.id && (((x.data ?? {}) as Record<string, unknown>).lineageId ?? x.id) === lineage,
@@ -79,7 +83,7 @@ async function publishWithLineage(
   if (prior) {
     prior.status = "Superseded";
     prior.data = { ...(prior.data ?? {}), supersededBy: rec.id };
-    await prior.save();
+    await prior.save({ transaction: tx });
   }
 
   const effectiveDate = (data.effectiveDate as string) || now;
@@ -127,12 +131,27 @@ const GOVERNED: Record<string, { submit: string; mid: string; final: string; rev
 };
 
 async function audit(auth: AuthContext, action: string, entityType: string, entityId: string, ip: string | null) {
-  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action, entityType, entityId, sourceIp: ip, result: "Success" });
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId), action, entityType, entityId, sourceIp: ip, result: "Success" });
 }
 async function actorName(auth: AuthContext): Promise<string> {
   const u = await User.findByPk(auth.userId);
   return u?.fullName ?? u?.username ?? "User";
 }
+
+/**
+ * Who is acting, by id and display name. Separation-of-duties decisions compare
+ * ids — two people can share a display name, and a name can be edited between
+ * submit and approve. Names stay on the record for display and as the fallback
+ * for approval runs stored before ids were recorded.
+ */
+interface Actor { id: string; name: string }
+async function currentActor(auth: AuthContext): Promise<Actor> {
+  return { id: auth.userId, name: await actorName(auth) };
+}
+
+/** Accounts that must never be offered as, or act as, pool approvers. */
+const INACTIVE_USER_STATUSES = ["Deleted", "Suspended"];
+const activeUserWhere = { status: { [Op.notIn]: INACTIVE_USER_STATUSES } };
 
 // ---- Schemes ----
 export async function listSchemes(auth: AuthContext): Promise<SchemeView[]> {
@@ -242,7 +261,7 @@ export async function setModuleScheme(auth: AuthContext, moduleKey: string, sche
 async function ensurePoolDefaults(orgId: string): Promise<void> {
   const existing = await ApprovalPoolMember.count({ where: { orgId } });
   if (existing > 0) return; // OD only self-heals a pool that has never been set up.
-  const users = await User.findAll({ where: { orgId }, order: [["createdAt", "ASC"]], attributes: ["id", "position", "createdAt"] });
+  const users = await User.findAll({ where: { orgId, ...activeUserWhere }, order: [["createdAt", "ASC"]], attributes: ["id", "position", "createdAt"] });
   if (users.length === 0) return;
   const isAdmin = (u: User): boolean => (u.position ?? "").toLowerCase().includes("administrator");
   const mst = users.find(isAdmin) ?? users[0];
@@ -252,9 +271,12 @@ async function ensurePoolDefaults(orgId: string): Promise<void> {
 }
 
 export interface PoolMemberView { userId: string; fullName: string; isMST: boolean; mstPriority: string; isTM: boolean; tmFinal: boolean }
+/**
+ * Read-only: the pool as it is. The empty-pool self-heal runs on the write
+ * path that needs a pool (`submit`), never on this GET.
+ */
 export async function listPoolMembers(auth: AuthContext): Promise<PoolMemberView[]> {
-  await ensurePoolDefaults(auth.orgId);
-  const users = await User.findAll({ where: { orgId: auth.orgId }, attributes: ["id", "fullName"] });
+  const users = await User.findAll({ where: { orgId: auth.orgId, ...activeUserWhere }, attributes: ["id", "fullName"] });
   const flags = new Map((await ApprovalPoolMember.findAll({ where: { orgId: auth.orgId } })).map((f) => [f.userId, f]));
   return users.map((u) => {
     const f = flags.get(u.id);
@@ -262,7 +284,7 @@ export async function listPoolMembers(auth: AuthContext): Promise<PoolMemberView
   });
 }
 export async function setPoolMember(auth: AuthContext, userId: string, input: Record<string, unknown>, ip: string | null) {
-  const user = await User.findOne({ where: { id: userId, orgId: auth.orgId } });
+  const user = await User.findOne({ where: { id: userId, orgId: auth.orgId, ...activeUserWhere } });
   if (!user) throw new NotFoundError("User not found", "USER_NOT_FOUND");
   const [row] = await ApprovalPoolMember.findOrCreate({ where: { orgId: auth.orgId, userId }, defaults: { orgId: auth.orgId, userId } });
   if (typeof input.isMST === "boolean") row.isMST = input.isMST;
@@ -288,41 +310,67 @@ export async function setSelfApproval(auth: AuthContext, allowed: boolean, ip: s
 }
 
 // ---- Pool resolution ----
-async function poolNames(orgId: string, pool: string): Promise<{ eligible: string[]; required: string[] }> {
+
+/** A stored sign-off; `userId` is absent on runs signed before ids were recorded. */
+type Signoff = RuntimeGate["approvals"][number] & { userId?: string };
+/**
+ * A runtime gate plus the user ids behind its display names, frozen at submit
+ * (JSONB, so the extra keys need no schema change). Every gate of a run also
+ * carries the submitter's id as `authorUserId`. All id fields are absent on
+ * legacy runs, which fall back to comparing names.
+ */
+type Gate = Omit<RuntimeGate, "approvals"> & { approvals: Signoff[]; eligibleIds?: string[]; requiredIds?: string[]; authorUserId?: string };
+
+async function poolMembers(orgId: string, pool: string): Promise<Pick<Gate, "eligible" | "required" | "eligibleIds" | "requiredIds">> {
   const flags = await ApprovalPoolMember.findAll({ where: { orgId, [pool === "mst" ? "isMST" : "isTM"]: true } });
   const ids = flags.map((f) => f.userId);
-  const users = new Map((await User.findAll({ where: { id: { [Op.in]: ids.length ? ids : ["00000000-0000-0000-0000-000000000000"] } }, attributes: ["id", "fullName"] })).map((u) => [u.id, u.fullName]));
-  const eligible = flags.map((f) => users.get(f.userId) ?? "").filter(Boolean);
-  let required: string[];
-  if (pool === "mst") required = flags.filter((f) => f.mstPriority !== "optional").map((f) => users.get(f.userId) ?? "").filter(Boolean);
-  else required = flags.filter((f) => f.tmFinal).map((f) => users.get(f.userId) ?? "").filter(Boolean);
-  if (required.length === 0) required = [...eligible]; // fallback: all members required
-  return { eligible, required };
+  const users = new Map((await User.findAll({ where: { id: { [Op.in]: ids.length ? ids : ["00000000-0000-0000-0000-000000000000"] }, ...activeUserWhere }, attributes: ["id", "fullName"] })).map((u) => [u.id, u.fullName]));
+  const active = flags.filter((f) => users.has(f.userId));
+  let requiredFlags = pool === "mst" ? active.filter((f) => f.mstPriority !== "optional") : active.filter((f) => f.tmFinal);
+  if (requiredFlags.length === 0) requiredFlags = active; // fallback: all members required
+  const nameOf = (f: ApprovalPoolMember) => users.get(f.userId) ?? "";
+  return {
+    eligible: active.map(nameOf), required: requiredFlags.map(nameOf),
+    eligibleIds: active.map((f) => f.userId), requiredIds: requiredFlags.map((f) => f.userId),
+  };
 }
-async function buildApproval(auth: AuthContext, scheme: SchemeView): Promise<RuntimeGate[]> {
-  const gates: RuntimeGate[] = [];
+async function buildApproval(auth: AuthContext, scheme: SchemeView, author: Actor): Promise<Gate[]> {
+  const gates: Gate[] = [];
   for (const g of scheme.gates) {
-    const { eligible, required } = await poolNames(auth.orgId, g.pool);
-    gates.push({ pool: g.pool, label: g.label, isFinalGate: g.isFinalGate, required, eligible, approvals: [] });
+    const members = await poolMembers(auth.orgId, g.pool);
+    gates.push({ pool: g.pool, label: g.label, isFinalGate: g.isFinalGate, ...members, approvals: [], authorUserId: author.id });
   }
   return gates;
 }
-function gateDone(g: RuntimeGate): boolean {
-  const signed = new Set(g.approvals.map((a) => a.by));
-  const allRequired = g.required.every((r) => signed.has(r));
+
+const signedBy = (a: Signoff, me: Actor): boolean => (a.userId ? a.userId === me.id : a.by === me.name);
+const isEligible = (g: Gate, me: Actor): boolean => (g.eligibleIds ? g.eligibleIds.includes(me.id) : g.eligible.includes(me.name));
+const isRequired = (g: Gate, me: Actor): boolean => (g.requiredIds ? g.requiredIds.includes(me.id) : g.required.includes(me.name));
+/** Whether `me` submitted this run — by id, or by name on a legacy run. */
+function isAuthor(gates: Gate[], authorName: string | null, me: Actor): boolean {
+  const authorId = gates.find((g) => g.authorUserId)?.authorUserId;
+  return authorId ? authorId === me.id : !!authorName && authorName === me.name;
+}
+
+function gateDone(g: Gate): boolean {
+  const allRequired = g.requiredIds
+    ? g.requiredIds.every((id) => g.approvals.some((a) => a.userId === id))
+    : g.required.every((r) => g.approvals.some((a) => a.by === r));
   return allRequired && (g.required.length > 0 || g.approvals.length > 0);
 }
-/** Whether `who` may sign the active gate — returns an error message if not, else null. */
-function approveBlockReason(gates: RuntimeGate[], gateIdx: number, who: string, author: string, selfAllowed: boolean): string | null {
+/** Whether `me` may sign the active gate — returns an error message if not, else null. */
+function approveBlockReason(gates: Gate[], gateIdx: number, me: Actor, authoredByMe: boolean, selfAllowed: boolean): string | null {
   const g = gates[gateIdx];
   if (!g) return "No active gate.";
-  if (!g.eligible.includes(who)) return `This gate is approved by the ${g.pool === "mst" ? "MS Team" : "Top Management"}.`;
-  if (g.approvals.some((a) => a.by === who)) return "You have already approved this gate.";
-  if (who === author && !selfAllowed) return "Self-approval is disabled — approval must be by someone other than the author.";
+  if (!isEligible(g, me)) return `This gate is approved by the ${g.pool === "mst" ? "MS Team" : "Top Management"}.`;
+  if (g.approvals.some((a) => signedBy(a, me))) return "You have already approved this gate.";
+  if (authoredByMe && !selfAllowed) return "Self-approval is disabled — approval must be by someone other than the author.";
   // SoD: signed an earlier gate → block unless the only remaining eligible signer.
-  const signedEarlier = gates.slice(0, gateIdx).some((eg) => eg.approvals.some((a) => a.by === who));
+  const signedEarlier = gates.slice(0, gateIdx).some((eg) => eg.approvals.some((a) => signedBy(a, me)));
   if (signedEarlier) {
-    const others = g.eligible.filter((e) => e !== who && !g.approvals.some((a) => a.by === e));
+    const others = g.eligibleIds
+      ? g.eligibleIds.filter((id) => id !== me.id && !g.approvals.some((a) => a.userId === id))
+      : g.eligible.filter((e) => e !== me.name && !g.approvals.some((a) => a.by === e));
     if (others.length) return "Separation of duties — you already approved an earlier gate.";
   }
   return null;
@@ -340,16 +388,16 @@ interface GovernedRow {
   code: string;
   status: string;
   data?: Record<string, unknown> | null;
-  save(): Promise<unknown>;
+  save(options?: { transaction?: Transaction }): Promise<unknown>;
 }
 
-async function governedRecord(auth: AuthContext, module: string, recordId: string): Promise<GovernedRow> {
+async function governedRecord(auth: AuthContext, module: string, recordId: string, tx?: Transaction): Promise<GovernedRow> {
   if (module === "parties") {
-    const req = await IpRequirement.findOne({ where: { id: recordId, orgId: auth.orgId } });
+    const req = await IpRequirement.findOne({ where: { id: recordId, orgId: auth.orgId }, transaction: tx });
     if (!req) throw new NotFoundError("Governed record not found", "RECORD_NOT_FOUND");
     return req;
   }
-  const rec = await ImplementationRecord.findOne({ where: { id: recordId, module, orgId: auth.orgId } });
+  const rec = await ImplementationRecord.findOne({ where: { id: recordId, module, orgId: auth.orgId }, transaction: tx });
   if (!rec) throw new NotFoundError("Governed record not found", "RECORD_NOT_FOUND");
   return rec;
 }
@@ -362,7 +410,7 @@ const entityTypeOf = (module: string): string => (module === "parties" ? "IpRequ
  * requirements record the acceptance on `decidedBy/decidedAt` plus an activity
  * entry, mirroring OD's `ipReqApprove` final branch (8875–8878).
  */
-function stampOutcome(module: string, rec: GovernedRow, who: string | null): void {
+function stampOutcome(module: string, rec: GovernedRow, who: string | null, today = ""): void {
   if (module === "parties") {
     const r = rec as unknown as IpRequirement;
     if (who) {
@@ -374,7 +422,7 @@ function stampOutcome(module: string, rec: GovernedRow, who: string | null): voi
     return;
   }
   rec.data = who
-    ? { ...rec.data, approvedBy: who, approvedDate: nowIso().slice(0, 10) }
+    ? { ...rec.data, approvedBy: who, approvedDate: today }
     : { ...rec.data, approvedBy: null, approvedDate: null };
 }
 function requireGoverned(module: string) {
@@ -405,10 +453,11 @@ export async function submit(auth: AuthContext, module: string, recordId: string
   const schemeId = await resolveSchemeId(auth, module);
   const scheme = (await listSchemes(auth)).find((s) => s.id === schemeId);
   if (!scheme) throw new BadRequestError("Assigned scheme not found", "SCHEME_MISSING");
-  const who = await actorName(auth);
+  const me = await currentActor(auth);
+  const who = me.name;
   if (scheme.selfServe) {
     rec.status = cfg.final;
-    stampOutcome(module, rec, who);
+    stampOutcome(module, rec, who, await orgToday(auth.orgId));
     // A self-serve scheme publishes immediately, so it supersedes the prior
     // version exactly as the gated path does.
     if (module === "policies") await publishWithLineage(auth, rec as ImplementationRecord, who);
@@ -417,7 +466,8 @@ export async function submit(auth: AuthContext, module: string, recordId: string
     if (module === "policies") await logPolicyPublished(auth, rec as ImplementationRecord, "Published the policy — self-serve publish");
     return { record: null, status: rec.status };
   }
-  const gates = await buildApproval(auth, scheme);
+  await ensurePoolDefaults(auth.orgId);
+  const gates = await buildApproval(auth, scheme, me);
   const empty = gates.find((g) => g.eligible.length === 0);
   if (empty) throw new BadRequestError(`No ${empty.pool === "mst" ? "MS Team" : "Top Management"} approver is configured for this scheme. Assign one in Administration → Approvals (or Team Members) before submitting.`, "POOL_EMPTY");
   const existing = await ApprovalRecord.findOne({ where: { orgId: auth.orgId, module, recordId } });
@@ -436,50 +486,67 @@ export async function submit(auth: AuthContext, module: string, recordId: string
   return { record: recView(ar), status: rec.status };
 }
 
+/**
+ * One sign-off. The approval run is read under a row lock and every state
+ * change (run, governed record, superseded sibling) commits together, so two
+ * concurrent approvers can't both push onto the same stale gate snapshot. The
+ * activity feed and audit entries are written after commit.
+ */
 export async function approve(auth: AuthContext, module: string, recordId: string, ip: string | null) {
   const cfg = requireGoverned(module);
-  const ar = await ApprovalRecord.findOne({ where: { orgId: auth.orgId, module, recordId, state: "active" } });
-  if (!ar) throw new NotFoundError("No active approval for this record", "NO_APPROVAL");
-  const rec = await governedRecord(auth, module, recordId);
-  const who = await actorName(auth);
+  const me = await currentActor(auth);
+  const who = me.name;
   const { selfApprovalAllowed } = await getSettings(auth);
-  const reason = approveBlockReason(ar.gates, ar.gateIdx, who, ar.authorName ?? "", selfApprovalAllowed);
-  if (reason) throw new ForbiddenError(reason);
-  const gates = ar.gates.map((g) => ({ ...g, approvals: [...g.approvals] }));
-  gates[ar.gateIdx].approvals.push({ by: who, at: nowIso() });
-  const active = gates[ar.gateIdx];
-  // OD `polApprove` activity: pool sign-off with the Prioritized/Optional flag.
-  if (module === "policies") {
-    const prio = active.required.includes(who) ? "Prioritized" : "Optional";
-    const self = who === (ar.authorName ?? "") ? " (self-approval)" : "";
-    await logActivity(auth, rec.orgId, module, rec.id,
-      `Approved · ${active.label} — ${active.pool === "mst" ? "MS Team" : "Top Management"} sign-off · ${prio} approver${self}`);
-  }
-  let result: "open" | "advanced" | "final" = "open";
-  if (gateDone(active)) {
-    if (active.isFinalGate || ar.gateIdx >= gates.length - 1) {
-      result = "final";
-      ar.state = "approved";
-      rec.status = cfg.final;
-      stampOutcome(module, rec, who);
-      if (module === "policies") await publishWithLineage(auth, rec as ImplementationRecord, who);
-      await rec.save();
-      if (module === "policies") {
-        await logPolicyPublished(auth, rec as ImplementationRecord, `Published the policy — final approval by ${active.pool === "mst" ? "MS Team" : "Top Management"}`);
-      }
-    } else {
-      result = "advanced";
-      ar.gateIdx += 1;
-      rec.status = cfg.mid;
-      await rec.save();
-      if (module === "policies") {
-        const next = gates[ar.gateIdx];
-        await logActivity(auth, rec.orgId, module, rec.id, `Gate cleared — ${active.label} complete, advanced to ${next?.label ?? "final approval"}`);
+  const today = await orgToday(auth.orgId);
+  const { ar, rec, result, activity } = await sequelize.transaction(async (tx) => {
+    const ar = await ApprovalRecord.findOne({
+      where: { orgId: auth.orgId, module, recordId, state: "active" }, transaction: tx, lock: tx.LOCK.UPDATE,
+    });
+    if (!ar) throw new NotFoundError("No active approval for this record", "NO_APPROVAL");
+    const rec = await governedRecord(auth, module, recordId, tx);
+    const current = ar.gates as Gate[];
+    const authoredByMe = isAuthor(current, ar.authorName, me);
+    const reason = approveBlockReason(current, ar.gateIdx, me, authoredByMe, selfApprovalAllowed);
+    if (reason) throw new ForbiddenError(reason);
+    const gates = current.map((g) => ({ ...g, approvals: [...g.approvals] }));
+    gates[ar.gateIdx].approvals.push({ by: who, at: nowIso(), userId: me.id });
+    const active = gates[ar.gateIdx];
+    const activity: string[] = [];
+    // OD `polApprove` activity: pool sign-off with the Prioritized/Optional flag.
+    if (module === "policies") {
+      const prio = isRequired(active, me) ? "Prioritized" : "Optional";
+      const self = authoredByMe ? " (self-approval)" : "";
+      activity.push(`Approved · ${active.label} — ${active.pool === "mst" ? "MS Team" : "Top Management"} sign-off · ${prio} approver${self}`);
+    }
+    let result: "open" | "advanced" | "final" = "open";
+    if (gateDone(active)) {
+      if (active.isFinalGate || ar.gateIdx >= gates.length - 1) {
+        result = "final";
+        ar.state = "approved";
+        rec.status = cfg.final;
+        stampOutcome(module, rec, who, today);
+        if (module === "policies") await publishWithLineage(auth, rec as ImplementationRecord, who, tx);
+        await rec.save({ transaction: tx });
+      } else {
+        result = "advanced";
+        ar.gateIdx += 1;
+        rec.status = cfg.mid;
+        await rec.save({ transaction: tx });
+        if (module === "policies") {
+          const next = gates[ar.gateIdx];
+          activity.push(`Gate cleared — ${active.label} complete, advanced to ${next?.label ?? "final approval"}`);
+        }
       }
     }
+    ar.gates = gates;
+    await ar.save({ transaction: tx });
+    return { ar, rec, result, activity };
+  });
+  for (const text of activity) await logActivity(auth, rec.orgId, module, rec.id, text);
+  if (result === "final" && module === "policies") {
+    const active = ar.gates[ar.gateIdx];
+    await logPolicyPublished(auth, rec as ImplementationRecord, `Published the policy — final approval by ${active?.pool === "mst" ? "MS Team" : "Top Management"}`);
   }
-  ar.gates = gates;
-  await ar.save();
   await audit(auth, "approval.approved", entityTypeOf(module), rec.id, ip);
   return { record: recView(ar), status: rec.status, result };
 }
@@ -715,8 +782,8 @@ export async function withdraw(auth: AuthContext, module: string, recordId: stri
   const cfg = requireGoverned(module);
   const ar = await ApprovalRecord.findOne({ where: { orgId: auth.orgId, module, recordId, state: "active" } });
   if (!ar) throw new NotFoundError("No active approval to withdraw", "NO_APPROVAL");
-  const who = await actorName(auth);
-  if (ar.authorName && ar.authorName !== who) throw new ForbiddenError("Only the submitter can withdraw this record.");
+  const me = await currentActor(auth);
+  if (ar.authorName && !isAuthor(ar.gates as Gate[], ar.authorName, me)) throw new ForbiddenError("Only the submitter can withdraw this record.");
   if (ar.gates.some((g) => g.approvals.length > 0)) throw new ConflictError("Withdraw is no longer available — an approver has already signed off.", "ALREADY_SIGNED");
   const rec = await governedRecord(auth, module, recordId);
   rec.status = cfg.draft;
@@ -738,18 +805,20 @@ export async function withdraw(auth: AuthContext, module: string, recordId: stri
  *
  * Throws ForbiddenError when the caller may not approve.
  */
-export async function assertMayApprove(auth: AuthContext, authorName: string | null): Promise<void> {
+export async function assertMayApprove(auth: AuthContext, authorName: string | null, authorUserId?: string | null): Promise<void> {
   const who = await actorName(auth);
   const { selfApprovalAllowed } = await getSettings(auth);
-  if (!selfApprovalAllowed && authorName && authorName === who) {
+  // By id when the caller knows the author's; by name for records that only store one.
+  const isSelf = authorUserId ? authorUserId === auth.userId : !!authorName && authorName === who;
+  if (!selfApprovalAllowed && isSelf) {
     throw new ForbiddenError("Self-approval is disabled for this organization");
   }
   // Deliberately bypasses listPoolMembers' self-heal: that default-provisioning
   // exists so a fresh org's Approvals page always has someone to show, but
   // running it here would auto-admit the sole caller into the pool this check
   // is supposed to gate. Check actual, explicitly-set membership only.
-  const me = await ApprovalPoolMember.findOne({ where: { orgId: auth.orgId, userId: auth.userId } });
-  if (!me || (!me.isMST && !me.isTM)) {
+  const member = await ApprovalPoolMember.findOne({ where: { orgId: auth.orgId, userId: auth.userId } });
+  if (!member || (!member.isMST && !member.isTM)) {
     throw new ForbiddenError("You are not in an approval pool. Add yourself under Approvals to sign off.");
   }
 }

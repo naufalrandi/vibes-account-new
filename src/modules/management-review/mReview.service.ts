@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Op, Model, type ModelStatic } from "sequelize";
+import { Op, Model, type ModelStatic, type Transaction } from "sequelize";
 import { MReview } from "../../db/models";
 import {
   MR_FORMATS, MR_STATUS, MR_OUTPUT_CATEGORY, MR_DECISION_STATUS, MR_ITEM_STATUS, MR_TOPIC_CATALOG,
@@ -10,6 +10,7 @@ import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
 import { actorName } from "../record-events/recordEvent.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { maxCodeSeq, withCodeLock } from "../../lib/codeSeq";
 
 /**
  * Management Review (ISO 9.3). One entity: a scheduled review meeting whose
@@ -34,14 +35,9 @@ async function orgWhere(auth: AuthContext, orgId?: string): Promise<Record<strin
   return {};
 }
 
-async function nextCode(model: ModelStatic<Model>, prefix: string): Promise<string> {
-  const rows = await model.findAll({ attributes: ["code"], where: { code: { [Op.like]: `${prefix}-%` } } });
-  let max = 0;
-  for (const r of rows) {
-    const n = Number.parseInt(String(r.get("code")).slice(prefix.length + 1), 10);
-    if (Number.isFinite(n) && n > max) max = n;
-  }
-  return `${prefix}-${String(max + 1).padStart(4, "0")}`;
+/** Call inside `withCodeLock(prefix, …)` and insert with the same `tx`. */
+async function nextCode(model: ModelStatic<Model>, prefix: string, tx: Transaction): Promise<string> {
+  return `${prefix}-${String((await maxCodeSeq(model, prefix, tx)) + 1).padStart(4, "0")}`;
 }
 
 async function logAudit(auth: AuthContext, orgId: string, action: string, entityId: string, ip: string | null) {
@@ -117,14 +113,14 @@ export async function createMReview(auth: AuthContext, input: Record<string, unk
   if (!(MR_FORMATS as readonly string[]).includes(format)) throw new BadRequestError(`Invalid format "${format}"`, "INVALID_FORMAT");
   const topicTitles = parseTopicTitles(input.topics);
   const who = await actorName(auth);
-  const row = await MReview.create({
-    orgId: org, code: await nextCode(MReview, "MR"), title: str(input.title),
+  const row = await withCodeLock("MR", null, async (tx) => MReview.create({
+    orgId: org, code: await nextCode(MReview, "MR", tx), title: str(input.title),
     frameworks: arr(input.frameworks), date, time, tz: str(input.tz) || "Asia/Jakarta", format,
     link: str(input.link), location: str(input.location), chairperson: str(input.chairperson), recorder: str(input.recorder),
     status: "Draft", invited: parseInvited(input.invited), external: parseExternal(input.external),
     agenda: str(input.agenda), prep: str(input.prep), materials: str(input.materials),
     topics: topicTitles.map(blankTopic), version: 1, createdBy: who, lastUpdatedBy: who,
-  });
+  }, { transaction: tx }));
   await logAudit(auth, org, "mreview.created", row.id, ip);
   return row.get({ plain: true });
 }

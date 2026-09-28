@@ -1,26 +1,28 @@
-import { randomUUID } from "node:crypto";
 import { Op, type Includeable, type WhereOptions } from "sequelize";
 import { User, Organization, Role, UserRole, Site } from "../../db/models";
 import type { PermissionMode } from "../../db/models/user.model";
 import type { AuthContext } from "../../lib/scope";
 import { userScopeWhere } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
-import { sendActivationInvite } from "../notifications/notification.service";
-import { hashPassword, isPasswordValid } from "../../lib/password";
-
-/** PRD password policy guard, applied whenever an initial/new password is set. */
-function assertPasswordPolicy(password: string): void {
-  if (!isPasswordValid(password)) {
-    throw new BadRequestError(
-      "Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a digit.",
-      "WEAK_PASSWORD",
-    );
-  }
-}
-import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { issueActivationToken, sendActivationInvite } from "../notifications/notification.service";
+import { hashPassword, isPasswordValid, PASSWORD_POLICY_MESSAGE } from "../../lib/password";
+import { BadRequestError, ConflictError, EmailDeliveryError, ForbiddenError, NotFoundError } from "../../lib/errors";
 import { ROLE_GROUPS, isAllowedRoleForOrgType } from "../iam/role.catalog";
 import { AC_UNITS, acNavToModules, acPreset, acUnitKeys } from "../iam/modules.catalog";
 import { menuActions } from "../iam/actions.catalog";
+import { assertIdentityAvailable, lowerEq, revokeUserSessions } from "../iam/auth.service";
+import { escapeLike } from "../../lib/escapeLike";
+import { companyColumnWhere, storedCompany } from "../business/business.service";
+
+/** PRD password policy guard, applied whenever an initial/new password is set. */
+function assertPasswordPolicy(password: string): void {
+  if (!isPasswordValid(password)) throw new BadRequestError(PASSWORD_POLICY_MESSAGE, "WEAK_PASSWORD");
+}
+
+/** OD super-admin: the per-user flag or, for principals seeded the old way, a super-admin role. */
+function isSuperUser(user: User): boolean {
+  return user.superAdmin || ((user.get("Roles") as Role[] | undefined) ?? []).some((r) => r.isSuperAdmin);
+}
 
 export interface CreateUserInput {
   orgId: string;
@@ -39,6 +41,15 @@ export interface CreateUserInput {
   password?: string;
   permissionMode?: PermissionMode | null;
   permissions?: string[] | null;
+  // HR "Add Profile" fields (personnelAddProfile.service.ts), written in the
+  // same INSERT so the profile is never half-created. Callers validate
+  // siteId/orgUnitId against the target org first.
+  siteId?: string | null;
+  personnelType?: string | null;
+  orgUnitId?: string | null;
+  empLevel?: string | null;
+  /** Operating company (OD `users[].co`); absent/'axia' stores NULL = default company. */
+  company?: string | null;
 }
 
 /** Partial edit of a user from the Team Management screen. */
@@ -80,6 +91,8 @@ export interface UpdateUserInput {
   // OD "Service Provider platform access" switch (js/core.js:5216). Setting it
   // false revokes access and clears the whole SP block — see updateUser.
   provisioned?: boolean;
+  /** Operating company; null/'axia' → NULL (default company). */
+  company?: string | null;
 }
 
 export interface UserFilters {
@@ -91,6 +104,8 @@ export interface UserFilters {
   username?: string;
   /** Free-text term matched against email OR username. */
   search?: string;
+  /** Operating company; 'axia' also matches NULL (the default). */
+  company?: string;
 }
 
 /**
@@ -226,10 +241,9 @@ export async function createUser(auth: AuthContext, input: CreateUserInput, ip: 
   });
   const sp = resolveSpAxis(input.role ?? null, input.permissionMode ?? null, []);
 
-  const existing = await User.findOne({ where: { [Op.or]: [{ username: input.username }, { email: input.email }] } });
-  if (existing) throw new ConflictError("Username or email already exists", "DUPLICATE_USER");
+  await assertIdentityAvailable(input.username, input.email);
 
-  const activationToken = randomUUID();
+  const invite = issueActivationToken();
   const user = await User.create({
     orgId: org.id,
     tenantId: org.tenantId ?? (org.type === "Tenant" ? org.id : null),
@@ -247,13 +261,18 @@ export async function createUser(auth: AuthContext, input: CreateUserInput, ip: 
     // actually granted (role-less accounts await admin assignment).
     provisioned: !!input.role,
     lastLogin: null,
-    activationToken,
+    ...invite.fields,
     resetToken: null,
     resetExpires: null,
     permissionMode: sp.mode,
     permissions: sp.permissions,
     navPerms: sp.keys,
     navActions: buildActions(sp.keys, undefined, defaultLevel(input.role ?? null)),
+    siteId: input.siteId ?? null,
+    personnelType: input.personnelType ?? null,
+    orgUnitId: input.orgUnitId ?? null,
+    empLevel: input.empLevel ?? null,
+    company: storedCompany(input.company),
   });
 
   // Optional role assignment on invite. Best-effort: a role name that does not
@@ -264,7 +283,7 @@ export async function createUser(auth: AuthContext, input: CreateUserInput, ip: 
     if (role) await UserRole.findOrCreate({ where: { userId: user.id, roleId: role.id } });
   }
 
-  sendActivationInvite(user.email, activationToken);
+  await sendActivationInvite(user.email, invite.raw);
   await writeAudit({
     actorUserId: auth.userId,
     organizationId: org.id,
@@ -280,26 +299,21 @@ export async function createUser(auth: AuthContext, input: CreateUserInput, ip: 
 }
 
 export async function resendActivation(auth: AuthContext, userId: string, ip: string | null): Promise<void> {
-  const user = await User.findByPk(userId);
-  if (!user) throw new NotFoundError("User not found");
   // Same management scope as the other per-user operations.
-  if (auth.orgType === "Tenant" && user.tenantId !== auth.tenantId) throw new ForbiddenError();
-  if (auth.orgType === "Distributor") {
-    const org = await Organization.findByPk(user.orgId);
-    if (!org || (org.parentOrgId !== auth.orgId && org.id !== auth.orgId)) throw new ForbiddenError();
-  }
+  const user = await requireManagedUser(auth, userId);
   // Resending only makes sense while the account is awaiting activation; an
   // Active/Suspended/Inactive account has no pending invite to reissue.
   if (user.status !== "Pending Activation") {
     throw new BadRequestError("User is not pending activation", "NOT_PENDING_ACTIVATION");
   }
 
-  // Rotate the token so the previously-mailed link is invalidated.
-  const activationToken = randomUUID();
-  user.activationToken = activationToken;
+  // Mint a fresh token (and expiry) so the previously-mailed link is invalidated.
+  const invite = issueActivationToken();
+  user.set(invite.fields);
   await user.save();
 
-  sendActivationInvite(user.email, activationToken);
+  // The resend exists only to deliver mail — a lost send must not report success.
+  if (!(await sendActivationInvite(user.email, invite.raw, { resend: true }))) throw new EmailDeliveryError();
   await writeAudit({
     actorUserId: auth.userId,
     organizationId: user.orgId,
@@ -318,12 +332,13 @@ export async function listUsers(auth: AuthContext, filters: UserFilters): Promis
   // Soft-deleted users are hidden unless explicitly requested by status filter.
   if (filters.status) Object.assign(where, { status: filters.status });
   else Object.assign(where, { status: { [Op.ne]: "Deleted" } });
-  if (filters.email) Object.assign(where, { email: { [Op.iLike]: `%${filters.email}%` } });
-  if (filters.username) Object.assign(where, { username: { [Op.iLike]: `%${filters.username}%` } });
+  if (filters.email) Object.assign(where, { email: { [Op.iLike]: `%${escapeLike(filters.email)}%` } });
+  if (filters.username) Object.assign(where, { username: { [Op.iLike]: `%${escapeLike(filters.username)}%` } });
+  if (filters.company) Object.assign(where, { company: companyColumnWhere(filters.company) });
   // Free-text search matches email OR username. Wrapped in Op.and so it composes
   // with any Op.or the scope clause already contributes (Distributor scope).
   if (filters.search) {
-    const term = `%${filters.search}%`;
+    const term = `%${escapeLike(filters.search)}%`;
     Object.assign(where, {
       [Op.and]: [{ [Op.or]: [{ email: { [Op.iLike]: term } }, { username: { [Op.iLike]: term } }] }],
     });
@@ -352,11 +367,12 @@ export async function setUserStatus(
   // Super Administrator cannot be deactivated and seeded system users are
   // protected — otherwise a USER_SUSPEND grant could disable privileged accounts.
   const user = await requireManagedUser(auth, userId);
-  const isSuper = user.superAdmin || ((user.get("Roles") as Role[] | undefined) ?? []).some((r) => r.isSuperAdmin);
-  if (isSuper) throw new ForbiddenError("Super Administrator can't be deactivated");
+  if (isSuperUser(user)) throw new ForbiddenError("Super Administrator can't be deactivated");
   if (user.system) throw new ForbiddenError("Protected — system user");
+  if (user.status === "Deleted") throw new ConflictError("User has been deleted", "USER_DELETED");
   user.status = status;
   await user.save();
+  if (status !== "Active") await revokeUserSessions([user.id]);
   await writeAudit({
     actorUserId: auth.userId,
     organizationId: user.orgId,
@@ -367,6 +383,21 @@ export async function setUserStatus(
     sourceIp: ip,
     result: "Success",
   });
+  return user;
+}
+
+/**
+ * One user, for the detail/access screens: the same 404/403 scope rules as
+ * `requireManagedUser`, serialized like a `listUsers` row (Organization joined,
+ * Roles without the join-table payload).
+ */
+export async function getUser(auth: AuthContext, userId: string): Promise<User> {
+  await requireManagedUser(auth, userId);
+  const user = await User.findOne({
+    where: { id: userId, ...userScopeWhere(auth) },
+    include: [{ model: Organization }, { model: Role, required: false, through: { attributes: [] } }],
+  });
+  if (!user) throw new NotFoundError("User not found");
   return user;
 }
 
@@ -395,10 +426,13 @@ export async function updateUser(
   ip: string | null,
 ): Promise<User> {
   const user = await requireManagedUser(auth, userId);
+  // A soft-deleted row is kept for HR/audit history only; no edit may bring it
+  // back (the status reset / re-invite paths below would otherwise resurrect it).
+  if (user.status === "Deleted") throw new ConflictError("User has been deleted", "USER_DELETED");
   const currentRoles = (user.get("Roles") as Role[] | undefined) ?? [];
   // OD models super-admin as the per-user boolean `u.superAdmin` (js/core.js:151);
   // the role relation stays supported for principals seeded the old way.
-  const isSuper = user.superAdmin || currentRoles.some((r) => r.isSuperAdmin);
+  const isSuper = isSuperUser(user);
 
   // OD acSave coupling rules (js/core.js:5220-5222), checked against the state
   // this PATCH would leave behind — the role group, permission mode, menu-key
@@ -426,12 +460,12 @@ export async function updateUser(
   // DB. A soft-deleted user keeps its identity; reuse would require a hard purge.
   if (input.username !== undefined && input.username !== user.username) {
     if (user.system) throw new ForbiddenError("System user — username is locked");
-    const dup = await User.findOne({ where: { username: input.username, id: { [Op.ne]: userId } } });
+    const dup = await User.findOne({ where: { [Op.and]: [lowerEq("username", input.username), { id: { [Op.ne]: userId } }] } });
     if (dup) throw new ConflictError("Username already exists", "DUPLICATE_USER");
     user.username = input.username;
   }
   if (input.email !== undefined && input.email !== user.email) {
-    const dup = await User.findOne({ where: { email: input.email, id: { [Op.ne]: userId } } });
+    const dup = await User.findOne({ where: { [Op.and]: [lowerEq("email", input.email), { id: { [Op.ne]: userId } }] } });
     if (dup) throw new ConflictError("Email already exists", "DUPLICATE_USER");
     user.email = input.email;
   }
@@ -457,6 +491,7 @@ export async function updateUser(
   }
   if (input.personnelType !== undefined) user.personnelType = input.personnelType;
   if (input.processIds !== undefined) user.processIds = input.processIds ?? [];
+  if (input.company !== undefined) user.company = storedCompany(input.company);
 
   if (input.status !== undefined) {
     if (isSuper) throw new ForbiddenError("Super Administrator can't be deactivated");
@@ -537,6 +572,7 @@ export async function updateUser(
     user.provisioned = true;
   }
   await user.save();
+  if (input.status !== undefined && input.status !== "Active") await revokeUserSessions([user.id]);
 
   // Role group change: locked for Super Administrators; validated against the
   // org type; replaces the user's existing role memberships.
@@ -564,10 +600,11 @@ export async function updateUser(
       if (!wasProvisioned || !inVocabulary) {
         user.provisioned = true;
         user.status = "Pending Activation";
-        const activationToken = randomUUID();
-        user.activationToken = activationToken;
+        const invite = issueActivationToken();
+        user.set(invite.fields);
         await user.save();
-        sendActivationInvite(user.email, activationToken);
+        await revokeUserSessions([user.id]);
+        await sendActivationInvite(user.email, invite.raw);
       }
     }
   }
@@ -607,15 +644,25 @@ export async function updateUser(
 }
 
 /**
- * Soft-delete a user (status = "Deleted"); the row is retained for audit but is
- * excluded from the default list and can no longer sign in. Seeded `system` users
- * are protected and cannot be deleted.
+ * Soft-delete a user (status = "Deleted"); the row is retained — personnel
+ * records hang off it through cascading FKs, so a hard delete would wipe the
+ * HR history. It is excluded from the default list, its pending tokens are
+ * voided and its sessions revoked. Seeded `system` users are protected, and
+ * only the Service Owner may delete a super-admin.
  */
 export async function softDeleteUser(auth: AuthContext, userId: string, ip: string | null): Promise<User> {
   const user = await requireManagedUser(auth, userId);
   if (user.system) throw new ForbiddenError("Protected — system user");
+  if (isSuperUser(user) && auth.orgType !== "ServiceOwner") {
+    throw new ForbiddenError("Only the Service Owner can remove a Super Administrator");
+  }
   user.status = "Deleted";
+  user.activationToken = null;
+  user.activationTokenExpiresAt = null;
+  user.resetToken = null;
+  user.resetExpires = null;
   await user.save();
+  await revokeUserSessions([user.id]);
   await writeAudit({
     actorUserId: auth.userId,
     organizationId: user.orgId,
@@ -629,42 +676,37 @@ export async function softDeleteUser(auth: AuthContext, userId: string, ip: stri
   return user;
 }
 
+/** Legacy "remove" entry point — same soft delete; users are never destroyed. */
 export async function removeUser(auth: AuthContext, userId: string, ip: string | null): Promise<void> {
-  const user = await User.findByPk(userId);
-  if (!user) throw new NotFoundError("User not found");
-  if (auth.orgType === "Tenant" && user.tenantId !== auth.tenantId) throw new ForbiddenError();
-  if (auth.orgType === "Distributor") {
-    const org = await Organization.findByPk(user.orgId);
-    if (!org || (org.parentOrgId !== auth.orgId && org.id !== auth.orgId)) throw new ForbiddenError();
+  await softDeleteUser(auth, userId, ip);
+}
+
+/**
+ * The role an actor may attach to / detach from a managed user: it must live
+ * in the user's own org (a global role counts only for a ServiceOwner user
+ * when it is SO-tiered), and super-admin roles are the Service Owner's alone.
+ */
+async function loadAssignableRole(auth: AuthContext, user: User, roleId: string): Promise<{ role: Role; org: Organization }> {
+  const role = await Role.findByPk(roleId);
+  if (!role) throw new NotFoundError("Role not found");
+  const org = await Organization.findByPk(user.orgId);
+  if (!org) throw new BadRequestError("Organization does not exist", "ORG_NOT_FOUND");
+  const sameOrg =
+    role.orgId === user.orgId || (role.orgId === null && role.tierScope === "ServiceOwner" && org.type === "ServiceOwner");
+  if (!sameOrg) throw new BadRequestError("Role does not belong to the user's organization", "ROLE_ORG_MISMATCH");
+  if (role.isSuperAdmin && auth.orgType !== "ServiceOwner") {
+    throw new ForbiddenError("Only the Service Owner can manage a Super Administrator role", "SUPER_ADMIN_ROLE");
   }
-  if (user.system) throw new ForbiddenError("Protected — system user");
-  const { orgId, tenantId } = user;
-  // Drop role memberships first to satisfy the join-table FK, then the user.
-  await UserRole.destroy({ where: { userId } });
-  await user.destroy();
-  await writeAudit({
-    actorUserId: auth.userId,
-    organizationId: orgId,
-    tenantId,
-    action: "user.removed",
-    entityType: "User",
-    entityId: userId,
-    sourceIp: ip,
-    result: "Success",
-  });
+  return { role, org };
 }
 
 export async function assignRole(auth: AuthContext, userId: string, roleId: string, ip: string | null): Promise<void> {
-  const user = await User.findByPk(userId);
-  const role = await Role.findByPk(roleId);
-  if (!user || !role) throw new NotFoundError("User or role not found");
-  if (auth.orgType === "Tenant" && user.tenantId !== auth.tenantId) throw new ForbiddenError();
+  const user = await requireManagedUser(auth, userId);
+  const { role, org } = await loadAssignableRole(auth, user, roleId);
 
   // The role's tier must match the user's organization type. This naturally
   // permits the ServiceOwner-only "Super Admin" (tierScope ServiceOwner) and
   // rejects cross-tier assignments.
-  const org = await Organization.findByPk(user.orgId);
-  if (!org) throw new BadRequestError("Organization does not exist", "ORG_NOT_FOUND");
   if (role.tierScope !== org.type) {
     throw new BadRequestError(
       `Role "${role.name}" is not valid for organization type ${org.type}`,
@@ -696,9 +738,8 @@ export async function assignRole(auth: AuthContext, userId: string, roleId: stri
 }
 
 export async function removeRole(auth: AuthContext, userId: string, roleId: string, ip: string | null): Promise<void> {
-  const user = await User.findByPk(userId);
-  if (!user) throw new NotFoundError("User not found");
-  if (auth.orgType === "Tenant" && user.tenantId !== auth.tenantId) throw new ForbiddenError();
+  const user = await requireManagedUser(auth, userId);
+  await loadAssignableRole(auth, user, roleId);
   await UserRole.destroy({ where: { userId, roleId } });
   await writeAudit({
     actorUserId: auth.userId,

@@ -33,9 +33,14 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare photo: string | null;
   declare workUnit: string | null;
   declare lastLogin: Date | null;
+  // Activation/reset tokens are stored as SHA-256 hashes (src/lib/tokens.ts);
+  // only the emailed link carries the raw value.
   declare activationToken: string | null;
+  declare activationTokenExpiresAt: CreationOptional<Date | null>;
   declare resetToken: string | null;
   declare resetExpires: Date | null;
+  /** Brute-force lockout: sign-in is refused until this instant (auth.service `login`). */
+  declare lockedUntil: CreationOptional<Date | null>;
   // AXIA Team Management additions (Phase 2). `system` protects seeded users from
   // delete/edit-lock; permissionMode/permissions are descriptive UI metadata for
   // the permission grid (effective access stays role-grant driven). CreationOptional
@@ -82,6 +87,11 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare navActions: CreationOptional<Record<string, string[]>>;
   declare entActions: CreationOptional<Record<string, string[]>>;
   declare unitActions: CreationOptional<Record<string, Record<string, string[]>>>;
+  /**
+   * Operating company (OD `users[].co`, `coUsers()`): null = the default company
+   * (AXIA); only a non-default company ('exelera') is stored. Migration 0128.
+   */
+  declare company: CreationOptional<string | null>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 
@@ -95,8 +105,10 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
     const values = { ...super.toJSON() } as Record<string, unknown>;
     delete values.passwordHash;
     delete values.activationToken;
+    delete values.activationTokenExpiresAt;
     delete values.resetToken;
     delete values.resetExpires;
+    delete values.lockedUntil;
     return values;
   }
 }
@@ -122,8 +134,10 @@ User.init(
     workUnit: { type: DataTypes.STRING, allowNull: true, field: "work_unit" },
     lastLogin: { type: DataTypes.DATE, allowNull: true, field: "last_login" },
     activationToken: { type: DataTypes.STRING, allowNull: true, field: "activation_token" },
+    activationTokenExpiresAt: { type: DataTypes.DATE, allowNull: true, field: "activation_token_expires_at" },
     resetToken: { type: DataTypes.STRING, allowNull: true, field: "reset_token" },
     resetExpires: { type: DataTypes.DATE, allowNull: true, field: "reset_expires" },
+    lockedUntil: { type: DataTypes.DATE, allowNull: true, field: "locked_until" },
     system: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     superAdmin: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: "super_admin" },
     permissionMode: { type: DataTypes.STRING, allowNull: true, field: "permission_mode" },
@@ -144,6 +158,7 @@ User.init(
     navActions: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "nav_actions" },
     entActions: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "ent_actions" },
     unitActions: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "unit_actions" },
+    company: { type: DataTypes.STRING(40), allowNull: true },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

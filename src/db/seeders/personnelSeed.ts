@@ -68,7 +68,7 @@ function loadDump<T = Record<string, unknown>>(name: string): T[] {
   return JSON.parse(fs.readFileSync(path.join(DATA_DIR, `${name}.json`), "utf8")) as T[];
 }
 
-/** Same date-defect guard as `israTenantDemo.ts`: OD emits `""` and full ISO timestamps into
+/** Same date-defect guard as `israTenantSample.ts`: OD emits `""` and full ISO timestamps into
  * fields that must be plain `YYYY-MM-DD` (or null) for a DATEONLY column. Postgres rejects both. */
 const date = (v: unknown): Date | null => {
   if (typeof v !== "string" || !v) return null;
@@ -300,7 +300,7 @@ export async function seedCompetenceAssessmentsAndGaps(hammerTenantId: string, s
         status: str(row.status) || "Open", resolvedDate: dateOnly(row.resolvedDate), resolvedBy: str(row.resolvedBy) || null,
         createdDate: dateOnly(row.createdDate), trainingPlanId: null, noTraining: false, noTrainingReason: null,
         reassessResult: null,
-        // OD `js/modules.js:350-351` stamps the demo's Reviewed gap with reviewedBy/reviewedDate
+        // OD `js/modules.js:350-351` stamps the sample's Reviewed gap with reviewedBy/reviewedDate
         // and its Waived gap with a waiveReason — carry the dump's own values through.
         reviewedBy: str(row.reviewedBy) || null, reviewedDate: dateOnly(row.reviewedDate),
         waiveReason: str(row.waiveReason) || null,

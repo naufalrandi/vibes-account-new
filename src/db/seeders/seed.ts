@@ -44,7 +44,7 @@ import { agreementHistoryFor, seedOdPartners } from "./odPartners";
 import { grantEverythingExceptSpOnly } from "../../modules/iam/tenantGrants";
 import { seedComplianceEngine } from "./complianceEngine";
 import { seedIsraLibrary } from "./isra";
-import { seedIsraTenantDemo } from "./israTenantDemo";
+import { seedIsraTenantSample } from "./israTenantSample";
 import { seedCms } from "./cms";
 import { seedBpCatalog } from "./businessProcess";
 import { seedSaasLifecycle, seedSiteRequests, seedTenantRoles } from "./dataParity";
@@ -62,7 +62,20 @@ import {
   seedCabClients, seedPcbPersons, seedLabScope, seedTenantSupplierPOs,
 } from "./businessRecordsSeed";
 
-const DEFAULT_PASSWORD = "ChangeMe123";
+const MIN_SEED_PASSWORD_LENGTH = 12;
+
+/**
+ * The password every seeded login gets. Deliberately not a published default:
+ * it must come from the `SEED_PASSWORD` env var and seeding refuses to start
+ * without a sufficiently long one.
+ */
+function seedPassword(): string {
+  const pw = process.env.SEED_PASSWORD ?? "";
+  if (pw.length < MIN_SEED_PASSWORD_LENGTH) {
+    throw new Error(`SEED_PASSWORD must be set (at least ${MIN_SEED_PASSWORD_LENGTH} characters) to seed login users`);
+  }
+  return pw;
+}
 
 // belongsToMany generates a `setRoles` mixin at runtime; the User model does not
 // declare it, so reach it through a narrow association-only cast.
@@ -149,7 +162,7 @@ async function ensureUser(
       fullName,
       username,
       email,
-      passwordHash: await hashPassword(DEFAULT_PASSWORD),
+      passwordHash: await hashPassword(seedPassword()),
       status: "Active",
       position: role.name,
       workUnit: null,
@@ -163,6 +176,7 @@ async function ensureUser(
 }
 
 export async function seed(): Promise<void> {
+  seedPassword(); // fail fast, before touching the database
   initModels();
   await sequelize.authenticate();
 
@@ -267,7 +281,7 @@ export async function seed(): Promise<void> {
     [ACTIONS.TICKET_READ, ACTIONS.TICKET_CREATE, ACTIONS.TICKET_REPLY, ACTIONS.TICKET_MANAGE],
   );
 
-  // 5. One demo user per role (all under the SO org → Service-Owner scope).
+  // 5. One sample user per role (all under the SO org → Service-Owner scope).
   await ensureUser("soadmin", "Super Admin", "soadmin@axia.io", so.id, superAdminRole);
   await ensureUser("admin", "Administrator", "admin@axia.io", so.id, adminRole);
   await ensureUser("user", "Standard User", "user@axia.io", so.id, userRole);
@@ -283,12 +297,12 @@ export async function seed(): Promise<void> {
     defaults: { orgId: so.id, plan: "platform", entitlements: { all: true }, status: "Active", startDate: new Date(), endDate: null },
   });
 
-  // 7. Multi-persona demo data so the FE shells (Distributor / Tenant) can be
+  // 7. Multi-persona sample data so the FE shells (Distributor / Tenant) can be
   //    exercised against real auth + nav. Each persona gets an org-scoped
   //    "Administrator" role (the name the FE nav matrix keys on) with full grants
   //    — data access is still bounded to the org's subtree by request scoping.
   // OD `idpr5` / `PRT-1005` — PT Parker Industries, the partner that owns OD's
-  // `idtn5` PT Hammer Industries (the demo tenant seeded just below), exactly as
+  // `idtn5` PT Hammer Industries (the sample tenant seeded just below), exactly as
   // `seedPartners` pairs them (js/core.js:216-220). The org `code` stays `NPART`:
   // `findOrCreate` keys on it and the container runs `node dist/server.js` with
   // no migrate/seed step, so renaming the code would seed a SECOND partner org
@@ -312,7 +326,7 @@ export async function seed(): Promise<void> {
   // Tenant acquired through the distributor (acquisition = Partner).
   const [tenant] = await Organization.findOrCreate({
     // OD `idtn5` / `TEN-1005` PT Hammer Industries (open-design core.js:6894) —
-    // the demo tenant every other seed hangs off. Name and code are OD's; an
+    // the sample tenant every other seed hangs off. Name and code are OD's; an
     // already-deployed database keeps whatever row it has (`findOrCreate` keys on
     // `code`), so the rename lands on fresh databases and by migration elsewhere.
     where: { code: "TEN-1005" },
@@ -334,7 +348,7 @@ export async function seed(): Promise<void> {
     defaults: { orgId: tenant.id, plan: "standard", entitlements: { frameworks: ["ISO 9001:2015"] }, status: "Active", startDate: new Date(), endDate: null },
   });
 
-  // 8. Phase 3 — commercial profile for the demo distributor so it surfaces on
+  // 8. Phase 3 — commercial profile for the sample distributor so it surfaces on
   //    the Partners list, plus seed agreement templates (SO master data).
   await PartnerProfile.findOrCreate({
     where: { orgId: distributor.id },
@@ -419,7 +433,7 @@ export async function seed(): Promise<void> {
     });
   }
 
-  // 9. Phase 4 — onboard the demo tenant (Garuda) as a fully provisioned tenant:
+  // 9. Phase 4 — onboard the sample tenant (Garuda) as a fully provisioned tenant:
   //    a tenant_profile (acquired via the distributor) + a primary site.
   const [garudaProfile] = await TenantProfile.findOrCreate({
     where: { orgId: tenant.id },
@@ -481,7 +495,7 @@ export async function seed(): Promise<void> {
     },
   });
 
-  // 10. Phase 5 — billing demo data: plans, a paid + an unpaid invoice for the
+  // 10. Phase 5 — billing sample data: plans, a paid + an unpaid invoice for the
   //     tenant, and a partner revenue-share statement computed from the paid
   //     invoice (Gold tier → 20%). Internally consistent so KPIs reconcile.
   const plans = [
@@ -695,7 +709,7 @@ export async function seed(): Promise<void> {
   //     CQ/CQR library, requirement criteria, and the FWRC statement rows
   //     (see src/db/seeders/complianceEngine.ts and the generated
   //     complianceEngine.*.data.ts modules). Returns the handles the Phase 8
-  //     demo assessment below wires against.
+  //     sample assessment below wires against.
   const { iso27001, auditEl, riskEl, q1, q1r5, qRisk, qRiskR0, crit5, critR0 } = await seedComplianceEngine();
 
   // 12b. ISRA + SoA (F-2b) — global reference-library seed: the 93-row Annex A
@@ -703,7 +717,7 @@ export async function seed(): Promise<void> {
   //      and its asset libraries, the re-derived V2 knowledge maps, the
   //      1,950-row Vuln→Annex A map, RTP treatment templates, and the KM
   //      publish-state singleton (see src/db/seeders/isra.ts). Global (no
-  //      org_id) — no tenant/demo wiring needed here.
+  //      org_id) — no tenant/sample wiring needed here.
   const isra = await seedIsraLibrary();
   // eslint-disable-next-line no-console
   console.log(
@@ -713,31 +727,31 @@ export async function seed(): Promise<void> {
       `km ${isra.kmSaThreat.seeded}+${isra.kmThreatVuln.seeded}+${isra.kmVulnControl}, treatTemplates ${isra.treatTemplates}`,
   );
 
-  // 12b-ii. ISRA tenant demo workspace — OD's generated demo risk register on
-  //      top of that library, scoped to the demo tenant (see
-  //      src/db/seeders/israTenantDemo.ts). Seeds only into an empty register,
-  //      so it never overwrites edits made in the demo workspace.
-  const israDemo = await seedIsraTenantDemo(tenant.id);
+  // 12b-ii. ISRA tenant sample workspace — OD's generated sample risk register on
+  //      top of that library, scoped to the sample tenant (see
+  //      src/db/seeders/israTenantSample.ts). Seeds only into an empty register,
+  //      so it never overwrites edits made in the sample workspace.
+  const israSample = await seedIsraTenantSample(tenant.id);
   // eslint-disable-next-line no-console
   console.log(
-    israDemo.skipped
-      ? "[seed] ISRA demo workspace — already populated, skipped"
-      : `[seed] ISRA demo workspace — scenarios ${israDemo.scenarios}, vulns ${israDemo.vulns}, impacts ${israDemo.impacts}, ` +
-        `existingControls ${israDemo.existingControls}, treatments ${israDemo.treatments}, rtps ${israDemo.rtps}/${israDemo.rtpActions} actions, ` +
-        `assetMaps ${israDemo.assetMaps}, evidence ${israDemo.evidence}, audit ${israDemo.audit}, initiatives ${israDemo.initiatives}, ` +
-        `baseline ${israDemo.controlBaseline}` +
-        (israDemo.skippedScenarios || israDemo.skippedVulns || israDemo.skippedBaseline
-          ? ` — SKIPPED (missing library FK): scenarios ${israDemo.skippedScenarios}, vulns ${israDemo.skippedVulns}, baseline ${israDemo.skippedBaseline}`
+    israSample.skipped
+      ? "[seed] ISRA sample workspace — already populated, skipped"
+      : `[seed] ISRA sample workspace — scenarios ${israSample.scenarios}, vulns ${israSample.vulns}, impacts ${israSample.impacts}, ` +
+        `existingControls ${israSample.existingControls}, treatments ${israSample.treatments}, rtps ${israSample.rtps}/${israSample.rtpActions} actions, ` +
+        `assetMaps ${israSample.assetMaps}, evidence ${israSample.evidence}, audit ${israSample.audit}, initiatives ${israSample.initiatives}, ` +
+        `baseline ${israSample.controlBaseline}` +
+        (israSample.skippedScenarios || israSample.skippedVulns || israSample.skippedBaseline
+          ? ` — SKIPPED (missing library FK): scenarios ${israSample.skippedScenarios}, vulns ${israSample.skippedVulns}, baseline ${israSample.skippedBaseline}`
           : ""),
   );
 
-  // 12c. Marketing CMS (SOF-336) — OD's `cmsSeedIfNeeded()` demo content
+  // 12c. Marketing CMS (SOF-336) — OD's `cmsSeedIfNeeded()` sample content
   //      (pages/posts/media/menu), owned by the AXIA ServiceOwner org since
   //      it describes the VIBES marketing site itself (see src/db/seeders/cms.ts).
   await seedCms(so.id);
 
   // 12d. Business Process catalog (SOF-381) — OD's `bpCatSeedIfNeeded()`
-  //      385-row master catalog (`db.bpCatalog`), materialised into the demo
+  //      385-row master catalog (`db.bpCatalog`), materialised into the sample
   //      tenant's ISO 4.4 process register (see src/db/seeders/businessProcess.ts).
   await seedBpCatalog(tenant.id);
 
@@ -890,7 +904,7 @@ export async function seed(): Promise<void> {
   await seedAwareness(tenant.id, so.id);
 
   // 12g. SOF-407 (design: SOF-386) — Enterprise org structure (32 `OrgUnit`
-  //      rows + synthetic lead roster). Demo tenant org only (not `so`, the
+  //      rows + synthetic lead roster). Sample tenant org only (not `so`, the
   //      AXIA ServiceOwner org). The Delegation-of-Authority spend matrix was
   //      seeded here too, into its own `doa_matrix_entries` table; OD keeps one
   //      home per collection, so bands and sourcing methods now live only in the
@@ -899,7 +913,7 @@ export async function seed(): Promise<void> {
   //      band 2's approver is the L8 manager `seedOrgUnits` creates).
   await seedOrgUnits(tenant.id);
 
-  // 13. Phase 8 — a finalized demo assessment for the tenant against ISO 27001.
+  // 13. Phase 8 — a finalized sample assessment for the tenant against ISO 27001.
   //     Internal Audit answered "mature" (score 5, no gap); Risk Assessment
   //     answered "ad hoc" (score 0 → High gap → Risk Management module).
   //     maturity = (5 + 0) / 2 = 2.5.
@@ -929,7 +943,7 @@ export async function seed(): Promise<void> {
       });
     }
   }
-  const [demoAssessment, demoCreated] = await Assessment.findOrCreate({
+  const [sampleAssessment, sampleCreated] = await Assessment.findOrCreate({
     where: { code: "ASM-1001" },
     defaults: {
       code: "ASM-1001", orgId: tenant.id, siteId: tenantSite?.id ?? null, frameworkId: iso27001.id,
@@ -937,11 +951,11 @@ export async function seed(): Promise<void> {
       maturityScore: 2.5, startedAt: new Date(), completedAt: new Date(),
     },
   });
-  if (demoCreated) {
-    await AssessmentAnswer.create({ assessmentId: demoAssessment.id, questionId: q1.id, responseId: q1r5.id, criterionId: crit5.id, score: 5 });
-    await AssessmentAnswer.create({ assessmentId: demoAssessment.id, questionId: qRisk.id, responseId: qRiskR0.id, criterionId: critR0.id, score: 0 });
+  if (sampleCreated) {
+    await AssessmentAnswer.create({ assessmentId: sampleAssessment.id, questionId: q1.id, responseId: q1r5.id, criterionId: crit5.id, score: 5 });
+    await AssessmentAnswer.create({ assessmentId: sampleAssessment.id, questionId: qRisk.id, responseId: qRiskR0.id, criterionId: critR0.id, score: 0 });
     await Gap.create({
-      assessmentId: demoAssessment.id, elementId: riskEl.id, elementName: riskEl.name, score: 0, severity: "High",
+      assessmentId: sampleAssessment.id, elementId: riskEl.id, elementName: riskEl.name, score: 0, severity: "High",
       recommendedModuleKey: "risk-management", recommendedModuleLabel: "Risk Management", recommendedRoute: "/implementation/risks",
     });
   }
@@ -953,8 +967,8 @@ export async function seed(): Promise<void> {
   // day after posting (RISK-0001 / RISK-0002); `riskMethodSeedIfNeeded`
   // (10488) then re-raises issues 1–3 as RISK-0003/0004/0005, overwriting
   // `linkedRiskId` and unshifting a newer "Raised as risk" entry — seeded
-  // here as that END state. The newest issue carries OD's 24-entry demo
-  // activity log, the cloud issue the long worked-demo remarks. OD `comments`
+  // here as that END state. The newest issue carries OD's 24-entry sample
+  // activity log, the cloud issue the long worked-example remarks. OD `comments`
   // have no field here — dropped.
   const msRelIso = (n: number): string => new Date(Date.now() - n * 86400000).toISOString();
   const ocActors = ["Jennifer Susan Walters", "Peter Benjamin Parker", "Wanda Maximoff", "Robert Bruce Banner", "Carol Susan Jane Danvers", "Natalia Alianovna Romanova"];
@@ -985,7 +999,7 @@ export async function seed(): Promise<void> {
     ["Comment added", "No further action required at this time"],
   ];
   const ocLeadActivity = ocLeadTmpl.map(([action, summary], k) => ({ ts: new Date(Date.now() - (24 - k) * 0.66 * 86400000).toISOString(), user: ocActors[k % ocActors.length], action, summary }));
-  // OD ocSeedIfNeeded worked-demo `remarks` on the cloud-reliance issue, verbatim.
+  // OD ocSeedIfNeeded worked-example `remarks` on the cloud-reliance issue, verbatim.
   const ocCloudRemarks = "Migration of core registration, records and analytics workloads to third-party cloud platforms has accelerated over the past two quarters. While this improves scalability and resilience, it also shifts parts of our security control boundary to the provider and introduces new considerations we must actively manage:\n\n• Data residency and sovereignty — customer personal data may be processed or replicated across regions with differing legal regimes; contractual and configuration controls must keep processing within approved jurisdictions.\n• Shared-responsibility gaps — provider secures the platform, but tenant configuration (IAM, network policy, key management, logging) remains our responsibility and is a common source of exposure.\n• Identity and access — federated SSO, service accounts and API tokens broaden the attack surface; least-privilege, short-lived credentials and periodic access reviews are required.\n• Third-party dependency and lock-in — availability and continuity now depend on the provider’s SLAs and our exit/portability plans.\n\nThis issue is monitored through the information security risk assessment (linked risk) and reviewed at each management review; framework relevance spans ISO/IEC 27001:2022 and ISO/IEC 27701:2025.";
   // OD `polSeedIfNeeded` (core.js:12234): one shared effective date, 4 days
   // ago, with the next review one year out (`polNextReview`, freq "Annually").
@@ -1354,7 +1368,7 @@ export async function seed(): Promise<void> {
   //      and 2 generated reports (IAR-0001/0002), ported with OD's exact
   //      titles / dates-relative-to-now / statuses / criteria. Unlike the
   //      reference-db registers, the dedicated `/internal-audit` surface has
-  //      no lazy first-read seed, so demo data only exists if a seeder writes
+  //      no lazy first-read seed, so sample data only exists if a seeder writes
   //      it.
   const iaSeeded = await IaProgram.findOne({ where: { orgId: tenant.id, code: "IAP-0001" } });
   if (!iaSeeded) {
@@ -1617,7 +1631,7 @@ export async function seed(): Promise<void> {
   // 14b. Phase 9b — Work Units & Business Processes (ISO 5.3, OD
   //      `wuEnsureBps`/`wuSeedIfNeeded`, index.html:9077-9181): the 32
   //      globally seeded Business Processes as `processes` register entries
-  //      (global to the platform in OD; scoped to the demo tenant here since
+  //      (global to the platform in OD; scoped to the sample tenant here since
   //      BE's `processes` module is org-scoped, not platform-shared) and PT
   //      Hammer Industries' 12 seeded Work Units, wired to their process
   //      links, sites, and — where OD's names match BE's already-ported
@@ -2069,7 +2083,7 @@ export async function seed(): Promise<void> {
 
   // 14c. Phase 9c — Approval pools (OD's team-seed + `apMigrateFlags`
   //      invariant, app.html:5739, 7207-7210, 10144-10160): guarantee
-  //      the demo tenant ships with a non-empty approval pool instead of
+  //      the sample tenant ships with a non-empty approval pool instead of
   //      relying solely on the runtime auto-derive fallback in
   //      approval.service.ts. Two more tenant users (mirroring OD's Monica
   //      Rambeau / Maria Rambeau) plus the existing Tenant Admin (mirroring
@@ -2135,7 +2149,7 @@ export async function seed(): Promise<void> {
 
   // 16. Phase 11 — knowledge base: OD's 18 seeded articles (`seedKB`,
   //     index.html:15698-15723) verbatim (title/category/summary/keywords/
-  //     content/featured/status/views/helpful), plus a couple of demo
+  //     content/featured/status/views/helpful), plus a couple of sample
   //     notifications for the tenant org bell.
   const kb: {
     code: string; title: string; category: string; status: "Draft" | "Published" | "Archived";
@@ -2178,7 +2192,7 @@ export async function seed(): Promise<void> {
   await seedBusinessRecords(tenant.id);
 
   // SOF-322 audit gap: OD's `db.suppliers` (21 rows) had no home in either seeder — the
-  // Tenant Quality register at `/implementation/suppliers` rendered empty in both offline demo
+  // Tenant Quality register at `/implementation/suppliers` rendered empty in both offline sample
   // mode and against this backend. Reuses the same `data/businessRecords/suppliers.json` dump
   // convention as `seedBusinessRecords` above, but writes `ImplementationRecord` rows (module
   // `suppliers`) since that register isn't a `business_records` module.
@@ -2238,7 +2252,7 @@ export async function seed(): Promise<void> {
       "  Orgs: AXIA (ServiceOwner) → PT Parker Industries (Distributor) → PT Hammer Industries (Tenant)",
       "  Orgs: AXIA (ServiceOwner) → PT Stark Industries (Distributor) → PT Damage Control (Tenant) [ticket cross-partner isolation pair]",
       "  Roles: Super Admin (bypass), Administrator (full CRUD grants), User (read-only), Billing Manager, Technical Support",
-      `  Logins (password ${DEFAULT_PASSWORD}): soadmin / admin / user / partner / tenant`,
+      "  Logins (password from SEED_PASSWORD): soadmin / admin / user / partner / tenant",
       "  AXIA staff roster: 14 (OD seedUsers) — 6 with access, 8 no-access; no passwords",
       "  Partners: PRT-1001..1005 (Active / Pending Approval / Draft / Suspended)",
     ].join("\n"),

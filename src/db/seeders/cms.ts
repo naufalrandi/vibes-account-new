@@ -1,5 +1,5 @@
 /**
- * SOF-336 — seeds OD's marketing CMS demo content (`db.cmsSettings`, `db.cmsPages`,
+ * SOF-336 — seeds OD's marketing CMS sample content (`db.cmsSettings`, `db.cmsPages`,
  * `db.cmsPosts`, `db.cmsMedia`, `db.cmsMenu`) into the AXIA ServiceOwner org.
  * Data is `cms.data.ts`, transcribed verbatim from `cmsSeedIfNeeded()`
  * (open-design core.js:3750-3789).

@@ -20,7 +20,7 @@ async function makeTenant(username: string, code: string, actions = MS): Promise
   return { token: login.body.data.accessToken, orgId: org.id, userId: user.id };
 }
 
-async function addMember(orgId: string, fullName: string, username: string, status = "Active"): Promise<User> {
+async function addMember(orgId: string, fullName: string, username: string, status: User["status"] = "Active"): Promise<User> {
   return User.create({ orgId, tenantId: null, fullName, username, email: `${username}@x.io`, passwordHash: await hashPassword("ChangeMe123"), status, position: null, workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null });
 }
 

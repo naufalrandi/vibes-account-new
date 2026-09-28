@@ -72,6 +72,8 @@ const dnEngagementsDataSchema = z
     start: z.string().optional(),
     end: z.string().optional(),
     value: z.number().optional(),
+    // Report executive summary (drafted by `pentest-assist` engagement-summary).
+    executiveSummary: z.string().max(20_000).optional(),
   })
   .strict();
 
@@ -85,6 +87,12 @@ const dnFindingsDataSchema = z
     cvss: z.number().optional(),
     category: z.string().optional(),
     asset: z.string().optional(),
+    // Report write-up (drafted by `pentest-assist` finding-writeup, edited by the tester).
+    description: z.string().max(20_000).optional(),
+    impact: z.string().max(10_000).optional(),
+    reproductionSteps: z.array(z.string().max(2_000)).max(50).optional(),
+    recommendation: z.string().max(10_000).optional(),
+    references: z.array(z.string().max(100)).max(30).optional(),
   })
   .strict();
 
@@ -471,6 +479,11 @@ const entDbCoursesDataSchema = z
     currency: str,
     fxRate: numeric,
     scheme: str,
+    // OD course "Publication" block (`crs-web`): whether the course is listed on
+    // the public website, and when it was last published there (ISO date string;
+    // null clears it when the course is unpublished).
+    publishToWeb: bool,
+    webPublishedAt: z.string().max(40).nullable().optional(),
     co,
   })
   .strict();

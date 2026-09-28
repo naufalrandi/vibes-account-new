@@ -1,5 +1,8 @@
-import { Op } from "sequelize";
+import { Op, type Transaction } from "sequelize";
 import {
+  ApprovalRecord,
+  RecordEvent,
+  IsraVulnLibrary,
   IsraScenario,
   IsraScenarioVuln,
   IsraScenarioPotentialImpact,
@@ -29,11 +32,14 @@ import {
   israAddMonthsIso,
   israRiskScheme,
 } from "../../db/models";
+import { sequelize } from "../../db/sequelize";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
 import { BadRequestError, NotFoundError, ConflictError } from "../../lib/errors";
 import { ISRA_RESIDUAL_BASIS, type IsraResidualBasis } from "../../db/models/israResidualCycle.models";
 import { logActivity, actorName } from "../record-events/recordEvent.service";
+import { orgToday } from "../../lib/localDate";
 
 const str = (v: unknown): string | null =>
   typeof v === "string" && v.trim() ? v.trim() : v === "" ? "" : v == null ? null : String(v);
@@ -582,6 +588,41 @@ async function nextScenarioCode(orgId: string): Promise<string> {
   return `RSC-${String(max + 1).padStart(4, "0")}`;
 }
 
+/**
+ * The scenario's vulnerability set from request input: de-duplicated (the
+ * table is unique per scenario+vuln) and checked against the vulnerability
+ * library, so a typo is a 400 instead of a foreign-key 500.
+ */
+async function vulnIdsFrom(raw: unknown[]): Promise<string[]> {
+  const ids = [...new Set(raw.map((v) => String(v)))];
+  if (ids.length === 0) return ids;
+  const known = new Set((await IsraVulnLibrary.findAll({ where: { id: { [Op.in]: ids } }, attributes: ["id"] })).map((v) => v.id));
+  const unknown = ids.filter((id) => !known.has(id));
+  if (unknown.length) throw new BadRequestError(`Unknown vulnerability: ${unknown.join(", ")}`, "UNKNOWN_VULN");
+  return ids;
+}
+
+/** Potential impacts from request input — well-formed rows only, one per area (the last one wins). */
+function impactsFrom(raw: unknown[]): { area: string; severity: number; note: string }[] {
+  const byArea = new Map<string, { area: string; severity: number; note: string }>();
+  for (const p of raw as { area?: unknown; severity?: unknown; note?: unknown }[]) {
+    if (p && typeof p.area === "string" && p.area && typeof p.severity === "number") {
+      byArea.set(p.area, { area: p.area, severity: p.severity, note: typeof p.note === "string" ? p.note : "" });
+    }
+  }
+  return [...byArea.values()];
+}
+
+async function replaceScenarioVulns(scenarioId: string, vulnIds: string[], tx: Transaction): Promise<void> {
+  await IsraScenarioVuln.destroy({ where: { scenarioId }, transaction: tx });
+  await IsraScenarioVuln.bulkCreate(vulnIds.map((vulnId) => ({ scenarioId, vulnId })), { transaction: tx });
+}
+
+async function replaceScenarioImpacts(scenarioId: string, impacts: ReturnType<typeof impactsFrom>, tx: Transaction): Promise<void> {
+  await IsraScenarioPotentialImpact.destroy({ where: { scenarioId }, transaction: tx });
+  await IsraScenarioPotentialImpact.bulkCreate(impacts.map((i) => ({ scenarioId, ...i })), { transaction: tx });
+}
+
 export async function createScenario(auth: AuthContext, input: Record<string, unknown>, ip: string | null) {
   const primaryAssetRef = str(input.primaryAssetRef);
   const primaryAssetSource = str(input.primaryAssetSource) || "platform";
@@ -594,56 +635,42 @@ export async function createScenario(auth: AuthContext, input: Record<string, un
     throw new BadRequestError("Primary asset, secondary asset, threat, and title are required", "MISSING_REQUIRED_FIELDS");
   }
 
+  const vulnIds = Array.isArray(input.includedVulns) ? await vulnIdsFrom(input.includedVulns) : [];
+  const impacts = Array.isArray(input.potentialImpacts) ? impactsFrom(input.potentialImpacts) : [];
+
   // Generate next RSC- code per tenant
   const code = await nextScenarioCode(auth.orgId);
 
-  const row = await IsraScenario.create({
-    orgId: auth.orgId,
-    code,
-    primaryAssetRef,
-    primaryAssetSource,
-    processRef: str(input.processRef),
-    secondaryAssetRef,
-    secondaryAssetSource,
-    threatId,
-    title,
-    status: "Draft",
-    cia: (input.cia as any) || {},
-    inherentL: typeof input.inherentL === "number" ? input.inherentL : 3,
-    evalCycle: 1,
-    reviewDue: str(input.reviewDue),
-    createdBy: auth.userId,
+  const row = await sequelize.transaction(async (tx) => {
+    const created = await IsraScenario.create({
+      orgId: auth.orgId,
+      code,
+      primaryAssetRef,
+      primaryAssetSource,
+      processRef: str(input.processRef),
+      secondaryAssetRef,
+      secondaryAssetSource,
+      threatId,
+      title,
+      status: "Draft",
+      cia: (input.cia as any) || {},
+      ciaDesc: (input.ciaDesc as any) || {},
+      likelihoodNote: str(input.likelihoodNote),
+      inherentL: typeof input.inherentL === "number" ? input.inherentL : 3,
+      evalCycle: 1,
+      reviewDue: str(input.reviewDue),
+      createdBy: auth.userId,
+    }, { transaction: tx });
+    await replaceScenarioVulns(created.id, vulnIds, tx);
+    await replaceScenarioImpacts(created.id, impacts, tx);
+    return created;
   });
-
-  // Attach vulns if provided
-  if (Array.isArray(input.includedVulns)) {
-    for (const vulnId of input.includedVulns) {
-      await IsraScenarioVuln.create({
-        scenarioId: row.id,
-        vulnId: String(vulnId),
-      });
-    }
-  }
-
-  // Attach potential impacts if provided
-  if (Array.isArray(input.potentialImpacts)) {
-    for (const p of input.potentialImpacts as any[]) {
-      if (p.area && typeof p.severity === "number") {
-        await IsraScenarioPotentialImpact.create({
-          scenarioId: row.id,
-          area: p.area,
-          severity: p.severity,
-          note: p.note || "",
-        });
-      }
-    }
-  }
 
   await recalculateScenarioScores(row.id, auth.orgId);
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: auth.orgId,
+    organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId),
     action: "isra.scenario.created",
     entityType: "IsraScenario",
     entityId: row.id,
@@ -703,7 +730,9 @@ export async function updateScenario(auth: AuthContext, id: string, input: Recor
     }
   }
 
-  await scenario.save();
+  // Validate the replacement sets before anything is written.
+  const vulnIds = Array.isArray(input.includedVulns) ? await vulnIdsFrom(input.includedVulns) : null;
+  const impacts = Array.isArray(input.potentialImpacts) ? impactsFrom(input.potentialImpacts) : null;
 
   // Update vulns if provided.
   //
@@ -714,39 +743,25 @@ export async function updateScenario(auth: AuthContext, id: string, input: Recor
   // This path replaces the set wholesale, so an empty array was wiping every
   // vulnerability in one call. A never-populated Draft is a different state
   // and is left alone — the invariant is on scenarios that have them.
-  if (Array.isArray(input.includedVulns)) {
-    if (input.includedVulns.length === 0) {
-      const current = await IsraScenarioVuln.count({ where: { scenarioId: id } });
-      if (current > 0) {
-        throw new ConflictError("A scenario must keep at least one vulnerability", "SCENARIO_VULNS_REQUIRED");
-      }
-    }
-    await IsraScenarioVuln.destroy({ where: { scenarioId: id } });
-    for (const vulnId of input.includedVulns) {
-      await IsraScenarioVuln.create({ scenarioId: id, vulnId: String(vulnId) });
+  if (vulnIds && vulnIds.length === 0) {
+    const current = await IsraScenarioVuln.count({ where: { scenarioId: id } });
+    if (current > 0) {
+      throw new ConflictError("A scenario must keep at least one vulnerability", "SCENARIO_VULNS_REQUIRED");
     }
   }
 
-  // Update impacts if provided
-  if (Array.isArray(input.potentialImpacts)) {
-    await IsraScenarioPotentialImpact.destroy({ where: { scenarioId: id } });
-    for (const p of input.potentialImpacts as any[]) {
-      if (p.area && typeof p.severity === "number") {
-        await IsraScenarioPotentialImpact.create({
-          scenarioId: id,
-          area: p.area,
-          severity: p.severity,
-          note: p.note || "",
-        });
-      }
-    }
-  }
+  // The scenario fields and both replacement sets land together or not at all.
+  await sequelize.transaction(async (tx) => {
+    await scenario.save({ transaction: tx });
+    if (vulnIds) await replaceScenarioVulns(id, vulnIds, tx);
+    if (impacts) await replaceScenarioImpacts(id, impacts, tx);
+  });
 
   await recalculateScenarioScores(id, auth.orgId);
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: auth.orgId,
+    organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId),
     action: "isra.scenario.updated",
     entityType: "IsraScenario",
     entityId: id,
@@ -761,11 +776,17 @@ export async function deleteScenario(auth: AuthContext, id: string, ip: string |
   const scenario = await IsraScenario.findOne({ where: { id, orgId: auth.orgId } });
   if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
 
-  await scenario.destroy();
+  // Child tables cascade on the FK; the activity feed and any approval run are
+  // keyed by record id only, so they go explicitly, in the same transaction.
+  await sequelize.transaction(async (transaction) => {
+    await RecordEvent.destroy({ where: { orgId: auth.orgId, recordId: id }, transaction });
+    await ApprovalRecord.destroy({ where: { orgId: auth.orgId, recordId: id }, transaction });
+    await scenario.destroy({ transaction });
+  });
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: auth.orgId,
+    organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId),
     action: "isra.scenario.deleted",
     entityType: "IsraScenario",
     entityId: id,
@@ -854,6 +875,9 @@ export async function deleteExistingControl(auth: AuthContext, controlId: string
 
 // ======================= Treatment, RTP, Residuals =========================
 
+/** OD `isra2TreatForm` approval-status options; a new decision starts Pending. */
+const TREATMENT_APPROVAL_STATUSES = ["Pending", "Approved", "Rejected"];
+
 export async function saveTreatmentDecision(auth: AuthContext, scenarioId: string, input: Record<string, unknown>, _ip: string | null) {
   const scenario = await IsraScenario.findOne({ where: { id: scenarioId, orgId: auth.orgId } });
   if (!scenario) throw new NotFoundError("Scenario not found", "SCENARIO_NOT_FOUND");
@@ -867,6 +891,20 @@ export async function saveTreatmentDecision(auth: AuthContext, scenarioId: strin
     throw new BadRequestError("Decision rationale is required", "TREATMENT_RATIONALE_REQUIRED");
   }
 
+  // A decision is recorded as awaiting approval unless the save itself carries
+  // the approver's outcome — it is never approved by default.
+  const approvalStatus = str(input.approvalStatus) || "Pending";
+  if (!TREATMENT_APPROVAL_STATUSES.includes(approvalStatus)) {
+    throw new BadRequestError(`Approval status must be one of ${TREATMENT_APPROVAL_STATUSES.join(", ")}`, "INVALID_APPROVAL_STATUS");
+  }
+  const decisionDate = await orgToday(auth.orgId);
+  // OD `isra3-t-apby`/`isra3-t-apdate` are only live while the status is
+  // Approved. A value the form sends wins; otherwise an approval records who
+  // made it and today's org-local date. Any other status clears both.
+  const approved = approvalStatus === "Approved";
+  const approvedBy = approved ? str(input.approvedBy) || (await actorName(auth)) || auth.userId : null;
+  const approvalDate = approved ? str(input.approvalDate) || decisionDate : null;
+
   /**
    * R339 / OD `isra2TreatForm` (js/core.js:15149) — only a CHANGE OF OPTION makes
    * history. The superseded decision is kept (isCurrent=false) and the new one
@@ -874,32 +912,39 @@ export async function saveTreatmentDecision(auth: AuthContext, scenarioId: strin
    * residual were both built for the old option, both are flagged for review.
    * A save that keeps the option is an amendment: same version, no history row.
    */
-  const prev = await IsraScenarioTreatmentDecision.findOne({ where: { scenarioId, isCurrent: true } });
-  const optionChanged = !!prev && prev.option !== option;
+  // The current-flag flip and the new current row commit together, so the
+  // scenario is never left with zero (or two) current decisions.
+  const row = await sequelize.transaction(async (tx) => {
+    const prev = await IsraScenarioTreatmentDecision.findOne({ where: { scenarioId, isCurrent: true }, transaction: tx, lock: tx.LOCK.UPDATE });
+    const optionChanged = !!prev && prev.option !== option;
 
-  // Mark previous current as not current
-  await IsraScenarioTreatmentDecision.update({ isCurrent: false }, { where: { scenarioId, isCurrent: true } });
+    // Mark previous current as not current
+    await IsraScenarioTreatmentDecision.update({ isCurrent: false }, { where: { scenarioId, isCurrent: true }, transaction: tx });
 
-  if (optionChanged) {
-    await IsraRtp.update({ needsReview: true }, { where: { scenarioId, isCurrent: true } });
-    await IsraScenarioProjectedResidual.update({ needsReview: true }, { where: { scenarioId } });
-  }
+    if (optionChanged) {
+      await IsraRtp.update({ needsReview: true }, { where: { scenarioId, isCurrent: true }, transaction: tx });
+      await IsraScenarioProjectedResidual.update({ needsReview: true }, { where: { scenarioId }, transaction: tx });
+    }
 
-  const row = await IsraScenarioTreatmentDecision.create({
-    scenarioId,
-    cycle: prev?.cycle ?? scenario.evalCycle ?? 1,
-    version: optionChanged ? (prev!.version || 1) + 1 : prev?.version || 1,
-    option,
-    rationale,
-    decidedBy: auth.userId,
-    decisionDate: new Date().toISOString().slice(0, 10),
-    approvalStatus: str(input.approvalStatus) || "Approved",
-    acceptance: (input.acceptance as any) || null,
-    // R49 / OD `isra2TreatForm` (js/core.js:15152): the decision's own status is
-    // derived from the option, never entered — `opt==='Retain'?'Accepted':'Planning'`.
-    status: option === "Retain" ? "Accepted" : "Planning",
-    needsReview: false,
-    isCurrent: true,
+    return IsraScenarioTreatmentDecision.create({
+      scenarioId,
+      cycle: prev?.cycle ?? scenario.evalCycle ?? 1,
+      version: optionChanged ? (prev!.version || 1) + 1 : prev?.version || 1,
+      option,
+      rationale,
+      decidedBy: auth.userId,
+      decisionDate,
+      approvalStatus,
+      approvedBy,
+      approvalDate,
+      reviewDate: str(input.reviewDate) || null,
+      acceptance: (input.acceptance as any) || null,
+      // R49 / OD `isra2TreatForm` (js/core.js:15152): the decision's own status is
+      // derived from the option, never entered — `opt==='Retain'?'Accepted':'Planning'`.
+      status: option === "Retain" ? "Accepted" : "Planning",
+      needsReview: false,
+      isCurrent: true,
+    }, { transaction: tx });
   });
 
   return row.get({ plain: true });
@@ -1334,7 +1379,7 @@ export async function saveResidual(auth: AuthContext, scenarioId: string, input:
       score,
       band,
       rationale: str(input.rationale),
-      assessmentDate: new Date().toISOString().slice(0, 10),
+      assessmentDate: await orgToday(auth.orgId),
       assessedBy: auth.userId,
       needsReview: false,
       adequacy,
@@ -1345,7 +1390,7 @@ export async function saveResidual(auth: AuthContext, scenarioId: string, input:
     residual.score = score;
     residual.band = band;
     residual.rationale = str(input.rationale) ?? residual.rationale;
-    residual.assessmentDate = new Date().toISOString().slice(0, 10);
+    residual.assessmentDate = await orgToday(auth.orgId);
     residual.assessedBy = auth.userId;
     // OD replaces `sc.residual` wholesale on every save, so a re-assessment
     // lands with `needsReview:false` (F-318).
@@ -1552,7 +1597,7 @@ export async function promoteResidual(auth: AuthContext, scenarioId: string, _ip
   const reviewMonths = within
     ? (orgSettings?.reviewPeriodWithinMonths ?? ISRA_REVIEW_PERIOD_DEFAULT.within)
     : (orgSettings?.reviewPeriodAboveMonths ?? ISRA_REVIEW_PERIOD_DEFAULT.above);
-  scenario.reviewDue = israAddMonthsIso(new Date(), reviewMonths);
+  scenario.reviewDue = israAddMonthsIso(await orgToday(auth.orgId), reviewMonths);
 
   // 5. Within appetite: accept + archive the RTP out of "current".
   //    Above appetite: leave acceptance unset — further treatment is needed.
@@ -1582,7 +1627,7 @@ export async function promoteResidual(auth: AuthContext, scenarioId: string, _ip
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: auth.orgId,
+    organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId),
     action: "isra.residual.promoted",
     entityType: "IsraScenario",
     entityId: scenarioId,
@@ -1666,7 +1711,7 @@ export async function startNextCycle(auth: AuthContext, scenarioId: string, ip: 
   // offered above appetite, so the shorter "above" review period applies.
   const orgSettings = await IsraOrgSettings.findOne({ where: { orgId: auth.orgId } });
   scenario.reviewDue = israAddMonthsIso(
-    new Date(),
+    await orgToday(auth.orgId),
     orgSettings?.reviewPeriodAboveMonths ?? ISRA_REVIEW_PERIOD_DEFAULT.above,
   );
   await scenario.save();
@@ -1681,7 +1726,7 @@ export async function startNextCycle(auth: AuthContext, scenarioId: string, ip: 
   );
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: auth.orgId,
+    organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId),
     action: "isra.cycle.opened",
     entityType: "IsraScenario",
     entityId: scenarioId,
@@ -1721,7 +1766,7 @@ export async function acceptRisk(auth: AuthContext, scenarioId: string, ip: stri
   scenario.accepted = { at: new Date().toISOString(), by: (await actorName(auth)) ?? auth.userId, score };
   const orgSettings = await IsraOrgSettings.findOne({ where: { orgId: auth.orgId } });
   scenario.reviewDue = israAddMonthsIso(
-    new Date(),
+    await orgToday(auth.orgId),
     orgSettings?.reviewPeriodWithinMonths ?? ISRA_REVIEW_PERIOD_DEFAULT.within,
   );
   await scenario.save();
@@ -1736,7 +1781,7 @@ export async function acceptRisk(auth: AuthContext, scenarioId: string, ip: stri
   );
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: auth.orgId,
+    organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId),
     action: "isra.risk.accepted",
     entityType: "IsraScenario",
     entityId: scenarioId,

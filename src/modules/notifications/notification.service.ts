@@ -2,31 +2,43 @@ import { Op } from "sequelize";
 import { env } from "../../config/env";
 import { Notification } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
+import { sendMail } from "../../lib/mailer";
+import { newOpaqueToken } from "../../lib/tokens";
+import {
+  ACTIVATION_TTL_DAYS, activationEmail, passwordResetEmail, poConfirmationEmail, type ActivationVariant,
+} from "./email.templates";
 
-// Stub transport. NEVER log the token/link — those are bearer credentials that
-// would leak into log aggregators. Only the non-production build prints the full
-// link (for local testing); production logs nothing sensitive. Replace with a
-// real SMTP/provider before shipping.
-const isDev = env.NODE_ENV === "development";
-
-export function sendActivationInvite(email: string, activationToken: string): void {
-  if (isDev) {
-    // eslint-disable-next-line no-console
-    console.log(`[notification] activation invite -> ${email}: ${env.APP_BASE_URL}/activate?token=${activationToken}`);
-  } else {
-    // eslint-disable-next-line no-console
-    console.log(`[notification] activation invite sent to ${email}`);
-  }
+/**
+ * Mints an activation token. Persist `fields` on the User (only the hash is
+ * stored) and email `raw` via `sendActivationInvite` — never log or return it.
+ */
+export function issueActivationToken(): { raw: string; fields: { activationToken: string; activationTokenExpiresAt: Date } } {
+  const { raw, hash } = newOpaqueToken();
+  const expiresAt = new Date(Date.now() + ACTIVATION_TTL_DAYS * 24 * 60 * 60 * 1000);
+  return { raw, fields: { activationToken: hash, activationTokenExpiresAt: expiresAt } };
 }
 
-export function sendPasswordReset(email: string, resetToken: string): void {
-  if (isDev) {
-    // eslint-disable-next-line no-console
-    console.log(`[notification] password reset -> ${email}: ${env.APP_BASE_URL}/reset-password?token=${resetToken}`);
-  } else {
-    // eslint-disable-next-line no-console
-    console.log(`[notification] password reset sent to ${email}`);
-  }
+/** Emails the activation link. Resolves false (never throws) when the send fails. */
+export function sendActivationInvite(
+  email: string,
+  raw: string,
+  opts: { variant?: ActivationVariant; resend?: boolean } = {},
+): Promise<boolean> {
+  return sendMail({ to: email, ...activationEmail(`${env.APP_BASE_URL}/activate?token=${encodeURIComponent(raw)}`, opts) });
+}
+
+/** Emails the password-reset link. Resolves false (never throws) when the send fails. */
+export function sendPasswordReset(email: string, raw: string): Promise<boolean> {
+  return sendMail({ to: email, ...passwordResetEmail(`${env.APP_BASE_URL}/reset-password?token=${encodeURIComponent(raw)}`) });
+}
+
+/** Emails a supplier the public PO confirmation link (`/po-confirm/<code>?t=<token>`). Never throws. */
+export function sendPoConfirmation(
+  email: string,
+  po: { code: string; token: string; supplierName?: string; title?: string },
+): Promise<boolean> {
+  const link = `${env.APP_BASE_URL}/po-confirm/${encodeURIComponent(po.code)}?t=${encodeURIComponent(po.token)}`;
+  return sendMail({ to: email, ...poConfirmationEmail(link, po) });
 }
 
 export interface NotificationView {
@@ -51,8 +63,10 @@ export async function listForActor(auth: AuthContext): Promise<NotificationView[
   return rows.map(view);
 }
 
-export async function markAllRead(auth: AuthContext): Promise<number> {
-  const [updated] = await Notification.update({ read: true }, { where: { ...actorWhere(auth), read: false } });
+/** Mark the actor's unread notifications read — all of them, or only `ids` (others' ids are silently ignored). */
+export async function markRead(auth: AuthContext, ids?: string[]): Promise<number> {
+  const where = { ...actorWhere(auth), read: false, ...(ids ? { id: { [Op.in]: ids } } : {}) };
+  const [updated] = await Notification.update({ read: true }, { where });
   return updated;
 }
 

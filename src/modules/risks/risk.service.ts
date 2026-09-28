@@ -1,9 +1,12 @@
 import { Op, type WhereOptions } from "sequelize";
-import { ImplementationRecord, Organization, User, ApprovalPoolMember } from "../../db/models";
+import { ApprovalRecord, ImplementationRecord, Organization, RecordEvent, User, ApprovalPoolMember } from "../../db/models";
+import { sequelize } from "../../db/sequelize";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
 import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
+import { orgToday } from "../../lib/localDate";
 
 export interface RiskActivityEntry {
   ts: string;
@@ -293,7 +296,7 @@ export async function createRisk(
   const title = deriveTitle(description, input.title as string | undefined);
   const code = await nextRiskCode(targetOrg);
   const who = await actorName(auth);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = await orgToday(targetOrg);
 
   const methodology = input.methodology === "quant" ? "quant" : "basic";
   const likelihood = typeof input.likelihood === "number" ? input.likelihood : null;
@@ -346,7 +349,7 @@ export async function createRisk(
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: targetOrg,
+    organizationId: targetOrg, tenantId: auditTenantId(auth, targetOrg),
     action: "risk.created",
     entityType: "Risk",
     entityId: rec.id,
@@ -424,7 +427,7 @@ export async function updateRisk(
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: rec.orgId,
+    organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
     action: "risk.updated",
     entityType: "Risk",
     entityId: rec.id,
@@ -441,11 +444,16 @@ export async function deleteRisk(auth: AuthContext, id: string, ip: string | nul
   if (!rec) throw new NotFoundError("Risk not found", "RISK_NOT_FOUND");
   await assertCanSeeOrg(auth, rec.orgId);
 
-  await rec.destroy();
+  // The risk's activity feed and approval run go with it, atomically.
+  await sequelize.transaction(async (transaction) => {
+    await RecordEvent.destroy({ where: { orgId: rec.orgId, module: "risks", recordId: id }, transaction });
+    await ApprovalRecord.destroy({ where: { orgId: rec.orgId, module: "risks", recordId: id }, transaction });
+    await rec.destroy({ transaction });
+  });
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: rec.orgId,
+    organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
     action: "risk.deleted",
     entityType: "Risk",
     entityId: id,
@@ -496,7 +504,7 @@ export async function assignOwner(
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: rec.orgId,
+    organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
     action: "risk.owner_assigned",
     entityType: "Risk",
     entityId: rec.id,
@@ -537,7 +545,7 @@ export async function archiveRisk(auth: AuthContext, id: string, ip: string | nu
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: rec.orgId,
+    organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
     action: "risk.archived",
     entityType: "Risk",
     entityId: rec.id,
@@ -586,7 +594,7 @@ export async function generateRtp(auth: AuthContext, id: string, ip: string | nu
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: rec.orgId,
+    organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
     action: "risk.rtp_generated",
     entityType: "Risk",
     entityId: rec.id,
@@ -662,7 +670,7 @@ export async function addActionPlan(
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: rec.orgId,
+    organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
     action: "risk.action_plan_added",
     entityType: "Risk",
     entityId: rec.id,
@@ -719,7 +727,7 @@ export async function updateActionPlan(
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: rec.orgId,
+    organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
     action: "risk.action_plan_updated",
     entityType: "Risk",
     entityId: rec.id,
@@ -767,7 +775,7 @@ export async function deleteActionPlan(
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: rec.orgId,
+    organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
     action: "risk.action_plan_deleted",
     entityType: "Risk",
     entityId: rec.id,
@@ -807,7 +815,7 @@ export async function proposeRtp(auth: AuthContext, id: string, ip: string | nul
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: rec.orgId,
+    organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
     action: "risk.rtp_proposed",
     entityType: "Risk",
     entityId: rec.id,
@@ -855,7 +863,7 @@ export async function approveRtp(auth: AuthContext, id: string, ip: string | nul
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: rec.orgId,
+    organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
     action: "risk.rtp_approved",
     entityType: "Risk",
     entityId: rec.id,
@@ -911,7 +919,7 @@ export async function approveRtpMS(auth: AuthContext, id: string, ip: string | n
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: rec.orgId,
+    organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
     action: "risk.rtp_approved_ms",
     entityType: "Risk",
     entityId: rec.id,
@@ -955,7 +963,7 @@ export async function approveRtpTM(auth: AuthContext, id: string, ip: string | n
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: rec.orgId,
+    organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
     action: "risk.rtp_approved_tm",
     entityType: "Risk",
     entityId: rec.id,
@@ -999,7 +1007,7 @@ export async function rejectRtp(
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: rec.orgId,
+    organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
     action: "risk.rtp_rejected",
     entityType: "Risk",
     entityId: rec.id,
@@ -1034,7 +1042,7 @@ export async function escalateRtp(auth: AuthContext, id: string, ip: string | nu
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: rec.orgId,
+    organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
     action: "risk.rtp_escalated",
     entityType: "Risk",
     entityId: rec.id,
@@ -1082,7 +1090,7 @@ export async function verifyActionPlan(
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: rec.orgId,
+    organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
     action: "risk.action_plan_verified",
     entityType: "Risk",
     entityId: rec.id,
@@ -1124,7 +1132,7 @@ export async function completeTreatment(auth: AuthContext, id: string, ip: strin
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: rec.orgId,
+    organizationId: rec.orgId, tenantId: auditTenantId(auth, rec.orgId),
     action: "risk.treatment_completed",
     entityType: "Risk",
     entityId: rec.id,
@@ -1182,7 +1190,7 @@ export async function updateTenantRiskConfig(
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: targetOrg,
+    organizationId: targetOrg, tenantId: auditTenantId(auth, targetOrg),
     action: "risk.config_updated",
     entityType: "Organization",
     entityId: targetOrg,

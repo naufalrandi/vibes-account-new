@@ -1,3 +1,4 @@
+import type { Transaction } from "sequelize";
 import { ImplementationRecord } from "../../db/models";
 
 /**
@@ -42,8 +43,8 @@ export function polNextVersion(current: unknown): string {
  * policies regardless of framework code, then `POL-<FWCODE>-NNNN` for a
  * High-Level policy whose first framework has a code, `POL-NNNN` otherwise.
  */
-export async function policyCode(orgId: string, category: unknown, frameworks: string[] | undefined): Promise<string> {
-  const rows = await ImplementationRecord.findAll({ where: { orgId, module: "policies" }, attributes: ["code"] });
+export async function policyCode(orgId: string, category: unknown, frameworks: string[] | undefined, tx?: Transaction): Promise<string> {
+  const rows = await ImplementationRecord.findAll({ where: { orgId, module: "policies" }, attributes: ["code"], transaction: tx });
   let max = 0;
   for (const r of rows) {
     const n = Number.parseInt((r.code || "").replace(/^POL-(?:[A-Z]+-)?/, "").replace(/\D/g, ""), 10);

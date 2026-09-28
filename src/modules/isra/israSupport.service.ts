@@ -10,6 +10,8 @@ import {
 } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
+import { orgToday } from "../../lib/localDate";
 
 export async function getOrgSettings(auth: AuthContext) {
   let settings = await IsraOrgSettings.findOne({ where: { orgId: auth.orgId } });
@@ -82,7 +84,7 @@ export async function saveOrgSettings(auth: AuthContext, input: Record<string, u
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: auth.orgId,
+    organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId),
     action: "isra.settings.updated",
     entityType: "IsraOrgSettings",
     entityId: settings.orgId,
@@ -103,17 +105,18 @@ export async function getAppetiteLog(auth: AuthContext) {
 
 export async function logAppetite(auth: AuthContext, input: Record<string, unknown>, _ip: string | null) {
   const count = await IsraAppetiteLog.count({ where: { orgId: auth.orgId } });
+  const today = await orgToday(auth.orgId);
   const row = await IsraAppetiteLog.create({
     orgId: auth.orgId,
     version: count + 1,
     threshold: typeof input.threshold === "number" ? input.threshold : 9,
-    effectiveDate: (input.effectiveDate as string) || new Date().toISOString().slice(0, 10),
+    effectiveDate: (input.effectiveDate as string) || today,
     // isra2AppetiteForm (core.js:15763) — Effective date / Approved by /
     // Approval date / Change rationale are all form-entered on every
     // threshold change; fall back to the acting user/today only when the
     // caller didn't supply them (e.g. older clients).
     approvedBy: (input.approvedBy as string) || auth.userId,
-    approvalDate: (input.approvalDate as string) || new Date().toISOString().slice(0, 10),
+    approvalDate: (input.approvalDate as string) || today,
     rationale: (input.rationale as string) || "Updated risk appetite threshold",
   });
 

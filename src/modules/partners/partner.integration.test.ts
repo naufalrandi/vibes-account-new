@@ -3,7 +3,7 @@ import request from "supertest";
 import { createApp } from "../../app";
 import { initModels, Organization, User, Role, RoleActionGrant, Action, AgreementTemplate, PartnerProfile } from "../../db/models";
 import { hashPassword } from "../../lib/password";
-import { resetDb, grantActions, seedActionCatalog } from "../../../test/helpers";
+import { resetDb, grantActions, seedActionCatalog, lastMailedToken } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
 
 const app = createApp();
@@ -163,7 +163,8 @@ describe("partners", () => {
     expect(soList.body.data).toHaveLength(2);
 
     // Give partner Alpha an active admin user with partner.read, then log in.
-    const role = await Role.create({ name: "Administrator", tierScope: "Distributor", orgId: a.body.data.id, isSuperAdmin: false, status: true });
+    // Provisioning already created the org's "Administrator" role (roles are unique per org + name).
+    const [role] = await Role.findOrCreate({ where: { orgId: a.body.data.id, name: "Administrator" }, defaults: { name: "Administrator", tierScope: "Distributor", orgId: a.body.data.id, isSuperAdmin: false, status: true } });
     await grantActions(role.id, [ACTIONS.PARTNER_READ]);
     const distUser = await User.create({
       orgId: a.body.data.id, tenantId: null, fullName: "Alpha Admin", username: "alpha.active", email: "active@a.io",
@@ -202,7 +203,7 @@ describe("partners", () => {
     await seedActionCatalog();
     const { token: soToken } = await makeSo();
     const res = await request(app).post("/v1/partners").set(authed(soToken)).send({
-      name: "Borneo Digital", admin: { fullName: "Budi Santoso", username: "budi.admin", email: "budi@borneo.io" },
+      name: "Borneo Digital", mode: "send", admin: { fullName: "Budi Santoso", username: "budi.admin", email: "budi@borneo.io" },
     });
     expect(res.status).toBe(201);
     const orgId = res.body.data.id;
@@ -219,11 +220,9 @@ describe("partners", () => {
     expect(grantedKeys.has(ACTIONS.MS_READ)).toBe(true);
     expect(grantedKeys.has(ACTIONS.FRAMEWORK_CREATE)).toBe(false);
 
-    // Activate the admin (the notification send is a stub in tests — pull the
-    // token straight from the row) and confirm the grants are real end-to-end.
-    const admin = await User.findOne({ where: { username: "budi.admin" } });
-    expect(admin).not.toBeNull();
-    const adminToken = await activateAndLogin("budi.admin", admin!.activationToken!);
+    // Activate the admin with the link from the invite email (send mode; the DB
+    // holds only the token's hash) and confirm the grants are real end-to-end.
+    const adminToken = await activateAndLogin("budi.admin", await lastMailedToken("budi@borneo.io"));
 
     // Curated read within the new org succeeds…
     const siteList = await request(app).get("/v1/sites").set(authed(adminToken));

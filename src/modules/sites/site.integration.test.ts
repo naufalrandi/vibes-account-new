@@ -66,6 +66,21 @@ describe("sites", () => {
     expect((await request(app).delete(`/v1/sites/${a.body.data.id}`).set(authed(token))).status).toBe(200);
   });
 
+  it("never leaves an org without its primary site", async () => {
+    const { token, tenantOrgId } = await setup();
+    const hq = (await request(app).post("/v1/sites").set(authed(token)).send({ orgId: tenantOrgId, name: "HQ", isPrimary: true })).body.data;
+    const plant = (await request(app).post("/v1/sites").set(authed(token)).send({ orgId: tenantOrgId, name: "Plant" })).body.data;
+
+    expect((await request(app).put(`/v1/sites/${hq.id}`).set(authed(token)).send({ isPrimary: false })).status).toBe(409);
+    expect((await request(app).put(`/v1/sites/${hq.id}`).set(authed(token)).send({ status: "Inactive" })).status).toBe(409);
+
+    // Promoting another site moves the flag.
+    const promoted = await request(app).put(`/v1/sites/${plant.id}`).set(authed(token)).send({ isPrimary: true });
+    expect(promoted.body.data.isPrimary).toBe(true);
+    const primaries = await Site.findAll({ where: { orgId: tenantOrgId, isPrimary: true } });
+    expect(primaries.map((x) => x.id)).toEqual([plant.id]);
+  });
+
   it("lists sites filtered by orgId", async () => {
     const { token, tenantOrgId } = await setup();
     await request(app).post("/v1/sites").set(authed(token)).send({ orgId: tenantOrgId, name: "HQ" });

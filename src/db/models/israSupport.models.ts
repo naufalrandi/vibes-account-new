@@ -25,10 +25,14 @@ export function israRiskScheme(levels: string[] | null | undefined): string[] {
   return levels.slice(0, count).map((n, i) => String(n).trim() || ISRA_RL_NAMES[count][i]);
 }
 
-/** OD `isra2AddMonthsISO` — add calendar months, returned as `YYYY-MM-DD`. */
-export function israAddMonthsIso(from: Date, months: number): string {
-  const d = new Date(from.getTime());
-  d.setMonth(d.getMonth() + months);
+/**
+ * OD `isra2AddMonthsISO` — add calendar months to a `YYYY-MM-DD` date, returned
+ * as `YYYY-MM-DD`. Pass the org's local "today" (`orgToday`, lib/localDate.ts),
+ * not a `Date`: the UTC date of "now" is yesterday in Jakarta until 07:00.
+ */
+export function israAddMonthsIso(fromIsoDate: string, months: number): string {
+  const d = new Date(`${fromIsoDate}T00:00:00.000Z`);
+  d.setUTCMonth(d.getUTCMonth() + months);
   return d.toISOString().slice(0, 10);
 }
 

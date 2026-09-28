@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
-import { initModels, Organization, User, Role } from "../../db/models";
+import { initModels, Organization, OrganizationFramework, User, Role } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
@@ -125,5 +125,24 @@ describe("frameworks (group-based library)", () => {
     expect(del.status).toBe(200);
     const get = await request(app).get(`/v1/frameworks/${created.body.data.id}`).set(bearer(token));
     expect(get.status).toBe(404);
+  });
+  it("refuses to delete a framework an organization uses (IN_USE)", async () => {
+    const token = await soLogin();
+    const standards = await groupId(token, "Standards");
+    const created = await request(app).post("/v1/frameworks").set(bearer(token)).send({ groupId: standards, name: "Used" });
+    const org = await Organization.findOne({ where: { code: "AXIA" } });
+    await OrganizationFramework.create({ orgId: org!.id, frameworkId: created.body.data.id, subscribedByUserId: null });
+    const del = await request(app).delete(`/v1/frameworks/${created.body.data.id}`).set(bearer(token));
+    expect(del.status).toBe(409);
+    expect(del.body.error.code).toBe("IN_USE");
+  });
+
+  it("treats LIKE wildcards in a framework name literally when checking uniqueness", async () => {
+    const token = await soLogin();
+    const standards = await groupId(token, "Standards");
+    expect((await request(app).post("/v1/frameworks").set(bearer(token)).send({ groupId: standards, name: "ISO 9001" })).status).toBe(201);
+    // "ISO_9001" would match "ISO 9001" as an iLike pattern; it is a different name.
+    expect((await request(app).post("/v1/frameworks").set(bearer(token)).send({ groupId: standards, name: "ISO_9001" })).status).toBe(201);
+    expect((await request(app).post("/v1/frameworks").set(bearer(token)).send({ groupId: standards, name: "iso 9001" })).status).toBe(409);
   });
 });

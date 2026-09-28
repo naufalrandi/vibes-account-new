@@ -1,9 +1,9 @@
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
-import { initModels, Organization, User, Role, Site } from "../../db/models";
+import { initModels, Organization, User, Role, Site, RefreshToken, PersonnelProfile } from "../../db/models";
 import { hashPassword } from "../../lib/password";
-import { resetDb, grantActions } from "../../../test/helpers";
+import { resetDb, grantActions, lastMailedToken } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
 
 const app = createApp();
@@ -589,10 +589,12 @@ describe("users", () => {
     const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
       .send({ orgId: tenantOrgId, fullName: "Finn", username: "finn", email: "finn@acme.com" });
     const id = created.body.data.id as string;
-    const oldToken = (await User.findByPk(id))?.activationToken as string;
+    // Only the hash is stored — the raw tokens come from the captured mail.
+    const oldToken = await lastMailedToken("finn@acme.com");
 
     await request(app).post(`/v1/users/${id}/resend-activation`).set("authorization", `Bearer ${token}`);
-    const resentToken = (await User.findByPk(id))?.activationToken as string;
+    const resentToken = await lastMailedToken("finn@acme.com");
+    expect(resentToken).not.toBe(oldToken);
 
     // The previously-mailed link must no longer work after a resend.
     const staleActivate = await request(app).post("/v1/auth/activate").send({ token: oldToken, password: "ChangeMe123" });
@@ -614,7 +616,7 @@ describe("users", () => {
     const created = await request(app).post("/v1/users").set("authorization", `Bearer ${token}`)
       .send({ orgId: tenantOrgId, fullName: "Gail", username: "gail", email: "gail@acme.com" });
     const id = created.body.data.id as string;
-    const activationToken = (await User.findByPk(id))?.activationToken as string;
+    const activationToken = await lastMailedToken("gail@acme.com");
     await request(app).post("/v1/auth/activate").send({ token: activationToken, password: "ChangeMe123" });
 
     const res = await request(app).post(`/v1/users/${id}/resend-activation`).set("authorization", `Bearer ${token}`);
@@ -628,5 +630,166 @@ describe("users", () => {
       .post("/v1/users/00000000-0000-0000-0000-000000000000/resend-activation")
       .set("authorization", `Bearer ${token}`);
     expect(res.status).toBe(404);
+  });
+});
+
+describe("users — hardening", () => {
+  beforeAll(() => initModels());
+  afterEach(() => resetDb());
+
+  const auth = (t: string) => ({ authorization: `Bearer ${t}` });
+
+  it("refuses to assign a role that belongs to another organization", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const created = await request(app).post("/v1/users").set(auth(token))
+      .send({ orgId: tenantOrgId, fullName: "Xena", username: "xena", email: "xena@acme.com" });
+    const other = await Organization.create({
+      name: "Other", code: "OTHR", type: "Tenant", status: "Active",
+      parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null,
+    });
+    const foreignRole = await Role.create({ name: "Administrator", tierScope: "Tenant", orgId: other.id, isSuperAdmin: false, status: true });
+
+    const res = await request(app).post(`/v1/users/${created.body.data.id}/roles`).set(auth(token)).send({ roleId: foreignRole.id });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("ROLE_ORG_MISMATCH");
+
+    const malformed = await request(app).post(`/v1/users/${created.body.data.id}/roles`).set(auth(token)).send({ roleId: "nope" });
+    expect(malformed.status).toBe(400);
+  });
+
+  it("soft-deletes: revokes sessions, voids tokens, and cannot be resurrected by an edit", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const member = await User.create({
+      orgId: tenantOrgId, tenantId: tenantOrgId, fullName: "Quinn", username: "quinn", email: "quinn@acme.com",
+      passwordHash: await hashPassword("ChangeMe123"), status: "Active", position: null, workUnit: null, lastLogin: null,
+      activationToken: null, resetToken: "a".repeat(64), resetExpires: new Date(Date.now() + 60_000),
+    });
+    const session = await request(app).post("/v1/auth/login").send({ identifier: "quinn", password: "ChangeMe123" });
+    expect(session.status).toBe(200);
+
+    expect((await request(app).delete(`/v1/users/${member.id}`).set(auth(token))).status).toBe(200);
+
+    await member.reload();
+    expect(member.status).toBe("Deleted");
+    expect(member.resetToken).toBeNull();
+    expect(await RefreshToken.count({ where: { userId: member.id, revokedAt: null } })).toBe(0);
+    expect((await request(app).post("/v1/auth/refresh").send({ refreshToken: session.body.data.refreshToken })).status).toBe(401);
+
+    const revive = await request(app).patch(`/v1/users/${member.id}`).set(auth(token)).send({ status: "Active" });
+    expect(revive.status).toBe(409);
+    expect(revive.body.error.code).toBe("USER_DELETED");
+    expect((await User.findByPk(member.id))!.status).toBe("Deleted");
+  });
+
+  it("Add Profile returns no secrets and rejects a site from another org", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const other = await Organization.create({
+      name: "Other", code: "OTHR", type: "Tenant", status: "Active",
+      parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null,
+    });
+    const foreignSite = await Site.create({
+      orgId: other.id, code: "SIT-0009", name: "Elsewhere", type: "Branch Office", country: null, address: null,
+      city: null, state: null, postalCode: null, status: "Active", isPrimary: true, description: null,
+      contactPerson: null, contactEmail: null, contactPhone: null,
+    });
+    const profile = { orgId: tenantOrgId, fullName: "Rita", username: "rita", email: "rita@acme.com" };
+
+    const bad = await request(app).post("/v1/personnel-profiles").set(auth(token)).send({ ...profile, siteId: foreignSite.id });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.code).toBe("SITE_NOT_FOUND");
+    expect(await User.count({ where: { username: "rita" } })).toBe(0);
+
+    const res = await request(app).post("/v1/personnel-profiles").set(auth(token)).send({ ...profile, empLevel: "Staff" });
+    expect(res.status).toBe(201);
+    expect(res.body.data.empLevel).toBe("Staff");
+    for (const secret of ["passwordHash", "activationToken", "activationTokenExpiresAt", "resetToken", "resetExpires", "lockedUntil"]) {
+      expect(res.body.data).not.toHaveProperty(secret);
+    }
+  });
+});
+
+describe("users — single read, bulk personnel profiles, operating company", () => {
+  beforeAll(() => initModels());
+  afterEach(() => resetDb());
+  const auth = (t: string) => ({ authorization: `Bearer ${t}` });
+
+  it("GET /v1/users/:id returns one user shaped like a list row, 404 when missing", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const created = await request(app).post("/v1/users").set(auth(token))
+      .send({ orgId: tenantOrgId, fullName: "Jane Doe", username: "jdoe", email: "jane@acme.com" });
+    const id = created.body.data.id;
+
+    const res = await request(app).get(`/v1/users/${id}`).set(auth(token));
+    expect(res.status).toBe(200);
+    const row = (await request(app).get("/v1/users?search=jdoe").set(auth(token))).body.data[0];
+    expect(Object.keys(res.body.data).sort()).toEqual(Object.keys(row).sort());
+    expect(res.body.data).toMatchObject({ id, fullName: "Jane Doe", company: null, Roles: [] });
+    for (const secret of ["passwordHash", "activationToken", "resetToken", "resetExpires", "lockedUntil"]) {
+      expect(res.body.data).not.toHaveProperty(secret);
+    }
+    expect((await request(app).get("/v1/users/00000000-0000-4000-8000-000000000000").set(auth(token))).status).toBe(404);
+  });
+
+  it("GET /v1/users/:id forbids a Distributor from reading an out-of-scope user", async () => {
+    const { token, outOfScopeUserId } = await seedDistributorActor();
+    expect((await request(app).get(`/v1/users/${outOfScopeUserId}`).set(auth(token))).status).toBe(403);
+  });
+
+  it("GET /v1/users/personnel-profiles returns stored profiles for visible ids only", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const mk = async (u: string) =>
+      (await request(app).post("/v1/users").set(auth(token)).send({ orgId: tenantOrgId, fullName: u, username: u, email: `${u}@acme.com` })).body.data.id as string;
+    const [a, b] = [await mk("alice"), await mk("bob")];
+    await request(app).patch(`/v1/users/${a}/personnel-profile/employment`).set(auth(token))
+      .send({ contractType: "Fixed Duration", contractStartDate: "2026-01-01", contractEndDate: "2026-12-31" });
+
+    const res = await request(app).get(`/v1/users/personnel-profiles?ids=${a},${b},${a}`).set(auth(token));
+    expect(res.status).toBe(200);
+    // bob has no profile row yet — absent, and the read does not create one.
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0]).toMatchObject({ userId: a, contractType: "Fixed Duration", contractEndDate: "2026-12-31" });
+    expect(await PersonnelProfile.count({ where: { userId: b } })).toBe(0);
+
+    expect((await request(app).get("/v1/users/personnel-profiles").set(auth(token))).status).toBe(400);
+    expect((await request(app).get("/v1/users/personnel-profiles?ids=nope").set(auth(token))).status).toBe(400);
+    const tooMany = Array.from({ length: 201 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`).join(",");
+    expect((await request(app).get(`/v1/users/personnel-profiles?ids=${tooMany}`).set(auth(token))).status).toBe(400);
+  });
+
+  it("GET /v1/users/personnel-profiles omits users outside a Distributor's scope", async () => {
+    const { token, outOfScopeUserId } = await seedDistributorActor();
+    await PersonnelProfile.create({ userId: outOfScopeUserId });
+    const res = await request(app).get(`/v1/users/personnel-profiles?ids=${outOfScopeUserId}`).set(auth(token));
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+  });
+
+  it("stores the operating company (company or co), keeps AXIA as NULL, and filters the team and HR lists", async () => {
+    const { token, tenantOrgId } = await seedAdminAndLogin();
+    const post = (body: Record<string, unknown>) =>
+      request(app).post("/v1/users").set(auth(token)).send({ orgId: tenantOrgId, ...body });
+    const ax = await post({ fullName: "Ax", username: "ax", email: "ax@acme.com", company: "axia" });
+    expect(ax.body.data.company).toBeNull();
+    const ex = await post({ fullName: "Ex", username: "ex", email: "ex@acme.com", company: "Exelera" });
+    expect(ex.body.data.company).toBe("exelera");
+    const viaCo = await post({ fullName: "Co", username: "co", email: "co@acme.com", co: "exelera" });
+    expect(viaCo.body.data.company).toBe("exelera");
+    expect((await post({ fullName: "Bad", username: "bad", email: "bad@acme.com", company: "nope" })).status).toBe(400);
+
+    const names = async (path: string) =>
+      ((await request(app).get(path).set(auth(token))).body.data as { fullName: string }[]).map((u) => u.fullName).sort();
+    expect(await names(`/v1/users?orgId=${tenantOrgId}&company=exelera`)).toEqual(["Co", "Ex"]);
+    expect(await names(`/v1/users?orgId=${tenantOrgId}&company=axia`)).toEqual(["Ax"]);
+    expect(await names(`/v1/users?orgId=${tenantOrgId}`)).toEqual(["Ax", "Co", "Ex"]);
+    // Role-less invites are unprovisioned, so they also show on the HR list.
+    expect(await names(`/v1/hr-employees?orgId=${tenantOrgId}&company=exelera`)).toEqual(["Co", "Ex"]);
+
+    const moved = await request(app).patch(`/v1/users/${ex.body.data.id}`).set(auth(token)).send({ company: "axia" });
+    expect(moved.body.data.company).toBeNull();
+    expect(await names(`/v1/users?orgId=${tenantOrgId}&company=axia`)).toEqual(["Ax", "Ex"]);
+
+    const hired = await request(app).post("/v1/personnel-profiles").set(auth(token))
+      .send({ orgId: tenantOrgId, fullName: "Hr", username: "hr", email: "hr@acme.com", company: "exelera" });
+    expect(hired.body.data.company).toBe("exelera");
   });
 });

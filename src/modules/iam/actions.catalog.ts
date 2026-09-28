@@ -51,9 +51,6 @@ export const ACTIONS = {
   SITE_REQUEST_READ: "siteRequest.read",
   SITE_REQUEST_CREATE: "siteRequest.create",
   SITE_REQUEST_DECIDE: "siteRequest.decide",
-  DEMO_READ: "demo.read",
-  DEMO_CREATE: "demo.create",
-  DEMO_MANAGE: "demo.manage",
   BUSINESS_READ: "business.read",
   BUSINESS_MANAGE: "business.manage",
   FRAMEWORK_ASSIGNMENT_READ: "frameworkAssignment.read",
@@ -168,6 +165,10 @@ export const ACTIONS = {
   PERSONNEL_ONBOARDING_MANAGE: "personnelOnboarding.manage",
   PERSONNEL_COMPENSATION_READ: "personnelCompensation.read",
   PERSONNEL_COMPENSATION_MANAGE: "personnelCompensation.manage",
+  // Platform AI connection (provider, key, model) — Service-Owner-only, see
+  // SP_ONLY_ACTIONS in tenantGrants.ts. Using AI needs no grant (/v1/ai/status).
+  AI_SETTINGS_READ: "ai.settings.read",
+  AI_SETTINGS_MANAGE: "ai.settings.manage",
 } as const;
 
 export type ActionKey = (typeof ACTIONS)[keyof typeof ACTIONS];
@@ -310,6 +311,8 @@ export const MENU_SEED: SeedMenu[] = [
           { key: ACTIONS.SIGNATORY_CREATE, name: "Add signatory" },
           { key: ACTIONS.SIGNATORY_UPDATE, name: "Edit signatory" },
           { key: ACTIONS.SIGNATORY_DELETE, name: "Delete signatory" },
+          { key: ACTIONS.AI_SETTINGS_READ, name: "View AI connection" },
+          { key: ACTIONS.AI_SETTINGS_MANAGE, name: "Manage AI connection" },
         ],
       },
     ],
@@ -396,17 +399,6 @@ export const MENU_SEED: SeedMenu[] = [
           { key: ACTIONS.SITE_REQUEST_READ, name: "View site requests" },
           { key: ACTIONS.SITE_REQUEST_CREATE, name: "Submit site request" },
           { key: ACTIONS.SITE_REQUEST_DECIDE, name: "Review/approve/provision site request" },
-        ],
-      },
-      {
-        name: "Demo Access",
-        route: "/demo-access",
-        routeSeo: "demo-access",
-        icon: "ticket",
-        actions: [
-          { key: ACTIONS.DEMO_READ, name: "View demo workspaces" },
-          { key: ACTIONS.DEMO_CREATE, name: "Create demo request" },
-          { key: ACTIONS.DEMO_MANAGE, name: "Approve/generate/extend/disable/delete demo access" },
         ],
       },
       // OD labels this "Subscriptions" (not "SaaS Subscriptions") and files it

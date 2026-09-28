@@ -29,7 +29,10 @@ WORKDIR /app
 ENV NODE_ENV=production \
     PORT=4000
 
-RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 api
+# tini as PID 1: forwards SIGTERM to node (graceful shutdown in server.ts) and reaps zombies.
+RUN apk add --no-cache tini \
+    && addgroup -S -g 1001 nodejs && adduser -S -u 1001 api \
+    && mkdir -p /app/uploads && chown api:nodejs /app/uploads
 
 COPY --from=build --chown=api:nodejs /app/package.json ./package.json
 COPY --from=prod-deps --chown=api:nodejs /app/node_modules ./node_modules
@@ -38,4 +41,5 @@ COPY --from=build --chown=api:nodejs /app/dist ./dist
 USER api
 EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 CMD wget -qO- http://127.0.0.1:4000/health >/dev/null || exit 1
+ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "dist/server.js"]

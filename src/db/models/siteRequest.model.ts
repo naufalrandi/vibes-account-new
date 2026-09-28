@@ -30,6 +30,8 @@ export class SiteRequest extends Model<
   declare requestedBy: CreationOptional<string>;
   declare proposed: CreationOptional<SiteRequestProposed>;
   declare reason: string | null;
+  /** The Service Owner's reason for rejecting the request (migration 0128). */
+  declare rejectionReason: CreationOptional<string | null>;
   declare status: CreationOptional<SiteRequestStatus>;
   declare provisioned: CreationOptional<boolean>;
   declare provisionedSiteId: string | null;
@@ -50,6 +52,7 @@ SiteRequest.init(
     requestedBy: { type: DataTypes.STRING, allowNull: false, defaultValue: "Tenant", field: "requested_by" },
     proposed: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
     reason: { type: DataTypes.TEXT, allowNull: true },
+    rejectionReason: { type: DataTypes.TEXT, allowNull: true, field: "rejection_reason" },
     status: {
       type: DataTypes.ENUM("Draft", "Submitted", "Under Review", "Approved", "Rejected", "Cancelled"),
       allowNull: false, defaultValue: "Submitted",

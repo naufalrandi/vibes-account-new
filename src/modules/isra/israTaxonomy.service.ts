@@ -6,6 +6,7 @@ import {
 import { ISRA_SA_SUBGROUP_STATUS } from "../../db/models/israLibrary.models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 /**
@@ -37,7 +38,7 @@ function assertServiceOwner(auth: AuthContext, action: string): void {
 }
 
 async function logAudit(auth: AuthContext, action: string, entityType: string, entityId: string, ip: string | null) {
-  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action, entityType, entityId, sourceIp: ip, result: "Success" });
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId), action, entityType, entityId, sourceIp: ip, result: "Success" });
 }
 
 async function nextId(existingIds: string[], prefix: string, pad = 3): Promise<string> {
@@ -259,7 +260,7 @@ export async function setSaSubgroupStatus(auth: AuthContext, id: string, status:
   row.status = status;
   await row.save();
   await writeAudit({
-    actorUserId: auth.userId, organizationId: auth.orgId, action: "isra.saSubgroup.status",
+    actorUserId: auth.userId, organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId), action: "isra.saSubgroup.status",
     entityType: "IsraSaSubgroup", entityId: row.id, sourceIp: ip, result: "Success",
     metadata: { prev, next: status },
   });

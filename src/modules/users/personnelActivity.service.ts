@@ -2,6 +2,8 @@ import { PersonnelActivityLog } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { requireManagedUser } from "./user.service";
 import { actorName } from "../record-events/recordEvent.service";
+import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
 import { BadRequestError } from "../../lib/errors";
 
 /**
@@ -9,6 +11,11 @@ import { BadRequestError } from "../../lib/errors";
  * tab list). Explicit append-only log table rather than a read-model, so
  * other personnel-record writes (contract docs, comp/bank, onboarding) can
  * post freeform entries alongside manual notes.
+ *
+ * Every personnel-record write (compensation/bank, contract documents,
+ * onboarding, Add Profile) routes through here, so this is also where each
+ * one lands in the audit log — with the tenant, so the tenant's own Audit Log
+ * shows HR changes.
  */
 export async function logPersonnelActivity(
   auth: AuthContext,
@@ -25,6 +32,11 @@ export async function logPersonnelActivity(
     action,
     detail: detail ?? null,
     meta: meta ?? {},
+  });
+  await writeAudit({
+    actorUserId: auth.userId, organizationId: orgId, tenantId: auditTenantId(auth, orgId),
+    action: `personnel.${action}`, entityType: "User", entityId: userId, sourceIp: null, result: "Success",
+    metadata: { ...(meta ?? {}), ...(detail ? { detail } : {}) },
   });
 }
 

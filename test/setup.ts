@@ -22,6 +22,9 @@ let sequelize: typeof import("../src/db/sequelize")["sequelize"] | undefined;
 
 beforeAll(async () => {
   let models: typeof import("../src/db/models");
+  // Pure unit tests that mock the DB layer (sequelize, env, models) opt out of
+  // the shared-DB bootstrap by setting this flag inside their `vi.hoisted`.
+  if ((globalThis as { __SKIP_DB_SETUP__?: boolean }).__SKIP_DB_SETUP__) return;
   try {
     models = await import("../src/db/models");
   } catch (error: unknown) {
@@ -38,6 +41,7 @@ beforeAll(async () => {
 
 
 afterAll(async () => {
+  delete (globalThis as { __SKIP_DB_SETUP__?: boolean }).__SKIP_DB_SETUP__;
   if (sequelize) {
     await sequelize.close();
   }

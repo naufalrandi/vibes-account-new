@@ -25,6 +25,8 @@ export class KbArticle extends Model<InferAttributes<KbArticle>, InferCreationAt
   /** userId -> vote cast, so a repeat/changed vote adjusts counts instead of double-counting (B4). */
   declare voterIds: CreationOptional<Record<string, "helpful" | "notHelpful">>;
   declare publishedAt: Date | null;
+  /** Operating company; null = the default company (AXIA). Migration 0128. */
+  declare company: CreationOptional<string | null>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -49,6 +51,7 @@ KbArticle.init(
     viewerIds: { type: DataTypes.JSONB, allowNull: false, defaultValue: [], field: "viewer_ids" },
     voterIds: { type: DataTypes.JSONB, allowNull: false, defaultValue: {}, field: "voter_ids" },
     publishedAt: { type: DataTypes.DATE, allowNull: true, field: "published_at" },
+    company: { type: DataTypes.STRING(40), allowNull: true },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

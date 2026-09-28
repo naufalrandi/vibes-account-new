@@ -48,6 +48,24 @@ const employmentSchema = z.object({
 const renewSchema = z.object({ contractEndDate: z.string().min(1) });
 const convertSchema = z.object({ contractType: contractTypeSchema });
 
+/** `?ids=a,b,c` — 1..200 user ids (UUIDs), duplicates ignored. */
+const idsQuerySchema = z.object({
+  ids: z
+    .string()
+    .transform((s) => [...new Set(s.split(",").map((x) => x.trim()).filter(Boolean))])
+    .pipe(z.array(z.string().uuid()).min(1).max(200)),
+});
+
+export async function listBulk(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const { ids } = idsQuerySchema.parse(req.query);
+    sendOk(res, await service.listPersonnelProfiles(req.auth, ids));
+  } catch (e) {
+    next(e);
+  }
+}
+
 export async function get(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.auth) throw new UnauthorizedError();

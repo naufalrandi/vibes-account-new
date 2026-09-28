@@ -70,6 +70,18 @@ describe("Tenant Risk Register (/v1/risks)", () => {
   beforeAll(() => initModels());
   afterEach(() => resetDb());
 
+  it("gates every route on the Management System grants", async () => {
+    const none = await makeTenant("nogrant", "TEN0", []);
+    expect((await request(app).get("/v1/risks").set(authed(none.token))).status).toBe(403);
+    expect((await request(app).get("/v1/risks/config").set(authed(none.token))).status).toBe(403);
+    expect((await request(app).post("/v1/risks").set(authed(none.token)).send({ description: "x" })).status).toBe(403);
+
+    const reader = await makeTenant("reader", "TENR", [ACTIONS.MS_READ]);
+    expect((await request(app).get("/v1/risks").set(authed(reader.token))).status).toBe(200);
+    expect((await request(app).post("/v1/risks").set(authed(reader.token)).send({ description: "x" })).status).toBe(403);
+    expect((await request(app).put("/v1/risks/config").set(authed(reader.token)).send({ riskAppetite: 5 })).status).toBe(403);
+  });
+
   it("creates a risk with auto-derived title and RISK-0001 code", async () => {
     const { token } = await makeTenant("t1", "TEN1");
     const res = await request(app)

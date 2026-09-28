@@ -1,3 +1,4 @@
+import type { Transaction } from "sequelize";
 import { ImplementationRecord } from "../../db/models";
 
 /**
@@ -21,8 +22,8 @@ export const ED_CAT_CODE: Record<string, string> = {
  * across ALL external documents regardless of category segment, then
  * `EXT-<CAT_CODE>-NNNN` (unknown categories fall back to DOC).
  */
-export async function extDocCode(orgId: string, category: unknown): Promise<string> {
-  const rows = await ImplementationRecord.findAll({ where: { orgId, module: "records" }, attributes: ["code"] });
+export async function extDocCode(orgId: string, category: unknown, tx?: Transaction): Promise<string> {
+  const rows = await ImplementationRecord.findAll({ where: { orgId, module: "records" }, attributes: ["code"], transaction: tx });
   let max = 0;
   for (const r of rows) {
     const n = Number.parseInt((r.code || "").replace(/^EXT-(?:[A-Z]+-)?/, "").replace(/\D/g, ""), 10);

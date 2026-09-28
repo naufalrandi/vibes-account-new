@@ -7,6 +7,9 @@ import { ACTIONS } from "../iam/actions.catalog";
 export const userRoutes = Router();
 userRoutes.get("/", requireAction(ACTIONS.USER_READ), c.list);
 userRoutes.post("/", requireAction(ACTIONS.USER_CREATE), c.create);
+// Literal before `/:id` so it is not captured as a user id.
+userRoutes.get("/personnel-profiles", requireAction(ACTIONS.USER_READ), pc.listBulk);
+userRoutes.get("/:id", requireAction(ACTIONS.USER_READ), c.get);
 userRoutes.patch("/:id", requireAction(ACTIONS.USER_UPDATE), c.update);
 userRoutes.post("/:id/resend-activation", requireAction(ACTIONS.USER_CREATE), c.resendActivation);
 userRoutes.patch("/:id/status", requireAction(ACTIONS.USER_SUSPEND), c.setStatus);

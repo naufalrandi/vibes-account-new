@@ -15,6 +15,8 @@ const inputSchema = z.object({
   content: z.string().max(500_000).optional(), // cap body size (DoS guard)
   keywords: z.array(z.string().max(60)).max(30).optional(),
   featured: z.boolean().optional(),
+  // Operating company (same values as the business API's `company`); validated in the service.
+  company: z.string().max(40).nullish(),
 });
 
 export function categories(_req: Request, res: Response) {
@@ -27,7 +29,8 @@ export async function list(req: Request, res: Response, next: NextFunction) {
     const category = typeof req.query.category === "string" ? req.query.category : undefined;
     const status = typeof req.query.status === "string" ? (req.query.status as "Draft" | "Published" | "Archived") : undefined;
     const search = typeof req.query.search === "string" ? req.query.search : undefined;
-    const rows = await service.listArticles(req.auth, { category, status, search });
+    const company = typeof req.query.company === "string" ? req.query.company : undefined;
+    const rows = await service.listArticles(req.auth, { category, status, search, company });
     sendOk(res, rows, 200, { page: 1, limit: rows.length, total: rows.length });
   } catch (e) {
     next(e);

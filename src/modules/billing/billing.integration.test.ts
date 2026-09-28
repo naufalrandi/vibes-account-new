@@ -76,7 +76,7 @@ describe("billing", () => {
 
   it("pays an unpaid invoice → payment + receipt issued, invoice Paid", async () => {
     const { token, unpaidId } = await setup();
-    const pay = await request(app).post(`/v1/billing/invoices/${unpaidId}/pay`).set(authed(token)).send({ method: "QRIS" });
+    const pay = await request(app).post(`/v1/billing/invoices/${unpaidId}/pay`).set(authed(token)).send({ method: "QRIS", reference: "TRX-001" });
     expect(pay.status).toBe(200);
     expect(pay.body.data.status).toBe("Paid");
     expect(pay.body.data.paidDate).toBeTruthy();
@@ -87,13 +87,30 @@ describe("billing", () => {
     expect(receipts.body.data).toHaveLength(1);
 
     // Paying again is rejected.
-    expect((await request(app).post(`/v1/billing/invoices/${unpaidId}/pay`).set(authed(token)).send({ method: "QRIS" })).status).toBe(409);
+    expect((await request(app).post(`/v1/billing/invoices/${unpaidId}/pay`).set(authed(token)).send({ method: "QRIS", reference: "TRX-001" })).status).toBe(409);
   });
 
   it("rejects an unsupported payment method", async () => {
     const { token, unpaidId } = await setup();
-    const res = await request(app).post(`/v1/billing/invoices/${unpaidId}/pay`).set(authed(token)).send({ method: "Bitcoin" });
+    const res = await request(app).post(`/v1/billing/invoices/${unpaidId}/pay`).set(authed(token)).send({ method: "Bitcoin", reference: "TRX-002" });
     expect(res.status).toBe(400);
+  });
+
+  it("requires a payment reference", async () => {
+    const { token, unpaidId } = await setup();
+    const res = await request(app).post(`/v1/billing/invoices/${unpaidId}/pay`).set(authed(token)).send({ method: "QRIS" });
+    expect(res.status).toBe(400);
+  });
+
+  it("refuses invoice payment from a non-Service-Owner org", async () => {
+    const { tenantId, unpaidId } = await setup();
+    const role = await Role.create({ name: "Administrator", tierScope: "Tenant", orgId: tenantId, isSuperAdmin: false, status: true });
+    await grantActions(role.id, BILLING);
+    const u = await User.create({ orgId: tenantId, tenantId, fullName: "T", username: "tenant.pay", email: "tp@t.io", passwordHash: await hashPassword("ChangeMe123"), status: "Active", position: null, workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null });
+    await (u as unknown as { setRoles: (r: Role[]) => Promise<unknown> }).setRoles([role]);
+    const t = (await request(app).post("/v1/auth/login").send({ identifier: "tenant.pay", password: "ChangeMe123" })).body.data.accessToken;
+    const res = await request(app).post(`/v1/billing/invoices/${unpaidId}/pay`).set(authed(t)).send({ reference: "X-1" });
+    expect(res.status).toBe(403);
   });
 
   it("revenue share: generate from paid invoices (Gold 30%) and mark the payout paid", async () => {
@@ -138,5 +155,33 @@ describe("billing", () => {
 
     expect((await request(app).get("/v1/billing/invoices").set(authed(t))).body.data).toHaveLength(2);
     expect((await request(app).get("/v1/billing/revenue-share").set(authed(t))).body.data).toHaveLength(0);
+  });
+
+  it("filters invoices by ?tenantId= / ?orgId= and revenue share by ?partnerId=, never beyond the caller's scope", async () => {
+    const { token, tenantId, distId } = await setup();
+    const other = await Organization.create({ name: "Other", code: "OTHER", type: "Tenant", status: "Active", parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null });
+    other.tenantId = other.id; await other.save();
+    await Invoice.create({ number: "INV-2026-0003", orgId: other.id, period: "January 2026", periodStart: "2026-01-01", periodEnd: "2026-01-31", amount: 5000000, currency: "IDR", status: "Unpaid", paidDate: null, dueDate: null });
+    await generateStatementForPartner(distId, "January 2026");
+
+    // Service Owner: the filter narrows the full list.
+    expect((await request(app).get("/v1/billing/invoices").set(authed(token))).body.data).toHaveLength(3);
+    const byTenant = await request(app).get(`/v1/billing/invoices?tenantId=${tenantId}`).set(authed(token));
+    expect(byTenant.body.data.map((i: { tenantId: string }) => i.tenantId)).toEqual([tenantId, tenantId]);
+    expect((await request(app).get(`/v1/billing/invoices?orgId=${other.id}`).set(authed(token))).body.data).toHaveLength(1);
+    expect((await request(app).get("/v1/billing/invoices?tenantId=not-a-uuid").set(authed(token))).status).toBe(400);
+
+    expect((await request(app).get(`/v1/billing/revenue-share?partnerId=${distId}`).set(authed(token))).body.data).toHaveLength(1);
+    expect((await request(app).get(`/v1/billing/revenue-share?partnerId=${other.id}`).set(authed(token))).body.data).toHaveLength(0);
+
+    // A Tenant asking for another tenant's invoices gets nothing, not a widened scope.
+    const role = await Role.create({ name: "Administrator", tierScope: "Tenant", orgId: tenantId, isSuperAdmin: false, status: true });
+    await grantActions(role.id, BILLING);
+    const u = await User.create({ orgId: tenantId, tenantId, fullName: "T", username: "tenant.f", email: "tf@t.io", passwordHash: await hashPassword("ChangeMe123"), status: "Active", position: null, workUnit: null, lastLogin: null, activationToken: null, resetToken: null, resetExpires: null });
+    await (u as unknown as { setRoles: (r: Role[]) => Promise<unknown> }).setRoles([role]);
+    const t = (await request(app).post("/v1/auth/login").send({ identifier: "tenant.f", password: "ChangeMe123" })).body.data.accessToken;
+    expect((await request(app).get(`/v1/billing/invoices?tenantId=${other.id}`).set(authed(t))).body.data).toHaveLength(0);
+    expect((await request(app).get(`/v1/billing/invoices?tenantId=${tenantId}`).set(authed(t))).body.data).toHaveLength(2);
+    expect((await request(app).get(`/v1/billing/revenue-share?partnerId=${distId}`).set(authed(t))).body.data).toHaveLength(0);
   });
 });

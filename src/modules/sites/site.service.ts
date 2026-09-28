@@ -1,9 +1,12 @@
-import { Op, type WhereOptions } from "sequelize";
+import { Op, type Transaction, type WhereOptions } from "sequelize";
 import { Organization, Site } from "../../db/models";
+import { sequelize } from "../../db/sequelize";
 import type { SiteType, SiteStatus } from "../../db/models/site.model";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
-import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { auditTenantId } from "../../lib/auditTenant";
+import { maxCodeSeq, withCodeLock } from "../../lib/codeSeq";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 export interface SiteView {
   id: string;
@@ -103,14 +106,9 @@ async function assertCanSeeOrg(auth: AuthContext, orgId: string): Promise<void> 
   if (ids !== null && !ids.includes(orgId)) throw new ForbiddenError();
 }
 
-async function nextSiteCode(): Promise<string> {
-  const rows = await Site.findAll({ attributes: ["code"] });
-  let max = 1000;
-  for (const r of rows) {
-    const n = Number.parseInt(r.code.replace(/^STE-/, ""), 10);
-    if (Number.isFinite(n) && n > max) max = n;
-  }
-  return `STE-${max + 1}`;
+/** Locked `STE-NNNN` code (same lock key as every other site-code path); insert with the same `tx`. */
+async function nextSiteCode(tx: Transaction): Promise<string> {
+  return withCodeLock("STE", tx, async () => `STE-${Math.max(1000, await maxCodeSeq(Site, "STE", tx)) + 1}`);
 }
 
 export async function listSites(auth: AuthContext, orgId?: string): Promise<SiteView[]> {
@@ -143,25 +141,30 @@ export async function createSite(auth: AuthContext, input: CreateSiteInput, ip: 
   const org = await Organization.findByPk(input.orgId);
   if (!org || org.type !== "Tenant") throw new BadRequestError("Sites can only belong to a Tenant organization", "NOT_A_TENANT");
   await assertCanSeeOrg(auth, org.id);
-  if (input.isPrimary) {
-    await Site.update({ isPrimary: false }, { where: { orgId: org.id } });
+  if (input.isPrimary && (input.status ?? "Active") !== "Active") {
+    throw new ConflictError("The primary site must be Active", "PRIMARY_SITE_REQUIRED");
   }
-  const site = await Site.create({
-    orgId: org.id,
-    code: await nextSiteCode(),
-    name: input.name,
-    type: input.type ?? "Branch Office",
-    country: input.country ?? null,
-    address: input.address ?? null,
-    city: input.city ?? null,
-    state: input.state ?? null,
-    postalCode: input.postalCode ?? null,
-    status: input.status ?? "Active",
-    isPrimary: input.isPrimary ?? false,
-    description: input.description ?? null,
-    contactPerson: input.contactPerson ?? null,
-    contactEmail: input.contactEmail ?? null,
-    contactPhone: input.contactPhone ?? null,
+  // Demoting the old primary and inserting the new one commit together, so the
+  // org never has zero (or two) primary sites.
+  const site = await sequelize.transaction(async (transaction) => {
+    if (input.isPrimary) await Site.update({ isPrimary: false }, { where: { orgId: org.id }, transaction });
+    return Site.create({
+      orgId: org.id,
+      code: await nextSiteCode(transaction),
+      name: input.name,
+      type: input.type ?? "Branch Office",
+      country: input.country ?? null,
+      address: input.address ?? null,
+      city: input.city ?? null,
+      state: input.state ?? null,
+      postalCode: input.postalCode ?? null,
+      status: input.status ?? "Active",
+      isPrimary: input.isPrimary ?? false,
+      description: input.description ?? null,
+      contactPerson: input.contactPerson ?? null,
+      contactEmail: input.contactEmail ?? null,
+      contactPhone: input.contactPhone ?? null,
+    }, { transaction });
   });
   await writeAudit({
     actorUserId: auth.userId, organizationId: org.id, tenantId: org.tenantId,
@@ -173,7 +176,17 @@ export async function createSite(auth: AuthContext, input: CreateSiteInput, ip: 
 export async function updateSite(auth: AuthContext, id: string, input: UpdateSiteInput, ip: string | null): Promise<SiteView> {
   const { site, org } = await requireSite(auth, id);
   assertCanUpdateFields(auth, input);
-  if (input.isPrimary) await Site.update({ isPrimary: false }, { where: { orgId: site.orgId } });
+  // An org always keeps exactly one primary site: the primary is replaced by
+  // promoting another site, never by demoting or deactivating it in place.
+  if (site.isPrimary && input.isPrimary === false) {
+    throw new ConflictError("Make another site primary instead of unsetting the primary site", "PRIMARY_SITE_REQUIRED");
+  }
+  const nextStatus = input.status ?? site.status;
+  const willBePrimary = input.isPrimary ?? site.isPrimary;
+  const wasPrimary = site.isPrimary;
+  if (willBePrimary && nextStatus !== "Active") {
+    throw new ConflictError("The primary site must stay Active — make another site primary first", "PRIMARY_SITE_REQUIRED");
+  }
   if (input.name !== undefined) site.name = input.name;
   if (input.type !== undefined) site.type = input.type;
   if (input.country !== undefined) site.country = input.country ?? null;
@@ -187,7 +200,12 @@ export async function updateSite(auth: AuthContext, id: string, input: UpdateSit
   if (input.contactPerson !== undefined) site.contactPerson = input.contactPerson ?? null;
   if (input.contactEmail !== undefined) site.contactEmail = input.contactEmail ?? null;
   if (input.contactPhone !== undefined) site.contactPhone = input.contactPhone ?? null;
-  await site.save();
+  await sequelize.transaction(async (transaction) => {
+    if (input.isPrimary && !wasPrimary) {
+      await Site.update({ isPrimary: false }, { where: { orgId: site.orgId, id: { [Op.ne]: site.id } }, transaction });
+    }
+    await site.save({ transaction });
+  });
   await writeAudit({
     actorUserId: auth.userId, organizationId: site.orgId, tenantId: org.tenantId,
     action: "site.updated", entityType: "Site", entityId: site.id, sourceIp: ip, result: "Success",
@@ -202,7 +220,7 @@ export async function deleteSite(auth: AuthContext, id: string, ip: string | nul
   const orgId = site.orgId;
   await site.destroy();
   await writeAudit({
-    actorUserId: auth.userId, organizationId: orgId,
+    actorUserId: auth.userId, organizationId: orgId, tenantId: auditTenantId(auth, orgId),
     action: "site.deleted", entityType: "Site", entityId: id, sourceIp: ip, result: "Success",
   });
 }

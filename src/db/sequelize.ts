@@ -7,4 +7,11 @@ const connectionString =
 export const sequelize = new Sequelize(connectionString, {
   dialect: "postgres",
   logging: false,
+  pool: {
+    max: env.DB_POOL_MAX,
+    min: env.DB_POOL_MIN,
+    acquire: env.DB_POOL_ACQUIRE_MS,
+    idle: env.DB_POOL_IDLE_MS,
+  },
+  ...(env.DB_SSL ? { dialectOptions: { ssl: { require: true, rejectUnauthorized: env.DB_SSL_REJECT_UNAUTHORIZED } } } : {}),
 });

@@ -11,8 +11,6 @@ import { ACTIONS } from "./actions.catalog";
  *  - `kb.manage` / `ticket.manage`: explicit B2/P0-6 findings — KB authoring
  *    and ticket status/assign are now Service-Owner-only
  *    (kb.service.ts `assertServiceOwner`, ticket.service.ts `setStatus`/`assignTicket`).
- *  - `demo.*`: demo.service.ts's `assertSp` gates every exported function
- *    unconditionally, reads included.
  *  - Framework configuration (element/framework-type/framework-family/
  *    assessment, reads included): element.service.ts, frameworkType.service.ts,
  *    frameworkFamily.service.ts and (conformance-question/response)
@@ -40,7 +38,7 @@ import { ACTIONS } from "./actions.catalog";
  * caller to list/get (writes stay ServiceOwner-only via `framework.create`/
  * `framework.update`/`framework.delete`/`requirement.manage`, which remain here).
  *
- * Everything else — including the demo flows' management-system, competence,
+ * Everything else — including the tenant workflows' management-system, competence,
  * implementation, site-request-create/read, and ticket-create/read actions —
  * stays granted.
  *
@@ -52,9 +50,6 @@ import { ACTIONS } from "./actions.catalog";
 export const SP_ONLY_ACTIONS: readonly string[] = [
   ACTIONS.KB_MANAGE,
   ACTIONS.TICKET_MANAGE,
-  ACTIONS.DEMO_READ,
-  ACTIONS.DEMO_CREATE,
-  ACTIONS.DEMO_MANAGE,
   ACTIONS.ELEMENT_READ,
   ACTIONS.ELEMENT_MANAGE,
   ACTIONS.FRAMEWORK_CREATE,
@@ -99,6 +94,10 @@ export const SP_ONLY_ACTIONS: readonly string[] = [
   // on) and platform asset-library writes are the same class of platform
   // curation as isra.library.manage above.
   ACTIONS.ISRA_LIBRARY_ADMIN,
+  // ai.settings.*: the one platform AI connection (provider API key, model) is
+  // Service Owner configuration; ai.service.ts also refuses non-SO callers.
+  ACTIONS.AI_SETTINGS_READ,
+  ACTIONS.AI_SETTINGS_MANAGE,
 ];
 
 /**

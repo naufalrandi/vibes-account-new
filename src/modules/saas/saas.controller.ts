@@ -40,7 +40,7 @@ const saveRegistrationSchema = z.object({
 });
 
 const uploadProofSchema = z.object({
-  proofUrl: z.string().nullish(),
+  proofUrl: z.string().trim().min(1).max(500),
 });
 
 /** R186 / OD `SAAS_PAY_STATES` (js/core.js:2892) — finance verification has two

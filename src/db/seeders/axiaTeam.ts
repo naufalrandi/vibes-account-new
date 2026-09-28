@@ -1,3 +1,4 @@
+import { Op } from "sequelize";
 import { Role, User } from "../models";
 import type { PermissionMode, UserStatus } from "../models/user.model";
 
@@ -18,7 +19,7 @@ import type { PermissionMode, UserStatus } from "../models/user.model";
  *
  *  - `axia1` uses `matthew.murdock@axia.io` rather than OD's `admin@axia.io`,
  *    because `admin@axia.io` is the existing `admin` auth fixture (`seed.ts`
- *    `ensureUser("admin", ...)`. OD collapses the platform owner and the demo
+ *    `ensureUser("admin", ...)`. OD collapses the platform owner and the sample
  *    administrator login into one row; here they are two.
  *
  * Every other email here is OD's RUNTIME value, not its `seedUsers` literal:
@@ -138,7 +139,11 @@ export async function seedAxiaTeam(spOrgId: string): Promise<Map<string, string>
 
   const idByOdId = new Map<string, string>();
   for (const m of AXIA_TEAM) {
-    const [user, created] = await User.findOrCreate({
+    // A roster member whose email was changed in the UI still owns the seeded
+    // username; matching on email alone would try to create a second row and
+    // fail on the unique username when the seed is re-run on a live database.
+    const existing = await User.findOne({ where: { [Op.or]: [{ email: m.email }, { username: m.username }] } });
+    const [user, created] = existing ? [existing, false] : await User.findOrCreate({
       where: { email: m.email },
       defaults: {
         orgId: spOrgId, tenantId: null, code: m.odId, fullName: m.fullName, username: m.username, email: m.email,

@@ -1,4 +1,4 @@
-import { Op, type WhereOptions } from "sequelize";
+import { Op, type Transaction, type WhereOptions } from "sequelize";
 import { sequelize } from "../../db/sequelize";
 import {
   Organization, Subscription, PartnerProfile, TenantProfile,
@@ -9,6 +9,8 @@ import type { PartnerTier } from "../../db/models/partnerProfile.model";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
+import { maxCodeSeq, withCodeLock } from "../../lib/codeSeq";
+import { orgToday } from "../../lib/localDate";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 const n = (v: number | string): number => Number(v); // coerce BIGINT (string) → number
@@ -49,12 +51,12 @@ export async function listPlans(): Promise<ReturnType<typeof planView>[]> {
 
 export async function createPlan(auth: AuthContext, input: PlanInput, ip: string | null) {
   if (auth.orgType !== "ServiceOwner") throw new ForbiddenError("Only the Service Owner manages plans");
-  const plan = await Plan.create({
-    code: nextCode(await Plan.findAll({ attributes: ["code"] }), "PLN"),
+  const plan = await sequelize.transaction(async (tx) => Plan.create({
+    code: await lockedCode(Plan, "PLN", tx),
     name: input.name, description: input.description ?? null,
     // OD `planModal` (js/core.js:21765) pre-selects "Draft" for a new plan.
     frequency: input.frequency ?? "Monthly", status: input.status ?? "Draft",
-  });
+  }, { transaction: tx }));
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "billing.plan.created", entityType: "Plan", entityId: plan.id, sourceIp: ip, result: "Success" });
   return planView(plan);
 }
@@ -118,10 +120,17 @@ async function invoiceView(inv: Invoice, name: string) {
   };
 }
 
-export async function listInvoices(auth: AuthContext) {
+/**
+ * `tenantId` narrows to one tenant org's invoices within the caller's scope; it
+ * never widens it — a tenant outside the caller's visibility yields an empty list.
+ */
+export async function listInvoices(auth: AuthContext, filters: { tenantId?: string } = {}) {
   const where: WhereOptions = {};
   const ids = await tenantScopeIds(auth);
-  if (ids !== null) Object.assign(where, { orgId: { [Op.in]: ids } });
+  if (filters.tenantId) {
+    if (ids !== null && !ids.includes(filters.tenantId)) return [];
+    Object.assign(where, { orgId: filters.tenantId });
+  } else if (ids !== null) Object.assign(where, { orgId: { [Op.in]: ids } });
   const rows = await Invoice.findAll({ where, order: [["createdAt", "DESC"]] });
   const names = await orgNames(rows.map((r) => r.orgId));
   return Promise.all(rows.map((r) => invoiceView(r, names.get(r.orgId) ?? "—")));
@@ -162,38 +171,52 @@ const PAY_METHODS = new Set([
   "Digital Wallet · GoPay", "Digital Wallet · OVO",
 ]);
 
-/** Pay an unpaid invoice: records a Payment, issues a Receipt, marks the invoice Paid. */
-export async function payInvoice(auth: AuthContext, invoiceId: string, method: string, ip: string | null) {
-  const inv = await Invoice.findByPk(invoiceId);
-  if (!inv) throw new NotFoundError("Invoice does not exist", "INVOICE_NOT_FOUND");
-  const ids = await tenantScopeIds(auth);
-  if (ids !== null && !ids.includes(inv.orgId)) throw new ForbiddenError();
-  if (inv.status === "Paid") throw new ConflictError("Invoice is already paid", "ALREADY_PAID");
-  if (inv.status === "Draft") throw new ConflictError("Draft invoices cannot be paid", "INVOICE_DRAFT");
+export interface PayInvoiceInput {
+  reference: string;
+  method?: string;
+  note?: string;
+}
+
+/** Locked `<PREFIX>-NNNN` for rows inserted inside `tx`. */
+async function lockedCode(model: typeof Plan | typeof Payment | typeof Receipt, prefix: string, tx: Transaction): Promise<string> {
+  return withCodeLock(prefix, tx, async () => `${prefix}-${String((await maxCodeSeq(model, prefix, tx)) + 1).padStart(4, "0")}`);
+}
+
+/**
+ * Record an offline payment against an unpaid invoice (Service Owner only):
+ * records a Payment, issues a Receipt, marks the invoice Paid. The invoice row
+ * is locked and its status re-checked inside the transaction so two concurrent
+ * calls can't both pay it.
+ */
+export async function payInvoice(auth: AuthContext, invoiceId: string, input: PayInvoiceInput, ip: string | null) {
+  if (auth.orgType !== "ServiceOwner") throw new ForbiddenError("Only the Service Owner records invoice payments");
+  const method = input.method ?? "Bank Transfer";
   if (!PAY_METHODS.has(method)) throw new BadRequestError("Unsupported payment method", "BAD_METHOD");
 
-  const today = new Date().toISOString().slice(0, 10);
-  const result = await sequelize.transaction(async (tx) => {
+  const today = await orgToday(auth.orgId);
+  const inv = await sequelize.transaction(async (tx) => {
+    const inv = await Invoice.findByPk(invoiceId, { transaction: tx, lock: tx.LOCK.UPDATE });
+    if (!inv) throw new NotFoundError("Invoice does not exist", "INVOICE_NOT_FOUND");
+    if (inv.status === "Paid") throw new ConflictError("Invoice is already paid", "ALREADY_PAID");
+    if (inv.status === "Draft") throw new ConflictError("Draft invoices cannot be paid", "INVOICE_DRAFT");
     const payment = await Payment.create({
-      code: nextCode(await Payment.findAll({ attributes: ["code"], transaction: tx }), "PAY"),
+      code: await lockedCode(Payment, "PAY", tx),
       invoiceId: inv.id, orgId: inv.orgId, date: today,
-      amount: inv.amount, method, ref: `REF-${Date.now()}`, status: "Verified",
+      amount: inv.amount, method, ref: input.reference, status: "Verified",
     }, { transaction: tx });
     await Receipt.create({
-      code: nextCode(await Receipt.findAll({ attributes: ["code"], transaction: tx }), "RCP"),
+      code: await lockedCode(Receipt, "RCP", tx),
       invoiceId: inv.id, paymentId: payment.id, orgId: inv.orgId,
       date: today, amount: inv.amount, status: "Issued",
     }, { transaction: tx });
     inv.status = "Paid";
     inv.paidDate = today;
     await inv.save({ transaction: tx });
-    await writeAudit({ actorUserId: auth.userId, organizationId: inv.orgId, action: "billing.invoice.paid", entityType: "Invoice", entityId: inv.id, sourceIp: ip, result: "Success", metadata: { method } }, tx);
-    return inv.id;
+    await writeAudit({ actorUserId: auth.userId, organizationId: inv.orgId, action: "billing.invoice.paid", entityType: "Invoice", entityId: inv.id, sourceIp: ip, result: "Success", metadata: { method, reference: input.reference, note: input.note ?? null, paymentId: payment.id } }, tx);
+    return inv;
   });
-  const reloaded = await Invoice.findByPk(result);
   const org = await Organization.findByPk(inv.orgId);
-  if (!reloaded) throw new NotFoundError("Invoice not found", "INVOICE_NOT_FOUND");
-  return invoiceView(reloaded, org?.name ?? "—");
+  return invoiceView(inv, org?.name ?? "—");
 }
 
 // --- Revenue share / Payouts ---------------------------------------------
@@ -204,11 +227,14 @@ export function computeShare(tier: PartnerTier, totalRev: number): { pct: number
   return { pct, partnerShare, axiaShare: totalRev - partnerShare };
 }
 
-export async function listRevenueShare(auth: AuthContext) {
+/** `partnerId` narrows to one partner org's statements within the caller's scope (never widens it). */
+export async function listRevenueShare(auth: AuthContext, filters: { partnerId?: string } = {}) {
   const ids = partnerScopeIds(auth);
   if (ids !== null && ids.length === 0) return [];
+  if (filters.partnerId && ids !== null && !ids.includes(filters.partnerId)) return [];
   const where: WhereOptions = {};
-  if (ids !== null) Object.assign(where, { partnerOrgId: { [Op.in]: ids } });
+  if (filters.partnerId) Object.assign(where, { partnerOrgId: filters.partnerId });
+  else if (ids !== null) Object.assign(where, { partnerOrgId: { [Op.in]: ids } });
   const rows = await RevenueShareStatement.findAll({ where, order: [["createdAt", "DESC"]] });
   const names = await orgNames(rows.map((r) => r.partnerOrgId));
   return rows.map((r) => ({
@@ -238,7 +264,7 @@ export async function markPayoutPaid(auth: AuthContext, id: string, ip: string |
   if (!po) throw new NotFoundError("Payout does not exist", "PAYOUT_NOT_FOUND");
   if (po.status === "Paid") throw new ConflictError("Payout already paid", "ALREADY_PAID");
   po.status = "Paid";
-  po.date = new Date().toISOString().slice(0, 10);
+  po.date = await orgToday(auth.orgId);
   await po.save();
   // Settling the payout also marks its statement Paid.
   if (po.statementId) {
@@ -272,7 +298,7 @@ export async function getDashboard(auth: AuthContext) {
   if (pIds !== null) Object.assign(poWhere, { partnerOrgId: { [Op.in]: pIds.length ? pIds : ["__none__"] } });
   const payouts = await Payout.findAll({ where: poWhere });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = await orgToday(auth.orgId);
   const sum = (rows: Invoice[]) => rows.reduce((a, i) => a + n(i.amount), 0);
   const paid = invoices.filter((i) => i.status === "Paid");
   const unpaid = invoices.filter((i) => i.status === "Unpaid");
@@ -305,7 +331,7 @@ export async function getDashboard(auth: AuthContext) {
 /**
  * Generate (or refresh) a partner's revenue-share statement for a period from
  * its tenants' paid invoices, plus a pending payout. Pure of HTTP; reused by the
- * seeder to produce realistic, internally-consistent demo data.
+ * seeder to produce realistic, internally-consistent sample data.
  */
 export async function generateStatementForPartner(partnerOrgId: string, period: string): Promise<RevenueShareStatement | null> {
   const partnerProfile = await PartnerProfile.findOne({ where: { orgId: partnerOrgId } });

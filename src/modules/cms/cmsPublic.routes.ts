@@ -1,14 +1,18 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { Op } from "sequelize";
+import { z } from "zod";
 import { Organization, CmsPage, CmsPost } from "../../db/models";
 import type { CmsPageTemplate } from "../../db/models/cms.model";
 import { isPubliclyVisible } from "./cmsPost.service";
 import { NotFoundError } from "../../lib/errors";
+import { sendOk } from "../../lib/apiResponse";
 
 // PUBLIC router — mounted at /v1/public/cms WITHOUT authenticate/tenantScope.
 // Reads Published-status rows only; never returns Draft/Archived content or
 // another org's data. `orgId` is validated against a real organization first
-// (404 otherwise) so this can't be used to probe for org ids.
+// (404 otherwise) so this can't be used to probe for org ids. Page/post titles
+// and bodies are author-controlled, so they are always escaped: bodies render
+// as a small safe markdown subset, never as raw HTML.
 
 export const cmsPublicRoutes = Router();
 
@@ -16,7 +20,30 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 }
 
+/** Escaped text → a safe markdown subset: paragraphs, `#` headings, `-` lists, **bold**, *em*, [links](http…). */
+export function renderMarkdown(src: string): string {
+  const inline = (t: string) => t
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, text: string, url: string) =>
+      /^(https?:\/\/|mailto:|\/(?!\/)|#)/i.test(url) ? `<a href="${url}" rel="nofollow noopener">${text}</a>` : text);
+  return escapeHtml(src.replace(/\r\n?/g, "\n"))
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => {
+      const lines = block.split("\n");
+      const heading = /^(#{1,6})\s+(.*)$/.exec(block);
+      if (heading && lines.length === 1) return `<h${heading[1].length}>${inline(heading[2])}</h${heading[1].length}>`;
+      if (lines.every((l) => /^[-*]\s+/.test(l))) return `<ul>${lines.map((l) => `<li>${inline(l.replace(/^[-*]\s+/, ""))}</li>`).join("")}</ul>`;
+      return `<p>${lines.map(inline).join("<br>")}</p>`;
+    })
+    .join("\n");
+}
+
 async function requireOrg(orgId: string): Promise<Organization> {
+  // Non-UUID ids would otherwise reach Postgres as a cast error (500).
+  if (!z.guid().safeParse(orgId).success) throw new NotFoundError("Site not found", "SITE_NOT_FOUND");
   const org = await Organization.findByPk(orgId);
   if (!org) throw new NotFoundError("Site not found", "SITE_NOT_FOUND");
   return org;
@@ -43,13 +70,13 @@ ${body}
 function renderHome(page: CmsPage): string {
   return layout(page.seoTitle ?? page.title, `
 <header class="hero"><h1>${escapeHtml(page.title)}</h1><p>${escapeHtml(page.seoDesc ?? "")}</p></header>
-<main class="home-body">${page.body}</main>`);
+<main class="home-body">${renderMarkdown(page.body)}</main>`);
 }
 
 function renderPricing(page: CmsPage): string {
   return layout(page.seoTitle ?? page.title, `
 <header><h1>${escapeHtml(page.title)}</h1></header>
-<main class="pricing-grid" data-layout="pricing">${page.body}</main>
+<main class="pricing-grid" data-layout="pricing">${renderMarkdown(page.body)}</main>
 <footer class="pricing-cta"><a href="/contact">Talk to sales</a></footer>`);
 }
 
@@ -57,11 +84,14 @@ function renderContact(page: CmsPage): string {
   return layout(page.seoTitle ?? page.title, `
 <header><h1>${escapeHtml(page.title)}</h1></header>
 <main class="contact-layout">
-  <section class="contact-info">${page.body}</section>
-  <form class="contact-form" method="post" action="/contact/submit">
-    <input name="name" placeholder="Name" required>
-    <input name="email" type="email" placeholder="Email" required>
-    <textarea name="message" placeholder="Message" required></textarea>
+  <section class="contact-info">${renderMarkdown(page.body)}</section>
+  <form class="contact-form" method="post" action="/v1/public/leads/${escapeHtml(page.orgId)}">
+    <input type="hidden" name="source" value="contact">
+    <input name="name" placeholder="Name" maxlength="200" required>
+    <input name="email" type="email" placeholder="Email" maxlength="320" required>
+    <input name="company" placeholder="Company" maxlength="200">
+    <textarea name="message" placeholder="Message" maxlength="5000" required></textarea>
+    <input name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
     <button type="submit">Send</button>
   </form>
 </main>`);
@@ -70,7 +100,7 @@ function renderContact(page: CmsPage): string {
 function renderLanding(page: CmsPage): string {
   return layout(page.seoTitle ?? page.title, `
 <section class="landing-hero"><h1>${escapeHtml(page.title)}</h1></section>
-<section class="landing-body">${page.body}</section>`);
+<section class="landing-body">${renderMarkdown(page.body)}</section>`);
 }
 
 // OD `CMS_TEMPLATES` (js/core.js:3744). "Home" was not one of them — the home
@@ -98,7 +128,9 @@ cmsPublicRoutes.get("/:orgId/pages/:slug", async (req: Request, res: Response, n
 });
 
 // JSON list of the org's publicly visible posts, newest first, optionally
-// narrowed to one tag. The AXIA marketing site's News and Careers listings read
+// narrowed by `?category=` and/or `?tag=`, in the standard response envelope.
+// `body` is the author's raw source — consumers render it as text/markdown,
+// never as HTML. The AXIA marketing site's News and Careers listings read
 // through this (parity decision D-4: editable content comes from `cms`, not
 // from hardcoded page copy) — they need the whole list, which the per-slug HTML
 // route above cannot give them. JSON rather than HTML because the consumer is a
@@ -110,13 +142,13 @@ cmsPublicRoutes.get("/:orgId/posts", async (req: Request, res: Response, next: N
   try {
     const orgId = req.params.orgId as string;
     await requireOrg(orgId);
-    const tag = typeof req.query.tag === "string" ? req.query.tag : null;
+    const tag = typeof req.query.tag === "string" && req.query.tag ? req.query.tag : null;
+    const category = typeof req.query.category === "string" && req.query.category ? req.query.category : null;
     const posts = await CmsPost.findAll({
-      where: { orgId, ...(tag ? { tags: { [Op.contains]: [tag] } } : {}) },
+      where: { orgId, ...(tag ? { tags: { [Op.contains]: [tag] } } : {}), ...(category ? { category } : {}) },
       order: [["publishDate", "DESC"], ["createdAt", "DESC"]],
     });
-    res.json(
-      posts.filter(isPubliclyVisible).map((p) => ({
+    const rows = posts.filter(isPubliclyVisible).map((p) => ({
         id: p.id,
         title: p.title,
         slug: p.slug,
@@ -126,8 +158,8 @@ cmsPublicRoutes.get("/:orgId/posts", async (req: Request, res: Response, next: N
         excerpt: p.excerpt,
         body: p.body,
         publishDate: p.publishDate,
-      })),
-    );
+      }));
+    sendOk(res, rows, 200, { page: 1, limit: rows.length, total: rows.length });
   } catch (e) {
     next(e);
   }
@@ -142,7 +174,7 @@ cmsPublicRoutes.get("/:orgId/posts/:slug", async (req: Request, res: Response, n
     await requireOrg(orgId);
     const post = await CmsPost.findOne({ where: { orgId, slug: req.params.slug as string } });
     if (!post || !isPubliclyVisible(post)) throw new NotFoundError("Post not found", "POST_NOT_FOUND");
-    res.type("html").send(layout(post.title, `<article><h1>${escapeHtml(post.title)}</h1>${post.body}</article>`));
+    res.type("html").send(layout(post.title, `<article><h1>${escapeHtml(post.title)}</h1>${renderMarkdown(post.body)}</article>`));
   } catch (e) {
     next(e);
   }
@@ -154,7 +186,7 @@ cmsPublicRoutes.get("/:orgId/sitemap.xml", async (req: Request, res: Response, n
     await requireOrg(orgId);
     const pages = await CmsPage.findAll({ where: { orgId, status: "Published" }, order: [["createdAt", "ASC"]] });
     const urls = pages
-      .map((p) => `  <url><loc>/${p.path ?? p.slug}</loc><title>${escapeHtml(p.seoTitle ?? p.title)}</title></url>`)
+      .map((p) => `  <url><loc>/${escapeHtml(p.path ?? p.slug)}</loc><title>${escapeHtml(p.seoTitle ?? p.title)}</title></url>`)
       .join("\n");
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`;
     res.type("application/xml").send(xml);

@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll, afterEach } from "vitest";
+import { describe, expect, it, beforeAll, afterEach, vi } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
 import {
@@ -206,7 +206,9 @@ describe("saas pipeline stage transitions (G-73 write side)", () => {
     // ("registration" is omitted only because its body schema rejects an empty
     // payload with a 400 before the stage check is ever reached.)
     for (const action of ["accept", "decline", "proof", "verify", "provision"]) {
-      const res = await request(app).post(`/v1/saas/pipeline/${row.id}/${action}`).set(authed(token)).send({});
+      // "proof" gets a well-formed body so its schema passes and the stage check decides.
+      const body = action === "proof" ? { proofUrl: "receipt.pdf" } : {};
+      const res = await request(app).post(`/v1/saas/pipeline/${row.id}/${action}`).set(authed(token)).send(body);
       expect(res.status).toBe(409);
       expect(res.body.error.code).toBe("SAAS_PIPELINE_ILLEGAL_TRANSITION");
     }
@@ -214,23 +216,14 @@ describe("saas pipeline stage transitions (G-73 write side)", () => {
   });
 
   it("rolls back the whole provisioning attempt atomically and marks the entry 'Provisioning Failed' on a mid-way DB error", async () => {
-    const { token, org: soOrg } = await seedServiceOwner([ACTIONS.SAAS_READ, ACTIONS.SAAS_MANAGE]);
+    const { token } = await seedServiceOwner([ACTIONS.SAAS_READ, ACTIONS.SAAS_MANAGE]);
     const id = await walkToUnderVerification(token);
 
-    // Force a real, deterministic failure partway through provisioning: the
-    // primary-site code is derived from a raw Site.count() (mirrors
-    // tenant.service.ts's provisionTenant), so seeding exactly one Site row
-    // with the code the next provisioning attempt will compute
-    // (STE-1001 + count=1 = STE-1002) collides on Site's unique `code` —
-    // AFTER Organization + TenantProfile have already been written inside
-    // the same transaction. This proves a half-created tenant cannot survive.
-    // `orgId` must reference a real organization (sites.org_id has an FK) —
-    // the seeded Service Owner org is a convenient, unrelated one to hang it on.
-    await Site.create({
-      orgId: soOrg.id, code: "STE-1002", name: "Pre-existing", type: "Head Office",
-      country: null, address: null, city: null, state: null, postalCode: null,
-      status: "Active", isPrimary: false, description: null, contactPerson: null, contactEmail: null, contactPhone: null,
-    });
+    // Force a deterministic failure partway through provisioning: the primary
+    // Site insert throws AFTER Organization + TenantProfile have been written in
+    // the same transaction. (Site codes now come from a locked sequence, so
+    // pre-seeding a colliding code no longer collides.)
+    const siteCreate = vi.spyOn(Site, "create").mockRejectedValueOnce(new Error("forced mid-way failure"));
 
     // Provisioning is chained out of the verify click, so this is where the
     // collision bites — the payment is still stamped 'Verified' on the way in.
@@ -241,7 +234,8 @@ describe("saas pipeline stage transitions (G-73 write side)", () => {
     // was, mid-transaction, successfully created before the Site collision.
     expect(await Organization.count({ where: { type: "Tenant" } })).toBe(0);
     expect(await TenantProfile.count()).toBe(0);
-    expect(await Site.count()).toBe(1); // only the pre-seeded collision row
+    expect(await Site.count()).toBe(0);
+    siteCreate.mockRestore();
     expect(await SaasSubscription.count()).toBe(0);
     expect(await SaasWorkspace.count()).toBe(0);
 

@@ -1,6 +1,7 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { BusinessRecord } from "../../db/models";
 import { businessTransitionGraph } from "./prLifecycle";
+import { sendPoConfirmation } from "../notifications/notification.service";
 
 /**
  * Supplier PO confirmation — the emailed link a supplier opens to acknowledge
@@ -275,6 +276,26 @@ async function supplierOf(r: BusinessRecord): Promise<BusinessRecord | null> {
     // REMIT TO cell is simply omitted, exactly as OD omits it with no bank row.
     return null;
   }
+}
+
+/**
+ * Emails the supplier their confirmation link when this write (re)sent the PO —
+ * i.e. `sentAt` changed; the FE's `poSendPatch` stamps a fresh one on every
+ * send. The address is the supplier register's (`ent-suppliers`) email; with
+ * none on file the send is skipped with a warning. Never throws.
+ */
+export async function emailPoIfSent(prev: Record<string, unknown> | null, r: BusinessRecord): Promise<void> {
+  const d = (r.data ?? {}) as Record<string, unknown>;
+  const sentAt = str(d.sentAt);
+  const token = str(d.confirmToken);
+  if (!sentAt || sentAt === str(prev?.sentAt) || !token || d.voided === true) return;
+  const supplier = await supplierOf(r);
+  const email = str((supplier?.data as Record<string, unknown> | null)?.email).trim();
+  if (!email) {
+    console.warn(`[po] ${r.code} sent but its supplier has no email in the supplier register; confirmation link not emailed`);
+    return;
+  }
+  await sendPoConfirmation(email, { code: r.code, token, supplierName: str(d.supplierName) || supplier?.title, title: r.title });
 }
 
 export async function getPoConfirmation(code: string, token: string): Promise<PoConfirmationView | null> {

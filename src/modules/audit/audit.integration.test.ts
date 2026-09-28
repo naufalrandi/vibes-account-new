@@ -70,4 +70,30 @@ describe("audit", () => {
     // the distributor sees none of the foreign tenant's logs.
     expect(res.body.data.some((a: { organizationId: string }) => a.organizationId === foreign.id)).toBe(false);
   });
+  it("shows a tenant rows tagged with its tenantId or written against its organization", async () => {
+    const mk = (code: string) => Organization.create({
+      name: code, code, type: "Tenant", status: "Active",
+      parentOrgId: null, tenantId: null, email: null, phone: null, website: null, country: null, address: null,
+    });
+    const mine = await mk("MINE");
+    const other = await mk("OTHR");
+    const u = await User.create({
+      orgId: mine.id, tenantId: mine.id, fullName: "T", username: "tuser", email: "t@x.io",
+      passwordHash: await hashPassword("ChangeMe123"), status: "Active", position: null, workUnit: null,
+      lastLogin: null, activationToken: null, resetToken: null, resetExpires: null,
+    });
+    const role = await Role.create({ name: "Auditor", tierScope: "Tenant", orgId: mine.id, isSuperAdmin: false, status: true });
+    await setRoles(u, [role]);
+    await grantActions(role.id, [ACTIONS.AUDIT_READ]);
+    const base = { actorUserId: u.id, entityType: "Organization", sourceIp: null, result: "Success" as const };
+    await writeAudit({ ...base, organizationId: mine.id, tenantId: mine.id, action: "tagged.event", entityId: mine.id });
+    await writeAudit({ ...base, organizationId: mine.id, action: "org.only.event", entityId: mine.id });
+    await writeAudit({ ...base, organizationId: other.id, tenantId: other.id, action: "other.event", entityId: other.id });
+
+    const login = await request(app).post("/v1/auth/login").send({ identifier: "tuser", password: "ChangeMe123" });
+    const res = await request(app).get("/v1/audit").set("authorization", `Bearer ${login.body.data.accessToken}`);
+    const actions = (res.body.data as { action: string }[]).map((a) => a.action);
+    expect(actions).toEqual(expect.arrayContaining(["tagged.event", "org.only.event"]));
+    expect(actions).not.toContain("other.event");
+  });
 });

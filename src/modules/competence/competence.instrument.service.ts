@@ -9,13 +9,14 @@ import { EXAM_BANK, type ExamQuestion as BankQuestion } from "../reference/refer
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : v == null || v === "" ? null : String(v));
 const num = (v: unknown): number => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
 async function audit(auth: AuthContext, action: string, entityType: string, entityId: string, ip: string | null) {
-  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action, entityType, entityId, sourceIp: ip, result: "Success" });
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId), action, entityType, entityId, sourceIp: ip, result: "Success" });
 }
 
 // ---------------- Org scoping (OD dual model: global SP library + tenant rows) ----------------
@@ -372,7 +373,8 @@ export async function takeExam(auth: AuthContext, instrumentId: string, input: R
 
 /** Assessor grading phase (OD extGradeHtml/examFinalize 18142–18164): award 0..points per
  * short-answer question of a PendingGrading attempt, then finalize the score. */
-export async function gradeExamAttempt(auth: AuthContext, attemptId: string, input: Record<string, unknown>, ip: string | null) {
+/** A PendingGrading exam attempt plus its instrument, scoped to the caller's visible orgs. */
+export async function getPendingExamAttempt(auth: AuthContext, attemptId: string): Promise<{ row: CompetenceExamAttempt; inst: CompetenceExamInstrument }> {
   const row = await CompetenceExamAttempt.findByPk(attemptId);
   if (!row) throw new NotFoundError("Attempt not found", "ATTEMPT_NOT_FOUND");
   const ids = await visibleTenantOrgIds(auth);
@@ -380,6 +382,11 @@ export async function gradeExamAttempt(auth: AuthContext, attemptId: string, inp
   if (row.status !== "PendingGrading") throw new BadRequestError("This attempt is not awaiting grading", "NOT_PENDING");
   const inst = await CompetenceExamInstrument.findByPk(row.instrumentId);
   if (!inst) throw new NotFoundError("Exam not found", "EXAM_NOT_FOUND");
+  return { row, inst };
+}
+
+export async function gradeExamAttempt(auth: AuthContext, attemptId: string, input: Record<string, unknown>, ip: string | null) {
+  const { row, inst } = await getPendingExamAttempt(auth, attemptId);
   const grades = cleanGrades(input.grades) ?? {};
   const { earned, total, score } = gradeExam(inst.questions, row.answers, grades);
   row.grades = grades;

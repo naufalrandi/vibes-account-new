@@ -45,7 +45,6 @@ import { AwarenessSettings } from "./awarenessSettings.model";
 import { CompetenceSettings } from "./competenceSettings.model";
 import { ScopeDataset, MsScope } from "./scope.models";
 import { IpParty, IpRequirement } from "./interestedParty.models";
-import { DemoTenant } from "./demoTenant.model";
 import { BusinessRecord } from "./businessRecord.model";
 import { ReferenceSectorFramework, ReferenceIndustrySector, ReferenceEducationField, ReferenceEducationLevel, ReferenceCountry, ReferenceBank, ReferenceHoliday, ReferenceBpProcess, ReferenceFiscalConfig } from "./referenceDb.models";
 import { WorkUnit } from "./workUnit.model";
@@ -70,6 +69,8 @@ import { DocumentFolder, Document } from "./document.model";
 import { CmsPage, CmsPost, CmsMedia, CmsMenuItem, CmsSettings } from "./cms.model";
 import { ResumeRecord, LeaveRecord, DisciplinaryRecord, PerformanceRecord } from "./personnelRecords.models";
 import { CabSettings } from "./cabSettings.model";
+import { AiConnection } from "./aiConnection.model";
+import { AiGeneration, AiJob, AiFeatureFlag, AiScheduleRun } from "./aiFeatures.models";
 
 let initialized = false;
 
@@ -290,10 +291,6 @@ export function initModels(): void {
   IpParty.hasMany(IpRequirement, { foreignKey: "partyId" });
   IpRequirement.belongsTo(IpParty, { foreignKey: "partyId" });
 
-  // Demo tenants → the real Organization/User generateDemoTenant() provisions.
-  DemoTenant.belongsTo(Organization, { foreignKey: "provisionedOrgId", as: "provisionedOrg" });
-  DemoTenant.belongsTo(User, { foreignKey: "provisionedUserId", as: "provisionedUser" });
-
   // ISRA + SoA (F-1-impl) — Group A: global taxonomy + library associations.
   IsraPaGroup.hasMany(IsraPaSubgroup, { foreignKey: "groupId" });
   IsraPaSubgroup.belongsTo(IsraPaGroup, { foreignKey: "groupId" });
@@ -475,6 +472,9 @@ export function initModels(): void {
   IsraSoaJustification.belongsTo(IsraAnnexAControl, { foreignKey: "annexRef" });
   Organization.hasOne(CabSettings, { foreignKey: "orgId" });
   CabSettings.belongsTo(Organization, { foreignKey: "orgId" });
+  Organization.hasOne(AiConnection, { foreignKey: "orgId" });
+  AiConnection.belongsTo(Organization, { foreignKey: "orgId" });
+  AiConnection.belongsTo(User, { foreignKey: "updatedBy", as: "updater" });
 
   Organization.hasOne(IsraOrgSettings, { foreignKey: "orgId" });
   IsraOrgSettings.belongsTo(Organization, { foreignKey: "orgId" });
@@ -641,7 +641,6 @@ export {
   MsScope,
   IpParty,
   IpRequirement,
-  DemoTenant,
   BusinessRecord,
   WorkUnit,
   RoleTemplate,
@@ -711,6 +710,11 @@ export {
   israRiskScheme,
   israClampLevelCount,
   CabSettings,
+  AiConnection,
+  AiGeneration,
+  AiJob,
+  AiFeatureFlag,
+  AiScheduleRun,
   SaasPipeline,
   SaasSubscription,
   SaasWorkspace,

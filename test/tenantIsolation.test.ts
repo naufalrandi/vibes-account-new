@@ -49,6 +49,8 @@ const PK_WHERE_RE = /where:\s*\{\s*id\s*(?:[,}]|:\s*[A-Za-z_$][\w$.]*\s*[,}])/;
 
 /** Anything in the resolved options text that proves a tenancy predicate is applied. */
 const SCOPE_RE = /\borg_?Ids?\b|\btenantId\b|\btenant_id\b|\borg_id\b/i;
+/** A projection list: `attributes: ["id", "orgId"]` selects the column, it does not filter on it. */
+const ATTRIBUTES_RE = /\battributes:\s*\[[^\]]*\]/g;
 
 /**
  * An ownership check standing in for a scope predicate. `findByPk` cannot carry
@@ -99,6 +101,13 @@ function orgScopedModels(): Set<string> {
  */
 const EXEMPT_MOUNTS: Record<string, string> = {
   "/health": "Liveness probe — static payload, touches no model.",
+  "/ready": "Readiness probe — runs `SELECT 1` against the pool and returns a static payload; reads no table, no model, no caller input.",
+  "/v1":
+    "Catch-all for unmatched /v1 paths (`authenticate, notFound`): authenticated, and its only handler is the JSON 404 — no model access, so there is nothing for `tenantScope` to gate.",
+  "/v1/public/leads":
+    "Public-site lead capture (contact / waitlist forms) — unauthenticated by design, rate limited per IP, honeypot-filtered, zod-validated body. The org is a path param that must be a UUID of the Service Owner or of an org with a Published CMS page (404 otherwise, so ids can't be probed); the call inserts exactly one `ent-inq` inquiry row for that org and returns only its id.",
+  "/v1/public/ai/kb":
+    "Public-site knowledge-base assistant (Exelera marketing site) — unauthenticated by design, rate limited per IP (10/min), zod-validated body. The org is a path param that must be a UUID of the Service Owner or of an org with a Published CMS page, with the `kb-assistant` AI feature enabled (404 otherwise, so ids can't be probed). Reads only that org's Published/due-Scheduled CMS posts in a Knowledge Base category and its Published KB articles (plus the global library when the org is the Service Owner); writes one `ai_generations` row (user_id NULL) and its audit entry. Returns only the answer text and the titles/slugs of the cited sources.",
   "/v1/auth": "Issues the JWT (login/refresh/activate/reset), so it cannot require one. Behind its own rate limiter.",
   "/v1/public/cms":
     "Public CMS renderer (pages/posts/sitemap/robots) — read-only, Published-status rows only, orgId is a path param validated against a real Organization (404 otherwise), never trusts a token.",
@@ -106,8 +115,8 @@ const EXEMPT_MOUNTS: Record<string, string> = {
     "Supplier PO confirmation link — unauthenticated by design (the supplier has no account). Not org-scoped by a token claim; the row is selected by an unguessable server-minted per-PO secret (`poConfirmation.ts`), compared in constant time, and a blank token never matches. Reads and writes exactly the one PO that secret identifies, refuses a voided PO, a PO outside the Sent state, and any second response.",
   "/v1/saas-access":
     "Authenticated, but deliberately not behind `tenantScope` \u2014 that middleware refuses every request from a locked tenant (G-75), and this is the one route a locked tenant must still reach: OD renders its lockout treatment from the workspace state it reads here (`saasApplyGrace`, js/core.js:7541, toggling body `ws-readonly`/`ws-locked`), which a route behind the lockout could never answer. Row visibility is unaffected \u2014 it reports only the caller's own tenant, keyed by the verified JWT claim and read through `organizationScopeWhere`.",
-  "/uploads":
-    "Static file serving for CMS-uploaded media (express.static) — no model access, orgId is baked into the file path by the uploader, not asserted per-request.",
+  "/uploads/cms":
+    "Static file serving for CMS-uploaded media (express.static, no index, dotfiles denied) — no model access, orgId is baked into the file path by the uploader, not asserted per-request.",
 };
 
 /**
@@ -276,8 +285,10 @@ function scanFile(file: string, scopedModels: Set<string>): Site[] {
         const opts = takesOptions ? node.arguments[OPTION_ARG[method]] : undefined;
         const optsText = opts?.getText() ?? "";
 
-        // Best case: the query carries its own tenancy predicate.
-        if (opts && SCOPE_RE.test(resolvedScopeText(optsText, node))) return ts.forEachChild(node, visit);
+        // Best case: the query carries its own tenancy predicate. A column named in
+        // `attributes: [...]` only SELECTs it, so it is dropped before the check.
+        const scopeText = opts ? resolvedScopeText(optsText, node).replace(ATTRIBUTES_RE, "") : "";
+        if (opts && SCOPE_RE.test(scopeText)) return ts.forEachChild(node, visit);
 
         // A lookup pinned to one primary key is in the same position as
         // `findByPk`: the row is singular, so the scope cannot live in the WHERE

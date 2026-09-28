@@ -5,10 +5,13 @@ import { sendOk } from "../../lib/apiResponse";
 import { UnauthorizedError } from "../../lib/errors";
 import type { AuthContext } from "../../lib/scope";
 import { getBusinessDataSchema } from "./dataSchemas";
+import { offsetPageMeta, parseOffsetPage } from "../../lib/pagination";
 
 const inputSchema = z.object({
   title: z.string().optional(),
-  status: z.string().optional(),
+  // The module's own vocabulary (transition graph / Datana list) is enforced in the service;
+  // this only bounds the free-text case. Blank means "default / unchanged".
+  status: z.string().trim().max(60).optional(),
   owner: z.string().nullish(),
   company: z.string().optional(),
   data: z.record(z.string(), z.unknown()).optional(),
@@ -53,8 +56,9 @@ export async function list(req: Request, res: Response, next: NextFunction) {
       owner: req.query.owner as string | undefined,
       sort: req.query.sort as string | undefined,
     };
-    const rows = await service.listBusiness(guard(req), req.params.area as string, req.params.module as string, company, filters);
-    sendOk(res, rows, 200, { page: 1, limit: rows.length, total: rows.length });
+    const page = parseOffsetPage(req.query);
+    const { rows, total } = await service.listBusiness(guard(req), req.params.area as string, req.params.module as string, company, filters, page);
+    sendOk(res, rows, 200, offsetPageMeta(total, page));
   } catch (e) { next(e); }
 }
 

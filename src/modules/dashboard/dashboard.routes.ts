@@ -6,3 +6,5 @@ import * as c from "./dashboard.controller";
 export const dashboardRoutes = Router();
 dashboardRoutes.get("/stats", c.stats);
 dashboardRoutes.get("/recent", c.recent);
+// The caller's own due / overdue / waiting items ("My deadlines" widget; deadline-agent feature).
+dashboardRoutes.get("/deadlines", c.deadlines);

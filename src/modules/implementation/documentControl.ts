@@ -1,6 +1,8 @@
+import type { Transaction } from "sequelize";
 import { DocumentSettings, ImplementationRecord, User, WorkUnit } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
 import { BadRequestError } from "../../lib/errors";
 import type { RecordView } from "./implementation.service";
 
@@ -64,7 +66,7 @@ export async function setDocSettings(auth: AuthContext, input: Record<string, un
   row.settings = next;
   await row.save();
   await writeAudit({
-    actorUserId: auth.userId, organizationId: auth.orgId,
+    actorUserId: auth.userId, organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId),
     action: "ms.documents.settingsUpdated", entityType: "DocumentSettings", entityId: row.id, sourceIp: ip, result: "Success",
   });
   return { ...DOC_SETTINGS_DEFAULTS, ...next };
@@ -89,8 +91,8 @@ export function assertDocumentSaveGates(
  * ALL controlled documents (regardless of prefix), then
  * `TYPECODE[-FWCODE]-NNNN` — external documents are always `EXT-STD-NNNN`.
  */
-export async function documentCode(orgId: string, type: unknown, frameworks: string[] | undefined): Promise<string> {
-  const rows = await ImplementationRecord.findAll({ where: { orgId, module: "documents" }, attributes: ["code"] });
+export async function documentCode(orgId: string, type: unknown, frameworks: string[] | undefined, tx?: Transaction): Promise<string> {
+  const rows = await ImplementationRecord.findAll({ where: { orgId, module: "documents" }, attributes: ["code"], transaction: tx });
   let max = 0;
   for (const r of rows) {
     const n = Number.parseInt((r.code || "").replace(/^[A-Z]+-(?:[A-Z]+-)?/, "").replace(/\D/g, ""), 10);

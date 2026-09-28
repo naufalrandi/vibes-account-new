@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { Op, type WhereOptions, type Transaction } from "sequelize";
 import { sequelize } from "../../db/sequelize";
 import {
@@ -16,10 +15,14 @@ import type { PartnerStatus, PartnerTier, PartnerAuditEntry } from "../../db/mod
 import type { AuthContext } from "../../lib/scope";
 import { organizationScopeWhere, canActOnOrg } from "../../lib/scope";
 import { renderBlocks } from "../agreements/agreement.service";
-import { sendActivationInvite } from "../notifications/notification.service";
+import { issueActivationToken, sendActivationInvite } from "../notifications/notification.service";
 import { writeAudit } from "../audit/audit.service";
-import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { BadRequestError, ConflictError, EmailDeliveryError, ForbiddenError, NotFoundError } from "../../lib/errors";
 import { grantEverythingExceptSpOnly } from "../iam/tenantGrants";
+import { assertIdentityAvailable } from "../iam/auth.service";
+import { withCodeLock } from "../../lib/codeSeq";
+import { escapeLike } from "../../lib/escapeLike";
+import { orgToday } from "../../lib/localDate";
 
 // A freshly created Partner Administrator needs an actual Role + grants, or
 // every authenticated request 403s post-activation (same defect class as
@@ -132,7 +135,7 @@ export async function listPartners(
   const orgWhere: WhereOptions = { ...organizationScopeWhere(auth), type: "Distributor" };
   if (filters.country) Object.assign(orgWhere, { country: filters.country });
   if (filters.search) {
-    const term = `%${filters.search}%`;
+    const term = `%${escapeLike(filters.search)}%`;
     Object.assign(orgWhere, { [Op.or]: [{ name: { [Op.iLike]: term } }, { email: { [Op.iLike]: term } }] });
   }
   const orgs = await Organization.findAll({ where: orgWhere, order: [["createdAt", "DESC"]] });
@@ -194,6 +197,7 @@ export async function createPartner(
   if (auth.orgType !== "ServiceOwner") throw new ForbiddenError("Only the Service Owner can create partners");
   const send = input.mode === "send";
   const code = await nextPartnerCode();
+  const invite = issueActivationToken();
 
   const view = await sequelize.transaction(async (tx) => {
     const org = await Organization.create(
@@ -227,7 +231,7 @@ export async function createPartner(
     );
     await grantEverythingExceptSpOnly(role.id, tx);
 
-    const activationToken = randomUUID();
+    await assertIdentityAvailable(input.admin.username, input.admin.email, tx);
     const admin = await User.create(
       {
         orgId: org.id,
@@ -240,7 +244,7 @@ export async function createPartner(
         position: "Partner Administrator",
         workUnit: null,
         lastLogin: null,
-        activationToken,
+        ...invite.fields,
         resetToken: null,
         resetExpires: null,
       },
@@ -279,9 +283,11 @@ export async function createPartner(
       },
       tx,
     );
-    sendActivationInvite(admin.email, activationToken);
     return toView(org, profile, 0, { fullName: admin.fullName, username: admin.username, email: admin.email, status: admin.status });
   });
+  // After commit, so the link never points at a rolled-back account. Draft
+  // partners are invited later via resendPartnerActivation.
+  if (send) await sendActivationInvite(input.admin.email, invite.raw, { variant: "partner" });
   return view;
 }
 
@@ -348,7 +354,7 @@ async function transition(
     const ag = await PartnerAgreement.findOne({ where: { orgId } });
     if (ag && ag.status !== "Terminated") {
       ag.status = "Terminated";
-      ag.history = [...ag.history, { date: new Date().toISOString().slice(0, 10), event: "Agreement Terminated" }];
+      ag.history = [...ag.history, { date: await orgToday(org.id), event: "Agreement Terminated" }];
       await ag.save();
     }
   }
@@ -380,11 +386,16 @@ export async function resendPartnerActivation(auth: AuthContext, orgId: string, 
   }
   const admin = profile.adminUserId ? await User.findByPk(profile.adminUserId) : null;
   if (!admin) throw new NotFoundError("Partner administrator missing", "PARTNER_ADMIN_NOT_FOUND");
-  const token = admin.activationToken ?? randomUUID();
-  admin.activationToken = token;
+  // Only the hash is stored, so a resend always mints a fresh link (the old one stops working).
+  const invite = issueActivationToken();
+  admin.set(invite.fields);
   await admin.save();
-  sendActivationInvite(admin.email, token);
-  profile.audit = [nowEntry(`Activation email sent to ${admin.email}`), ...profile.audit];
+  // Not flagged `resend`: a partner created as Draft gets its first invite here.
+  const sent = await sendActivationInvite(admin.email, invite.raw, { variant: "partner" });
+  profile.audit = [
+    nowEntry(sent ? `Activation email sent to ${admin.email}` : `Activation email to ${admin.email} could not be sent`),
+    ...profile.audit,
+  ];
   await profile.save();
   await writeAudit({
     actorUserId: auth.userId,
@@ -393,8 +404,9 @@ export async function resendPartnerActivation(auth: AuthContext, orgId: string, 
     entityType: "Partner",
     entityId: org.id,
     sourceIp: ip,
-    result: "Success",
+    result: sent ? "Success" : "Failure",
   });
+  if (!sent) throw new EmailDeliveryError(`The activation email to ${admin.email} could not be sent. Try resending it.`);
   return toView(org, profile, await tenantCountFor(org.id), await adminOf(profile));
 }
 
@@ -413,11 +425,14 @@ export const terminatePartner = (auth: AuthContext, orgId: string, ip: string | 
   );
 
 // --- Per-partner agreement -----------------------------------------------
-async function nextAgreementNumber(): Promise<string> {
-  const year = new Date().getFullYear();
-  const prefix = `AGR-${year}-`;
-  const count = await PartnerAgreement.count({ where: { number: { [Op.like]: `${prefix}%` } } });
-  return `${prefix}${String(count + 1).padStart(4, "0")}`;
+/** `AGR-YYYY-NNNN`, max+1 within the year, under the "AGR" code lock — insert with the same `tx`. */
+async function nextAgreementNumber(tx: Transaction): Promise<string> {
+  const prefix = `AGR-${new Date().getFullYear()}`;
+  return withCodeLock("AGR", tx, async () => {
+    const rows = await PartnerAgreement.findAll({ attributes: ["number"], where: { number: { [Op.like]: `${prefix}-%` } }, transaction: tx });
+    const max = rows.reduce((m, r) => Math.max(m, Number(/^AGR-\d{4}-(\d+)$/.exec(r.number ?? "")?.[1] ?? 0)), 0);
+    return `${prefix}-${String(max + 1).padStart(4, "0")}`;
+  });
 }
 
 /**
@@ -433,6 +448,8 @@ async function generateForPartner(
   vars: Record<string, string>,
   tx?: import("sequelize").Transaction,
 ): Promise<PartnerAgreement> {
+  // The agreement number's lock is held until the transaction ends, so the write needs one.
+  if (!tx) return sequelize.transaction((t) => generateForPartner(auth, org, profile, templateId, vars, t));
   // `templateId` comes straight from the request body, and agreement templates
   // are org-owned rows (`agreement_templates.org_id` is NOT NULL). A primary-key
   // lookup let any PARTNER_UPDATE holder render another org's template text into
@@ -443,9 +460,9 @@ async function generateForPartner(
     transaction: tx,
   });
   if (!template) throw new BadRequestError("Agreement template does not exist", "TEMPLATE_NOT_FOUND");
-  const number = await nextAgreementNumber();
+  const number = await nextAgreementNumber(tx);
   const rendered = renderBlocks(template.blocks, vars);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = await orgToday(org.id);
 
   const existing = await PartnerAgreement.findOne({ where: { orgId: org.id }, transaction: tx });
   let agreement: PartnerAgreement;
@@ -529,7 +546,7 @@ export async function regenerateAgreement(auth: AuthContext, orgId: string, ip: 
     ? await AgreementTemplate.findOne({ where: { id: ag.templateId, orgId: auth.orgId } })
     : null;
   if (template) ag.renderedBlocks = renderBlocks(template.blocks, ag.vars);
-  ag.history = [...ag.history, { date: new Date().toISOString().slice(0, 10), event: "Agreement Regenerated" }];
+  ag.history = [...ag.history, { date: await orgToday(orgId), event: "Agreement Regenerated" }];
   await ag.save();
   await writeAudit({
     actorUserId: auth.userId,
@@ -546,7 +563,7 @@ export async function regenerateAgreement(auth: AuthContext, orgId: string, ip: 
 export async function resendAgreement(auth: AuthContext, orgId: string, ip: string | null): Promise<PartnerAgreement> {
   const ag = await requireAgreement(auth, orgId);
   if (ag.status !== "Pending Approval") throw new ConflictError("Agreement is not pending", "ILLEGAL_TRANSITION");
-  ag.history = [...ag.history, { date: new Date().toISOString().slice(0, 10), event: "Agreement Resent" }];
+  ag.history = [...ag.history, { date: await orgToday(orgId), event: "Agreement Resent" }];
   await ag.save();
   await writeAudit({
     actorUserId: auth.userId,
@@ -565,7 +582,7 @@ export async function approveAgreement(auth: AuthContext, orgId: string, ip: str
   const ag = await PartnerAgreement.findOne({ where: { orgId } });
   if (!ag) throw new NotFoundError("No agreement to approve", "AGREEMENT_NOT_FOUND");
   if (ag.status !== "Pending Approval") throw new ConflictError("Agreement is not pending", "ILLEGAL_TRANSITION");
-  const today = new Date().toISOString().slice(0, 10);
+  const today = await orgToday(orgId);
   ag.status = "Approved";
   ag.effectiveDate = ag.effectiveDate ?? today;
   ag.history = [...ag.history, { date: today, event: "Agreement Approved by Partner" }];

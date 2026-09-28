@@ -4,6 +4,10 @@ import { migrator } from "./migrate";
 import { seed } from "./seeders/seed";
 
 export async function migrateFresh({ shouldSeed = false }: { shouldSeed?: boolean } = {}) {
+  // Drops every table in the schema — never against production.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("migrate:fresh refuses to run with NODE_ENV=production");
+  }
   await sequelize.query(`
     DO $$ DECLARE
         r RECORD;

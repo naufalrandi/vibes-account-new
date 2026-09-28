@@ -21,9 +21,12 @@ async function getOrCreate(orgId: string, userId: string): Promise<PersonnelComp
   return row;
 }
 
+/** Read-only: a person with no binding yet gets the empty defaults (`id: null`), nothing is written. */
 export async function getCompensation(auth: AuthContext, userId: string) {
   const user = await requireManagedUser(auth, userId);
-  return (await getOrCreate(user.orgId, userId)).get({ plain: true });
+  const row = await PersonnelCompensation.findOne({ where: { userId, orgId: user.orgId } });
+  if (row) return row.get({ plain: true });
+  return { ...PersonnelCompensation.build({ orgId: user.orgId, userId }).get({ plain: true }), id: null };
 }
 
 function numericField(data: Record<string, unknown>, key: string): number | null {
@@ -80,15 +83,15 @@ export async function updateCompensation(auth: AuthContext, userId: string, inpu
   return row.get({ plain: true });
 }
 
-/** Re-run the minimum-wage compliance check against the currently-bound records (`ent-minwage` compliance banner). */
+/**
+ * Re-run the minimum-wage compliance check against the currently-bound records
+ * (`ent-minwage` compliance banner). Read-only: the stored `minwageCompliant`
+ * is refreshed by the next compensation save, not by this GET.
+ */
 export async function checkMinWageCompliance(auth: AuthContext, userId: string) {
   const user = await requireManagedUser(auth, userId);
   const row = await PersonnelCompensation.findOne({ where: { userId, orgId: user.orgId } });
   if (!row) throw new NotFoundError("No compensation binding for this person", "COMPENSATION_NOT_FOUND");
   const compliant = await computeMinwageCompliance(user.orgId, row.compRecordId, row.minwageRecordId);
-  if (compliant !== row.minwageCompliant) {
-    row.minwageCompliant = compliant;
-    await row.save();
-  }
   return { compliant, compRecordId: row.compRecordId, minwageRecordId: row.minwageRecordId };
 }

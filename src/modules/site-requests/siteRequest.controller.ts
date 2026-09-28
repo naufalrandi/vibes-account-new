@@ -75,5 +75,15 @@ function action(fn: (auth: AuthContext, id: string, ip: string | null) => Promis
 
 export const review = action(service.reviewSiteRequest);
 export const approve = action(service.approveSiteRequest);
-export const reject = action(service.rejectSiteRequest);
+const rejectSchema = z.object({ reason: z.string().trim().min(1).max(1000) });
+
+export async function reject(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) throw new UnauthorizedError();
+    const { reason } = rejectSchema.parse(req.body ?? {});
+    sendOk(res, await service.rejectSiteRequest(req.auth, req.params.id as string, reason, req.ip ?? null));
+  } catch (e) {
+    next(e);
+  }
+}
 export const provision = action(service.provisionSiteRequest);

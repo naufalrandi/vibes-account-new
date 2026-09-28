@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 /**
  * Shared list pagination for the "hybrid" DataTable contract.
  *
@@ -36,4 +38,46 @@ export function paginate<T>(rows: T[], query: { page?: unknown; limit?: unknown 
   if (limit == null) return { items: rows, meta: { page: 1, limit: total, total } };
   const start = (page - 1) * limit;
   return { items: rows.slice(start, start + limit), meta: { page, limit, total } };
+}
+
+// --- Offset pagination (`?limit=&offset=`) ----------------------------------
+
+/** Hard ceiling on an explicit `?limit=`. */
+export const MAX_OFFSET_LIMIT = 500;
+/** Rows returned when the caller passes no `?limit=` — keeps unbounded lists bounded. */
+export const DEFAULT_LIST_CAP = 1000;
+
+export interface OffsetPage {
+  limit: number;
+  offset: number;
+}
+
+export interface OffsetPageMeta extends PageMeta {
+  pagination: { limit: number; offset: number; total: number; hasMore: boolean };
+}
+
+/**
+ * Parse optional `limit` (1..500) / `offset` (≥0) query params. Absent limit →
+ * DEFAULT_LIST_CAP. Malformed or out-of-range values are a 400 (via ZodError).
+ */
+export function parseOffsetPage(query: { limit?: unknown; offset?: unknown }): OffsetPage {
+  const q = offsetPageSchema.parse({ limit: query.limit, offset: query.offset });
+  return { limit: q.limit ?? DEFAULT_LIST_CAP, offset: q.offset ?? 0 };
+}
+
+const intParam = (max?: number) => {
+  let n = z.coerce.number().int().min(0);
+  if (max !== undefined) n = n.min(1).max(max);
+  return z.preprocess((v) => (v === "" || v === undefined ? undefined : v), n.optional());
+};
+const offsetPageSchema = z.object({ limit: intParam(MAX_OFFSET_LIMIT), offset: intParam() });
+
+/** `meta` for an offset page: legacy `page/limit/total` plus `pagination`. */
+export function offsetPageMeta(total: number, { limit, offset }: OffsetPage): OffsetPageMeta {
+  return {
+    page: Math.floor(offset / limit) + 1,
+    limit,
+    total,
+    pagination: { limit, offset, total, hasMore: offset + limit < total },
+  };
 }

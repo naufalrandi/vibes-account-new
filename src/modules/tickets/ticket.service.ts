@@ -1,4 +1,4 @@
-import { Op, type WhereOptions } from "sequelize";
+import { Op, type Transaction, type WhereOptions } from "sequelize";
 import { Organization, User, Role, TenantProfile, Ticket } from "../../db/models";
 import type {
   TicketCategory, TicketPriority, TicketStatus, TicketScope,
@@ -8,6 +8,8 @@ import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
 import { createNotification } from "../notifications/notification.service";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { maxCodeSeq, withCodeLock } from "../../lib/codeSeq";
+import { escapeLike } from "../../lib/escapeLike";
 
 /** First-response SLA target (hours) by priority — the verified legacy values. */
 const SLA_TARGETS: Record<TicketPriority, number> = { Low: 72, Medium: 24, High: 8, Critical: 4 };
@@ -58,11 +60,10 @@ async function resolveTicket(auth: AuthContext, id: string): Promise<{ ticket: T
   return { ticket, orgName: (ticket.get("Organization") as Organization | undefined)?.name ?? "—" };
 }
 
-async function nextCode(): Promise<string> {
-  const year = new Date().getFullYear();
-  const prefix = `TKT-${year}-`;
-  const count = await Ticket.count({ where: { code: { [Op.like]: `${prefix}%` } } });
-  return `${prefix}${String(count + 1).padStart(4, "0")}`;
+/** `TKT-YYYY-NNNN`, max+1 within the year. Call inside `withCodeLock("TKT", …)` and insert with the same `tx`. */
+async function nextCode(tx: Transaction): Promise<string> {
+  const prefix = `TKT-${new Date().getFullYear()}`;
+  return `${prefix}-${String((await maxCodeSeq(Ticket, prefix, tx)) + 1).padStart(4, "0")}`;
 }
 
 export interface ListFilters {
@@ -80,7 +81,7 @@ export async function listTickets(auth: AuthContext, filters: ListFilters = {}) 
   if (filters.priority) Object.assign(where, { priority: filters.priority });
   if (filters.category) Object.assign(where, { category: filters.category });
   if (filters.search) {
-    const term = `%${filters.search}%`;
+    const term = `%${escapeLike(filters.search)}%`;
     Object.assign(where, { [Op.or]: [{ subject: { [Op.iLike]: term } }, { code: { [Op.iLike]: term } }] });
   }
   const rows = await Ticket.findAll({ where, include: [{ model: Organization, attributes: ["name"] }], order: [["updatedAt", "DESC"]] });
@@ -116,13 +117,13 @@ export async function createTicket(auth: AuthContext, input: CreateTicketInput, 
   const ts = nowIso();
   const message: TicketMessage = { author: { name: createdBy.name, kind: "user" }, text: input.description, ts };
   const activity: TicketActivity[] = [{ event: "Ticket created", ts }];
-  const ticket = await Ticket.create({
-    code: await nextCode(), subject: input.subject, description: input.description,
+  const ticket = await withCodeLock("TKT", null, async (tx) => Ticket.create({
+    code: await nextCode(tx), subject: input.subject, description: input.description,
     category: input.category, priority: input.priority ?? "Medium", status: "Open",
     scope, orgId: org.id, managedBy, createdBy, assignedTo: null,
     messages: [message], activity,
     attachments: (input.attachments ?? []).map((a) => ({ name: String(a.name), size: Number(a.size) || 0, date: ts })),
-  });
+  }, { transaction: tx }));
   await writeAudit({ actorUserId: auth.userId, organizationId: org.id, tenantId: org.tenantId, action: "ticket.created", entityType: "Ticket", entityId: ticket.id, sourceIp: ip, result: "Success" });
   await createNotification({ orgId: org.id, type: "ticket", text: `New ticket: ${ticket.subject}`, link: `/tickets/${ticket.id}` });
   return toView(ticket, org.name);

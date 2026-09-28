@@ -39,6 +39,12 @@ export class TooManyRequestsError extends AppError {
     super(code, message, 429);
   }
 }
+/** An email the operation depends on (e.g. an activation invite) could not be delivered. */
+export class EmailDeliveryError extends AppError {
+  constructor(message = "The email could not be sent", code = "EMAIL_NOT_SENT") {
+    super(code, message, 502);
+  }
+}
 /**
  * SaaS lifecycle lockout (G-75): the tenant's workspace subscription is in
  * Grace 2 / Archived / Purged. 423 (WebDAV "Locked") distinguishes a
@@ -49,5 +55,17 @@ export class TooManyRequestsError extends AppError {
 export class LockedError extends AppError {
   constructor(message = "This workspace is locked", code = "SUBSCRIPTION_LOCKED") {
     super(code, message, 423);
+  }
+}
+/** No usable platform AI connection (none saved, disabled, or its key unreadable). */
+export class AiNotConfiguredError extends AppError {
+  constructor(message = "AI is not configured on this platform", code = "AI_NOT_CONFIGURED") {
+    super(code, message, 409);
+  }
+}
+/** The AI provider failed or rejected the call. `message` is always safe to show (never carries the key). */
+export class AiProviderError extends AppError {
+  constructor(message: string, code = "AI_PROVIDER_ERROR") {
+    super(code, message, 502);
   }
 }

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { Op, type WhereOptions, type Transaction } from "sequelize";
 import { sequelize } from "../../db/sequelize";
 import {
@@ -9,10 +8,13 @@ import type { SiteType } from "../../db/models/site.model";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { assignSubscription } from "../subscriptions/subscription.service";
-import { sendActivationInvite } from "../notifications/notification.service";
+import { issueActivationToken, sendActivationInvite } from "../notifications/notification.service";
 import { writeAudit } from "../audit/audit.service";
 import { grantEverythingExceptSpOnly } from "../iam/tenantGrants";
-import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { assertIdentityAvailable, revokeOrgSessions } from "../iam/auth.service";
+import { BadRequestError, ConflictError, EmailDeliveryError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { maxCodeSeq, withCodeLock } from "../../lib/codeSeq";
+import { todayInTz } from "../../lib/localDate";
 
 // belongsToMany generates a `setRoles` mixin at runtime; the User model does
 // not declare it, so reach it through a narrow association-only cast (mirrors
@@ -93,14 +95,12 @@ function nowEntry(msg: string): TenantAuditEntry {
   return { ts: new Date().toISOString(), msg };
 }
 
-async function nextTenantCode(): Promise<string> {
-  const rows = await Organization.findAll({ where: { type: "Tenant" }, attributes: ["code"] });
-  let max = 1000;
-  for (const r of rows) {
-    const n = Number.parseInt(r.code.replace(/^TEN-/, ""), 10);
-    if (Number.isFinite(n) && n > max) max = n;
-  }
-  return `TEN-${max + 1}`;
+/** Locked `TEN-NNNN` / `STE-NNNN` codes — both unique across every org; insert with the same `tx`. */
+async function nextTenantCode(tx: Transaction): Promise<string> {
+  return withCodeLock("TEN", tx, async () => `TEN-${Math.max(1000, await maxCodeSeq(Organization, "TEN", tx)) + 1}`);
+}
+async function nextSiteCode(tx: Transaction): Promise<string> {
+  return withCodeLock("STE", tx, async () => `STE-${Math.max(1000, await maxCodeSeq(Site, "STE", tx)) + 1}`);
 }
 
 async function buildView(org: Organization, profile: TenantProfile): Promise<TenantView> {
@@ -148,7 +148,8 @@ function draftAgreement(code: string): TenantAgreementInfo {
     expirationDate: null,
     currency: "IDR",
     paymentDueDays: 14,
-    history: [{ date: new Date().toISOString().slice(0, 10), event: "Agreement Generated" }],
+    // A tenant being provisioned has no timezone configured yet: platform default.
+    history: [{ date: todayInTz(), event: "Agreement Generated" }],
   };
 }
 
@@ -187,9 +188,10 @@ export async function provisionTenant(auth: AuthContext, input: ProvisionTenantI
   // governance control the Tenant Requests queue exists to enforce. Allowing
   // Distributors here was a second, unreviewed door to the same outcome.
   if (auth.orgType !== "ServiceOwner") throw new ForbiddenError("Only the Service Owner can provision tenants directly; partners submit a tenant request for review");
-  const code = input.organization.code?.trim() || (await nextTenantCode());
-  const dup = await Organization.findOne({ where: { code } });
-  if (dup) throw new ConflictError(`Organization code ${code} is already in use`, "DUPLICATE_CODE");
+  const givenCode = input.organization.code?.trim();
+  if (givenCode && (await Organization.findOne({ where: { code: givenCode } }))) {
+    throw new ConflictError(`Organization code ${givenCode} is already in use`, "DUPLICATE_CODE");
+  }
 
   const activate = input.mode === "activate";
   // Caller is always the Service Owner now, so an attributed partner can only
@@ -197,8 +199,10 @@ export async function provisionTenant(auth: AuthContext, input: ProvisionTenantI
   const partnerOrgId = input.organization.partnerOrgId ?? null;
   const acquisition: TenantAcquisition = partnerOrgId ? "Partner" : "Direct";
   const status: TenantStatus = activate ? "Pending Activation" : "Draft";
+  const invite = issueActivationToken();
 
   const newOrgId = await sequelize.transaction(async (tx) => {
+    const code = givenCode || (await nextTenantCode(tx));
     const org = await Organization.create({
       name: input.organization.name, code, type: "Tenant", status: ORG_STATUS_FOR[status],
       parentOrgId: partnerOrgId ?? auth.orgId, tenantId: null,
@@ -219,9 +223,8 @@ export async function provisionTenant(auth: AuthContext, input: ProvisionTenantI
     }, { transaction: tx });
 
     // Primary site.
-    const siteCount = await Site.count({ transaction: tx });
     await Site.create({
-      orgId: org.id, code: `STE-${1001 + siteCount}`, name: input.primarySite.name,
+      orgId: org.id, code: await nextSiteCode(tx), name: input.primarySite.name,
       type: input.primarySite.type ?? "Head Office", country: input.primarySite.country ?? null,
       address: input.primarySite.address ?? null, status: "Active", isPrimary: true,
       city: input.primarySite.city ?? null, state: input.primarySite.state ?? null,
@@ -230,7 +233,7 @@ export async function provisionTenant(auth: AuthContext, input: ProvisionTenantI
     }, { transaction: tx });
 
     // Administrator role for the new tenant org, granted the same curated
-    // non-SP action set the seeder gives its demo Distributor/Tenant admins
+    // non-SP action set the seeder gives its sample Distributor/Tenant admins
     // (`grantEverythingExceptSpOnly`) — without this the admin user below has
     // zero action grants and every authenticated request 403s.
     const role = await Role.create(
@@ -240,12 +243,12 @@ export async function provisionTenant(auth: AuthContext, input: ProvisionTenantI
     await grantEverythingExceptSpOnly(role.id, tx);
 
     // Admin user (invite when activating).
-    const activationToken = randomUUID();
+    await assertIdentityAvailable(input.admin.username, input.admin.email, tx);
     const admin = await User.create({
       orgId: org.id, tenantId: org.id, fullName: input.admin.fullName, username: input.admin.username,
       email: input.admin.email, passwordHash: null, status: "Pending Activation",
       position: "Tenant Administrator", workUnit: null, lastLogin: null,
-      activationToken, resetToken: null, resetExpires: null,
+      ...invite.fields, resetToken: null, resetExpires: null,
     }, { transaction: tx });
     await (admin as unknown as WithSetRoles).setRoles([role], { transaction: tx });
 
@@ -255,7 +258,6 @@ export async function provisionTenant(auth: AuthContext, input: ProvisionTenantI
       action: "tenant.provisioned", entityType: "Tenant", entityId: org.id, sourceIp: ip, result: "Success",
       metadata: { code, mode: input.mode, acquisition },
     }, tx);
-    if (activate) sendActivationInvite(input.admin.email, activationToken);
 
     // Best-effort link back to the source Tenant Request (OD `treqProvision`,
     // 7759 sets `TW.fromRequest`; `twFinish` at 7647 writes `rq.tenantId`).
@@ -274,6 +276,7 @@ export async function provisionTenant(auth: AuthContext, input: ProvisionTenantI
   const org = await Organization.findByPk(newOrgId);
   const profile = await TenantProfile.findOne({ where: { orgId: newOrgId } });
   if (!org || !profile) throw new NotFoundError("Provisioned tenant could not be loaded", "TENANT_NOT_FOUND");
+  if (activate) await emailAdminInvite(auth, org, profile, input.admin.email, invite.raw, false, ip);
   return buildView(org, profile);
 }
 
@@ -320,6 +323,25 @@ export async function updateTenant(auth: AuthContext, orgId: string, input: Upda
   return buildView(org, profile);
 }
 
+/**
+ * Emails the tenant admin's activation link, only after the state it describes
+ * is committed. A failed send is recorded on the tenant timeline and audit log
+ * and surfaced as 502 EMAIL_NOT_SENT, so the operator knows to resend (the
+ * tenant is left Pending Activation, where Resend activation is allowed).
+ */
+async function emailAdminInvite(
+  auth: AuthContext, org: Organization, profile: TenantProfile, email: string, raw: string, resend: boolean, ip: string | null,
+): Promise<void> {
+  if (await sendActivationInvite(email, raw, { variant: "tenant", resend })) return;
+  profile.audit = [nowEntry(`Activation email to ${email} could not be sent`), ...profile.audit];
+  await profile.save();
+  await writeAudit({
+    actorUserId: auth.userId, organizationId: org.id, tenantId: org.id,
+    action: "tenant.activation-email-failed", entityType: "Tenant", entityId: org.id, sourceIp: ip, result: "Failure",
+  });
+  throw new EmailDeliveryError(`The activation email to ${email} could not be sent. Use Resend activation to try again.`);
+}
+
 // --- Lifecycle transitions -----------------------------------------------
 async function transition(
   auth: AuthContext,
@@ -336,19 +358,25 @@ async function transition(
   await profile.save();
   org.status = ORG_STATUS_FOR[opts.to];
   await org.save();
+  // Any non-Active tenant (suspended, deactivated, back to pending) drops its
+  // members' refresh tokens; `authenticate` already refuses Suspended/Inactive.
+  if (org.status !== "Active") await revokeOrgSessions(org.id);
+  // Only the hash is stored, so every (re)send mints a fresh link; the old one stops working.
+  let invite: { email: string; raw: string } | null = null;
   if (opts.invite) {
     const admin = await User.findOne({ where: { orgId, status: "Pending Activation" }, order: [["createdAt", "ASC"]] });
     if (admin) {
-      const token = admin.activationToken ?? randomUUID();
-      admin.activationToken = token;
+      const issued = issueActivationToken();
+      admin.set(issued.fields);
       await admin.save();
-      sendActivationInvite(admin.email, token);
+      invite = { email: admin.email, raw: issued.raw };
     }
   }
   await writeAudit({
     actorUserId: auth.userId, organizationId: org.id, tenantId: org.id,
     action: `tenant.${opts.action}`, entityType: "Tenant", entityId: org.id, sourceIp: ip, result: "Success",
   });
+  if (invite) await emailAdminInvite(auth, org, profile, invite.email, invite.raw, opts.action === "activation-resent", ip);
   return buildView(org, profile);
 }
 

@@ -157,7 +157,7 @@ describe("ISRA reference-library seed (F-2b)", () => {
     expect(pal1).toMatchObject({ name: "Customer Personal Data", privacy: true, groupId: "PAG-001" });
   });
 
-  it("seeds the 3-row RTP treatment-template demo catalog with resolved vuln ids", async () => {
+  it("seeds the 3-row RTP treatment-template sample catalog with resolved vuln ids", async () => {
     const count = await IsraTreatTemplate.count();
     expect(count).toBe(3);
     const tpl1 = await IsraTreatTemplate.findOne({ where: { vulnId: "VUL-0071", annexRef: "A.8.5" } });

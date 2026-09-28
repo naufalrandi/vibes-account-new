@@ -3,7 +3,7 @@ import request from "supertest";
 import { createApp } from "../../app";
 import { initModels, Organization, User, Role, RoleActionGrant, Action } from "../../db/models";
 import { hashPassword } from "../../lib/password";
-import { resetDb, grantActions, seedActionCatalog } from "../../../test/helpers";
+import { resetDb, grantActions, seedActionCatalog, lastMailedToken } from "../../../test/helpers";
 import { ACTIONS } from "./actions.catalog";
 
 const app = createApp();
@@ -17,7 +17,7 @@ const authed = (t: string) => ({ Authorization: `Bearer ${t}` });
  * all, so the account could authenticate but every authorized request 403d
  * (zero action grants). Both now create an "Administrator" role via the
  * shared `grantEverythingExceptSpOnly` helper (`./tenantGrants.ts`), the same
- * curated non-SP grant set `src/db/seeders/seed.ts` gives its demo
+ * curated non-SP grant set `src/db/seeders/seed.ts` gives its sample
  * Distributor/Tenant admins.
  */
 
@@ -79,11 +79,9 @@ describe("tenant provisioning grants (P0: new tenant admin gets an Administrator
     expect(grantedKeys.has(ACTIONS.TICKET_MANAGE)).toBe(false);
     expect(grantedKeys.has(ACTIONS.TENANT_CREATE)).toBe(false);
 
-    // The activation token was issued because mode: "activate" — pull it
-    // straight from the row (the notification send is a stub in tests).
-    const admin = await User.findOne({ where: { username: "acme.admin" } });
-    expect(admin).not.toBeNull();
-    const adminToken = await activateAndLogin("acme.admin", admin!.activationToken!);
+    // The activation link was mailed because mode: "activate" — only its hash
+    // is stored, so read the raw token from the captured test mail.
+    const adminToken = await activateAndLogin("acme.admin", await lastMailedToken("admin@acme.io"));
 
     // The new tenant admin can now use a curated action…
     const siteList = await request(app).get("/v1/sites").set(authed(adminToken));
@@ -135,9 +133,7 @@ describe("tenant provisioning grants (P0: new tenant admin gets an Administrator
     expect(grantedKeys.has(ACTIONS.USER_READ)).toBe(true);
     expect(grantedKeys.has(ACTIONS.FRAMEWORK_CREATE)).toBe(false);
 
-    const admin = await User.findOne({ where: { username: "garuda.admin" } });
-    expect(admin).not.toBeNull();
-    const adminToken = await activateAndLogin("garuda.admin", admin!.activationToken!);
+    const adminToken = await activateAndLogin("garuda.admin", await lastMailedToken("admin@garuda.id"));
     const usersList = await request(app).get("/v1/users").set(authed(adminToken));
     expect(usersList.status).toBe(200);
   });

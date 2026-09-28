@@ -80,12 +80,3 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
     next(e);
   }
 }
-
-export async function demoLinkLogin(req: Request, res: Response, next: NextFunction) {
-  try {
-    const { demoId } = z.object({ demoId: z.string().max(64) }).parse(req.body);
-    sendOk(res, await authService.demoLinkLogin(demoId, req.ip ?? null));
-  } catch (e) {
-    next(e);
-  }
-}

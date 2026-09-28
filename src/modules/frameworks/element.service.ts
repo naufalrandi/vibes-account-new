@@ -1,10 +1,12 @@
-import { Op } from "sequelize";
+import { Op, QueryTypes, col, fn, where as sqlWhere } from "sequelize";
+import { sequelize } from "../../db/sequelize";
 import {
   Framework, FrameworkElement, FrameworkGroup, FrameworkRequirement, ElementRequirementXref,
 } from "../../db/models";
 import type { ElementStatus, ElementCategory } from "../../db/models/frameworkMeta.models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 function assertServiceOwner(auth: AuthContext): void {
@@ -21,7 +23,8 @@ export type UpdateElementInput = Partial<CreateElementInput>;
 
 /** OD elementModal guard: element names are unique (case-insensitive) across the library. */
 async function assertNameUnique(name: string, excludeId?: string): Promise<void> {
-  const where: Record<string, unknown> = { name: { [Op.iLike]: name } };
+  // Exact case-insensitive match — an iLike pattern would treat `_`/`%` in the name as wildcards.
+  const where: Record<string | symbol, unknown> = { [Op.and]: [sqlWhere(fn("lower", col("name")), fn("lower", name))] };
   if (excludeId) where.id = { [Op.ne]: excludeId };
   if (await FrameworkElement.findOne({ where })) {
     throw new ConflictError("An element with this name already exists", "DUPLICATE_NAME");
@@ -82,7 +85,7 @@ export async function createElement(auth: AuthContext, input: CreateElementInput
     code: await nextElementCode(), name: input.name, description: input.description ?? null,
     category: input.category ?? "Core", status: input.status ?? "Active",
   });
-  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "element.created", entityType: "FrameworkElement", entityId: e.id, sourceIp: ip, result: "Success" });
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId), action: "element.created", entityType: "FrameworkElement", entityId: e.id, sourceIp: ip, result: "Success" });
   return detail(e);
 }
 
@@ -97,15 +100,35 @@ export async function updateElement(auth: AuthContext, id: string, input: Update
   if (input.status !== undefined) e.status = input.status;
   if (input.category !== undefined) e.category = input.category;
   await e.save();
-  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "element.updated", entityType: "FrameworkElement", entityId: e.id, sourceIp: ip, result: "Success" });
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId), action: "element.updated", entityType: "FrameworkElement", entityId: e.id, sourceIp: ip, result: "Success" });
   return detail(e);
+}
+
+/**
+ * What still points at a library element, across every org (raw SQL — the
+ * library is global, so any tenant's use blocks deletion).
+ */
+async function elementUsage(id: string): Promise<string[]> {
+  const [row] = await sequelize.query<Record<string, string>>(
+    `SELECT
+       (SELECT count(*) FROM fwrc WHERE element_id = :id) AS "FWRC rows",
+       (SELECT count(*) FROM element_assessment_answers WHERE element_id = :id) AS "conformance answers",
+       (SELECT count(*) FROM assessment_answers aa JOIN conformance_questions q ON q.id = aa.question_id
+         WHERE q.element_id = :id) AS "assessment answers",
+       (SELECT count(*) FROM gaps WHERE element_id = :id) AS "assessment gaps",
+       (SELECT count(*) FROM implementation_records WHERE element_id = :id) AS "register records"`,
+    { replacements: { id }, type: QueryTypes.SELECT },
+  );
+  return Object.entries(row ?? {}).filter(([, n]) => Number(n) > 0).map(([what, n]) => `${n} ${what}`);
 }
 
 export async function deleteElement(auth: AuthContext, id: string, ip: string | null) {
   assertServiceOwner(auth);
   const e = await requireElement(id);
+  const usage = await elementUsage(id);
+  if (usage.length) throw new ConflictError(`Element is in use (${usage.join(", ")}) — archive it instead`, "IN_USE");
   await e.destroy();
-  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "element.deleted", entityType: "FrameworkElement", entityId: id, sourceIp: ip, result: "Success" });
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId), action: "element.deleted", entityType: "FrameworkElement", entityId: id, sourceIp: ip, result: "Success" });
 }
 
 /** Replace the element's requirement mappings (xref) with the given set. */
@@ -119,7 +142,7 @@ export async function setMappings(auth: AuthContext, id: string, requirementIds:
   }
   await ElementRequirementXref.destroy({ where: { elementId: id } });
   if (unique.length > 0) await ElementRequirementXref.bulkCreate(unique.map((requirementId) => ({ elementId: id, requirementId })));
-  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "element.mappings.set", entityType: "FrameworkElement", entityId: id, sourceIp: ip, result: "Success", metadata: { count: unique.length } });
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId), action: "element.mappings.set", entityType: "FrameworkElement", entityId: id, sourceIp: ip, result: "Success", metadata: { count: unique.length } });
   return detail(e);
 }
 

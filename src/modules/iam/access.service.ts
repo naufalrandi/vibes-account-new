@@ -1,4 +1,4 @@
-import { Action, Menu, Role, RoleActionGrant, RoleMenuGrant, User } from "../../db/models";
+import { Action, Menu, Organization, Role, RoleActionGrant, RoleMenuGrant, User } from "../../db/models";
 import { menuActions, type PermAction } from "./actions.catalog";
 
 export interface EffectiveAccess {
@@ -6,6 +6,16 @@ export interface EffectiveAccess {
   actionKeys: string[];
   menuIds: string[];
   roleNames: string[];
+  /** False when the user is not Active or their org is suspended/inactive — `authenticate` refuses. */
+  active: boolean;
+}
+
+/** Org statuses whose members may not sign in or use an existing session. */
+export const BLOCKED_ORG_STATUSES: readonly Organization["status"][] = ["Suspended", "Inactive"];
+
+/** A user may hold a session only while Active in an org that is not suspended/inactive. */
+export function isAccountActive(user: User | null, org: Organization | null | undefined): boolean {
+  return !!user && user.status === "Active" && !!org && !BLOCKED_ORG_STATUSES.includes(org.status);
 }
 
 /**
@@ -21,8 +31,9 @@ export interface EffectiveAccess {
  * Configuration screen.
  */
 export async function getEffectiveAccess(userId: string): Promise<EffectiveAccess> {
-  const user = await User.findByPk(userId, { include: [Role] });
+  const user = await User.findByPk(userId, { include: [Role, Organization] });
   const roles = (user?.get("Roles") as Role[]) ?? [];
+  const active = isAccountActive(user, user?.get("Organization") as Organization | undefined);
   // OD models super-admin as the per-USER boolean `u.superAdmin` (js/core.js:151),
   // read by `acInit` as `const sa=!!u.superAdmin` (js/core.js:5081) and expanded by
   // `acSave`'s `sa` branch (js/core.js:5233-5237) into every menu key and every
@@ -41,9 +52,9 @@ export async function getEffectiveAccess(userId: string): Promise<EffectiveAcces
   // through the UserRole rows `updateUser` clears alongside it — `assignRole`
   // re-attaches a role directly.
   if (!isSuperAdmin && user && !user.provisioned) {
-    return { isSuperAdmin: false, actionKeys: [], menuIds: [], roleNames };
+    return { isSuperAdmin: false, actionKeys: [], menuIds: [], roleNames, active };
   }
-  if (roleIds.length === 0) return { isSuperAdmin, actionKeys: [], menuIds: [], roleNames };
+  if (roleIds.length === 0) return { isSuperAdmin, actionKeys: [], menuIds: [], roleNames, active };
 
   const actionGrants = await RoleActionGrant.findAll({
     where: { roleId: roleIds, granted: true },
@@ -54,7 +65,7 @@ export async function getEffectiveAccess(userId: string): Promise<EffectiveAcces
   const menuGrants = await RoleMenuGrant.findAll({ where: { roleId: roleIds, granted: true } });
   const menuIds = [...new Set(menuGrants.map((g) => g.menuId))];
 
-  return { isSuperAdmin, actionKeys, menuIds, roleNames };
+  return { isSuperAdmin, actionKeys, menuIds, roleNames, active };
 }
 
 export async function getUserRoleNames(userId: string): Promise<string[]> {

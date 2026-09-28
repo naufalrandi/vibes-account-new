@@ -1,10 +1,10 @@
-import path from "node:path";
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { requestId } from "./middleware/requestId";
-import { errorHandler } from "./middleware/error";
+import { errorHandler, notFound } from "./middleware/error";
+import { sequelize } from "./db/sequelize";
 import { authRoutes } from "./modules/iam/auth.routes";
 import { authenticate } from "./middleware/authenticate";
 import { requireOrgMgmt } from "./middleware/requireAction";
@@ -47,6 +47,10 @@ import { scopeRoutes } from "./modules/scope/scope.routes";
 import { workUnitRoutes } from "./modules/work-units/workUnit.routes";
 import { cmsRoutes } from "./modules/cms/cms.routes";
 import { cmsPublicRoutes } from "./modules/cms/cmsPublic.routes";
+import { UPLOAD_ROOT } from "./modules/cms/cmsMedia.service";
+import { ensureUploadRoot, uploadHeaders } from "./modules/cms/cmsUpload";
+import { leadRoutes } from "./modules/leads/lead.routes";
+import { kbPublicRoutes } from "./modules/ai/public/kbPublic.routes";
 import { mReviewRoutes } from "./modules/management-review/mReview.routes";
 import { orgUnitRoutes } from "./modules/org-units/orgUnit.routes";
 import { perfEvalRoutes } from "./modules/performance-evaluation/perfEval.routes";
@@ -54,7 +58,6 @@ import { processRoutes } from "./modules/processes/process.routes";
 import { roleRegisterRoutes } from "./modules/roles-register/roleRegister.routes";
 import { recordEventRoutes } from "./modules/record-events/recordEvent.routes";
 import { interestedPartyRoutes } from "./modules/interested-parties/ip.routes";
-import { demoRoutes } from "./modules/demo/demo.routes";
 import { businessRoutes } from "./modules/business/business.routes";
 import { businessDaysRoutes } from "./modules/business-days/businessDays.routes";
 import { limsRoutes } from "./modules/lims/lims.routes";
@@ -73,22 +76,36 @@ import { personnelContractRoutes } from "./modules/personnel-records/personnelCo
 import { personnelProfileRoutes } from "./modules/personnel-records/personnelProfile.routes";
 import { hrEmployeeRoutes } from "./modules/users/hrEmployee.routes";
 import { poConfirmationRoutes } from "./modules/business/poConfirmation.routes";
+import { aiRoutes } from "./modules/ai/ai.routes";
 
 export function createApp() {
   const app = express();
-  // Trust one proxy hop so `req.ip` (used by the rate limiter) reflects the real
-  // client behind a single load balancer, not the proxy address.
-  app.set("trust proxy", 1);
+  // `trust proxy` from TRUST_PROXY (default 0: trust none). Behind a load
+  // balancer set it so `req.ip` (rate limits, login history) is the real client,
+  // not the proxy address — see src/config/env.ts.
+  app.set("trust proxy", env.TRUST_PROXY);
   app.use(helmet({ frameguard: { action: "deny" } }));
   // Restrict CORS to the configured frontend origin(s) — never reflect all origins.
   app.use(cors({ origin: env.CORS_ALLOWED_ORIGINS.split(",").map((o) => o.trim()) }));
-  app.use(express.json());
-  app.use(cookieParser());
+  // Before the body parser so a malformed-body error is logged with its request id.
   app.use(requestId);
+  app.use(express.json({ limit: "2mb" }));
+  app.use(cookieParser());
 
+  // Liveness: static, never touches the DB (a DB blip must not get the process killed).
   app.get("/health", (_req, res) => res.json({ success: true, data: { status: "ok" }, error: null, meta: null }));
+  // Readiness: can this instance serve traffic right now?
+  app.get("/ready", async (_req, res) => {
+    try {
+      await sequelize.query("SELECT 1");
+      res.json({ success: true, data: { status: "ready" }, error: null, meta: null });
+    } catch {
+      res.status(503).json({ success: false, data: null, error: { code: "NOT_READY", message: "Database unavailable" }, meta: null });
+    }
+  });
   // Uploaded CMS media, served at the `/uploads/cms/:orgId/:file` URLs cmsMedia.service.ts hands out.
-  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+  ensureUploadRoot();
+  app.use("/uploads/cms", express.static(UPLOAD_ROOT, { index: false, dotfiles: "deny", setHeaders: uploadHeaders }));
   const authLimiter = rateLimit({
     windowMs: env.AUTH_RATE_LIMIT_WINDOW_MS,
     max: env.AUTH_RATE_LIMIT_MAX,
@@ -102,10 +119,12 @@ export function createApp() {
   // Supplier PO confirmation opened from an emailed link — unauthenticated by
   // design, so it must stay above the blanket authenticate below.
   app.use("/v1/public/purchase-orders", poConfirmationRoutes);
-  // R468 — mounted WITHOUT `tenantScope`, and ahead of the `app.use("/v1", …,
-  // tenantScope, roleRoutes)` mount below whose middleware runs for every /v1
-  // path: a locked tenant must still be able to read its own lockout state in
-  // order to render the lockout card.
+  // Public-site lead capture (contact / waitlist / … forms) — unauthenticated, rate-limited per IP.
+  app.use("/v1/public/leads", leadRoutes);
+  // Public-site knowledge-base assistant — unauthenticated, rate-limited per IP, answers only from that org's Published KB.
+  app.use("/v1/public/ai/kb", kbPublicRoutes);
+  // R468 — mounted WITHOUT `tenantScope`: a locked tenant must still be able to
+  // read its own lockout state in order to render the lockout card.
   app.use("/v1/saas-access", authenticate, saasAccessRoutes);
   // OD `canOrgMgmt()` (js/core.js:4242-4247) — Team Members is the one
   // "Organization Management" (default) tier screen OD guards at the screen
@@ -131,7 +150,7 @@ export function createApp() {
   app.use("/v1/org-settings", authenticate, tenantScope, orgSettingsRoutes);
   app.use("/v1/registration-requests", authenticate, tenantScope, registrationRoutes);
   app.use("/v1/audit", authenticate, tenantScope, auditRoutes);
-  app.use("/v1", authenticate, tenantScope, roleRoutes); // exposes /v1/roles and /v1/roles/:id/grants
+  app.use("/v1/roles", authenticate, tenantScope, roleRoutes); // /v1/roles and /v1/roles/:id/grants
   app.use("/v1/modules", authenticate, tenantScope, moduleRoutes); // permission-grid module catalog
   app.use("/v1/menu", authenticate, tenantScope, menuRoutes); // /v1/menu (current user's tree + access map)
   app.use("/v1/dashboard", authenticate, tenantScope, dashboardRoutes);
@@ -171,7 +190,6 @@ export function createApp() {
   app.use("/v1/org-roles", authenticate, tenantScope, roleRegisterRoutes);
   app.use("/v1/record-events", authenticate, tenantScope, recordEventRoutes);
   app.use("/v1/interested-parties", authenticate, tenantScope, interestedPartyRoutes);
-  app.use("/v1/demo-tenants", authenticate, tenantScope, demoRoutes);
   app.use("/v1/business", authenticate, tenantScope, businessRoutes);
   app.use("/v1/business-days", authenticate, tenantScope, businessDaysRoutes);
   app.use("/v1/lims", authenticate, tenantScope, limsRoutes);
@@ -199,8 +217,12 @@ export function createApp() {
   app.use("/v1/isra-asset-library", authenticate, tenantScope, israAssetLibraryRoutes);
   app.use("/v1/isra", authenticate, tenantScope, israRoutes);
   app.use("/v1/saas", authenticate, tenantScope, saasRoutes);
+  // Platform AI connection settings (SO-only) + `/status` for any signed-in user.
+  app.use("/v1/ai", authenticate, tenantScope, aiRoutes);
 
-
+  // Unmatched /v1 paths: 401 for anonymous callers (no route probing), JSON 404 otherwise.
+  app.use("/v1", authenticate, notFound);
+  app.use(notFound);
   app.use(errorHandler);
   return app;
 }

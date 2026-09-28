@@ -1,10 +1,11 @@
-import { Op, type WhereOptions } from "sequelize";
+import { Op, type WhereOptions, type Transaction } from "sequelize";
 import { TestingService } from "../../db/models";
 import type { StageConfig } from "../../db/models/testingService.model";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { maxCodeSeq, withCodeLock } from "../../lib/codeSeq";
 import { limsGenerate, normalizeStages } from "./limsEngine";
 
 export interface ServiceView {
@@ -45,14 +46,9 @@ async function requireService(auth: AuthContext, id: string): Promise<TestingSer
   return s;
 }
 
-async function nextCode(orgId: string): Promise<string> {
-  const rows = await TestingService.findAll({ where: { orgId }, attributes: ["code"] });
-  let max = 1000;
-  for (const r of rows) {
-    const n = Number.parseInt(r.code.replace(/^TS-/, ""), 10);
-    if (Number.isFinite(n) && n > max) max = n;
-  }
-  return `TS-${max + 1}`;
+/** Codes are unique per org (0016). Call inside the per-org `withCodeLock` and insert with the same `tx`. */
+async function nextCode(orgId: string, tx: Transaction): Promise<string> {
+  return `TS-${Math.max(1000, await maxCodeSeq(TestingService, "TS", tx, { orgId })) + 1}`;
 }
 
 export async function listServices(auth: AuthContext, filters: { orgId?: string } = {}): Promise<ServiceView[]> {
@@ -75,15 +71,16 @@ export async function getService(auth: AuthContext, id: string): Promise<Service
 export async function createService(auth: AuthContext, input: ServiceInput, orgId: string | undefined, ip: string | null): Promise<ServiceView> {
   const targetOrg = orgId ?? auth.orgId;
   await assertCanSeeOrg(auth, targetOrg);
-  if (!input.name || !input.name.trim()) throw new BadRequestError("Service name is required", "NAME_REQUIRED");
-  const s = await TestingService.create({
+  const name = input.name?.trim();
+  if (!name) throw new BadRequestError("Service name is required", "NAME_REQUIRED");
+  const s = await withCodeLock(`TS:${targetOrg}`, null, async (tx) => TestingService.create({
     orgId: targetOrg,
-    code: await nextCode(targetOrg),
-    name: input.name.trim(),
+    code: await nextCode(targetOrg, tx),
+    name,
     description: input.description ?? null,
     status: input.status ?? "Active",
     stages: normalizeStages(input.stages),
-  });
+  }, { transaction: tx }));
   await writeAudit({
     actorUserId: auth.userId, organizationId: targetOrg,
     action: "lims.service.created", entityType: "TestingService", entityId: s.id, sourceIp: ip, result: "Success",

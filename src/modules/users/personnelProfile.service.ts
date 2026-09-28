@@ -1,6 +1,8 @@
-import { PersonnelProfile, User } from "../../db/models";
+import { Op } from "sequelize";
+import { Organization, PersonnelProfile, User } from "../../db/models";
 import type { EmploymentStatus, ContractType } from "../../db/models/personnelProfile.model";
 import type { AuthContext } from "../../lib/scope";
+import { userScopeWhere } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError } from "../../lib/errors";
 import { requireManagedUser } from "./user.service";
@@ -51,6 +53,23 @@ export async function getOrCreateProfile(userId: string): Promise<PersonnelProfi
 export async function getPersonnelProfile(auth: AuthContext, userId: string): Promise<PersonnelProfile> {
   await requireManagedUser(auth, userId);
   return getOrCreateProfile(userId);
+}
+
+/**
+ * Bulk read for the Personnel directory's contract chips: the stored profiles of
+ * the requested users the actor may see (the team list's scope). Users outside
+ * that scope, and users with no profile row yet, are simply absent — nothing is
+ * lazily created on a read.
+ */
+export async function listPersonnelProfiles(auth: AuthContext, userIds: string[]): Promise<PersonnelProfile[]> {
+  const visible = await User.findAll({
+    where: { id: { [Op.in]: userIds }, ...userScopeWhere(auth) },
+    attributes: ["id"],
+    // The Distributor scope clause resolves `$Organization.parent_org_id$`.
+    include: [{ model: Organization, attributes: [], required: true }],
+  });
+  if (visible.length === 0) return [];
+  return PersonnelProfile.findAll({ where: { userId: { [Op.in]: visible.map((u) => u.id) } } });
 }
 
 export async function updatePersonal(

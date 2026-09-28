@@ -1,4 +1,4 @@
-import { Op, Model, type ModelStatic } from "sequelize";
+import { Op, Model, type ModelStatic, type Transaction } from "sequelize";
 import {
   IaProgram, IaPlan, IaSession, IaFinding, IaReport, IaSettings, User, Role, RoleAssignment,
 } from "../../db/models";
@@ -12,6 +12,7 @@ import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
 import { createRecord } from "../implementation/implementation.service";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { maxCodeSeq, withCodeLock } from "../../lib/codeSeq";
 
 const nowIso = () => new Date().toISOString();
 
@@ -34,14 +35,9 @@ async function orgWhere(auth: AuthContext, orgId?: string): Promise<Record<strin
   return {};
 }
 
-async function nextCode(model: ModelStatic<Model>, prefix: string): Promise<string> {
-  const rows = await model.findAll({ attributes: ["code"], where: { code: { [Op.like]: `${prefix}-%` } } });
-  let max = 0;
-  for (const r of rows) {
-    const n = Number.parseInt(String(r.get("code")).slice(prefix.length + 1), 10);
-    if (Number.isFinite(n) && n > max) max = n;
-  }
-  return `${prefix}-${String(max + 1).padStart(4, "0")}`;
+/** Call inside `withCodeLock(prefix, …)` and insert with the same `tx`. */
+async function nextCode(model: ModelStatic<Model>, prefix: string, tx: Transaction): Promise<string> {
+  return `${prefix}-${String((await maxCodeSeq(model, prefix, tx)) + 1).padStart(4, "0")}`;
 }
 
 function pushActivity(list: IaActivityEntry[], user: string, action: string, summary?: string): IaActivityEntry[] {
@@ -136,14 +132,14 @@ export async function createProgram(auth: AuthContext, input: Record<string, unk
   if (!leadAuditor) throw new BadRequestError("Lead auditor is required", "LEAD_REQUIRED");
   if (auditors.length === 0) throw new BadRequestError("Select at least one auditor", "AUDITORS_REQUIRED");
   const who = await actorName(auth);
-  const row = await IaProgram.create({
-    orgId: org, code: await nextCode(IaProgram, "IAP"), name, period, processes,
+  const row = await withCodeLock("IAP", null, async (tx) => IaProgram.create({
+    orgId: org, code: await nextCode(IaProgram, "IAP", tx), name, period, processes,
     workUnits: arr(input.workUnits), methods: arr(input.methods), criteria,
     scope: str(input.scope), objective: str(input.objective), leadAuditor, auditors,
     independence: str(input.independence) || "Checked", overrideJust: str(input.overrideJust),
     duration: str(input.duration), status: "Draft", notes: str(input.notes),
     createdBy: who, lastUpdatedBy: who, activity: pushActivity([], who, "created", "Program created"),
-  });
+  }, { transaction: tx }));
   await logAudit(auth, org, "ia.program.created", "IaProgram", row.id, ip);
   return row.get({ plain: true });
 }
@@ -200,14 +196,14 @@ export async function createPlan(auth: AuthContext, input: Record<string, unknow
   const program = await IaProgram.findOne({ where: { id: programId, orgId: org } });
   if (!program) throw new NotFoundError("Program not found", "PROGRAM_NOT_FOUND");
   const who = await actorName(auth);
-  const row = await IaPlan.create({
-    orgId: org, code: await nextCode(IaPlan, "IAPL"), programId, name,
+  const row = await withCodeLock("IAPL", null, async (tx) => IaPlan.create({
+    orgId: org, code: await nextCode(IaPlan, "IAPL", tx), programId, name,
     processes: input.processes !== undefined ? arr(input.processes) : program.processes,
     criteria: input.criteria !== undefined ? arr(input.criteria) : program.criteria,
     leadAuditor: str(input.leadAuditor) ?? program.leadAuditor, auditors: arr(input.auditors),
     notes: str(input.notes), status: "Draft",
     createdBy: who, lastUpdatedBy: who, activity: pushActivity([], who, "created", "Plan created"),
-  });
+  }, { transaction: tx }));
   await logAudit(auth, org, "ia.plan.created", "IaPlan", row.id, ip);
   return row.get({ plain: true });
 }
@@ -269,14 +265,14 @@ export async function createSession(auth: AuthContext, input: Record<string, unk
   const plan = await IaPlan.findOne({ where: { id: planId, orgId: org } });
   if (!plan) throw new NotFoundError("Plan not found", "PLAN_NOT_FOUND");
   const who = await actorName(auth);
-  const row = await IaSession.create({
-    orgId: org, code: await nextCode(IaSession, "IAS"), planId, programId: plan.programId,
+  const row = await withCodeLock("IAS", null, async (tx) => IaSession.create({
+    orgId: org, code: await nextCode(IaSession, "IAS", tx), planId, programId: plan.programId,
     title, date, start, end, tz: str(input.tz) || "Asia/Jakarta", auditor, auditee: str(input.auditee),
     criteria: arr(input.criteria), criteriaReqs: arr(input.criteriaReqs),
     process, workUnit: str(input.workUnit), methods: arr(input.methods),
     location: str(input.location), link: str(input.link), notes: str(input.notes), status: "Scheduled",
     createdBy: who, lastUpdatedBy: who, activity: pushActivity([], who, "created", "Session scheduled"),
-  });
+  }, { transaction: tx }));
   await logAudit(auth, org, "ia.session.created", "IaSession", row.id, ip);
   return row.get({ plain: true });
 }
@@ -512,7 +508,7 @@ export async function createFinding(auth: AuthContext, input: Record<string, unk
   const submit = input.submit === true;
   const who = await actorName(auth);
   const row = IaFinding.build({
-    orgId: org, code: await nextCode(IaFinding, "IAF"), programId,
+    orgId: org, code: "", programId, // assigned under the code lock at save
     planId: str(input.planId), sessionId: str(input.sessionId), title, type, description, evidence,
     frameworks: arr(input.frameworks), criteria: str(input.criteria), process, workUnit: str(input.workUnit),
     auditor: who, pic: str(input.pic), due: str(input.due),
@@ -520,7 +516,10 @@ export async function createFinding(auth: AuthContext, input: Record<string, unk
     activity: pushActivity([], who, submit ? "submitted" : "created", submit ? "Finding submitted" : "Finding drafted"),
   });
   applyFindingSubmit(row, submit, settings.mandatoryReview);
-  await row.save();
+  await withCodeLock("IAF", null, async (tx) => {
+    row.code = await nextCode(IaFinding, "IAF", tx);
+    await row.save({ transaction: tx });
+  });
   await logAudit(auth, org, "ia.finding.created", "IaFinding", row.id, ip);
   return row.get({ plain: true });
 }
@@ -659,14 +658,14 @@ export async function generateReport(auth: AuthContext, input: Record<string, un
   const findings = await IaFinding.findAll({ where: { orgId: org, programId }, attributes: ["code"] });
   const who = await actorName(auth);
   const now = nowIso();
-  const row = await IaReport.create({
-    orgId: org, code: await nextCode(IaReport, "IAR"), programId, period: program.period,
+  const row = await withCodeLock("IAR", null, async (tx) => IaReport.create({
+    orgId: org, code: await nextCode(IaReport, "IAR", tx), programId, period: program.period,
     plans: plans.map((p) => p.code), sessions: sessions.map((s) => s.code), findings: findings.map((f) => f.code),
     evidenceSummary: input.evidenceSummary !== false, followupIncluded: input.followupIncluded !== false,
     summary: str(input.summary), conclusion: str(input.conclusion) ?? "The management system was found to be effectively implemented and maintained, with the findings noted above addressed through the follow-up process.",
     preparedBy: who, approvedBy: str(input.approvedBy), reportDate: now, status: "Generated",
     createdBy: who, lastUpdatedBy: who, activity: pushActivity([], who, "generated", "Report generated"),
-  });
+  }, { transaction: tx }));
   // Program auto-promotes to "Report Generated" once a report exists.
   if (program.status === "Completed" || program.status === "In Progress") {
     program.status = "Report Generated";

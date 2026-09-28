@@ -1,25 +1,57 @@
 import { randomUUID, createHash } from "node:crypto";
-import { Op } from "sequelize";
-import { User, RefreshToken, LoginHistory, Organization, DemoTenant } from "../../db/models";
-import { verifyPassword, hashPassword, isPasswordValid } from "../../lib/password";
+import { Op, col, fn, where as sqlWhere, type Transaction, type WhereOptions } from "sequelize";
+import { User, RefreshToken, LoginHistory, Organization } from "../../db/models";
+import { verifyPassword, hashPassword, isPasswordValid, PASSWORD_POLICY_MESSAGE } from "../../lib/password";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../lib/jwt";
-import { getUserRoleNames } from "./access.service";
-import { isDemoTenantActive } from "../demo/demo.service";
+import { hashToken, newOpaqueToken } from "../../lib/tokens";
+import { getUserRoleNames, isAccountActive } from "./access.service";
 import { writeAudit } from "../audit/audit.service";
-import { BadRequestError, UnauthorizedError } from "../../lib/errors";
+import { sendPasswordReset } from "../notifications/notification.service";
+import { BadRequestError, ConflictError, UnauthorizedError } from "../../lib/errors";
 import { env } from "../../config/env";
 
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 
-// A temporary, isolated demo-tenant session (OD `DEMO_SESS`) — present only
-// when the authenticated user is one `generateDemoTenant()` provisioned. See
-// fe-vibes-new's lib/api/types.ts DemoSessionInfo, which this mirrors exactly.
-export interface DemoSessionInfo {
-  tenantId: string;
-  org: string;
-  role: string;
-  modules: string[];
-  expiresAt: string;
+// Brute-force lockout: this many failed sign-ins inside the window locks the
+// account for LOCKOUT_MS. Counted from login_history, not a counter column.
+const MAX_FAILED_LOGINS = 10;
+const FAILED_LOGIN_WINDOW_MS = 15 * 60_000;
+const LOCKOUT_MS = 15 * 60_000;
+const RESET_TOKEN_TTL_MS = 60 * 60_000;
+
+/** Case-insensitive `lower(column) = lower(value)` predicate for identity lookups. */
+export function lowerEq(column: string, value: string): WhereOptions {
+  return sqlWhere(fn("lower", col(column)), value.toLowerCase());
+}
+
+/** Sign-in matches identifiers case-insensitively, so a new account's username/email must be free that way too. */
+export async function assertIdentityAvailable(username: string, email: string | null | undefined, tx?: Transaction): Promise<void> {
+  const clauses = [lowerEq("username", username), ...(email ? [lowerEq("email", email)] : [])];
+  const existing = await User.findOne({ where: { [Op.or]: clauses }, attributes: ["id"], transaction: tx });
+  if (existing) throw new ConflictError("Username or email already exists", "DUPLICATE_USER");
+}
+
+/** Revoke every live refresh token of the given users (suspension, deletion, reset). */
+export async function revokeUserSessions(userIds: string[], tx?: Transaction): Promise<void> {
+  if (userIds.length === 0) return;
+  await RefreshToken.update(
+    { revokedAt: new Date() },
+    { where: { userId: userIds, revokedAt: null }, transaction: tx },
+  );
+}
+
+/** Revoke every live refresh token held by members of an organization. */
+export async function revokeOrgSessions(orgId: string, tx?: Transaction): Promise<void> {
+  const users = await User.findAll({ where: { orgId }, attributes: ["id"], transaction: tx });
+  await revokeUserSessions(users.map((u) => u.id), tx);
+}
+
+// Unknown, locked and passwordless accounts still pay for one bcrypt compare,
+// so response timing does not reveal which identifiers exist.
+let dummyHash: Promise<string> | undefined;
+async function dummyVerify(password: string): Promise<void> {
+  dummyHash ??= hashPassword(randomUUID());
+  await verifyPassword(password, await dummyHash);
 }
 
 export interface LoginResult {
@@ -42,25 +74,68 @@ export interface LoginResult {
     lastLogin: string | null;
     createdAt: string | null;
   };
-  demoSession?: DemoSessionInfo;
 }
 
-/** Guards `demoLinkLogin` against non-UUID input reaching the DB layer. */
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/**
+ * Resolve a sign-in identifier case-insensitively against username OR email.
+ * Deterministic when several rows match: an exact username wins, then a
+ * case-insensitive username, then an email; ties go to the oldest account.
+ */
+async function findLoginUser(identifier: string): Promise<User | null> {
+  const lower = identifier.toLowerCase();
+  const candidates = await User.findAll({
+    where: {
+      status: { [Op.ne]: "Deleted" },
+      [Op.or]: [lowerEq("User.username", identifier), lowerEq("User.email", identifier)],
+    },
+    include: [Organization],
+    order: [["createdAt", "ASC"], ["id", "ASC"]],
+  });
+  return (
+    candidates.find((u) => u.username === identifier) ??
+    candidates.find((u) => u.username.toLowerCase() === lower) ??
+    candidates.find((u) => u.email.toLowerCase() === lower) ??
+    null
+  );
+}
+
+/** After a wrong password: lock the account once the failure budget is spent. */
+async function lockIfOverBudget(user: User, ip: string | null): Promise<void> {
+  const now = Date.now();
+  // Count from the latest of: window start, last success, last lock — so an
+  // expired lock or a successful sign-in starts a fresh budget.
+  const since = Math.max(
+    now - FAILED_LOGIN_WINDOW_MS,
+    user.lastLogin?.getTime() ?? 0,
+    user.lockedUntil ? user.lockedUntil.getTime() - LOCKOUT_MS : 0,
+  );
+  const failures = await LoginHistory.count({
+    where: { userId: user.id, result: "Failure", at: { [Op.gt]: new Date(since) } },
+  });
+  if (failures < MAX_FAILED_LOGINS) return;
+  user.lockedUntil = new Date(now + LOCKOUT_MS);
+  await user.save();
+  await writeAudit({
+    actorUserId: user.id,
+    organizationId: user.orgId,
+    tenantId: user.tenantId,
+    action: "auth.login.locked",
+    entityType: "User",
+    entityId: user.id,
+    sourceIp: ip,
+    result: "Failure",
+    metadata: { failures, lockedUntil: user.lockedUntil.toISOString() },
+  });
+}
 
 export async function login(identifier: string, password: string, ip: string | null): Promise<LoginResult> {
-  const user = await User.findOne({
-    where: { [Op.or]: [{ username: identifier }, { email: identifier }] },
-    include: [Organization],
-  });
+  const user = await findLoginUser(identifier);
 
-  // A distinct message/code for the demo-expired case would let an
-  // unauthenticated caller confirm a guessed identifier+password pair is
-  // cryptographically correct (just temporarily blocked) — always fail with
-  // the same generic "Invalid credentials"/AUTH_FAILED the API returns for
-  // everything else; the specific reason still lands in the audit trail via
-  // `metadata` for internal visibility.
-  const failAndThrow = async (metadata?: Record<string, unknown>) => {
+  // Every refusal — unknown user, wrong password, locked, inactive user or
+  // org — returns the same generic AUTH_FAILED, so a caller cannot tell a
+  // correct-but-blocked credential from a wrong one. The specific reason
+  // still lands in the audit trail via `metadata`.
+  const recordFailure = async (reason: string) => {
     await LoginHistory.create({ userId: user?.id ?? null, sourceIp: ip, result: "Failure" });
     await writeAudit({
       actorUserId: user?.id ?? null,
@@ -71,33 +146,37 @@ export async function login(identifier: string, password: string, ip: string | n
       entityId: user?.id ?? null,
       sourceIp: ip,
       result: "Failure",
-      metadata,
+      metadata: { reason },
     });
-    throw new UnauthorizedError("Invalid credentials", "AUTH_FAILED");
   };
+  const authFailed = () => new UnauthorizedError("Invalid credentials", "AUTH_FAILED");
 
-  if (!user || !user.passwordHash) return failAndThrow();
-  if (user.status !== "Active") return failAndThrow();
-  if (!(await verifyPassword(password, user.passwordHash))) return failAndThrow();
+  if (!user || !user.passwordHash) {
+    await dummyVerify(password);
+    await recordFailure(user ? "no_password" : "unknown_identifier");
+    throw authFailed();
+  }
+  if (user.lockedUntil && user.lockedUntil > new Date()) {
+    await dummyVerify(password);
+    await recordFailure("locked");
+    throw authFailed();
+  }
+  if (!(await verifyPassword(password, user.passwordHash))) {
+    await recordFailure("bad_password");
+    await lockIfOverBudget(user, ip);
+    throw authFailed();
+  }
+  const org = user.get("Organization") as Organization | undefined;
+  if (!isAccountActive(user, org)) {
+    await recordFailure("inactive");
+    throw authFailed();
+  }
 
-  // A demo-provisioned user (see demo.service.ts's generateDemoTenant) must
-  // still be within its approved/active/unexpired window — checked here,
-  // before any token is issued, so an expired demo can never walk away with a
-  // valid JWT regardless of what the frontend does with the response.
-  const demo = await DemoTenant.findOne({ where: { provisionedUserId: user.id } });
-  if (demo && !isDemoTenantActive(demo)) return failAndThrow({ reason: "demo_expired" });
-
-  return establishSession(user, ip, "auth.login.succeeded");
+  return establishSession(user, org!, ip);
 }
 
-/**
- * Everything a successful sign-in does once the caller has been proven: issue
- * the token pair, record the login, and shape the session payload. Shared by
- * password login and demo-link login so the two can never drift apart.
- */
-async function establishSession(user: User, ip: string | null, action: string): Promise<LoginResult> {
-  const org = user.get("Organization") as Organization;
-  const demo = await DemoTenant.findOne({ where: { provisionedUserId: user.id } });
+/** Issue the token pair, record the login, and shape the session payload. */
+async function establishSession(user: User, org: Organization, ip: string | null): Promise<LoginResult> {
   const roles = await getUserRoleNames(user.id);
   const accessToken = signAccessToken({
     sub: user.id,
@@ -115,13 +194,14 @@ async function establishSession(user: User, ip: string | null, action: string): 
   });
 
   user.lastLogin = new Date();
+  user.lockedUntil = null;
   await user.save();
   await LoginHistory.create({ userId: user.id, sourceIp: ip, result: "Success" });
   await writeAudit({
     actorUserId: user.id,
     organizationId: user.orgId,
     tenantId: user.tenantId,
-    action,
+    action: "auth.login.succeeded",
     entityType: "User",
     entityId: user.id,
     sourceIp: ip,
@@ -146,9 +226,6 @@ async function establishSession(user: User, ip: string | null, action: string): 
       lastLogin: user.lastLogin ? user.lastLogin.toISOString() : null,
       createdAt: user.createdAt ? user.createdAt.toISOString() : null,
     },
-    demoSession: demo
-      ? { tenantId: demo.tenantId, org: demo.org, role: demo.role, modules: demo.modules, expiresAt: demo.expiresAt!.toISOString() }
-      : undefined,
   };
 }
 
@@ -169,41 +246,6 @@ async function auditRefreshFailure(userId: string | null, ip: string | null, rea
   });
 }
 
-/**
- * OD's `#demo=<id>` deep link signs the visitor straight in. Ported, because
- * the demo id is a v4 UUID: possession of the link *is* the credential, which
- * makes this a magic link rather than a credential-free bypass. The window is
- * still enforced — an unapproved, disabled or expired demo gets nothing, and
- * every attempt is audited.
- *
- * Failures are deliberately uniform: a distinct "expired" vs "unknown" reply
- * would let a caller probe which demo ids exist.
- */
-export async function demoLinkLogin(demoId: string, ip: string | null): Promise<LoginResult> {
-  const reject = async (reason: string, userId: string | null = null) => {
-    await writeAudit({
-      actorUserId: userId, action: "auth.demoLink.failed", entityType: "DemoTenant",
-      // `entityId` is a UUID column, so a malformed id goes to metadata instead
-      // of blowing up the audit write we are in the middle of recording.
-      entityId: UUID_RE.test(demoId) ? demoId : null,
-      sourceIp: ip, result: "Failure", metadata: { reason, demoId },
-    });
-    throw new UnauthorizedError("This demo link is not valid", "DEMO_LINK_INVALID");
-  };
-
-  if (!UUID_RE.test(demoId)) return reject("malformed_id");
-
-  const demo = await DemoTenant.findByPk(demoId);
-  if (!demo) return reject("not_found");
-  if (!demo.provisionedUserId) return reject("not_provisioned");
-  if (!isDemoTenantActive(demo)) return reject("expired", demo.provisionedUserId);
-
-  const user = await User.findByPk(demo.provisionedUserId, { include: [Organization] });
-  if (!user || user.status !== "Active") return reject("user_inactive", demo.provisionedUserId);
-
-  return establishSession(user, ip, "auth.demoLink.succeeded");
-}
-
 export async function refresh(token: string, ip: string | null = null): Promise<RefreshResult> {
   let payload: { sub: string };
   try {
@@ -220,11 +262,28 @@ export async function refresh(token: string, ip: string | null = null): Promise<
     throw new UnauthorizedError("Invalid refresh token");
   }
 
-  if (stored.revokedAt) {
-    // The token verified and matched a stored hash but was already revoked:
-    // it was rotated out or logged out. Reuse means the token leaked — revoke
-    // all of the user's live sessions and reject.
-    await RefreshToken.update({ revokedAt: new Date() }, { where: { userId: payload.sub, revokedAt: null } });
+  if (stored.expiresAt < new Date()) {
+    await auditRefreshFailure(payload.sub, ip, "expired");
+    throw new UnauthorizedError("Refresh token expired or revoked");
+  }
+
+  const user = await User.findByPk(payload.sub, { include: [Organization] });
+  const org = user?.get("Organization") as Organization | undefined;
+  if (!user || !isAccountActive(user, org)) {
+    await auditRefreshFailure(payload.sub, ip, "user_inactive");
+    throw new UnauthorizedError("User not active");
+  }
+
+  // Rotate by atomically claiming the presented token: only one request can
+  // flip revoked_at from NULL. Zero rows means it was already rotated out or
+  // logged out — reuse means the token leaked (or two tabs raced), so revoke
+  // all of the user's live sessions and reject.
+  const [claimed] = await RefreshToken.update(
+    { revokedAt: new Date() },
+    { where: { id: stored.id, revokedAt: null } },
+  );
+  if (claimed === 0) {
+    await revokeUserSessions([payload.sub]);
     await writeAudit({
       actorUserId: payload.sub,
       action: "auth.refresh.reuse_detected",
@@ -236,32 +295,7 @@ export async function refresh(token: string, ip: string | null = null): Promise<
     throw new UnauthorizedError("Refresh token reuse detected");
   }
 
-  if (stored.expiresAt < new Date()) {
-    await auditRefreshFailure(payload.sub, ip, "expired");
-    throw new UnauthorizedError("Refresh token expired or revoked");
-  }
-
-  const user = await User.findByPk(payload.sub, { include: [Organization] });
-  if (!user || user.status !== "Active") {
-    await auditRefreshFailure(payload.sub, ip, "user_inactive");
-    throw new UnauthorizedError("User not active");
-  }
-
-  // Independent of the User.status check above (which a demo-lifecycle change
-  // should already have flipped) — a demo session's refresh token must die the
-  // moment the workspace is no longer active, not just at its next login.
-  const demo = await DemoTenant.findOne({ where: { provisionedUserId: user.id } });
-  if (demo && !isDemoTenantActive(demo)) {
-    await auditRefreshFailure(user.id, ip, "demo_expired");
-    throw new UnauthorizedError("This demo workspace has expired or been disabled and can no longer sign in.", "DEMO_EXPIRED");
-  }
-
-  const org = user.get("Organization") as Organization;
   const roles = await getUserRoleNames(user.id);
-
-  // Rotate: revoke the presented token, mint and persist a fresh one.
-  stored.revokedAt = new Date();
-  await stored.save();
   const refreshToken = signRefreshToken(user.id);
   await RefreshToken.create({
     userId: user.id,
@@ -274,7 +308,7 @@ export async function refresh(token: string, ip: string | null = null): Promise<
     sub: user.id,
     orgId: user.orgId,
     tenantId: user.tenantId,
-    orgType: org.type,
+    orgType: org!.type,
     roles,
   });
   return { accessToken, refreshToken };
@@ -303,13 +337,23 @@ export async function logout(token: string, ip: string | null = null): Promise<v
 
 export async function activate(activationToken: string, password: string): Promise<void> {
   if (!isPasswordValid(password)) {
-    throw new BadRequestError("Password does not meet policy", "WEAK_PASSWORD");
+    throw new BadRequestError(PASSWORD_POLICY_MESSAGE, "WEAK_PASSWORD");
   }
-  const user = await User.findOne({ where: { activationToken } });
-  if (!user) throw new BadRequestError("Invalid activation token", "INVALID_TOKEN");
+  // Only the hash is stored; the link is single-use (cleared below), bound to
+  // a still-pending account, and expires.
+  const user = await User.findOne({ where: { activationToken: hashToken(activationToken) } });
+  if (
+    !user ||
+    user.status !== "Pending Activation" ||
+    !user.activationTokenExpiresAt ||
+    user.activationTokenExpiresAt < new Date()
+  ) {
+    throw new BadRequestError("Invalid activation token", "INVALID_TOKEN");
+  }
   user.passwordHash = await hashPassword(password);
   user.status = "Active";
   user.activationToken = null;
+  user.activationTokenExpiresAt = null;
   await user.save();
   await writeAudit({
     actorUserId: user.id,
@@ -346,7 +390,7 @@ export async function changePassword(
     });
     throw new UnauthorizedError("Current password is incorrect", "CURRENT_PASSWORD_INVALID");
   }
-  if (!isPasswordValid(newPassword)) throw new BadRequestError("Password does not meet policy", "WEAK_PASSWORD");
+  if (!isPasswordValid(newPassword)) throw new BadRequestError(PASSWORD_POLICY_MESSAGE, "WEAK_PASSWORD");
   if (await verifyPassword(newPassword, user.passwordHash)) {
     throw new BadRequestError("New password must differ from the current password", "PASSWORD_UNCHANGED");
   }
@@ -357,7 +401,7 @@ export async function changePassword(
   await user.save();
 
   // Force every other device to re-authenticate with the new password.
-  await RefreshToken.update({ revokedAt: new Date() }, { where: { userId: user.id, revokedAt: null } });
+  await revokeUserSessions([user.id]);
 
   await writeAudit({
     actorUserId: user.id, organizationId: user.orgId, tenantId: user.tenantId,
@@ -366,26 +410,43 @@ export async function changePassword(
   });
 }
 
+/**
+ * Mail a one-hour, single-use reset link. The caller always gets the same
+ * answer whether or not the address matches an Active account.
+ */
 export async function requestPasswordReset(email: string): Promise<void> {
-  const user = await User.findOne({ where: { email } });
+  const user = await User.findOne({
+    where: { [Op.and]: [lowerEq("email", email), { status: "Active" }] },
+    order: [["createdAt", "ASC"], ["id", "ASC"]],
+  });
   if (!user) return; // do not reveal existence
-  user.resetToken = randomUUID();
-  user.resetExpires = new Date(Date.now() + 3600_000);
+  const { raw, hash } = newOpaqueToken();
+  user.resetToken = hash;
+  user.resetExpires = new Date(Date.now() + RESET_TOKEN_TTL_MS);
   await user.save();
+  await sendPasswordReset(user.email, raw);
 }
 
 export async function resetPassword(resetToken: string, password: string): Promise<void> {
-  if (!isPasswordValid(password)) throw new BadRequestError("Password does not meet policy", "WEAK_PASSWORD");
-  const user = await User.findOne({ where: { resetToken } });
-  if (!user || !user.resetExpires || user.resetExpires < new Date()) {
+  if (!isPasswordValid(password)) throw new BadRequestError(PASSWORD_POLICY_MESSAGE, "WEAK_PASSWORD");
+  const hash = hashToken(resetToken);
+  const user = await User.findOne({ where: { resetToken: hash } });
+  if (!user || user.status !== "Active" || !user.resetExpires || user.resetExpires < new Date()) {
     throw new BadRequestError("Invalid or expired reset token", "INVALID_TOKEN");
   }
-  user.passwordHash = await hashPassword(password);
-  user.resetToken = null;
-  user.resetExpires = null;
-  await user.save();
+  // Single use: the write is conditional on the token still being there, so
+  // two concurrent submissions of the same link cannot both succeed.
+  const [claimed] = await User.update(
+    { passwordHash: await hashPassword(password), resetToken: null, resetExpires: null, lockedUntil: null },
+    { where: { id: user.id, resetToken: hash } },
+  );
+  if (claimed === 0) throw new BadRequestError("Invalid or expired reset token", "INVALID_TOKEN");
+  // Whoever held a session may be who the owner is locking out.
+  await revokeUserSessions([user.id]);
   await writeAudit({
     actorUserId: user.id,
+    organizationId: user.orgId,
+    tenantId: user.tenantId,
     action: "auth.password.reset",
     entityType: "User",
     entityId: user.id,

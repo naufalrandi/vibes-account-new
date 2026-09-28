@@ -4,6 +4,7 @@ import type { OrgBranding, OrgSystemDefaults } from "../../db/models/organizatio
 import type { AuthContext } from "../../lib/scope";
 import { organizationScopeWhere, canActOnOrg } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
+import { revokeOrgSessions } from "../iam/auth.service";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 export interface CreateOrgInput {
@@ -83,6 +84,8 @@ async function transition(
   }
   org.status = status;
   await org.save();
+  // A suspended org's members lose their sessions now, not at token expiry.
+  if (status !== "Active") await revokeOrgSessions(org.id);
   await writeAudit({
     actorUserId: auth.userId,
     organizationId: org.id,

@@ -14,6 +14,7 @@ import {
 } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
 import { BadRequestError } from "../../lib/errors";
 
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
@@ -226,7 +227,7 @@ export async function createCustomControl(auth: AuthContext, input: Record<strin
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: auth.orgId,
+    organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId),
     action: "isra.controlCatalog.created",
     entityType: "IsraOrgControl",
     entityId: row.id,
@@ -276,7 +277,7 @@ export async function saveSoaJustification(
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: auth.orgId,
+    organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId),
     action: "isra.soaJustification.updated",
     entityType: "IsraSoaJustification",
     entityId: row.id,

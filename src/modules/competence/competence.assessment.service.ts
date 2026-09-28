@@ -1,4 +1,4 @@
-import { Op, Model, type ModelStatic } from "sequelize";
+import { Op, Model, type ModelStatic, type Transaction } from "sequelize";
 import {
   CompetenceRole, CompetenceAssignment, CompetenceAssessment, CompetenceGap,
   CompetenceSkill, CompetenceTraining, CompetenceEducation, User,
@@ -12,9 +12,12 @@ import type { AuthContext } from "../../lib/scope";
 import { resolveCompany } from "../business/business.service";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
 import { assertMayApprove } from "../approvals/approval.service";
 import { ISIC } from "../reference/data/isic";
 import { BadRequestError, ForbiddenError, NotFoundError, ConflictError } from "../../lib/errors";
+import { maxCodeSeq, withCodeLock } from "../../lib/codeSeq";
+import { orgToday } from "../../lib/localDate";
 
 const nowIso = () => new Date().toISOString();
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : v == null || v === "" ? null : String(v));
@@ -40,14 +43,12 @@ async function orgWhere(auth: AuthContext, scope?: "enterprise"): Promise<Record
   const ids = await visibleTenantOrgIds(auth);
   return ids === null ? {} : { orgId: { [Op.in]: ids } };
 }
-async function nextCode(model: ModelStatic<Model>, prefix: string): Promise<string> {
-  const rows = await model.findAll({ attributes: ["code"], where: { code: { [Op.like]: `${prefix}-%` } } });
-  let max = 0;
-  for (const r of rows) { const n = Number.parseInt(String(r.get("code")).slice(prefix.length + 1), 10); if (Number.isFinite(n) && n > max) max = n; }
-  return `${prefix}-${String(max + 1).padStart(4, "0")}`;
+/** Call inside `withCodeLock(prefix, …)` and insert with the same `tx`. */
+async function nextCode(model: ModelStatic<Model>, prefix: string, tx: Transaction): Promise<string> {
+  return `${prefix}-${String((await maxCodeSeq(model, prefix, tx)) + 1).padStart(4, "0")}`;
 }
 async function audit(auth: AuthContext, orgId: string, action: string, entityType: string, entityId: string, ip: string | null, metadata?: Record<string, unknown>) {
-  await writeAudit({ actorUserId: auth.userId, organizationId: orgId, action, entityType, entityId, sourceIp: ip, result: "Success", metadata: metadata ?? null });
+  await writeAudit({ actorUserId: auth.userId, organizationId: orgId, tenantId: auditTenantId(auth, orgId), action, entityType, entityId, sourceIp: ip, result: "Success", metadata: metadata ?? null });
 }
 /** OD `ocLogAdd(record, action, summary, who, now)` equivalent: this codebase
  * has no per-record activity array, so a gap's human-readable activity line
@@ -151,7 +152,7 @@ export async function assignRole(auth: AuthContext, input: Record<string, unknow
   if (existing) return existing.get({ plain: true });
   const row = await CompetenceAssignment.create({
     orgId: org, personId, personName: str(input.personName), roleId,
-    assignedDate: str(input.assignedDate) ?? new Date().toISOString().slice(0, 10), status: "Active",
+    assignedDate: str(input.assignedDate) ?? (await orgToday(org)), status: "Active",
   });
   await audit(auth, org, "competence.assignment.created", "CompetenceAssignment", row.id, ip);
   return row.get({ plain: true });
@@ -233,9 +234,15 @@ async function sectorDisplayMap(orgId: string | null, sectors: readonly string[]
   return out;
 }
 
-export async function buildChecklist(role: CompetenceRole): Promise<AssessReqResult[]> {
-  const skills = new Map((await CompetenceSkill.findAll()).map((s) => [s.id, s]));
-  const training = new Map((await CompetenceTraining.findAll()).map((t) => [t.id, t]));
+/**
+ * `orgId` is the org being assessed: skill/training definitions resolve from
+ * the global library (org_id null) plus that org's own entries — never another
+ * tenant's.
+ */
+export async function buildChecklist(role: CompetenceRole, orgId: string): Promise<AssessReqResult[]> {
+  const libraryWhere = { [Op.or]: [{ orgId: null }, { orgId }] };
+  const skills = new Map((await CompetenceSkill.findAll({ where: libraryWhere })).map((s) => [s.id, s]));
+  const training = new Map((await CompetenceTraining.findAll({ where: libraryWhere })).map((t) => [t.id, t]));
   const reqs: AssessReqResult[] = [];
   const blank = (o: Partial<AssessReqResult>): AssessReqResult => ({
     key: "", kind: "", label: "", necessity: "Required", evalType: "threshold", reqLevel: 0, assessedLevel: 0,
@@ -305,7 +312,7 @@ export async function getChecklist(auth: AuthContext, assignmentId: string): Pro
   const asg = await requireAssignment(auth, assignmentId);
   const role = await CompetenceRole.findByPk(asg.roleId);
   if (!role) throw new NotFoundError("Role not found", "ROLE_NOT_FOUND");
-  return buildChecklist(role);
+  return buildChecklist(role, asg.orgId);
 }
 
 // ============================ SCORING ENGINE (exact rules) ============================
@@ -383,11 +390,11 @@ export async function createAssessment(auth: AuthContext, input: Record<string, 
   if (!asg) throw new NotFoundError("Assignment not found", "ASSIGNMENT_NOT_FOUND");
   const role = await CompetenceRole.findByPk(asg.roleId);
   if (!role) throw new NotFoundError("Role not found", "ROLE_NOT_FOUND");
-  const date = str(input.date) ?? new Date().toISOString().slice(0, 10);
+  const date = str(input.date) ?? (await orgToday(org));
   const who = await actorName(auth);
 
   // Re-derive definitions from the role; overlay only the assessor-provided values.
-  const base = await buildChecklist(role);
+  const base = await buildChecklist(role, org);
   const byKey = new Map((arr(input.requirements) as Record<string, unknown>[]).map((r) => [String(r.key), r]));
   const merged: AssessReqResult[] = base.map((b) => {
     const c = byKey.get(b.key) ?? {};
@@ -405,12 +412,12 @@ export async function createAssessment(auth: AuthContext, input: Record<string, 
 
   const { status, score, openGaps } = assessCompute(merged);
   const validUntil = assessValidUntil(date, role, merged);
-  const row = await CompetenceAssessment.create({
-    orgId: org, code: await nextCode(CompetenceAssessment, "CA"), assignmentId: asg.id, personId: asg.personId, roleId: asg.roleId,
+  const row = await withCodeLock("CA", null, async (tx) => CompetenceAssessment.create({
+    orgId: org, code: await nextCode(CompetenceAssessment, "CA", tx), assignmentId: asg.id, personId: asg.personId, roleId: asg.roleId,
     assessor: str(input.assessor) ?? who, date, notes: str(input.notes), requirements: merged,
     score, openGaps, status, validUntil, approvalState: "Pending",
     activity: [{ ts: nowIso(), user: who, action: "created", summary: `Assessment ${status} (${score}%)` }],
-  });
+  }, { transaction: tx }));
   await generateGaps(org, row, role, merged, date, who);
   // Denormalize latest onto the assignment.
   asg.latestAssessmentId = row.id; asg.latestStatus = status; asg.latestDate = date; asg.validUntil = validUntil;
@@ -432,11 +439,11 @@ async function generateGaps(org: string, assessment: CompetenceAssessment, _role
       open.currentLevel = num(r.assessedLevel); open.severity = met; open.assessmentId = assessment.id;
       await open.save();
     } else {
-      await CompetenceGap.create({
-        orgId: org, code: await nextCode(CompetenceGap, "GAP"), assessmentId: assessment.id, assignmentId: assessment.assignmentId,
+      await withCodeLock("GAP", null, async (tx) => CompetenceGap.create({
+        orgId: org, code: await nextCode(CompetenceGap, "GAP", tx), assessmentId: assessment.id, assignmentId: assessment.assignmentId,
         personId: assessment.personId, roleId: assessment.roleId, reqKey: r.key, reqLabel: r.label, kind: r.kind, evalType: r.evalType,
         currentLevel: num(r.assessedLevel), requiredLevel: num(r.reqLevel), severity: met, status: "Open", createdDate: date,
-      });
+      }, { transaction: tx }));
     }
   }
 }
@@ -450,7 +457,7 @@ export async function approveAssessment(auth: AuthContext, id: string, ip: strin
   // previously this was an unguarded flag flip.
   await assertMayApprove(auth, row.assessor);
   const who = await actorName(auth);
-  row.approvalState = "Approved"; row.approvedBy = who; row.approvedDate = new Date().toISOString().slice(0, 10);
+  row.approvalState = "Approved"; row.approvedBy = who; row.approvedDate = await orgToday(row.orgId);
   row.activity = [...row.activity, { ts: nowIso(), user: who, action: "approved", summary: "Assessment signed off" }];
   await row.save();
   await audit(auth, row.orgId, "competence.assessment.approved", "CompetenceAssessment", row.id, ip);
@@ -468,7 +475,7 @@ export async function reassessQueue(auth: AuthContext, scope?: "enterprise") {
   const rows = await CompetenceAssignment.findAll({
     where: { ...(await orgWhere(auth, scope)), status: { [Op.ne]: "Archived" } },
   });
-  const today = new Date().toISOString().slice(0, 10);
+  const today = await orgToday(auth.orgId);
   const buckets = { never: [] as unknown[], overdue: [] as unknown[], due: [] as unknown[] };
   for (const a of rows) {
     const v = a.get({ plain: true });
@@ -529,7 +536,7 @@ export async function updateGap(auth: AuthContext, id: string, input: Record<str
   for (const k of ["action", "owner", "due", "training"] as const) if (input[k] !== undefined) rec[k] = str(input[k]);
   if (typeof input.trainingDone === "boolean") {
     row.trainingDone = input.trainingDone;
-    if (input.trainingDone) { row.trainingDate = str(input.trainingDate) ?? new Date().toISOString().slice(0, 10); if (row.status === "Open") row.status = "Planned"; }
+    if (input.trainingDone) { row.trainingDate = str(input.trainingDate) ?? (await orgToday(row.orgId)); if (row.status === "Open") row.status = "Planned"; }
   }
   if (input.status !== undefined) {
     const s = str(input.status) ?? "Open";
@@ -564,7 +571,7 @@ export async function reviewGap(auth: AuthContext, id: string, ip: string | null
   }
   row.status = "Reviewed";
   row.reviewedBy = await actorName(auth);
-  row.reviewedDate = new Date().toISOString().slice(0, 10);
+  row.reviewedDate = await orgToday(row.orgId);
   await row.save();
   await audit(auth, row.orgId, "competence.gap.reviewed", "CompetenceGap", row.id, ip);
   return withDisposition(row.get({ plain: true }));
@@ -671,7 +678,7 @@ export async function recordGapReassessment(auth: AuthContext, gapId: string, re
   row.reassessResult = result;
   if (result === GAP_REASSESS_MEETS) {
     row.status = "Resolved";
-    row.resolvedDate = new Date().toISOString().slice(0, 10);
+    row.resolvedDate = await orgToday(row.orgId);
     row.resolvedBy = trainingPlanId;
     await row.save();
     await gapActivity(auth, row.orgId, "competence.gap.reassessResolved", row.id, ip, "competence gap resolved", "Reassessment met requirement");
@@ -691,7 +698,7 @@ export async function resolveGapFromTrainingPlanClosed(auth: AuthContext, gapId:
   const row = await requireGap(auth, gapId);
   if (row.status === "Resolved") return withDisposition(row.get({ plain: true }));
   row.status = "Resolved";
-  row.resolvedDate = new Date().toISOString().slice(0, 10);
+  row.resolvedDate = await orgToday(row.orgId);
   row.resolvedBy = trainingPlanId;
   await row.save();
   await gapActivity(auth, row.orgId, "competence.gap.trainingPlanClosed", row.id, ip, "training plan closed", `Linked training ${trainingPlanId} closed`);

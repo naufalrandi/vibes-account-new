@@ -24,7 +24,7 @@ async function makeTenant(username: string, code: string, actions = MS): Promise
 /** A gap needs a real role + assignment behind it (both are FK-constrained). */
 async function seedGap(orgId: string, code: string) {
   const role = await CompetenceRole.create({
-    orgId, code: `ROL-${code}`, name: "Internal Auditor", description: null,
+    orgId, name: "Internal Auditor", description: null,
     eduMinLevelId: null, eduFields: [], eduCountry: null, expReqs: [],
     responsibilities: [], authorities: [], reviewFreq: "12", status: "Active",
   });

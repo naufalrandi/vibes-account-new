@@ -4,6 +4,7 @@ import type { AccountStatus } from "../../db/models/account.model";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
 import { NotFoundError } from "../../lib/errors";
+import { escapeLike } from "../../lib/escapeLike";
 
 export interface CreateAccountInput {
   name: string;
@@ -39,7 +40,7 @@ function listWhere(auth: AuthContext, filters: ListAccountFilters): WhereOptions
   if (filters.status) and.push({ status: filters.status });
   if (filters.role) and.push({ role: filters.role });
   if (filters.search) {
-    const term = `%${filters.search}%`;
+    const term = `%${escapeLike(filters.search)}%`;
     and.push({
       [Op.or]: [
         { name: { [Op.iLike]: term } },

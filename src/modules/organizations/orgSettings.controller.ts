@@ -9,7 +9,7 @@ import { UnauthorizedError } from "../../lib/errors";
 // uniqueness in organization.service.updateOrgSettings — it carries a DB-level
 // unique constraint); `contactEmail`, when provided, must be a valid email.
 const brandingSchema = z.object({
-  logo: z.string(),
+  logo: z.string().max(2_000_000),
   favicon: z.string(),
   primary: z.string(),
   secondary: z.string(),

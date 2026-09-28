@@ -14,7 +14,7 @@ const grantsSchema = z.object({
   actionKeys: z.array(z.string()).default([]),
 });
 
-roleRoutes.get("/roles", requireAction(ACTIONS.ROLE_READ), async (req: Request, res: Response, next: NextFunction) => {
+roleRoutes.get("/", requireAction(ACTIONS.ROLE_READ), async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) throw new UnauthorizedError();
     sendOk(res, await listRoles(req.auth));
@@ -23,7 +23,7 @@ roleRoutes.get("/roles", requireAction(ACTIONS.ROLE_READ), async (req: Request, 
   }
 });
 
-roleRoutes.get("/roles/:id/grants", requireAction(ACTIONS.ROLE_READ), async (req: Request, res: Response, next: NextFunction) => {
+roleRoutes.get("/:id/grants", requireAction(ACTIONS.ROLE_READ), async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) throw new UnauthorizedError();
     sendOk(res, await getRoleGrants(req.auth, req.params.id as string));
@@ -32,7 +32,7 @@ roleRoutes.get("/roles/:id/grants", requireAction(ACTIONS.ROLE_READ), async (req
   }
 });
 
-roleRoutes.put("/roles/:id/grants", requireAction(ACTIONS.ROLE_GRANT), async (req: Request, res: Response, next: NextFunction) => {
+roleRoutes.put("/:id/grants", requireAction(ACTIONS.ROLE_GRANT), async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) throw new UnauthorizedError();
     const { menuIds, actionKeys } = grantsSchema.parse(req.body);

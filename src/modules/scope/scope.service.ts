@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Op } from "sequelize";
+import { Op, type Transaction } from "sequelize";
 import { MsScope, Organization } from "../../db/models";
 import {
   SCOPE_DIMS, MS_SCOPESTAT, SCOPE_DSTAT,
@@ -9,9 +9,10 @@ import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { maxCodeSeq, withCodeLock } from "../../lib/codeSeq";
+import { orgToday } from "../../lib/localDate";
 
 const nowIso = () => new Date().toISOString();
-const today = () => new Date().toISOString().slice(0, 10);
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : v == null || v === "" ? null : String(v));
 const inScope = (r: ScopeDimRow) => r.status === "Included" || r.status === "Partially Included";
 
@@ -26,11 +27,9 @@ async function targetOrg(auth: AuthContext, orgId?: string): Promise<string> {
   if (ids !== null && !ids.includes(org)) throw new ForbiddenError();
   return org;
 }
-async function nextCode(): Promise<string> {
-  const rows = await MsScope.findAll({ attributes: ["code"], where: { code: { [Op.like]: "SCOPE-%" } } });
-  let max = 0;
-  for (const r of rows) { const n = Number.parseInt(r.code.slice(6), 10); if (Number.isFinite(n) && n > max) max = n; }
-  return `SCOPE-${String(max + 1).padStart(4, "0")}`;
+/** `ms_scopes.code` is globally unique, so the lock is global. Call inside `withCodeLock("SCOPE", …)`. */
+async function nextCode(tx: Transaction): Promise<string> {
+  return `SCOPE-${String((await maxCodeSeq(MsScope, "SCOPE", tx)) + 1).padStart(4, "0")}`;
 }
 async function audit(auth: AuthContext, orgId: string, action: string, id: string, ip: string | null) {
   await writeAudit({ actorUserId: auth.userId, organizationId: orgId, action, entityType: "MsScope", entityId: id, sourceIp: ip, result: "Success" });
@@ -114,13 +113,13 @@ export async function createScope(auth: AuthContext, input: Record<string, unkno
   // this scope carries the same lineageId so version history stays linkable
   // once each clone gets its own new `code` (see migration 0041).
   const id = randomUUID();
-  const row = await MsScope.create({
-    id, lineageId: id, orgId: org, code: await nextCode(), name, owner: str(input.owner) ?? "Tenant Administrator",
+  const row = await withCodeLock("SCOPE", null, async (tx) => MsScope.create({
+    id, lineageId: id, orgId: org, code: await nextCode(tx), name, owner: str(input.owner) ?? "Tenant Administrator",
     effectiveDate: str(input.effectiveDate), reviewFreq: str(input.reviewFreq) || "Annually", status: "Draft",
     ...dims, statement: str(input.statement) ?? await generateStatement(org, dims), limitations: str(input.limitations),
     approvalNotes: str(input.approvalNotes), frameworkRelevance: frameworkRelevance(dims), version: 1,
     createdBy: who, activity: [{ ts: nowIso(), user: who, action: "created", summary: "Scope drafted" }],
-  });
+  }, { transaction: tx }));
   await audit(auth, org, "scope.created", row.id, ip);
   return row.get({ plain: true });
 }
@@ -161,7 +160,7 @@ export async function approveScope(auth: AuthContext, id: string, ip: string | n
   const row = await requireScope(auth, id);
   if (row.status === "Approved" || row.status === "Active") throw new ConflictError("Scope is already approved", "ALREADY_APPROVED");
   const who = await actorName(auth);
-  row.status = "Approved"; row.approvedBy = who; row.approvedDate = today();
+  row.status = "Approved"; row.approvedBy = who; row.approvedDate = await orgToday(row.orgId);
   row.activity = pushActivity(row.activity, who, "approved", "Scope approved");
   await row.save();
   await audit(auth, row.orgId, "scope.approved", row.id, ip);
@@ -173,10 +172,10 @@ export async function activateScope(auth: AuthContext, id: string, ip: string | 
   // Supersede any other Active scope for this org.
   const others = await MsScope.findAll({ where: { orgId: row.orgId, status: "Active", id: { [Op.ne]: row.id } } });
   for (const o of others) { o.status = "Superseded"; o.supersededBy = who; o.supersededAt = nowIso(); o.supersededByVersion = row.version; await o.save(); }
-  if (!row.approvedBy) { row.approvedBy = who; row.approvedDate = today(); }
+  if (!row.approvedBy) { row.approvedBy = who; row.approvedDate = await orgToday(row.orgId); }
   row.status = "Active";
   const dims = scopeDims(row);
-  if (!row.baseline) row.baseline = { version: row.version, capturedAt: row.approvedDate ?? row.effectiveDate ?? today(), capturedBy: row.approvedBy ?? who, counts: computeCounts(dims), snapshot: dims };
+  if (!row.baseline) row.baseline = { version: row.version, capturedAt: row.approvedDate ?? row.effectiveDate ?? (await orgToday(row.orgId)), capturedBy: row.approvedBy ?? who, counts: computeCounts(dims), snapshot: dims };
   row.activity = pushActivity(row.activity, who, "activated", "Scope set as active");
   await row.save();
   await audit(auth, row.orgId, "scope.activated", row.id, ip);
@@ -250,8 +249,8 @@ export async function spApprove(auth: AuthContext, id: string, ip: string | null
   // 0041; filtering on `code` equality can never work since the clone's code
   // always differs).
   const plain = row.get({ plain: true });
-  await MsScope.create({
-    lineageId: row.lineageId, orgId: row.orgId, code: await nextCode(), name: plain.name, owner: plain.owner, effectiveDate: plain.effectiveDate,
+  await withCodeLock("SCOPE", null, async (tx) => MsScope.create({
+    lineageId: row.lineageId, orgId: row.orgId, code: await nextCode(tx), name: plain.name, owner: plain.owner, effectiveDate: plain.effectiveDate,
     reviewFreq: plain.reviewFreq, status: "Superseded",
     frameworks: (row.baseline?.snapshot.frameworks ?? row.frameworks), sites: (row.baseline?.snapshot.sites ?? row.sites),
     processes: (row.baseline?.snapshot.processes ?? row.processes), envs: (row.baseline?.snapshot.envs ?? row.envs),
@@ -259,10 +258,10 @@ export async function spApprove(auth: AuthContext, id: string, ip: string | null
     statement: plain.statement, limitations: plain.limitations, frameworkRelevance: plain.frameworkRelevance,
     approvedBy: plain.approvedBy, approvedDate: plain.approvedDate, version: pv, baseline: row.baseline,
     supersededAt: nowIso(), supersededBy: who, supersededByVersion: nv, createdBy: plain.createdBy, activity: plain.activity,
-  });
+  }, { transaction: tx }));
   // Re-baseline the active scope to the new version.
   row.baseline = { version: nv, capturedAt: nowIso(), capturedBy: who, counts: computeCounts(snap), snapshot: snap };
-  row.version = nv; row.status = "Active"; row.pendingChange = null; row.approvedBy = who; row.approvedDate = today();
+  row.version = nv; row.status = "Active"; row.pendingChange = null; row.approvedBy = who; row.approvedDate = await orgToday(row.orgId);
   row.activity = pushActivity(row.activity, who, "re-baselined", `Scope re-baselined · v${pv}.0 superseded → v${nv}.0`);
   await row.save();
   await audit(auth, row.orgId, "scope.reBaselined", row.id, ip);

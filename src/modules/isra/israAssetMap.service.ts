@@ -15,6 +15,7 @@ import {
 } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
 import { BadRequestError, NotFoundError, ConflictError } from "../../lib/errors";
 
 const str = (v: unknown): string | null =>
@@ -121,7 +122,7 @@ export async function createAssetMap(auth: AuthContext, input: Record<string, un
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: auth.orgId,
+    organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId),
     action: "isra.assetMap.created",
     entityType: "IsraAssetMap",
     entityId: row.id,
@@ -140,7 +141,7 @@ export async function deleteAssetMap(auth: AuthContext, id: string, ip: string |
 
   await writeAudit({
     actorUserId: auth.userId,
-    organizationId: auth.orgId,
+    organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId),
     action: "isra.assetMap.deleted",
     entityType: "IsraAssetMap",
     entityId: id,

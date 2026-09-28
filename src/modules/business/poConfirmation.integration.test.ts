@@ -127,6 +127,8 @@ describe("public supplier PO confirmation", () => {
     const data = {
       supplierName: "Stark Industries Supply", supplierId,
       issuedDate: "2026-08-01", deliveryBy: "2026-09-01", currency: "IDR", terms: "30", amount: 1000,
+      // Kept, but stamped with the caller's name; the issuer is the trail's oldest,
+      // server-authored "Record created" entry — the creating user.
       activity: [
         { ts: "2026-08-01T01:00:00.000Z", user: "Cindy Moon", action: "sent PO to supplier", summary: "" },
         { ts: "2026-08-01T00:00:00.000Z", user: "Cindy Moon", action: "issued", summary: "" },
@@ -141,14 +143,14 @@ describe("public supplier PO confirmation", () => {
 
     const res = await request(app).get(`/v1/public/purchase-orders/${code}/confirmation?t=${encodeURIComponent(tok)}`);
     expect(res.status).toBe(200);
-    expect(res.body.data).toMatchObject({ issuedBy: "Cindy Moon", remitTo: "Bank Central Asia (BCA) · 527-088-1120" });
+    expect(res.body.data).toMatchObject({ issuedBy: "SP User", remitTo: "Bank Central Asia (BCA) · 527-088-1120" });
 
     // The acknowledgement is prepended to the same trail; ISSUED BY must still
     // name the buyer's issuer, not the supplier who just answered.
     const ack = await request(app).post(`/v1/public/purchase-orders/${code}/confirmation?t=${encodeURIComponent(tok)}`)
       .send({ state: "Acknowledged" });
     expect(ack.status).toBe(200);
-    expect(ack.body.data.issuedBy).toBe("Cindy Moon");
+    expect(ack.body.data.issuedBy).toBe("SP User");
   });
 
   // OD omits the whole REMIT TO cell when the supplier has no bank record.
@@ -160,8 +162,8 @@ describe("public supplier PO confirmation", () => {
     expect(res.body.data.remitTo).toBe("");
     // ISSUED BY still stands: OD `poDocHtml` (js/modules.js:4185) reads the
     // trail's issuing entry and falls back to `ocActor()`, and `ent-po` is a
-    // transitions-gated module, so `createBusiness`/`updateBusiness` always
-    // author that entry themselves (business.service.ts, `hasActivity`). It
+    // transitions-gated module, so `createBusiness` always authors that entry
+    // itself as the trail's oldest (business.service.ts, `tracksActivity`). It
     // names the buyer-side user who raised the order — never the supplier.
     expect(res.body.data.issuedBy).toBe("SP User");
   });

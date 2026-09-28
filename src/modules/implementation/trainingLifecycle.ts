@@ -33,6 +33,7 @@ import { ImplementationRecord } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
 import { logActivity, actorName } from "../record-events/recordEvent.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
 import { TP_SOURCES, TP_TYPES, TP_DELIVERY } from "./registry";
@@ -171,7 +172,7 @@ export async function completeTraining(
   await r.save();
 
   await writeAudit({
-    actorUserId: auth.userId, organizationId: r.orgId,
+    actorUserId: auth.userId, organizationId: r.orgId, tenantId: auditTenantId(auth, r.orgId),
     action: "ms.training.completed", entityType: "ImplementationRecord", entityId: r.id,
     sourceIp: ip, result: "Success", metadata: { completionResult },
   });
@@ -224,7 +225,7 @@ export async function reassessTraining(
   await r.save();
 
   await writeAudit({
-    actorUserId: auth.userId, organizationId: r.orgId,
+    actorUserId: auth.userId, organizationId: r.orgId, tenantId: auditTenantId(auth, r.orgId),
     action: "ms.training.reassessed", entityType: "ImplementationRecord", entityId: r.id,
     sourceIp: ip, result: "Success", metadata: { result },
   });
@@ -271,7 +272,7 @@ export async function setTrainingStatus(
   await r.save();
 
   await writeAudit({
-    actorUserId: auth.userId, organizationId: r.orgId,
+    actorUserId: auth.userId, organizationId: r.orgId, tenantId: auditTenantId(auth, r.orgId),
     action: `ms.training.${status.toLowerCase()}`, entityType: "ImplementationRecord", entityId: r.id,
     sourceIp: ip, result: "Success",
   });

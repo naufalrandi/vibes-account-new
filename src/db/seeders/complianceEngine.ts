@@ -43,7 +43,7 @@ import { CE_FWRC } from "./complianceEngine.fwrc.data";
 const ISO27001 = "ISO/IEC 27001:2022";
 const BULK_CHUNK = 500;
 
-/** Entities the Phase 8/9 demo blocks in seed.ts need (demo glue, not OD parity). */
+/** Entities the Phase 8/9 sample blocks in seed.ts need (sample glue, not OD parity). */
 export interface ComplianceEngineHandles {
   iso27001: Framework;
   /** FWE-017 "Internal Audit". */
@@ -56,7 +56,7 @@ export interface ComplianceEngineHandles {
   /** Risk Management's first maturity CQ (CQ-007-04) + its worst response. */
   qRisk: ConformanceQuestion;
   qRiskR0: ConformanceResponse;
-  /** Demo-bridge criterion: score 5 on ISO 27001 9.2.1 (not part of the OD set). */
+  /** Sample-bridge criterion: score 5 on ISO 27001 9.2.1 (not part of the OD set). */
   crit5: RequirementCriterion;
   /** OD criterion: score 0 on ISO 27001 6.1.2. */
   critR0: RequirementCriterion;
@@ -346,8 +346,8 @@ export async function seedComplianceEngine(): Promise<ComplianceEngineHandles> {
   await seedCriteria(requirements);
   const fwrcCreated = await seedFwrc(frameworks, requirements, questions, responses);
 
-  // --- Demo bridge (BE-only, not OD content) --------------------------------
-  // Phase 8 in seed.ts finalizes a demo assessment against ISO 27001 with one
+  // --- Sample bridge (BE-only, not OD content) --------------------------------
+  // Phase 8 in seed.ts finalizes a sample assessment against ISO 27001 with one
   // "mature" (score 5) and one "ad hoc" (score 0) answer. OD's criteria only
   // cover scores 0-2, so a single score-5 criterion is added on ISO 27001
   // 9.2.1; every other handle points at OD-seeded content.

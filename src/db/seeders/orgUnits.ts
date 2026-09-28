@@ -1,5 +1,5 @@
 /**
- * SOF-407 (design: SOF-386, revision 8c8dc4ed) — seeds the demo tenant's
+ * SOF-407 (design: SOF-386, revision 8c8dc4ed) — seeds the sample tenant's
  * Enterprise org structure: 32 static `OrgUnit` rows (transcribed verbatim
  * from OD's `orgUnits.json` dump — id/name/tier/parentId/appt levels) plus
  * the synthetic lead roster OD's `orgPeopleSeedIfNeeded` (modules.js:4459-4462)
@@ -105,7 +105,7 @@ export async function seedOrgUnits(orgId: string): Promise<void> {
       const [user] = await User.findOrCreate({
         where: { username },
         defaults: {
-          orgId, tenantId: orgId, fullName, username, email: `${username}@axia-demo.local`,
+          orgId, tenantId: orgId, fullName, username, email: `${username}@axia-sample.local`,
           passwordHash: null, status: "Active", position: LEVEL_TITLE[level] ?? level,
           orgUnitId: unitUuid, empLevel: level, system: false,
         },

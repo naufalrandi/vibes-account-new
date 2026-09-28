@@ -29,9 +29,16 @@ export function rateLimit(opts: RateLimitOptions) {
   const prefix = opts.keyPrefix ?? "default";
   if (!stores.has(prefix)) stores.set(prefix, new Map());
   const store = stores.get(prefix)!;
+  let nextSweep = 0;
 
   return function rateLimiter(req: Request, _res: Response, next: NextFunction): void {
     const now = Date.now();
+    // Drop expired buckets at most once per window so one-off client IPs don't
+    // accumulate forever (unbounded memory under a spray of source addresses).
+    if (now >= nextSweep) {
+      for (const [k, b] of store) if (b.resetAt <= now) store.delete(k);
+      nextSweep = now + opts.windowMs;
+    }
     const key = clientKey(req);
     const bucket = store.get(key);
 

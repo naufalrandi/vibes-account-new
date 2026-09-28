@@ -4,6 +4,7 @@ import { SKILL_TYPES } from "../../db/models/competence.models";
 import type { AuthContext } from "../../lib/scope";
 import { visibleTenantOrgIds } from "../sites/site.service";
 import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
 import { sequelize } from "../../db/sequelize";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
 import { ensureSkillLibrarySeed, ensureTrainingCatalogSeed } from "./competence.skillLibrarySeed";
@@ -13,7 +14,7 @@ const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? 
 const arr = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
 
 async function audit(auth: AuthContext, action: string, entityType: string, entityId: string, ip: string | null) {
-  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action, entityType, entityId, sourceIp: ip, result: "Success" });
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId), action, entityType, entityId, sourceIp: ip, result: "Success" });
 }
 
 /** Global (org_id NULL) rows are visible to everyone; tenant rows to their owner. */

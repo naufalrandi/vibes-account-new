@@ -27,7 +27,7 @@ describe("business unit registers", () => {
 
   it("requires business.read", async () => {
     const a = await actor("SP", "noaccess", []);
-    expect((await request(app).get("/v1/business/enterprise/ent-personnel").set(authed(a.token))).status).toBe(403);
+    expect((await request(app).get("/v1/business/enterprise/ent-doa").set(authed(a.token))).status).toBe(403);
   });
 
   it("rejects an unknown business area", async () => {
@@ -143,31 +143,60 @@ describe("business unit registers", () => {
 
   it("creates a record with an abbreviated code and lists it", async () => {
     const a = await actor("SP", "sp1", ALL);
-    const res = await request(app).post("/v1/business/enterprise/ent-personnel").set(authed(a.token))
-      .send({ title: "Budi Santoso", status: "Active", data: { department: "Engineering", position: "Senior Engineer" } });
+    const res = await request(app).post("/v1/business/enterprise/ent-doa").set(authed(a.token))
+      .send({ title: "Purchases up to 10M", status: "Active", data: { kind: "Purchase", approver: "CFO" } });
     expect(res.status).toBe(201);
-    expect(res.body.data.code).toBe("PER-0001");
+    expect(res.body.data.code).toBe("DOA-0001");
     expect(res.body.data.area).toBe("enterprise");
-    expect(res.body.data.data.department).toBe("Engineering");
+    expect(res.body.data.data.approver).toBe("CFO");
 
-    const list = await request(app).get("/v1/business/enterprise/ent-personnel").set(authed(a.token));
+    const list = await request(app).get("/v1/business/enterprise/ent-doa").set(authed(a.token));
     expect(list.body.data).toHaveLength(1);
+    expect(list.body.meta.pagination).toMatchObject({ limit: 1000, offset: 0, total: 1, hasMore: false });
     // A second record continues the per-module sequence.
-    const res2 = await request(app).post("/v1/business/enterprise/ent-personnel").set(authed(a.token)).send({ title: "Sari" });
-    expect(res2.body.data.code).toBe("PER-0002");
+    const res2 = await request(app).post("/v1/business/enterprise/ent-doa").set(authed(a.token)).send({ title: "Sari" });
+    expect(res2.body.data.code).toBe("DOA-0002");
     expect(res2.body.data.status).toBe("Open");
+
+    const page = await request(app).get("/v1/business/enterprise/ent-doa?limit=1&offset=1&sort=code:asc").set(authed(a.token));
+    expect(page.body.data.map((r: { code: string }) => r.code)).toEqual(["DOA-0002"]);
+    expect(page.body.meta.pagination).toMatchObject({ limit: 1, offset: 1, total: 2, hasMore: false });
+    expect((await request(app).get("/v1/business/enterprise/ent-doa?limit=501").set(authed(a.token))).status).toBe(400);
+  });
+
+  it("rejects an unknown business module", async () => {
+    const a = await actor("SP", "sp1", ALL);
+    const res = await request(app).get("/v1/business/enterprise/ent-made-up").set(authed(a.token));
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe("MODULE_NOT_FOUND");
+  });
+
+  it("treats % and _ in ?q= literally", async () => {
+    const a = await actor("SP", "sp1", ALL);
+    await request(app).post("/v1/business/enterprise/ent-doa").set(authed(a.token)).send({ title: "Discount 50% off" });
+    await request(app).post("/v1/business/enterprise/ent-doa").set(authed(a.token)).send({ title: "Plain title" });
+    const pct = await request(app).get("/v1/business/enterprise/ent-doa?q=%25").set(authed(a.token));
+    expect(pct.body.data.map((r: { title: string }) => r.title)).toEqual(["Discount 50% off"]);
+    const under = await request(app).get("/v1/business/enterprise/ent-doa?q=_").set(authed(a.token));
+    expect(under.body.data).toHaveLength(0);
+  });
+
+  it("bounds a free-text status to 60 chars", async () => {
+    const a = await actor("SP", "sp1", ALL);
+    const res = await request(app).post("/v1/business/enterprise/ent-doa").set(authed(a.token)).send({ title: "X", status: "s".repeat(61) });
+    expect(res.status).toBe(400);
   });
 
   it("updates and deletes a record", async () => {
     const a = await actor("SP", "sp1", ALL);
-    const created = await request(app).post("/v1/business/datana/dn-pentest").set(authed(a.token)).send({ title: "Engagement A" });
+    const created = await request(app).post("/v1/business/enterprise/ent-doa").set(authed(a.token)).send({ title: "Engagement A" });
     const id = created.body.data.id;
-    const upd = await request(app).put(`/v1/business/datana/dn-pentest/${id}`).set(authed(a.token)).send({ status: "In Progress", data: { scope: "web" } });
+    const upd = await request(app).put(`/v1/business/enterprise/ent-doa/${id}`).set(authed(a.token)).send({ status: "In Progress", data: { method: "web" } });
     expect(upd.body.data.status).toBe("In Progress");
-    expect(upd.body.data.data.scope).toBe("web");
-    const del = await request(app).delete(`/v1/business/datana/dn-pentest/${id}`).set(authed(a.token));
+    expect(upd.body.data.data.method).toBe("web");
+    const del = await request(app).delete(`/v1/business/enterprise/ent-doa/${id}`).set(authed(a.token));
     expect(del.status).toBe(200);
-    expect((await request(app).get("/v1/business/datana/dn-pentest").set(authed(a.token))).body.data).toHaveLength(0);
+    expect((await request(app).get("/v1/business/enterprise/ent-doa").set(authed(a.token))).body.data).toHaveLength(0);
   });
 
   it("scopes records to the acting org and by area+module", async () => {
@@ -339,30 +368,30 @@ describe("business company tenancy boundary (P0-7 / Wave C)", () => {
   };
   it("excludes an exelera record from an axia-scoped list", async () => {
     const a = await uniqueActor(ALL);
-    await request(app).post("/v1/business/enterprise/ent-personnel").set(authed(a.token))
+    await request(app).post("/v1/business/enterprise/ent-doa").set(authed(a.token))
       .send({ title: "Exelera Person", company: "exelera" });
 
-    const axiaList = await request(app).get("/v1/business/enterprise/ent-personnel?company=axia").set(authed(a.token));
+    const axiaList = await request(app).get("/v1/business/enterprise/ent-doa?company=axia").set(authed(a.token));
     expect(axiaList.status).toBe(200);
     expect(axiaList.body.data).toHaveLength(0);
   });
 
   it("excludes an exelera record from a list with no company param at all (defaults to axia, not everything)", async () => {
     const a = await uniqueActor(ALL);
-    await request(app).post("/v1/business/enterprise/ent-personnel").set(authed(a.token))
+    await request(app).post("/v1/business/enterprise/ent-doa").set(authed(a.token))
       .send({ title: "Exelera Person", company: "exelera" });
 
-    const unscopedList = await request(app).get("/v1/business/enterprise/ent-personnel").set(authed(a.token));
+    const unscopedList = await request(app).get("/v1/business/enterprise/ent-doa").set(authed(a.token));
     expect(unscopedList.status).toBe(200);
     expect(unscopedList.body.data).toHaveLength(0);
   });
 
   it("404s an update against an exelera record when scoped as axia", async () => {
     const a = await uniqueActor(ALL);
-    const created = (await request(app).post("/v1/business/enterprise/ent-personnel").set(authed(a.token))
+    const created = (await request(app).post("/v1/business/enterprise/ent-doa").set(authed(a.token))
       .send({ title: "Exelera Person", company: "exelera" })).body.data;
 
-    const upd = await request(app).put(`/v1/business/enterprise/ent-personnel/${created.id}?company=axia`).set(authed(a.token))
+    const upd = await request(app).put(`/v1/business/enterprise/ent-doa/${created.id}?company=axia`).set(authed(a.token))
       .send({ status: "Active" });
     expect(upd.status).toBe(404);
     expect(upd.body.error.code).toBe("RECORD_NOT_FOUND");
@@ -370,20 +399,20 @@ describe("business company tenancy boundary (P0-7 / Wave C)", () => {
 
   it("404s a delete against an exelera record when scoped as axia", async () => {
     const a = await uniqueActor(ALL);
-    const created = (await request(app).post("/v1/business/enterprise/ent-personnel").set(authed(a.token))
+    const created = (await request(app).post("/v1/business/enterprise/ent-doa").set(authed(a.token))
       .send({ title: "Exelera Person", company: "exelera" })).body.data;
 
-    const del = await request(app).delete(`/v1/business/enterprise/ent-personnel/${created.id}?company=axia`).set(authed(a.token));
+    const del = await request(app).delete(`/v1/business/enterprise/ent-doa/${created.id}?company=axia`).set(authed(a.token));
     expect(del.status).toBe(404);
     expect(del.body.error.code).toBe("RECORD_NOT_FOUND");
   });
 
   it("still finds and mutates the exelera record when scoped correctly as exelera", async () => {
     const a = await uniqueActor(ALL);
-    const created = (await request(app).post("/v1/business/enterprise/ent-personnel").set(authed(a.token))
+    const created = (await request(app).post("/v1/business/enterprise/ent-doa").set(authed(a.token))
       .send({ title: "Exelera Person", company: "exelera" })).body.data;
 
-    const upd = await request(app).put(`/v1/business/enterprise/ent-personnel/${created.id}?company=exelera`).set(authed(a.token))
+    const upd = await request(app).put(`/v1/business/enterprise/ent-doa/${created.id}?company=exelera`).set(authed(a.token))
       .send({ status: "Active" });
     expect(upd.status).toBe(200);
     expect(upd.body.data.status).toBe("Active");
@@ -391,14 +420,14 @@ describe("business company tenancy boundary (P0-7 / Wave C)", () => {
 
   it("stores an explicitly-requested exelera company as exelera, not silently defaulted to axia", async () => {
     const a = await uniqueActor(ALL);
-    const created = (await request(app).post("/v1/business/enterprise/ent-personnel").set(authed(a.token))
+    const created = (await request(app).post("/v1/business/enterprise/ent-doa").set(authed(a.token))
       .send({ title: "Exelera Person", company: "exelera" })).body.data;
     expect(created.company).toBe("exelera");
   });
 
   it("rejects create with an unrecognized company as 400 INVALID_COMPANY instead of silently coercing to axia", async () => {
     const a = await uniqueActor(ALL);
-    const res = await request(app).post("/v1/business/enterprise/ent-personnel").set(authed(a.token))
+    const res = await request(app).post("/v1/business/enterprise/ent-doa").set(authed(a.token))
       .send({ title: "Bogus Co Person", company: "bogus" });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("INVALID_COMPANY");
@@ -406,26 +435,26 @@ describe("business company tenancy boundary (P0-7 / Wave C)", () => {
 
   it("rejects list with an unrecognized company as 400 INVALID_COMPANY", async () => {
     const a = await uniqueActor(ALL);
-    const res = await request(app).get("/v1/business/enterprise/ent-personnel?company=bogus").set(authed(a.token));
+    const res = await request(app).get("/v1/business/enterprise/ent-doa?company=bogus").set(authed(a.token));
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("INVALID_COMPANY");
   });
 
   it("does not let an update move a record from axia to exelera", async () => {
     const a = await uniqueActor(ALL);
-    const created = (await request(app).post("/v1/business/enterprise/ent-personnel").set(authed(a.token))
+    const created = (await request(app).post("/v1/business/enterprise/ent-doa").set(authed(a.token))
       .send({ title: "Axia Person", company: "axia" })).body.data;
     expect(created.company).toBe("axia");
 
-    const upd = await request(app).put(`/v1/business/enterprise/ent-personnel/${created.id}?company=axia`).set(authed(a.token))
+    const upd = await request(app).put(`/v1/business/enterprise/ent-doa/${created.id}?company=axia`).set(authed(a.token))
       .send({ company: "exelera", status: "Active" });
     expect(upd.status).toBe(200);
     expect(upd.body.data.company).toBe("axia");
 
     // Still findable under axia, not exelera — the move never happened.
-    const axiaList = await request(app).get("/v1/business/enterprise/ent-personnel?company=axia").set(authed(a.token));
+    const axiaList = await request(app).get("/v1/business/enterprise/ent-doa?company=axia").set(authed(a.token));
     expect(axiaList.body.data.map((r: { id: string }) => r.id)).toContain(created.id);
-    const exeleraList = await request(app).get("/v1/business/enterprise/ent-personnel?company=exelera").set(authed(a.token));
+    const exeleraList = await request(app).get("/v1/business/enterprise/ent-doa?company=exelera").set(authed(a.token));
     expect(exeleraList.body.data.map((r: { id: string }) => r.id)).not.toContain(created.id);
   });
 });

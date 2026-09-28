@@ -45,12 +45,24 @@ describe("Purchase Request lifecycle (enterprise/ent-pr) — transition validati
     expect(res.body.data.data.activity[0]).toMatchObject({ action: "Record created" });
   });
 
-  it("creating with client-supplied activity does not add a duplicate", async () => {
+  it("keeps the client's new entries on create, stamped server-side, with 'Record created' as the oldest", async () => {
     const a = await actor("SP", "sp1", ALL);
-    const res = await createPr(a.token, { activity: [{ ts: "2026-01-01T00:00:00.000Z", user: "Jane", action: "created Purchase Request", summary: "" }] });
+    const res = await createPr(a.token, { activity: [{ ts: "2020-01-01T00:00:00.000Z", user: "Jane", action: "created Purchase Request", summary: "PR for laptops" }] });
     expect(res.status).toBe(201);
-    expect(res.body.data.data.activity).toHaveLength(1);
-    expect(res.body.data.data.activity[0]).toMatchObject({ action: "created Purchase Request" });
+    const trail = res.body.data.data.activity;
+    expect(trail).toHaveLength(2);
+    expect(trail[0]).toMatchObject({ action: "created Purchase Request", summary: "PR for laptops", user: "SP User" });
+    expect(trail[0].ts).not.toBe("2020-01-01T00:00:00.000Z");
+    expect(trail[1]).toMatchObject({ action: "Record created", user: "SP User" });
+  });
+
+  it("rejects a malformed activity entry", async () => {
+    const a = await actor("SP", "sp1", ALL);
+    const tooLong = await createPr(a.token, { activity: [{ action: "x".repeat(501) }] });
+    expect(tooLong.status).toBe(400);
+    expect(tooLong.body.error.code).toBe("INVALID_ACTIVITY");
+    const unknownKey = await createPr(a.token, { activity: [{ action: "ok", role: "admin" }] });
+    expect(unknownKey.status).toBe(400);
   });
 
   it("accepts a legal transition (Draft → Pending LM Review)", async () => {
@@ -111,7 +123,7 @@ describe("Purchase Request lifecycle (enterprise/ent-pr) — transition validati
     expect(res.body.data.data.activity).toHaveLength(1);
   });
 
-  it("appends a server-authored fallback activity entry when the client didn't extend the trail", async () => {
+  it("appends a server-authored entry on a status change", async () => {
     const a = await actor("SP", "sp1", ALL);
     const created = await createPr(a.token);
     const res = await request(app).put(`/v1/business/enterprise/ent-pr/${created.body.data.id}`).set(authed(a.token))
@@ -121,7 +133,7 @@ describe("Purchase Request lifecycle (enterprise/ent-pr) — transition validati
     expect(res.body.data.data.activity[0]).toMatchObject({ action: "Status changed: Draft → Pending LM Review" });
   });
 
-  it("does not duplicate when the client already appended its own activity entry for the transition", async () => {
+  it("appends the client's new entry on update alongside the server's status entry", async () => {
     const a = await actor("SP", "sp1", ALL);
     const created = await createPr(a.token);
     const richActivity = [
@@ -131,9 +143,26 @@ describe("Purchase Request lifecycle (enterprise/ent-pr) — transition validati
     const res = await request(app).put(`/v1/business/enterprise/ent-pr/${created.body.data.id}`).set(authed(a.token))
       .send({ title: "Developer laptops", status: "Pending LM Review", data: { ...created.body.data.data, activity: richActivity } });
     expect(res.status).toBe(200);
-    expect(res.body.data.data.activity).toHaveLength(2);
-    // The client's own rich entry survives verbatim — no generic "Status changed: ..." entry added.
-    expect(res.body.data.data.activity[0]).toMatchObject({ action: "submitted to Jennifer Susan Walters for review" });
+    const trail = res.body.data.data.activity;
+    expect(trail).toHaveLength(3);
+    expect(trail[0]).toMatchObject({ action: "Status changed: Draft → Pending LM Review" });
+    expect(trail[1]).toMatchObject({ action: "submitted to Jennifer Susan Walters for review", user: "SP User" });
+    expect(trail[2]).toEqual(created.body.data.data.activity[0]);
+  });
+
+  it("stored entries are append-only: client edits and deletions are ignored", async () => {
+    const a = await actor("SP", "sp1", ALL);
+    const created = await createPr(a.token);
+    const stored = created.body.data.data.activity;
+    const url = `/v1/business/enterprise/ent-pr/${created.body.data.id}`;
+    const edited = await request(app).put(url).set(authed(a.token))
+      .send({ title: "Developer laptops", data: { ...created.body.data.data, activity: [{ ...stored[0], user: "Mallory", action: "rewritten" }] } });
+    expect(edited.status).toBe(200);
+    expect(edited.body.data.data.activity).toEqual(stored);
+    const wiped = await request(app).put(url).set(authed(a.token))
+      .send({ title: "Developer laptops", data: { ...created.body.data.data, activity: [] } });
+    expect(wiped.status).toBe(200);
+    expect(wiped.body.data.data.activity).toEqual(stored);
   });
 
   it("a module with no registered transition graph (ent-suppliers) still accepts any status jump unconditionally", async () => {

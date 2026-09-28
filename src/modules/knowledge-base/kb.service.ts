@@ -4,6 +4,9 @@ import type { KbStatus } from "../../db/models/kbArticle.model";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { escapeLike } from "../../lib/escapeLike";
+import { fullTextMatch, likeAnyMatch } from "../../lib/textSearch";
+import { companyColumnWhere, storedCompany } from "../business/business.service";
 
 /**
  * The fixed KB category catalog (KB_CATEGORIES), matching OD's own text and
@@ -36,6 +39,8 @@ export interface ArticleView {
   content: string;
   keywords: string[];
   featured: boolean;
+  /** Operating company ('axia' | 'exelera'); a NULL column reads as the default, 'axia'. */
+  company: string;
   views: number;
   uniqueViews: number;
   helpful: number;
@@ -54,13 +59,15 @@ export interface ArticleInput {
   content?: string;
   keywords?: string[];
   featured?: boolean;
+  /** Operating company; absent/blank/'axia' stores NULL (default company). */
+  company?: string | null;
 }
 
 function view(a: KbArticle): ArticleView {
   return {
     id: a.id, code: a.code, title: a.title, category: a.category, categoryName: CAT_NAME[a.category] ?? a.category,
     status: a.status, author: a.author, summary: a.summary, content: a.content, keywords: a.keywords ?? [],
-    featured: a.featured, views: a.views, uniqueViews: a.uniqueViews, helpful: a.helpful, notHelpful: a.notHelpful,
+    featured: a.featured, company: a.company || "axia", views: a.views, uniqueViews: a.uniqueViews, helpful: a.helpful, notHelpful: a.notHelpful,
     publishedAt: a.publishedAt ? a.publishedAt.toISOString() : null, createdAt: a.createdAt, updatedAt: a.updatedAt,
   };
 }
@@ -101,8 +108,14 @@ export function listCategories(): { id: string; name: string; desc: string }[] {
   return KB_CATEGORIES;
 }
 
-export async function listArticles(auth: AuthContext, filters: { category?: string; status?: KbStatus; search?: string } = {}): Promise<ArticleView[]> {
+/**
+ * `company` (optional) scopes the list/search to one operating company: 'axia'
+ * also matches the NULL (pre-scoping) rows, any other company matches only its
+ * own rows. Omitted → every company, as before.
+ */
+export async function listArticles(auth: AuthContext, filters: { category?: string; status?: KbStatus; search?: string; company?: string } = {}): Promise<ArticleView[]> {
   const where: WhereOptions = { ...scopeWhere(auth) };
+  if (filters.company) Object.assign(where, { company: companyColumnWhere(filters.company) });
   if (filters.category) Object.assign(where, { category: filters.category });
   if (filters.status) Object.assign(where, { status: filters.status });
   if (filters.search) {
@@ -110,7 +123,7 @@ export async function listArticles(auth: AuthContext, filters: { category?: stri
     // keywords (plus the category display name, which the FE layers on
     // client-side since it isn't a stored column here). `keywords` is a JSONB
     // array — cast it to text so a substring search still reaches it.
-    const term = `%${filters.search}%`;
+    const term = `%${escapeLike(filters.search)}%`;
     Object.assign(where, {
       [Op.and]: [{
         [Op.or]: [
@@ -188,6 +201,7 @@ export async function createArticle(auth: AuthContext, input: ArticleInput, ip: 
     content: input.content ?? "",
     keywords: input.keywords ?? [],
     featured: input.featured ?? false,
+    company: storedCompany(input.company),
     publishedAt: status === "Published" ? new Date() : null,
   });
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "kb.created", entityType: "KbArticle", entityId: a.id, sourceIp: ip, result: "Success" });
@@ -204,6 +218,7 @@ export async function updateArticle(auth: AuthContext, id: string, input: Partia
   if (input.content !== undefined) a.content = input.content;
   if (input.keywords !== undefined) a.keywords = input.keywords;
   if (input.featured !== undefined) a.featured = input.featured;
+  if (input.company !== undefined) a.company = storedCompany(input.company);
   if (input.status !== undefined) {
     a.status = input.status;
     if (input.status === "Published" && !a.publishedAt) a.publishedAt = new Date();
@@ -248,4 +263,38 @@ export async function deleteArticle(auth: AuthContext, id: string, ip: string | 
   const a = await requireWritableArticle(auth, id);
   await a.destroy();
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "kb.deleted", entityType: "KbArticle", entityId: id, sourceIp: ip, result: "Success" });
+}
+
+// ---- Retrieval for the KB assistant (AI) --------------------------------------------------
+
+const SEARCH_COLS = ["title", "summary", "content"];
+
+/** Up to `limit` Published articles in `scope`, best full-text match first; ILIKE-any-term fallback. */
+async function searchPublished(scope: WhereOptions, question: string, limit: number): Promise<ArticleView[]> {
+  const fts = fullTextMatch(SEARCH_COLS, question);
+  const base = [scope, { status: "Published" }];
+  let rows = await KbArticle.findAll({ where: { [Op.and]: [...base, fts.where] }, order: [[fts.rank, "DESC"]], limit });
+  const like = rows.length ? null : likeAnyMatch(SEARCH_COLS, question);
+  if (like) rows = await KbArticle.findAll({ where: { [Op.and]: [...base, like] }, order: [["updatedAt", "DESC"]], limit });
+  return rows.map(view);
+}
+
+/** Published articles the caller may read (same visibility as listArticles), optionally one company's. */
+export async function searchArticles(auth: AuthContext, question: string, opts: { company?: string; limit?: number } = {}): Promise<ArticleView[]> {
+  const where: WhereOptions = { ...scopeWhere(auth) };
+  if (opts.company) Object.assign(where, { company: companyColumnWhere(opts.company) });
+  return searchPublished(where, question, opts.limit ?? 8);
+}
+
+/**
+ * Published articles an anonymous visitor of `orgId`'s public site may be
+ * answered from: the org's own articles, plus the global (Service-Owner
+ * authored, org_id NULL) library when `orgId` IS the Service Owner.
+ */
+export async function searchPublicArticles(
+  orgId: string, isServiceOwner: boolean, question: string, opts: { company?: string; limit?: number } = {},
+): Promise<ArticleView[]> {
+  const where: WhereOptions = isServiceOwner ? { [Op.or]: [{ orgId: null }, { orgId }] } : { orgId };
+  const scoped: WhereOptions = opts.company ? { [Op.and]: [where, { company: companyColumnWhere(opts.company) }] } : where;
+  return searchPublished(scoped, question, opts.limit ?? 8);
 }

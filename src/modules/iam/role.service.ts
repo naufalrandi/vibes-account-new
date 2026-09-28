@@ -6,6 +6,7 @@ import { ForbiddenError, NotFoundError } from "../../lib/errors";
 import { Role } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import { canActOnRole, organizationScopeWhere, roleScopeWhere } from "../../lib/scope";
+import { SP_ONLY_ACTIONS } from "./tenantGrants";
 
 export interface RoleGrants {
   menuIds: string[];
@@ -30,6 +31,13 @@ async function loadOwnedRole(auth: AuthContext, roleId: string, tx?: Transaction
   }
   if (!canActOnRole(auth, role.orgId, parentOrgId)) throw new ForbiddenError();
   return role;
+}
+
+/** A role belongs to the Service Owner org (a global role counts when SO-tiered). */
+async function isServiceOwnerRole(role: Role, tx?: Transaction): Promise<boolean> {
+  if (!role.orgId) return role.tierScope === "ServiceOwner";
+  const org = await Organization.findByPk(role.orgId, { attributes: ["type"], transaction: tx });
+  return org?.type === "ServiceOwner";
 }
 
 /** Roles visible to the actor. */
@@ -59,7 +67,14 @@ export async function setRoleGrants(
   ip: string | null,
 ): Promise<void> {
   await sequelize.transaction(async (tx) => {
-    await loadOwnedRole(auth, roleId, tx);
+    const role = await loadOwnedRole(auth, roleId, tx);
+    // SP-only actions are gated to the Service Owner in the services themselves;
+    // granting one to a Distributor/Tenant role is a pure over-grant (see
+    // SP_ONLY_ACTIONS), so it is refused rather than silently stored.
+    const spOnly = actionKeys.filter((k) => SP_ONLY_ACTIONS.includes(k));
+    if (spOnly.length > 0 && !(await isServiceOwnerRole(role, tx))) {
+      throw new ForbiddenError(`Service-Owner-only actions cannot be granted to this role: ${spOnly.join(", ")}`, "SP_ONLY_ACTION");
+    }
 
     await RoleMenuGrant.destroy({ where: { roleId }, transaction: tx });
     await RoleActionGrant.destroy({ where: { roleId }, transaction: tx });

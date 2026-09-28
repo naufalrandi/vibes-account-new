@@ -1,19 +1,8 @@
-<!-- BEGIN:concurrent-agent-worktrees -->
-# Multiple agents, one repo: use a worktree, not the shared tree
+# Work directly in this folder — no worktrees, branches or commits
 
-This checkout is shared by every agent working this board. Editing it directly means your uncommitted files sit next to (and get confused with) another agent's uncommitted files — this has already blocked issues and caused wasted duplicate work.
+Edit files in this checkout (`/root/vibes-new/vibes-account-new`) directly. Do not create git worktrees or branches, and do not commit, stage, stash, reset, checkout or push. The owner reviews `git diff` and commits/pushes manually.
 
-**Before starting any issue that edits files here:**
-
-1. Create your own worktree off `main`, named after your issue:
-   `git worktree add ../worktrees/<issue-id> -b agent/<issue-id> main`
-2. Do all editing, testing, and committing inside `../worktrees/<issue-id>`. Never edit files in this root checkout directly.
-3. When done: push the branch / open a PR, or merge/cherry-pick `agent/<issue-id>` onto `main` yourself, then remove the worktree:
-   `git worktree remove ../worktrees/<issue-id>` (from the main checkout) and `git branch -d agent/<issue-id>`.
-
-**Always, worktree or not:** never `git add -A` or `git add .`. Stage explicit paths (`git add path/to/file.tsx`) so a commit can't pick up another agent's unrelated dirty files.
-
-**After every commit:** run `git show --stat HEAD` and confirm only the paths you meant to touch are listed. Explicit-path staging alone is not enough — a merge/cherry-pick that touches a shared index can still pull in another agent's staged changes underneath your named paths. Catching it here is cheap; catching it later means hand-recounting output to find what silently reverted.
-
-If you must work directly in this root checkout (e.g. a quick read-only check), do not commit — leave no uncommitted edits behind for the next agent to trip over.
-<!-- END:concurrent-agent-worktrees -->
+- Read-only git (`git status`, `git diff`, `git log`) is fine.
+- Other changes may already be uncommitted here — read a file's `git diff` before editing it and never revert work you did not make.
+- Leave your work uncommitted and summarise what you changed.
+- The repo's `.env` points at the production database: never run migrations, seeds or scripts with it. Tests use `.env.test` (local `omnitenant_test`) and share one database, so run one vitest process at a time.

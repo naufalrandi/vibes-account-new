@@ -137,7 +137,7 @@ function str(row: Record<string, unknown>, key: string, fallback = ""): string {
 }
 
 /**
- * A parsed timestamp, or null — mirrors `israTenantDemo.ts`'s `date()` helper
+ * A parsed timestamp, or null — mirrors `israTenantSample.ts`'s `date()` helper
  * verbatim (not exported there, so reproduced here rather than imported).
  * Guards against two shapes OD emits that Postgres rejects outright: the
  * empty string, and anything that parses to an Invalid Date.
@@ -150,7 +150,7 @@ function date(v: unknown): Date | null {
 
 /**
  * A `DATEONLY`-shaped value (`YYYY-MM-DD`), or null — mirrors
- * `israTenantDemo.ts`'s `dateOnly()` helper. OD writes both empty strings and
+ * `israTenantSample.ts`'s `dateOnly()` helper. OD writes both empty strings and
  * full ISO timestamps into fields this port's `type="date"` form inputs
  * expect as plain dates; both are narrowed here so a seeded row round-trips
  * cleanly through an `<input type="date">` instead of rendering "Invalid
@@ -162,7 +162,7 @@ function dateOnly(v: unknown): string | null {
 }
 
 export async function seedBusinessRecords(orgId: string): Promise<void> {
-  // Idempotent: this is demo/parity data, not user data — if any rows already exist for this
+  // Idempotent: this is sample/parity data, not user data — if any rows already exist for this
   // org, assume a previous seed run already populated them (findOrCreate-per-row would need a
   // stable natural key this JSONB table doesn't have; skipping wholesale is simpler and correct
   // for a repeatable seed script).
@@ -1067,7 +1067,7 @@ export async function seedInterestedParties(orgId: string): Promise<void> {
   let skipped = 0;
   for (const row of reqRows) {
     const partyId = partyIdMap.get(String(row.partyId));
-    if (!partyId) { skipped += 1; continue; } // FK guard, mirrors israTenantDemo.ts's own scenario-skip pattern
+    if (!partyId) { skipped += 1; continue; } // FK guard, mirrors israTenantSample.ts's own scenario-skip pattern
     await IpRequirement.create({
       orgId, code: str(row, "id"), partyId, topic: str(row, "topic"), description: (row.description as string) ?? null,
       type: str(row, "type", "Requirement"), frameworks: Array.isArray(row.frameworks) ? (row.frameworks as string[]) : [],

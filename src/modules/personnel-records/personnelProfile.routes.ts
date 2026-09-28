@@ -21,6 +21,8 @@ const addProfileSchema = z.object({
   personnelType: z.string().nullish(),
   orgUnitId: z.string().uuid().nullish(),
   empLevel: z.string().nullish(),
+  // Operating company ('axia' | 'exelera', as on /v1/users); validated in createUser.
+  company: z.string().max(40).nullish(),
 });
 
 function guard(req: Request): AuthContext {

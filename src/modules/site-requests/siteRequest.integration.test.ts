@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
-import { initModels, Organization, User, Role } from "../../db/models";
+import { initModels, Organization, User, Role, AuditLog } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
@@ -57,7 +57,7 @@ describe("site requests — decide endpoints are Service-Owner-only", () => {
     // requireAction check) but is still rejected by the service-layer
     // assertServiceOwner guard — this is the certification-audit regression case.
     expect((await request(app).post(`/v1/site-requests/${id}/review`).set(authed(tenant.token))).status).toBe(403);
-    expect((await request(app).post(`/v1/site-requests/${id}/reject`).set(authed(tenant.token))).status).toBe(403);
+    expect((await request(app).post(`/v1/site-requests/${id}/reject`).set(authed(tenant.token)).send({ reason: "No" })).status).toBe(403);
     expect((await request(app).post(`/v1/site-requests/${id}/approve`).set(authed(tenant.token))).status).toBe(403);
     expect((await request(app).post(`/v1/site-requests/${id}/provision`).set(authed(tenant.token))).status).toBe(403);
 
@@ -92,11 +92,24 @@ describe("site requests — decide endpoints are Service-Owner-only", () => {
     });
     const id = created.body.data.id;
 
-    expect((await request(app).post(`/v1/site-requests/${id}/reject`).set(authed(dist.token))).status).toBe(403);
+    expect((await request(app).post(`/v1/site-requests/${id}/reject`).set(authed(dist.token)).send({ reason: "No" })).status).toBe(403);
 
     const so = await actor("ServiceOwner", "AXIA2", "so.admin2", ALL);
-    const rejected = await request(app).post(`/v1/site-requests/${id}/reject`).set(authed(so.token));
+    // The rejection reason is required and bounded.
+    const url = `/v1/site-requests/${id}/reject`;
+    expect((await request(app).post(url).set(authed(so.token))).status).toBe(400);
+    expect((await request(app).post(url).set(authed(so.token)).send({ reason: "   " })).status).toBe(400);
+    expect((await request(app).post(url).set(authed(so.token)).send({ reason: "x".repeat(1001) })).status).toBe(400);
+
+    const rejected = await request(app).post(url).set(authed(so.token)).send({ reason: "  Address is outside the licensed region  " });
     expect(rejected.status).toBe(200);
     expect(rejected.body.data.status).toBe("Rejected");
+    expect(rejected.body.data.rejectionReason).toBe("Address is outside the licensed region");
+
+    // Persisted, visible to the requester, and audited with the reason.
+    const seen = await request(app).get(`/v1/site-requests/${id}`).set(authed(tenant.token));
+    expect(seen.body.data.rejectionReason).toBe("Address is outside the licensed region");
+    const log = await AuditLog.findOne({ where: { action: "site-request.rejected", entityId: id } });
+    expect(log?.metadata).toMatchObject({ reason: "Address is outside the licensed region" });
   });
 });

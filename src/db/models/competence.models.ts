@@ -65,7 +65,7 @@ export const NECESSITY = ["Required", "Preferred"] as const;
 export const ASSESS_STATUS = ["Competent", "Competent with conditions", "Not yet competent"] as const;
 /** OD competence-gap states — `gapStatusBadge` (js/modules.js:968) styles Resolved,
  *  Planned, Reviewed and Waived and falls through to Open, which it renders as "Raised".
- *  The demo seed (js/modules.js:350-351) persists Reviewed and Waived, so a three-value
+ *  OD's seed data (js/modules.js:350-351) persists Reviewed and Waived, so a three-value
  *  enum silently made those two unrepresentable. */
 export const GAP_STATUS = ["Open", "Reviewed", "Planned", "Resolved", "Waived"] as const;
 export const PROF_LEVELS = ["", "Awareness", "Working", "Proficient", "Expert"] as const;

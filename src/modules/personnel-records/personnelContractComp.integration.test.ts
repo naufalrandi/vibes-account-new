@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
-import { initModels, Organization, User, Role, BusinessRecord } from "../../db/models";
+import { initModels, Organization, User, Role, BusinessRecord, PersonnelCompensation, PersonnelOnboardingItem } from "../../db/models";
 import { hashPassword } from "../../lib/password";
 import { resetDb, grantActions } from "../../../test/helpers";
 import { ACTIONS } from "../iam/actions.catalog";
@@ -125,19 +125,31 @@ describe("personnel contract documents / activity / onboarding / compensation", 
     expect(res.body.data[0].action).toBe("note.added");
   });
 
-  it("seeds a default onboarding checklist on first read and toggles items", async () => {
+  it("shows the default onboarding checklist without writing it, and seeds it on the first toggle", async () => {
     const { token, targetUserId } = await seedAdminAndTargetUser();
     const bearer = { authorization: `Bearer ${token}` } as const;
 
     const list = await request(app).get(`/v1/users/${targetUserId}/onboarding`).set(bearer);
     expect(list.status).toBe(200);
     expect(list.body.data.length).toBeGreaterThan(0);
+    expect(await PersonnelOnboardingItem.count({ where: { userId: targetUserId } })).toBe(0);
 
-    const item = list.body.data[0];
+    const item = list.body.data[1];
+    expect(item.id).toBe("template:idtax");
     const done = await request(app).put(`/v1/users/${targetUserId}/onboarding/${item.id}`).set(bearer).send({ done: true });
     expect(done.status).toBe(200);
-    expect(done.body.data.done).toBe(true);
+    expect(done.body.data).toMatchObject({ label: item.label, done: true });
     expect(done.body.data.doneAt).toBeTruthy();
+    expect(done.body.data.id).not.toBe(item.id);
+    expect(await PersonnelOnboardingItem.count({ where: { userId: targetUserId } })).toBe(list.body.data.length);
+
+    // A second template id resolves to the now-persisted row, not a second seed.
+    const again = await request(app).put(`/v1/users/${targetUserId}/onboarding/template:contract`).set(bearer).send({ done: true });
+    expect(again.status).toBe(200);
+    const persisted = await request(app).get(`/v1/users/${targetUserId}/onboarding`).set(bearer);
+    expect(persisted.body.data).toHaveLength(list.body.data.length);
+    expect(persisted.body.data.filter((i: { done: boolean }) => i.done).map((i: { label: string }) => i.label))
+      .toEqual([list.body.data[0].label, item.label]);
   });
 
   it("adds a custom onboarding item", async () => {
@@ -175,9 +187,12 @@ describe("personnel contract documents / activity / onboarding / compensation", 
     expect(bound.body.data.minwageCompliant).toBe(true);
     expect(bound.body.data.bankName).toBe("BCA");
 
+    // The check is a read: a stale stored flag is reported live, not rewritten.
+    await PersonnelCompensation.update({ minwageCompliant: null }, { where: { userId: targetUserId } });
     const check = await request(app).get(`/v1/users/${targetUserId}/compensation/minwage-check`).set(bearer);
     expect(check.status).toBe(200);
     expect(check.body.data.compliant).toBe(true);
+    expect((await PersonnelCompensation.findOne({ where: { userId: targetUserId } }))?.minwageCompliant).toBeNull();
   });
 
   it("flags non-compliant compensation when below minimum wage", async () => {

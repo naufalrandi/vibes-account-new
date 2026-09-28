@@ -1,10 +1,12 @@
-import { Op } from "sequelize";
+import { Op, QueryTypes, col, fn, where as sqlWhere } from "sequelize";
+import { sequelize } from "../../db/sequelize";
 import {
   Framework, FrameworkFamily, FrameworkType, FrameworkGroup, FrameworkRequirement, Fwrc,
 } from "../../db/models";
 import type { FrameworkStatus } from "../../db/models/framework.model";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
+import { auditTenantId } from "../../lib/auditTenant";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors";
 
 export interface CreateFrameworkInput {
@@ -73,7 +75,8 @@ async function toView(f: Framework): Promise<Record<string, unknown>> {
 /** OD frameworkModal guard: framework names are unique (case-insensitive) within their group. */
 async function assertNameUniqueInGroup(groupId: string | null, name: string, excludeId?: string): Promise<void> {
   if (!groupId) return;
-  const where: Record<string, unknown> = { groupId, name: { [Op.iLike]: name } };
+  // Exact case-insensitive match — an iLike pattern would treat `_`/`%` in the name as wildcards.
+  const where: Record<string | symbol, unknown> = { groupId, [Op.and]: [sqlWhere(fn("lower", col("name")), fn("lower", name))] };
   if (excludeId) where.id = { [Op.ne]: excludeId };
   if (await Framework.findOne({ where })) {
     throw new ConflictError("A framework with this name already exists in this group", "DUPLICATE_NAME");
@@ -154,7 +157,7 @@ export async function createFramework(auth: AuthContext, input: CreateFrameworkI
       shortLabel: input.shortLabel?.trim() ? input.shortLabel.trim() : null,
     });
   }
-  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "framework.created", entityType: "Framework", entityId: created.id, sourceIp: ip, result: "Success" });
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId), action: "framework.created", entityType: "Framework", entityId: created.id, sourceIp: ip, result: "Success" });
   return getFramework(auth, created.id);
 }
 
@@ -188,14 +191,32 @@ export async function updateFramework(auth: AuthContext, id: string, input: Upda
   if (input.jurisdictions !== undefined) f.jurisdictions = input.jurisdictions;
   await f.save();
 
-  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "framework.updated", entityType: "Framework", entityId: f.id, sourceIp: ip, result: "Success" });
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId), action: "framework.updated", entityType: "Framework", entityId: f.id, sourceIp: ip, result: "Success" });
   return getFramework(auth, f.id);
+}
+
+/**
+ * What still points at a library framework. Deliberately platform-wide (raw
+ * SQL, every org): the library is global, so any tenant's use blocks deletion.
+ */
+async function frameworkUsage(id: string): Promise<string[]> {
+  const [row] = await sequelize.query<Record<string, string>>(
+    `SELECT
+       (SELECT count(*) FROM framework_assignments WHERE framework_id = :id) AS "framework assignments",
+       (SELECT count(*) FROM organization_frameworks WHERE framework_id = :id) AS "organization frameworks",
+       (SELECT count(*) FROM assessments WHERE framework_id = :id) AS "assessments",
+       (SELECT count(*) FROM fwrc WHERE framework_id = :id) AS "FWRC rows"`,
+    { replacements: { id }, type: QueryTypes.SELECT },
+  );
+  return Object.entries(row ?? {}).filter(([, n]) => Number(n) > 0).map(([what, n]) => `${n} ${what}`);
 }
 
 export async function deleteFramework(auth: AuthContext, id: string, ip: string | null): Promise<void> {
   assertServiceOwner(auth);
   const f = await Framework.findByPk(id);
   if (!f) throw new NotFoundError("Framework does not exist", "FRAMEWORK_NOT_FOUND");
+  const usage = await frameworkUsage(id);
+  if (usage.length) throw new ConflictError(`Framework is in use (${usage.join(", ")}) — archive it instead`, "IN_USE");
   await f.destroy();
-  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "framework.deleted", entityType: "Framework", entityId: id, sourceIp: ip, result: "Success" });
+  await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, tenantId: auditTenantId(auth, auth.orgId), action: "framework.deleted", entityType: "Framework", entityId: id, sourceIp: ip, result: "Success" });
 }

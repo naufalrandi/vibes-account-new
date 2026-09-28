@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../../app";
-import { initModels, Organization, User, Role } from "../../db/models";
+import { initModels, Organization, RecordEvent, User, Role } from "../../db/models";
 import { IsraThreatLibrary, IsraVulnLibrary, IsraAnnexAControl } from "../../db/models/israLibrary.models";
 import { IsraRtp, IsraRtpAction } from "../../db/models/israTreatmentRtp.models";
 import { hashPassword } from "../../lib/password";
@@ -432,5 +432,64 @@ describe("ISRA gap-register Wave Q, task Q3 fixes", () => {
       .send({ score: 12, rationale: "Above appetite" });
     expect(aboveRes.status).toBe(200);
     expect(aboveRes.body.data.adequacy.result).toBe("Above acceptance criteria");
+  });
+  it("records a new treatment decision as Pending approval unless an outcome is given", async () => {
+    const { token } = await makeTenant("isra_tpend", "ORG_ISRA_TPEND");
+    const scen = await createBareScenario(token);
+    const res = await request(app).post(`/v1/isra/scenarios/${scen.id}/treatment`).set(authed(token))
+      .send({ option: "Modify", rationale: "Reduce likelihood." });
+    expect(res.body.data.approvalStatus).toBe("Pending");
+    const bad = await request(app).post(`/v1/isra/scenarios/${scen.id}/treatment`).set(authed(token))
+      .send({ option: "Modify", rationale: "x", approvalStatus: "Whatever" });
+    expect(bad.status).toBe(400);
+  });
+
+  it("stamps approvedBy/approvalDate on an Approved decision, keeps sent values, clears them otherwise", async () => {
+    const { token } = await makeTenant("isra_tappr", "ORG_ISRA_TAPPR");
+    const scen = await createBareScenario(token);
+    const url = `/v1/isra/scenarios/${scen.id}/treatment`;
+
+    const auto = await request(app).post(url).set(authed(token))
+      .send({ option: "Modify", rationale: "Reduce likelihood.", approvalStatus: "Approved" });
+    expect(auto.status).toBe(200);
+    expect(auto.body.data.approvedBy).toBeTruthy();
+    expect(auto.body.data.approvalDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+    const sent = await request(app).post(url).set(authed(token))
+      .send({ option: "Modify", rationale: "Reduce likelihood.", approvalStatus: "Approved", approvedBy: "CISO", approvalDate: "2026-03-01", reviewDate: "2026-09-01" });
+    expect(sent.body.data.approvedBy).toBe("CISO");
+    expect(sent.body.data.approvalDate).toBe("2026-03-01");
+    expect(sent.body.data.reviewDate).toBe("2026-09-01");
+
+    const pending = await request(app).post(url).set(authed(token))
+      .send({ option: "Modify", rationale: "Reduce likelihood.", approvalStatus: "Pending", approvedBy: "CISO", approvalDate: "2026-03-01" });
+    expect(pending.body.data.approvedBy).toBeNull();
+    expect(pending.body.data.approvalDate).toBeNull();
+
+    const badDate = await request(app).post(url).set(authed(token))
+      .send({ option: "Modify", rationale: "x", approvalStatus: "Approved", approvalDate: "01/03/2026" });
+    expect(badDate.status).toBe(400);
+  });
+
+  it("validates and de-duplicates a scenario's vulnerability set, changing nothing on a bad id", async () => {
+    const { token } = await makeTenant("isra_vset", "ORG_ISRA_VSET");
+    const scen = await createBareScenario(token);
+    const dup = await request(app).put(`/v1/isra/scenarios/${scen.id}`).set(authed(token))
+      .send({ title: "Renamed", includedVulns: ["VUL-001", "VUL-001"] });
+    expect(dup.status).toBe(200);
+    const unknown = await request(app).put(`/v1/isra/scenarios/${scen.id}`).set(authed(token))
+      .send({ title: "Renamed again", includedVulns: ["VUL-001", "VUL-NOPE"] });
+    expect(unknown.status).toBe(400);
+    expect(unknown.body.error.code).toBe("UNKNOWN_VULN");
+    const after = await request(app).get(`/v1/isra/scenarios/${scen.id}`).set(authed(token));
+    expect(after.body.data.title).toBe("Renamed");
+  });
+
+  it("deletes a scenario together with its activity feed", async () => {
+    const { token, orgId } = await makeTenant("isra_del", "ORG_ISRA_DEL");
+    const scen = await createBareScenario(token);
+    await RecordEvent.create({ orgId, module: "isra", recordId: scen.id, type: "activity", actor: "T", text: "note" });
+    expect((await request(app).delete(`/v1/isra/scenarios/${scen.id}`).set(authed(token))).status).toBeLessThan(300);
+    expect(await RecordEvent.count({ where: { recordId: scen.id } })).toBe(0);
   });
 });

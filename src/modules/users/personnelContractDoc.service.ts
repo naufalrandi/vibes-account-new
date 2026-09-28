@@ -4,7 +4,8 @@ import type { AuthContext } from "../../lib/scope";
 import { requireManagedUser } from "./user.service";
 import { logPersonnelActivity } from "./personnelActivity.service";
 import { actorName } from "../record-events/recordEvent.service";
-import { BadRequestError, NotFoundError } from "../../lib/errors";
+import { BadRequestError, ConflictError, NotFoundError } from "../../lib/errors";
+import { orgToday } from "../../lib/localDate";
 
 export interface ContractDocInput {
   title?: string;
@@ -32,16 +33,31 @@ async function requireDoc(userId: string, orgId: string, id: string): Promise<Pe
   return row;
 }
 
+/**
+ * Contract document lifecycle: Draft -> Issued (`issue`, may repeat to re-issue
+ * a revised Issued document) -> Signed (`sign`, only from Issued). Status only
+ * moves through those two actions, and a Signed document is final: no edits,
+ * no re-issue.
+ */
+function assertNotSigned(row: PersonnelContractDocument): void {
+  if (row.status === "Signed") {
+    throw new ConflictError("A signed contract document can no longer be changed", "CONTRACT_DOC_SIGNED");
+  }
+}
+
 export async function createContractDocument(auth: AuthContext, userId: string, input: ContractDocInput) {
   const user = await requireManagedUser(auth, userId);
   if (!input.title || !input.title.trim()) throw new BadRequestError("title is required", "TITLE_REQUIRED");
+  if (input.status !== undefined && input.status !== "Draft") {
+    throw new BadRequestError("A contract document starts as Draft; issue and sign it through their actions", "INVALID_STATUS");
+  }
   const who = await actorName(auth);
   const row = await PersonnelContractDocument.create({
     orgId: user.orgId,
     userId,
     title: input.title.trim(),
     docType: input.docType ?? null,
-    status: input.status ?? "Draft",
+    status: "Draft",
     content: input.content ?? null,
     effectiveDate: input.effectiveDate ?? null,
     expiryDate: input.expiryDate ?? null,
@@ -62,13 +78,16 @@ const STR_FIELDS = ["title", "docType", "content", "effectiveDate", "expiryDate"
 export async function updateContractDocument(auth: AuthContext, userId: string, id: string, input: ContractDocInput) {
   const user = await requireManagedUser(auth, userId);
   const row = await requireDoc(userId, user.orgId, id);
+  assertNotSigned(row);
+  if (input.status !== undefined && input.status !== row.status) {
+    throw new ConflictError("Change a contract document's status with the issue / sign actions", "USE_CONTRACT_DOC_ACTION");
+  }
   const rec = row as unknown as Record<string, unknown>;
   for (const k of STR_FIELDS) {
     if (input[k] !== undefined) rec[k] = input[k];
   }
   if (input.clauses !== undefined) row.clauses = input.clauses;
   if (input.title !== undefined && !String(input.title).trim()) throw new BadRequestError("title cannot be cleared", "TITLE_REQUIRED");
-  if (input.status !== undefined) row.status = input.status;
   row.lastUpdatedBy = await actorName(auth);
   await row.save();
   await logPersonnelActivity(auth, user.orgId, userId, "contract_document.updated", row.title);
@@ -79,9 +98,10 @@ export async function updateContractDocument(auth: AuthContext, userId: string, 
 export async function issueContractDocument(auth: AuthContext, userId: string, id: string) {
   const user = await requireManagedUser(auth, userId);
   const row = await requireDoc(userId, user.orgId, id);
+  assertNotSigned(row);
   row.status = "Issued";
   row.version += 1;
-  row.issuedDate = new Date().toISOString().slice(0, 10);
+  row.issuedDate = await orgToday(user.orgId);
   row.lastUpdatedBy = await actorName(auth);
   await row.save();
   await logPersonnelActivity(auth, user.orgId, userId, "contract_document.issued", row.title);
@@ -91,6 +111,9 @@ export async function issueContractDocument(auth: AuthContext, userId: string, i
 export async function signContractDocument(auth: AuthContext, userId: string, id: string) {
   const user = await requireManagedUser(auth, userId);
   const row = await requireDoc(userId, user.orgId, id);
+  if (row.status !== "Issued") {
+    throw new ConflictError("Only an issued contract document can be signed", "CONTRACT_DOC_NOT_ISSUED");
+  }
   const who = await actorName(auth);
   row.status = "Signed";
   row.signedBy = who;

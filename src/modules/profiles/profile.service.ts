@@ -4,6 +4,7 @@ import type { ProfileStatus } from "../../db/models/profile.model";
 import type { AuthContext } from "../../lib/scope";
 import { writeAudit } from "../audit/audit.service";
 import { NotFoundError } from "../../lib/errors";
+import { escapeLike } from "../../lib/escapeLike";
 
 export interface CreateProfileInput {
   name: string;
@@ -33,7 +34,7 @@ function listWhere(auth: AuthContext, filters: ListProfileFilters): WhereOptions
   const and: WhereOptions[] = [{ orgId: auth.orgId }];
   if (filters.status) and.push({ status: filters.status });
   if (filters.search) {
-    const term = `%${filters.search}%`;
+    const term = `%${escapeLike(filters.search)}%`;
     and.push({
       [Op.or]: [{ name: { [Op.iLike]: term } }, { description: { [Op.iLike]: term } }],
     });

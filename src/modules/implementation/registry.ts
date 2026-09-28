@@ -412,3 +412,10 @@ export function enrichReviewData(data: Record<string, unknown>): Record<string, 
     openActions,
   };
 }
+
+/**
+ * `withCodeLock` key for an org's max+1 code sequence in one register (plus
+ * "cap" for nonconformity CAP ids). Every writer that mints a code in that
+ * sequence must take the same key.
+ */
+export const codeLockKey = (orgId: string, module: string): string => `implementation:${orgId}:${module}`;

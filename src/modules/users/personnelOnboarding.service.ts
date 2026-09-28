@@ -1,4 +1,5 @@
-import { PersonnelOnboardingItem } from "../../db/models";
+import { PersonnelOnboardingItem, type User } from "../../db/models";
+import { withCodeLock } from "../../lib/codeSeq";
 import type { AuthContext } from "../../lib/scope";
 import { requireManagedUser } from "./user.service";
 import { getOrCreateProfile } from "./personnelProfile.service";
@@ -48,35 +49,56 @@ export function onboardTemplateFor(isExternal: boolean) {
   return ONBOARD_TEMPLATE.filter((t) => !(isExternal && t.internalOnly));
 }
 
+/** Id a template task carries on a read before the checklist is persisted. */
+const TEMPLATE_ID_PREFIX = "template:";
+
+function templateFor(user: User) {
+  return onboardTemplateFor(personCategory(user.personnelType) === "External");
+}
+
+/**
+ * The person's persisted checklist, seeded from the template on the first
+ * write that needs it (reads never write). Serialised per person so two
+ * concurrent first writes can't seed it twice.
+ */
+async function ensureChecklist(user: User): Promise<PersonnelOnboardingItem[]> {
+  return withCodeLock(`ONBOARDING:${user.id}`, null, async (tx) => {
+    const where = { userId: user.id, orgId: user.orgId };
+    const existing = await PersonnelOnboardingItem.findAll({ where, order: [["seq", "ASC"]], transaction: tx });
+    if (existing.length > 0) return existing;
+    return PersonnelOnboardingItem.bulkCreate(
+      templateFor(user).map((t, seq) => ({ ...where, label: t.label, group: t.group, required: t.required, seq })),
+      { transaction: tx, returning: true },
+    );
+  });
+}
+
 export async function listOnboardingItems(auth: AuthContext, userId: string) {
   const user = await requireManagedUser(auth, userId);
   const existing = await PersonnelOnboardingItem.findAll({ where: { userId, orgId: user.orgId }, order: [["seq", "ASC"]] });
   if (existing.length > 0) return existing.map((r) => r.get({ plain: true }));
-  // Lazily seed the default checklist on first read, same pattern as the
-  // 1:1 personnel-profile findOrCreate.
-  const template = onboardTemplateFor(personCategory(user.personnelType) === "External");
-  const seeded = await Promise.all(
-    template.map((t, seq) =>
-      PersonnelOnboardingItem.create({
-        orgId: user.orgId, userId, label: t.label, group: t.group, required: t.required, seq,
-      }),
-    ),
-  );
-  return seeded.map((r) => r.get({ plain: true }));
+  // Nothing persisted yet: show the default checklist without writing it. Its
+  // tasks carry `template:<key>` ids, which the first toggle resolves after seeding.
+  return templateFor(user).map((t, seq) => ({
+    ...PersonnelOnboardingItem.build({ orgId: user.orgId, userId, label: t.label, group: t.group, required: t.required, seq, doneAt: null, doneBy: null }).get({ plain: true }),
+    id: `${TEMPLATE_ID_PREFIX}${t.key}`,
+  }));
 }
 
 export async function addOnboardingItem(auth: AuthContext, userId: string, label: string) {
   const user = await requireManagedUser(auth, userId);
   if (!label || !label.trim()) throw new BadRequestError("label is required", "LABEL_REQUIRED");
-  const count = await PersonnelOnboardingItem.count({ where: { userId, orgId: user.orgId } });
-  const row = await PersonnelOnboardingItem.create({ orgId: user.orgId, userId, label: label.trim(), seq: count });
+  const items = await ensureChecklist(user);
+  const row = await PersonnelOnboardingItem.create({ orgId: user.orgId, userId, label: label.trim(), seq: items.length });
   await logPersonnelActivity(auth, user.orgId, userId, "onboarding.item_added", row.label);
   return row.get({ plain: true });
 }
 
 export async function setOnboardingItemDone(auth: AuthContext, userId: string, id: string, done: boolean) {
   const user = await requireManagedUser(auth, userId);
-  const row = await PersonnelOnboardingItem.findOne({ where: { id, userId, orgId: user.orgId } });
+  const items = await ensureChecklist(user);
+  const tpl = id.startsWith(TEMPLATE_ID_PREFIX) ? ONBOARD_TEMPLATE.find((t) => t.key === id.slice(TEMPLATE_ID_PREFIX.length)) : undefined;
+  const row = tpl ? items.find((i) => i.label === tpl.label) : items.find((i) => i.id === id);
   if (!row) throw new NotFoundError("Onboarding item not found", "ONBOARDING_ITEM_NOT_FOUND");
   const who = await actorName(auth);
   row.done = done;
@@ -98,7 +120,7 @@ export async function setOnboardingItemDone(auth: AuthContext, userId: string, i
  */
 export async function completeOnboarding(auth: AuthContext, userId: string) {
   const user = await requireManagedUser(auth, userId);
-  const items = await PersonnelOnboardingItem.findAll({ where: { userId, orgId: user.orgId } });
+  const items = await ensureChecklist(user);
   const outstanding = items.filter((i) => i.required && !i.done);
   if (outstanding.length > 0) {
     throw new BadRequestError("Complete all required tasks first", "ONBOARDING_REQUIRED_OUTSTANDING");

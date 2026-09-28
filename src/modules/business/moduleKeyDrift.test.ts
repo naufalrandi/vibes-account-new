@@ -232,7 +232,6 @@ const FRONTEND = scanFrontend();
  * filing a follow-up to close it.
  */
 const KNOWN_UNREGISTERED_FE_KEYS = new Set([
-  "dn-pentest",
   "dn-software",
   "ent-orgstructure",
   // R822 — surfaced the moment the key list stopped being hand-maintained.

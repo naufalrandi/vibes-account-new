@@ -16,4 +16,11 @@ describe("password", () => {
     expect(isPasswordValid("ALLUPPER1")).toBe(false);
     expect(isPasswordValid("NoDigitsHere")).toBe(false);
   });
+
+  it("rejects passwords bcrypt would truncate (> 72 bytes)", () => {
+    expect(isPasswordValid(`Aa1${"x".repeat(69)}`)).toBe(true);
+    expect(isPasswordValid(`Aa1${"x".repeat(70)}`)).toBe(false);
+    // Multi-byte characters count by bytes, not code units.
+    expect(isPasswordValid(`Aa1${"é".repeat(35)}`)).toBe(false);
+  });
 });

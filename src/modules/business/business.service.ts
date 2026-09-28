@@ -1,4 +1,4 @@
-import { Op } from "sequelize";
+import { Op, type Transaction, type WhereAttributeHashValue } from "sequelize";
 import { BusinessRecord, CabSettings } from "../../db/models";
 import type { BusinessArea } from "../../db/models/businessRecord.model";
 import type { AuthContext } from "../../lib/scope";
@@ -6,7 +6,7 @@ import { sequelize } from "../../db/sequelize";
 import { writeAudit } from "../audit/audit.service";
 import { actorName } from "../record-events/recordEvent.service";
 import { assertBusinessTransition, businessDefaultStatus, businessTransitionGraph } from "./prLifecycle";
-import { applyPoConfirmToken, PO_AREA, PO_MODULE } from "./poConfirmation";
+import { applyPoConfirmToken, emailPoIfSent, PO_AREA, PO_MODULE } from "./poConfirmation";
 import { assertValidInquiryData } from "./inquiryRules";
 import { assertValidProposalData } from "./proposalRules";
 import {
@@ -25,6 +25,11 @@ import {
   CAB_RATE_DEFAULT, type CabAuditType, type CabComplexityLevel, type CabFactorRating, type CabNcGrade,
 } from "./cabPricing";
 import { BadRequestError, ConflictError, NotFoundError } from "../../lib/errors";
+import { escapeLike } from "../../lib/escapeLike";
+import { DEFAULT_LIST_CAP, type OffsetPage } from "../../lib/pagination";
+import { withCodeLock } from "../../lib/codeSeq";
+import { BUSINESS_DATA_SCHEMAS } from "./dataSchemas";
+import { z } from "zod";
 
 export const BUSINESS_AREAS: BusinessArea[] = ["enterprise", "datana", "motoran", "exelera"];
 export const OPERATING_COMPANIES = ["axia", "exelera"] as const;
@@ -63,6 +68,11 @@ function assertArea(area: string): asserts area is BusinessArea {
   if (!BUSINESS_AREAS.includes(area as BusinessArea)) throw new NotFoundError("Unknown business area", "AREA_NOT_FOUND");
 }
 
+/** Known module keys = the registered `data` schemas (dataSchemas.ts); anything else is a 404, not a new table. */
+function assertModule(module: string): void {
+  if (!Object.hasOwn(BUSINESS_DATA_SCHEMAS, module)) throw new NotFoundError("Unknown business module", "MODULE_NOT_FOUND");
+}
+
 /** OD's own default operating company (app.html) — used ONLY when the caller genuinely omitted the parameter. */
 function defaultCompany(): OperatingCompany {
   return "axia";
@@ -89,6 +99,23 @@ function validateCompany(company: string): OperatingCompany {
 export function resolveCompany(company?: string): OperatingCompany {
   if (!company || !company.trim()) return defaultCompany();
   return validateCompany(company);
+}
+
+/**
+ * Nullable-column form for rows that predate company scoping (users, KB
+ * articles): OD `coUsers()` reads an absent `co` as AXIA, so the default
+ * company is stored as NULL and only another company is written. Absent or
+ * blank → NULL; garbage → 400 INVALID_COMPANY.
+ */
+export function storedCompany(company?: string | null): OperatingCompany | null {
+  const co = resolveCompany(company ?? undefined);
+  return co === defaultCompany() ? null : co;
+}
+
+/** WHERE fragment for a nullable company column: the default company also matches NULL rows. */
+export function companyColumnWhere(company: string): WhereAttributeHashValue<string | null> {
+  const co = resolveCompany(company);
+  return co === defaultCompany() ? { [Op.or]: { [Op.is]: null, [Op.eq]: co } } : co;
 }
 
 /**
@@ -225,14 +252,14 @@ function bizPrefix(module: string): string {
  * codes a live `createBusiness` call would have produced, instead of re-deriving the
  * prefix/base/pad scheme a second time — see `BIZ_CODE_CONFIG`'s header note.
  */
-export async function nextCode(orgId: string, area: BusinessArea, module: string, data?: Record<string, unknown>): Promise<string> {
+export async function nextCode(orgId: string, area: BusinessArea, module: string, data?: Record<string, unknown>, tx?: Transaction): Promise<string> {
   const cfg = module === "ent-recruitment"
     ? (data?.entity === "candidate" ? RECRUITMENT_CANDIDATE_CFG : RECRUITMENT_OPENING_CFG)
     : BIZ_CODE_CONFIG[module];
   const prefix = cfg ? cfg.prefix : bizPrefix(module);
   const base = cfg ? cfg.base : 0;
   const pad = cfg ? cfg.pad : 4;
-  const rows = await BusinessRecord.findAll({ where: { orgId, area, module }, attributes: ["code"] });
+  const rows = await BusinessRecord.findAll({ where: { orgId, area, module }, attributes: ["code"], transaction: tx });
   // `payrollNextId` js/modules.js:2884 — the max trailing number of any existing
   // cycle id (`PY-2026-12` -> 12), rendered as `PY-N<n+1>`.
   if (module === "ent-payroll") {
@@ -250,6 +277,11 @@ export async function nextCode(orgId: string, area: BusinessArea, module: string
   }
   const seq = String(max + 1).padStart(pad, "0");
   return prefix ? `${prefix}-${seq}` : seq;
+}
+
+/** Advisory-lock key serialising `nextCode` for one (org, area, module) sequence — see lib/codeSeq.ts. */
+export function bizCodeLockKey(orgId: string, area: string, module: string): string {
+  return `BIZ:${orgId}:${area}:${module}`;
 }
 
 interface LeadIdentity {
@@ -453,15 +485,17 @@ export async function listBusiness(
   module: string,
   company?: string,
   filters: BusinessListFilters = {},
-): Promise<BusinessRecordView[]> {
+  page: OffsetPage = { limit: DEFAULT_LIST_CAP, offset: 0 },
+): Promise<{ rows: BusinessRecordView[]; total: number }> {
   assertArea(area);
+  assertModule(module);
   const co = resolveCompany(company); // always resolves — absent company means 'axia', never "no filter" (C-2)
   const where: Record<string, unknown> = { orgId: auth.orgId, area, module, company: co };
   if (filters.status && filters.status.trim()) where.status = filters.status.trim();
   if (filters.owner && filters.owner.trim()) where.owner = filters.owner.trim();
-  if (filters.q && filters.q.trim()) where.title = { [Op.iLike]: `%${filters.q.trim()}%` };
-  const rows = await BusinessRecord.findAll({ where, order: parseSort(filters.sort) });
-  return rows.map(view);
+  if (filters.q && filters.q.trim()) where.title = { [Op.iLike]: `%${escapeLike(filters.q.trim())}%` };
+  const { rows, count } = await BusinessRecord.findAndCountAll({ where, order: parseSort(filters.sort), limit: page.limit, offset: page.offset });
+  return { rows: rows.map(view), total: count };
 }
 
 async function requireRecord(auth: AuthContext, area: BusinessArea, module: string, id: string, company: OperatingCompany): Promise<BusinessRecord> {
@@ -470,21 +504,85 @@ async function requireRecord(auth: AuthContext, area: BusinessArea, module: stri
   return r;
 }
 
+/** One record by id, scoped exactly like `listBusiness` (org + area + module + company). */
+export async function getBusiness(auth: AuthContext, area: string, module: string, id: string, company?: string): Promise<BusinessRecordView> {
+  assertArea(area);
+  assertModule(module);
+  return view(await requireRecord(auth, area, module, id, resolveCompany(company)));
+}
+
 /** Newest-first `{ts,user,action,summary}` activity trail, nested in `data.activity` — this
- *  project's standing "nest child records in JSONB" convention (mirrors `lib/procurement/
- *  suppliers.ts`'s `appendSupplierActivity` on the FE). Only modules with a `BUSINESS_TRANSITIONS`
- *  entry (see `prLifecycle.ts`) get this server-authored guarantee; every other business module
- *  keeps composing its own `data.activity` client-side exactly as it already does. */
-function hasActivity(data: Record<string, unknown>): boolean {
-  return Array.isArray(data.activity) && data.activity.length > 0;
+ *  project's standing "nest child records in JSONB" convention. The trail is append-only: the
+ *  stored entries are kept exactly as stored (a client can't edit or drop them), a client may
+ *  prepend NEW entries (the FE's own rich ones — "sent PO to supplier", PR approvals, ...), and
+ *  the server stamps those with the caller's name and `now`, then adds its own entries (created /
+ *  status changed). Only modules whose `data` schema carries `activity` (or that have a
+ *  transition graph) keep a trail — for the rest an `activity` key would 400 on the FE's next
+ *  round-trip through the `.strict()` schema. */
+function tracksActivity(area: string, module: string): boolean {
+  if (businessTransitionGraph(area, module)) return true;
+  const schema = BUSINESS_DATA_SCHEMAS[module];
+  return schema instanceof z.ZodObject && "activity" in schema.shape;
+}
+
+interface ActivityEntry { ts: string; user: string; action: string; summary: string }
+
+/** Most entries a trail keeps; past it the oldest-but-one are dropped (the first entry — "Record created", the PO's issuer — stays). */
+const MAX_ACTIVITY_ENTRIES = 500;
+/** Most new entries one write may add. */
+const MAX_NEW_ACTIVITY = 20;
+const ACTIVITY_TEXT_MAX = 500;
+const clientActivityEntry = z.object({
+  ts: z.string().max(64).optional(),
+  user: z.string().max(ACTIVITY_TEXT_MAX).optional(),
+  action: z.string().trim().min(1).max(ACTIVITY_TEXT_MAX),
+  summary: z.string().max(ACTIVITY_TEXT_MAX).nullish(),
+}).strict();
+
+function storedActivity(data: Record<string, unknown> | null | undefined): unknown[] {
+  return Array.isArray(data?.activity) ? (data.activity as unknown[]) : [];
+}
+
+function capTrail(trail: unknown[]): unknown[] {
+  return trail.length <= MAX_ACTIVITY_ENTRIES ? trail : [...trail.slice(0, MAX_ACTIVITY_ENTRIES - 1), trail[trail.length - 1]];
+}
+
+/**
+ * The client's new entries: whatever its (newest-first) `activity` holds beyond the stored
+ * trail's length, i.e. the ones it prepended. Anything it did to the stored entries themselves
+ * (edits, deletions, reordering) is ignored. `ts`/`user` are the server's, never the client's.
+ */
+function newClientActivity(client: unknown, stored: unknown[], user: string, ts: string): ActivityEntry[] {
+  if (!Array.isArray(client) || client.length <= stored.length) return [];
+  const fresh = client.slice(0, client.length - stored.length);
+  if (fresh.length > MAX_NEW_ACTIVITY) throw new BadRequestError(`At most ${MAX_NEW_ACTIVITY} activity entries can be added at once`, "INVALID_ACTIVITY");
+  return fresh.map((e) => {
+    const parsed = clientActivityEntry.safeParse(e);
+    if (!parsed.success) throw new BadRequestError("Invalid activity entry (expected { action, summary? }, text up to 500 characters)", "INVALID_ACTIVITY");
+    return { ts, user, action: parsed.data.action, summary: parsed.data.summary ?? "" };
+  });
+}
+
+/** `data` with its `activity` rebuilt append-only on top of `stored` (or dropped when the module keeps no trail). */
+function withServerActivity(area: string, module: string, data: Record<string, unknown>, stored: unknown[], user: string, ts: string): Record<string, unknown> {
+  const { activity: clientActivity, ...rest } = data;
+  if (!tracksActivity(area, module)) return rest;
+  return { ...rest, activity: capTrail([...newClientActivity(clientActivity, stored, user, ts), ...stored]) };
+}
+
+async function actorLabel(auth: AuthContext): Promise<string> {
+  return (await actorName(auth)) ?? "Unknown user";
 }
 
 export async function createBusiness(auth: AuthContext, area: string, module: string, input: BusinessInput, ip: string | null): Promise<BusinessRecordView> {
   assertArea(area);
   if (!input.title || !input.title.trim()) throw new BadRequestError("Title is required", "TITLE_REQUIRED");
   const title = input.title.trim();
+  assertModule(module);
   const company = resolveCompany(input.company);
-  let data = input.data ?? {};
+  const who = await actorLabel(auth);
+  const now = new Date().toISOString();
+  let data = withServerActivity(area, module, input.data ?? {}, [], who, now);
   if (area === "enterprise" && module === "ent-leads") {
     await assertNoDuplicateLead(auth, company, data, title);
   }
@@ -503,11 +601,10 @@ export async function createBusiness(auth: AuthContext, area: string, module: st
     // it — a client-supplied value is discarded, never trusted.
     data = applyPoConfirmToken(null, data, input.status ?? "");
   }
-  // Guarantees a transitions-gated record is never created with an empty activity trail, even
-  // if a caller bypasses the FE's own "created ..." entry (see `hasActivity`'s header note).
-  if (businessTransitionGraph(area, module) && !hasActivity(data)) {
-    const who = (await actorName(auth)) ?? "Unknown user";
-    data = { ...data, activity: [{ ts: new Date().toISOString(), user: who, action: "Record created", summary: "" }] };
+  // Server-authored "created" entry, always the trail's oldest (see `tracksActivity`) — the PO's
+  // "Issued by" reads it, so it names the creating user whatever the client sent.
+  if (tracksActivity(area, module)) {
+    data = { ...data, activity: [...storedActivity(data), { ts: now, user: who, action: "Record created", summary: "" }] };
   }
   // Datana has no server-enforced transition graph (see datanaRules.ts header) — just its own
   // per-module status vocabulary and default, in place of the generic "Open" (only coincidentally
@@ -524,26 +621,28 @@ export async function createBusiness(auth: AuthContext, area: string, module: st
     throw new BadRequestError(`"${status}" is not a valid initial status for a ${module} record`, "INVALID_STATUS");
   }
   if (area === "datana") assertValidDatanaStatus(module, status);
-  const r = await BusinessRecord.create({
+  const r = await withCodeLock(bizCodeLockKey(auth.orgId, area, module), null, async (tx) => BusinessRecord.create({
     orgId: auth.orgId, area, module,
-    code: await nextCode(auth.orgId, area, module, data),
+    code: await nextCode(auth.orgId, area, module, data, tx),
     title,
     status,
     owner: input.owner ?? null,
     company,
     data,
-  });
+  }, { transaction: tx }));
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: `business.${area}.${module}.created`, entityType: "BusinessRecord", entityId: r.id, sourceIp: ip, result: "Success" });
+  if (area === PO_AREA && module === PO_MODULE) await emailPoIfSent(null, r);
   return view(r);
 }
 
 export async function updateBusiness(auth: AuthContext, area: string, module: string, id: string, input: BusinessInput, ip: string | null, company?: string): Promise<BusinessRecordView> {
   assertArea(area);
+  assertModule(module);
   const co = resolveCompany(company);
   const r = await requireRecord(auth, area, module, id, co);
   const prevStatus = r.status;
   const prevData = (r.data ?? {}) as Record<string, unknown>;
-  const prevActivity = Array.isArray((r.data as Record<string, unknown> | null)?.activity) ? ((r.data as Record<string, unknown>).activity as unknown[]) : [];
+  const prevActivity = storedActivity(prevData);
   if (input.title !== undefined) {
     if (!input.title.trim()) throw new BadRequestError("Title is required", "TITLE_REQUIRED");
     r.title = input.title.trim();
@@ -565,7 +664,10 @@ export async function updateBusiness(auth: AuthContext, area: string, module: st
   // tenancy boundary after the fact. `input.company` is intentionally
   // ignored here (silent no-op), matching how other unrecognized/irrelevant
   // fields on this same payload are already handled.
-  if (input.data !== undefined) r.data = input.data;
+  // Append-only trail: stored entries carried forward, the client's new ones stamped server-side.
+  const who = await actorLabel(auth);
+  const now = new Date().toISOString();
+  if (input.data !== undefined) r.data = withServerActivity(area, module, input.data, prevActivity, who, now);
   if (area === PO_AREA && module === PO_MODULE) {
     // Server-owned: a live supplier link is never rotated or overwritten by a
     // client, and a token is minted the first time the PO is actually sent.
@@ -584,23 +686,16 @@ export async function updateBusiness(auth: AuthContext, area: string, module: st
     r.data = assertValidDatanaData(module, r.data as Record<string, unknown> | undefined);
   }
 
-  // Activity-trail append, scoped the same way transition validation is (see comment above).
-  // Only a *fallback*: if the caller's own `data.activity` already grew (the FE composes a
-  // rich, action-specific entry itself — see `lib/procurement/purchaseRequests.ts`'s transition
-  // builders), this does nothing, so the normal path never double-logs.
-  const statusChanged = input.status !== undefined && r.status !== prevStatus;
-  if (businessTransitionGraph(area, module) && statusChanged) {
+  // Server-authored status-change entry (see `tracksActivity`).
+  if (tracksActivity(area, module) && r.status !== prevStatus) {
     const nextData = (r.data ?? {}) as Record<string, unknown>;
-    const nextActivity = Array.isArray(nextData.activity) ? (nextData.activity as unknown[]) : [];
-    if (nextActivity.length <= prevActivity.length) {
-      const who = (await actorName(auth)) ?? "Unknown user";
-      const entry = { ts: new Date().toISOString(), user: who, action: `Status changed: ${prevStatus} → ${r.status}`, summary: "" };
-      r.data = { ...nextData, activity: [entry, ...nextActivity] };
-    }
+    const entry: ActivityEntry = { ts: now, user: who, action: `Status changed: ${prevStatus} → ${r.status}`, summary: "" };
+    r.data = { ...nextData, activity: capTrail([entry, ...storedActivity(nextData)]) };
   }
 
   await r.save();
   await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: `business.${area}.${module}.updated`, entityType: "BusinessRecord", entityId: r.id, sourceIp: ip, result: "Success" });
+  if (area === PO_AREA && module === PO_MODULE) await emailPoIfSent(prevData, r);
   return view(r);
 }
 
@@ -625,41 +720,20 @@ async function assertDeletable(auth: AuthContext, area: BusinessArea, module: st
     if (data.tenantId) {
       throw new BadRequestError("Tenant-linked lead — remove the tenant instead", "TENANT_LINKED_LEAD");
     }
-    // Check for dependent inquiries and projects pointing at this lead (by code or id)
-    const inqCount = await BusinessRecord.count({
+    // Dependent inquiries/projects pointing at this lead (by code or id), counted in
+    // Postgres on `data->>'leadId'` within the lead's own operating company.
+    const dependents = (mod: string) => BusinessRecord.count({
       where: {
         orgId: auth.orgId,
         area: "enterprise",
-        module: "ent-inq",
+        module: mod,
+        company: record.company,
+        [Op.and]: sequelize.where(sequelize.literal(`data->>'leadId'`), { [Op.in]: [record.code, record.id] }),
       },
     });
-    const prjCount = await BusinessRecord.count({
-      where: {
-        orgId: auth.orgId,
-        area: "enterprise",
-        module: "ent-projects",
-      },
-    });
-
-    if (inqCount > 0 || prjCount > 0) {
-      const inqs = await BusinessRecord.findAll({
-        where: { orgId: auth.orgId, area: "enterprise", module: "ent-inq" },
-      });
-      const prjs = await BusinessRecord.findAll({
-        where: { orgId: auth.orgId, area: "enterprise", module: "ent-projects" },
-      });
-      const qs = inqs.filter((q) => {
-        const d = (q.data || {}) as Record<string, unknown>;
-        return d.leadId === record.code || d.leadId === record.id;
-      }).length;
-      const pr = prjs.filter((p) => {
-        const d = (p.data || {}) as Record<string, unknown>;
-        return d.leadId === record.code || d.leadId === record.id;
-      }).length;
-
-      if (qs > 0 || pr > 0) {
-        throw new BadRequestError(`Has ${qs} inquiry(s) and ${pr} project(s) — cannot delete`, "LEAD_HAS_DEPENDENTS");
-      }
+    const [qs, pr] = await Promise.all([dependents("ent-inq"), dependents("ent-projects")]);
+    if (qs > 0 || pr > 0) {
+      throw new BadRequestError(`Has ${qs} inquiry(s) and ${pr} project(s) — cannot delete`, "LEAD_HAS_DEPENDENTS");
     }
   }
 }
@@ -761,6 +835,7 @@ export async function createProjectFromProposal(
 
 export async function deleteBusiness(auth: AuthContext, area: string, module: string, id: string, ip: string | null, company?: string): Promise<void> {
   assertArea(area);
+  assertModule(module);
   const co = resolveCompany(company);
   const r = await requireRecord(auth, area, module, id, co);
   await assertDeletable(auth, area, module, r);

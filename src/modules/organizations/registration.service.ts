@@ -1,14 +1,15 @@
-import { randomUUID } from "node:crypto";
 import type { Transaction } from "sequelize";
 import { sequelize } from "../../db/sequelize";
 import { Organization, RegistrationRequest, User, Role } from "../../db/models";
 import type { AuthContext } from "../../lib/scope";
 import type { RegistrationStatus } from "../../db/models/registrationRequest.model";
 import { assignSubscription } from "../subscriptions/subscription.service";
-import { sendActivationInvite } from "../notifications/notification.service";
+import { issueActivationToken, sendActivationInvite } from "../notifications/notification.service";
 import { writeAudit } from "../audit/audit.service";
 import { grantEverythingExceptSpOnly } from "../iam/tenantGrants";
+import { assertIdentityAvailable } from "../iam/auth.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors";
+import { maxCodeSeq, withCodeLock } from "../../lib/codeSeq";
 
 // belongsToMany generates a `setRoles` mixin at runtime; the User model does
 // not declare it, so reach it through a narrow association-only cast (mirrors
@@ -43,14 +44,9 @@ export interface RegistrationView {
   updatedAt: Date;
 }
 
-async function nextRequestCode(): Promise<string> {
-  const rows = await RegistrationRequest.findAll({ attributes: ["code"] });
-  let max = 1000;
-  for (const r of rows) {
-    const n = Number.parseInt((r.code ?? "").replace(/^TRQ-/, ""), 10);
-    if (Number.isFinite(n) && n > max) max = n;
-  }
-  return `TRQ-${max + 1}`;
+/** Locked max+1 `TRQ-NNNN`; insert with the same `tx`. */
+async function nextRequestCode(tx: Transaction): Promise<string> {
+  return withCodeLock("TRQ", tx, async () => `TRQ-${Math.max(1000, await maxCodeSeq(RegistrationRequest, "TRQ", tx)) + 1}`);
 }
 
 /** OD `TREQ_STATUSES` transitions. Approve/reject live in their own functions. */
@@ -124,15 +120,15 @@ export async function submitRegistration(
     const partner = await Organization.findOne({ where: { id: distributorOrgId, type: "Distributor" } });
     if (!partner) throw new BadRequestError("Selected partner does not exist", "PARTNER_NOT_FOUND");
   }
-  const req = await RegistrationRequest.create({
-    code: await nextRequestCode(),
+  const req = await sequelize.transaction(async (tx) => RegistrationRequest.create({
+    code: await nextRequestCode(tx),
     distributorOrgId,
     submittedBy: auth.orgId,
     proposedTenant: proposed as unknown as Record<string, unknown>,
     status: asDraft ? "Draft" : "Submitted",
     decisionReason: null,
     tenantId: null,
-  });
+  }, { transaction: tx }));
   await writeAudit({
     actorUserId: auth.userId,
     organizationId: distributorOrgId,
@@ -205,6 +201,7 @@ export async function approveRegistration(auth: AuthContext, requestId: string, 
   // Direct requests (no partner) parent to the Service Owner's own org, same
   // fallback tenant.service.ts's provisionTenant uses for a Direct tenant.
   const parentOrgId = req.distributorOrgId ?? auth.orgId;
+  const invite = issueActivationToken();
 
   // The monolith equivalent of the PRD saga: one transaction creates the tenant,
   // assigns a subscription, and creates the initial Tenant Administrator.
@@ -224,7 +221,7 @@ export async function approveRegistration(auth: AuthContext, requestId: string, 
     await assignSubscription(tenant.id, "standard", tx);
 
     // Administrator role for the new tenant org, granted the same curated
-    // non-SP action set the seeder gives its demo Distributor/Tenant admins
+    // non-SP action set the seeder gives its sample Distributor/Tenant admins
     // (`grantEverythingExceptSpOnly`) — without this the admin user below has
     // zero action grants and every authenticated request 403s (same defect
     // as `tenant.service.ts`'s `provisionTenant`, fixed there in lockstep).
@@ -234,12 +231,12 @@ export async function approveRegistration(auth: AuthContext, requestId: string, 
     );
     await grantEverythingExceptSpOnly(role.id, tx);
 
-    const activationToken = randomUUID();
+    await assertIdentityAvailable(p.adminUsername, p.adminEmail, tx);
     const admin = await User.create(
       {
         orgId: tenant.id, tenantId: tenant.id, fullName: p.adminFullName, username: p.adminUsername, email: p.adminEmail,
         passwordHash: null, status: "Pending Activation", position: "Administrator", workUnit: null,
-        lastLogin: null, activationToken, resetToken: null, resetExpires: null,
+        lastLogin: null, ...invite.fields, resetToken: null, resetExpires: null,
       },
       { transaction: tx },
     );
@@ -263,12 +260,12 @@ export async function approveRegistration(auth: AuthContext, requestId: string, 
       },
       tx,
     );
-
-    // Side effect after the row is staged; safe because invite is idempotent-ish (stub).
-    sendActivationInvite(admin.email, activationToken);
     return tenant;
   });
 
+  // After commit, so the link never points at a rolled-back account. A failed
+  // send is logged by the mailer; re-invite via POST /users/:id/resend-activation.
+  await sendActivationInvite(p.adminEmail, invite.raw, { variant: "registration" });
   return org;
 }
 

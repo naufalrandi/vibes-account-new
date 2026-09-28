@@ -291,6 +291,32 @@ export async function syncCatalog(auth: AuthContext, ip: string | null): Promise
   return listProcesses(auth);
 }
 
+/** The master catalog's process names, for callers that must validate a pick against it. */
+export const CATALOG_PROCESS_NAMES: readonly string[] = MASTER_CATALOG.map((e) => e.name);
+
+/**
+ * Materialise only the named master-catalog entries into this org's register
+ * (the subset form of `syncCatalog`): unknown names and already-present
+ * catalog rows are skipped. Returns the created processes.
+ */
+export async function adoptCatalogProcesses(auth: AuthContext, names: string[], ip: string | null): Promise<BusinessProcessView[]> {
+  const wanted = new Set(names);
+  const existing = new Set((await BusinessProcess.findAll({ where: { orgId: auth.orgId }, attributes: ["catalogKey"] }))
+    .map((p) => p.catalogKey).filter((k): k is string => !!k));
+  const created: BusinessProcessView[] = [];
+  for (const entry of MASTER_CATALOG) {
+    const key = catalogKeyFor(entry.name);
+    if (!wanted.has(entry.name) || existing.has(key)) continue;
+    const p = await BusinessProcess.create({
+      orgId: auth.orgId, code: await nextCode(auth.orgId), catalogKey: key, name: entry.name, group: entry.group,
+      subgroup: null, description: entry.desc, status: "Active", sourceType: "Catalog", createdBy: await actorName(auth),
+    });
+    await writeAudit({ actorUserId: auth.userId, organizationId: auth.orgId, action: "process.created", entityType: "BusinessProcess", entityId: p.id, sourceIp: ip, result: "Success" });
+    created.push(view(p));
+  }
+  return created;
+}
+
 // ================================ CRUD ======================================
 
 export async function listProcesses(auth: AuthContext): Promise<BusinessProcessView[]> {
